@@ -19,7 +19,7 @@ const buildOptions = {
   entryPoints: ["src/index.ts"],
   write: true,
   bundle: true,
-
+  format: "esm",
   outdir: "build",
   target: "es2020",
   platform: "node",

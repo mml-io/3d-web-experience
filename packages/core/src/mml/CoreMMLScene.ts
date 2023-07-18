@@ -1,4 +1,4 @@
-
+import {
   IMMLScene,
   Interaction,
   InteractionListener,
@@ -6,8 +6,8 @@
   MMLClickTrigger,
   PromptManager,
   PromptProps,
-
-
+  registerCustomElementsToWindow,
+  setGlobalMScene,
   PositionAndRotation,
 } from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
@@ -38,8 +38,8 @@ export class CoreMMLScene {
     const { interactionListener } = InteractionManager.init(document.body, this.camera, this.scene);
     this.interactionListener = interactionListener;
 
-
-
+    this.mmlScene = {
+      getAudioListener: () => this.audioListener,
       getRenderer: () => this.renderer,
       getThreeScene: () => this.scene,
       getRootContainer: () => this.group,
@@ -66,15 +66,15 @@ export class CoreMMLScene {
       prompt: (promptProps: PromptProps, callback: (message: string | null) => void) => {
         this.promptManager.prompt(promptProps, callback);
       },
-
+    };
     setGlobalMScene(this.mmlScene as IMMLScene);
     registerCustomElementsToWindow(window);
     this.clickTrigger = MMLClickTrigger.init(document, this.mmlScene as IMMLScene);
     if (this.debug) {
       console.log(this.clickTrigger);
-
+    }
     const frameElement = document.createElement("m-frame");
     frameElement.setAttribute("src", documentAddress);
     document.body.appendChild(frameElement);
-
-
+  }
+}

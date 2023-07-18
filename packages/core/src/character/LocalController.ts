@@ -35,30 +35,30 @@ export class LocalController {
   private jumpForce: number = 10;
   private canJump: boolean = true;
 
+  private inputDirections: {
+    forward: boolean;
+    backward: boolean;
+    left: boolean;
+    right: boolean;
+  } = {
+    forward: false,
+    backward: false,
+    left: false,
+    right: false,
+  };
+  private runInput: boolean = false;
 
+  private thirdPersonCamera: PerspectiveCamera | null = null;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  private speed: number = 0;
+  private targetSpeed: number = 0;
 
   public networkState: CharacterNetworkClientUpdate = {
-
+    id: 0,
     position: { x: 0, y: 0, z: 0 },
     rotation: { quaternionY: 0, quaternionW: 0 },
     state: AnimationState.idle,
-
+  };
 
   constructor(
     private readonly model: CharacterModel,
@@ -102,13 +102,13 @@ export class LocalController {
       this.resetPosition();
     }
     this.updateNetworkState();
-
+  }
 
   private getTargetAnimation(): AnimationState {
-
-
-
-
+    const { forward, backward, left, right } = this.inputDirections;
+    const hasAnyDirection = forward || backward || left || right;
+    const isRunning = this.runInput && hasAnyDirection;
+    const conflictingDirections = (forward && backward) || (left && right);
 
     if (conflictingDirections) return AnimationState.idle;
     return hasAnyDirection
@@ -116,39 +116,39 @@ export class LocalController {
         ? AnimationState.running
         : AnimationState.walking
       : AnimationState.idle;
-
+  }
 
   private updateRotationOffset(): void {
-
+    const { forward, backward, left, right } = this.inputDirections;
     if ((left && right) || (forward && backward)) return;
-
+    if (forward) {
       this.rotationOffset = Math.PI;
       if (left) this.rotationOffset = Math.PI + Math.PI / 4;
       if (right) this.rotationOffset = Math.PI - Math.PI / 4;
-
+    } else if (backward) {
       this.rotationOffset = Math.PI * 2;
       if (left) this.rotationOffset = -Math.PI * 2 - Math.PI / 4;
       if (right) this.rotationOffset = Math.PI * 2 + Math.PI / 4;
-
+    } else if (left) {
       this.rotationOffset = Math.PI * -0.5;
-
+    } else if (right) {
       this.rotationOffset = Math.PI * 0.5;
-
-
+    }
+  }
 
   private updateAzimuthalAngle(): void {
     if (!this.thirdPersonCamera || !this.model?.mesh) return;
     this.azimuthalAngle = Math.atan2(
       this.thirdPersonCamera.position.x - this.model.mesh.position.x,
       this.thirdPersonCamera.position.z - this.model.mesh.position.z,
-
+    );
   }
 
   private updateRotation(): void {
     if (!this.thirdPersonCamera || !this.model?.mesh) return;
     this.updateRotationOffset();
     this.updateAzimuthalAngle();
-
+    const rotationQuaternion = new Quaternion();
     rotationQuaternion.setFromAxisAngle(this.upVector, this.azimuthalAngle + this.rotationOffset);
     this.model.mesh.quaternion.rotateTowards(rotationQuaternion, 0.07);
   }
@@ -156,14 +156,14 @@ export class LocalController {
   private addScaledVectorToCharacter(deltaTime: number) {
     if (!this.model?.mesh) return;
     this.model.mesh.position.addScaledVector(this.tempVector, this.speed * deltaTime);
-
+  }
 
   private updatePosition(deltaTime: number, _iter: number): void {
     if (!this.model?.mesh) return;
+    const { forward, backward, left, right } = this.inputDirections;
 
-
-
-
+    this.targetSpeed = this.runInput ? 14 : 8;
+    this.speed += ease(this.targetSpeed, this.speed, 0.07);
 
     if (this.characterOnGround) {
       this.canJump = true;
@@ -231,11 +231,11 @@ export class LocalController {
 
     if (this.characterOnGround) {
       this.characterVelocity.set(0, 0, 0);
-
+    } else {
       deltaVector.normalize();
       this.characterVelocity.addScaledVector(deltaVector, -deltaVector.dot(this.characterVelocity));
-
-
+    }
+  }
 
   private updateNetworkState(): void {
     if (!this.model?.mesh) return;
@@ -245,18 +245,18 @@ export class LocalController {
       this.model.mesh.position.y,
       this.model.mesh.position.z,
     );
-
-
+    this.networkState = {
+      id: this.id,
       position: positionUpdate,
       rotation: { quaternionY: characterQuaternion?.y, quaternionW: characterQuaternion?.w },
       state: this.model.currentAnimation as AnimationState,
-
-
+    };
+  }
 
   private resetPosition(): void {
     if (!this.model?.mesh) return;
     this.characterVelocity.y = 0;
     this.model.mesh.position.y = 5;
     this.characterOnGround = false;
-
-
+  }
+}
