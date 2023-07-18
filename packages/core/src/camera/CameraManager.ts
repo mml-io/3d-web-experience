@@ -1,6 +1,6 @@
 import { PerspectiveCamera, Vector3 } from "three";
 
-
+import { ease } from "../helpers/math-helpers";
 
 
   public readonly camera: PerspectiveCamera;

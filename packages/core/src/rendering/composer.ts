@@ -1,3 +1,11 @@
+import {
+  EffectComposer,
+  RenderPass,
+  EffectPass,
+  FXAAEffect,
+  ShaderPass,
+  BloomEffect,
+} from "postprocessing";
 
 
 
@@ -7,15 +15,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
+import { GaussGrainEffect } from "./post-effects/gauss-grain";
 
 
 
@@ -39,6 +39,12 @@
 
 
 
+    this.renderer = new WebGLRenderer({
+      powerPreference: "high-performance",
+      antialias: false,
+      stencil: false,
+      depth: false,
+    });
 
 
 
@@ -48,22 +54,16 @@
 
 
 
+    this.fxaaEffect = new FXAAEffect();
+    this.fxaaPass = new EffectPass(this.camera, this.fxaaEffect);
+    this.bloomEffect = new BloomEffect();
+    this.bloomPass = new EffectPass(this.camera, this.bloomEffect);
+    this.gaussGrainPass = new ShaderPass(this.gaussGrainEffect, "tDiffuse");
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+    this.composer.addPass(this.gaussGrainPass);
 
     window.addEventListener("resize", () => {
       this.updateProjection();
@@ -76,17 +76,17 @@
     this.height = innerHeight;
 
 
-
+    if (this.fxaaPass) this.fxaaPass.setSize(this.width, this.height);
 
 
 
 
   public render(time: number): void {
 
-
-
-
-
-
+    this.gaussGrainEffect.uniforms.resolution.value = this.resolution;
+    this.gaussGrainEffect.uniforms.time.value = time;
+    this.gaussGrainEffect.uniforms.alpha.value = 1.0;
+    this.gaussGrainEffect.uniforms.amount.value = 0.035;
+    this.bloomEffect.intensity = 1.0;
 
 

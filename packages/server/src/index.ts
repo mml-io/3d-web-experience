@@ -1,7 +1,7 @@
 
 import url from "url";
 
-
+import { CharacterNetworkServer } from "@mml-playground/character-network";
 import cors from "cors";
 import express from "express";
 

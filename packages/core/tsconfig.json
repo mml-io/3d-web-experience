@@ -12,10 +12,10 @@
 
 
 
-
-
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "incremental": true,
 
 
-
+  "include": ["./src/**/*.ts*"]
 

@@ -1,4 +1,4 @@
-
+import { CharacterNetworkClient } from "@mml-playground/character-network";
 
   CameraManager,
 
@@ -7,7 +7,7 @@
 
   CoreMMLScene,
   KeyInputManager,
-
+  RunTimeManager,
 
 import { AudioListener, Fog, Group, PerspectiveCamera, Scene } from "three";
 
@@ -34,7 +34,7 @@ import { Room } from "./Room";
 
 
 
-
+    this.scene.fog = new Fog(0xdcdcdc, 0.1, 100);
     this.audioListener = new AudioListener();
     this.group = new Group();
     this.scene.add(this.group);
@@ -46,7 +46,7 @@ import { Room } from "./Room";
     this.camera.add(this.audioListener);
 
     this.networkClient = new CharacterNetworkClient();
-
+    this.collisionsManager = new CollisionsManager(this.scene);
     this.characterManager = new CharacterManager(
       this.collisionsManager,
       this.cameraManager,
@@ -60,16 +60,16 @@ import { Room } from "./Room";
     const host = window.location.host;
 
     const mmlScene = new CoreMMLScene(
-
-
-
+      this.composer.renderer,
+      this.scene,
+      this.camera,
       this.audioListener,
-
-
+      this.collisionsManager,
+      () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
-
+      },
       `${protocol}//${host}/document`,
-
+    );
     this.group.add(mmlScene.group);
     this.group.add(new Environment(this.scene, this.composer.renderer));
     this.group.add(new Lights());
@@ -83,7 +83,7 @@ import { Room } from "./Room";
 
 
 
-
+      modelScale: 1.0,
 
 
 
