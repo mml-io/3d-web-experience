@@ -8,7 +8,7 @@ import { CharacterNetworkClient } from "@mml-playground/character-network";
   CoreMMLScene,
   KeyInputManager,
   RunTimeManager,
-
+} from "@mml-playground/core";
 import { AudioListener, Fog, Group, PerspectiveCamera, Scene } from "three";
 
 import { Environment } from "./Environment";
@@ -96,16 +96,16 @@ import { Room } from "./Room";
       }
     });
 
-
-
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
     this.networkClient.connection
-
+      .connect(`${protocol}//${host}/network`)
 
 
 
           this.networkClient.connection.clientId!,
 
-
+          true,
 
 
 

@@ -13,9 +13,9 @@ export class Lights extends Group {
 
 
 
-
-
-
+    direction
+      .subVectors(this.directionalLight.position, this.directionalLight.target.position)
+      .normalize();
 
 
 
@@ -28,7 +28,7 @@ export class Lights extends Group {
 
 
 
-
+      scaleFactor * 2,
 
 
 

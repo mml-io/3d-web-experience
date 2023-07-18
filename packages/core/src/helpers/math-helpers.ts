@@ -4,7 +4,7 @@
 
 
 
-
+  yPos: number = 0,
 
 
 

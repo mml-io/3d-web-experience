@@ -1,36 +1,36 @@
 
+  "name": "mml-playground",
 
-
-
+  "engines": {
     "node": "16.x"
-
+  },
 
 
 
     "start": "npm run start -w @mml-playground/server",
     "iterate": "npm run build && lerna run --parallel --stream iterate",
+    "type-check": "lerna run --stream type-check",
+    "lint": "lerna run --stream lint",
+    "lint:fix": "lerna run --stream lint:fix"
 
 
+    "packages/*"
 
 
-
-
-
-
-
-
-
-
+    "@typescript-eslint/eslint-plugin": "^5.59.9",
+    "@typescript-eslint/parser": "^5.59.9",
+    "concurrently": "^8.1.0",
+    "esbuild": "0.17.19",
     "esbuild-plugin-copy": "2.1.1",
     "esbuild-plugin-d.ts": "^1.1.0",
+    "eslint": "^8.42.0",
 
 
 
 
-
-
-
-
-
+    "lerna": "6.6.2",
+    "prettier": "^2.8.8",
+    "rimraf": "^5.0.1",
+    "typescript": "^5.0.2"
 
 

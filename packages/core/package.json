@@ -1,5 +1,5 @@
 
-
+  "name": "@mml-playground/core",
 
   "version": "0.0.1",
   "main": "./build/index.js",
@@ -10,10 +10,10 @@
 
 
     "build": "rimraf ./build && node ./build.js --build",
-
-
-
-
+    "iterate": "node ./build.js --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint \"./src/**/*.{ts,}\" --max-warnings 0",
+    "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
 
 
     "@mml-playground/character-network": "0.0.1",

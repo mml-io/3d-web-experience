@@ -1,5 +1,5 @@
 
-
+  "name": "@mml-playground/character-network",
 
 
   "main": "./build/index.js",
@@ -10,10 +10,10 @@
 
 
     "build": "rimraf ./build && node ./build.js --build",
-
-
-
-
+    "iterate": "node ./build.js --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint \"./src/**/*.{ts,}\" --max-warnings 0",
+    "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
 
 
     "three": "^0.153.0",
@@ -24,6 +24,6 @@
     "@types/three": "^0.152.1",
 
 
-
+    "tsc-watch": "^6.0.4"
 
 

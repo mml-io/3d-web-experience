@@ -51,7 +51,7 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
 
 
 
-
+        `,
 
 
 
@@ -77,7 +77,7 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
 
 
           outgoingLight += smoothstep(0.1, 0.0, scanLines) * 0.1;
-
+        `,
 
 
 

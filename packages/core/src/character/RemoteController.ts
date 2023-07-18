@@ -1,15 +1,15 @@
 import { AnimationState, CharacterNetworkClientUpdate } from "@mml-playground/character-network";
-
-
-
-
-
-
-
+import {
+  AnimationAction,
+  AnimationClip,
+  AnimationMixer,
+  LoadingManager,
+  Object3D,
+  Quaternion,
   Vector3,
-
-
-
+} from "three";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { Character } from "./Character";
 
@@ -62,7 +62,7 @@ export class RemoteController {
           }
 
 
-
+        (error) => console.error(`Error loading ${animationFile}: ${error}`),
 
 
 
@@ -76,7 +76,7 @@ export class RemoteController {
           }
 
 
-
+        (error) => console.error(`Error loading ${animationFile}: ${error}`),
 
 
 
@@ -94,12 +94,12 @@ export class RemoteController {
 
 
 
-
-
-
-
-
-
+      targetAction
+        .reset()
+        .setEffectiveTimeScale(1)
+        .setEffectiveWeight(1)
+        .fadeIn(transitionDuration)
+        .play();
 
 
 

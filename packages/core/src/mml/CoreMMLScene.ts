@@ -1,5 +1,5 @@
 
-
+  IMMLScene,
   Interaction,
   InteractionListener,
   InteractionManager,
@@ -9,7 +9,7 @@
 
 
   PositionAndRotation,
-
+} from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -55,13 +55,13 @@ export class CoreMMLScene {
       },
       getUserPositionAndRotation: this.getUserPositionAndRotation,
       addInteraction: (interaction: Interaction) => {
-
+        this.interactionListener.addInteraction(interaction);
       },
       updateInteraction: (interaction: Interaction) => {
-
+        this.interactionListener.updateInteraction(interaction);
       },
       removeInteraction: (interaction: Interaction) => {
-
+        this.interactionListener.removeInteraction(interaction);
       },
       prompt: (promptProps: PromptProps, callback: (message: string | null) => void) => {
         this.promptManager.prompt(promptProps, callback);
