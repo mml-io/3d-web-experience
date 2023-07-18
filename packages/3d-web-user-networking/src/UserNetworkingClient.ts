@@ -27,6 +27,7 @@ export class UserNetworkingClient {
               this.connected = false;
               wsReject(new Error("WebSocket server not available"));
             };
+            this.connection.ws.binaryType = "arraybuffer";
             this.connection.ws.onmessage = async (message: MessageEvent) => {
               if (typeof message.data === "string") {
                 const data = JSON.parse(message.data);
@@ -46,12 +47,11 @@ export class UserNetworkingClient {
                   this.clientUpdates.delete(data.id);
                   console.log(`Client ID: ${data.id} left`);
                 }
-              } else if (message.data instanceof Blob) {
-                const arrayBuffer = await new Response(message.data).arrayBuffer();
-                const updates = UserNetworkingCodec.decodeUpdate(arrayBuffer);
+              } else if (message.data instanceof ArrayBuffer) {
+                const updates = UserNetworkingCodec.decodeUpdate(message.data);
                 this.clientUpdates.set(updates.id, updates);
               } else {
-                console.log(message.data);
+                console.error("Unhandled message type", message.data);
               }
             };
           } catch (error) {

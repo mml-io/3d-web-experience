@@ -7,6 +7,7 @@
     "lib": ["es2022", "dom"],
     "sourceMap": true,
     "allowJs": true,
+    "esModuleInterop": true,
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
@@ -14,6 +15,7 @@
     "downlevelIteration": true,
     "baseUrl": ".",
     "incremental": true,
+    "types": ["node", "jest"],
   },
   "include": ["./src/**/*.ts"]
 }

@@ -12,6 +12,8 @@ export type Client = {
   update: UserNetworkingClientUpdate;
 };
 
+const WebSocketOpenStatus = 1;
+
 export class UserNetworkingServer {
   private clients: Map<number, Client> = new Map();
   private clientLastPong: Map<number, number> = new Map();
@@ -30,7 +32,7 @@ export class UserNetworkingServer {
         this.clientLastPong.delete(id);
         const disconnectMessage = JSON.stringify({ id, disconnect: true });
         for (const { socket: otherSocket } of this.clients.values()) {
-          if (otherSocket.readyState === WebSocket.OPEN) {
+          if (otherSocket.readyState === WebSocketOpenStatus) {
             otherSocket.send(disconnectMessage);
           }
         }
@@ -40,7 +42,7 @@ export class UserNetworkingServer {
 
   pingClients() {
     this.clients.forEach((client) => {
-      if (client.socket.readyState === WebSocket.OPEN) {
+      if (client.socket.readyState === WebSocketOpenStatus) {
         client.socket.send(JSON.stringify({ type: "ping" }));
       }
     });
@@ -58,7 +60,7 @@ export class UserNetworkingServer {
     const connectMessage = JSON.stringify({ id, connected: true });
     socket.send(connectMessage);
     for (const { socket: otherSocket } of this.clients.values()) {
-      if (otherSocket.readyState === WebSocket.OPEN) {
+      if (otherSocket.readyState === WebSocketOpenStatus) {
         otherSocket.send(connectMessage);
       }
     }
@@ -90,7 +92,7 @@ export class UserNetworkingServer {
             this.clientLastPong.set(data.id, Date.now());
           }
         } catch (e) {
-          console.log("Error parsing JSON message", message, e);
+          console.error("Error parsing JSON message", message, e);
         }
 
         return;
@@ -102,7 +104,7 @@ export class UserNetworkingServer {
           this.clients.get(id)!.update = update;
 
           for (const { socket: otherSocket } of this.clients.values()) {
-            if (otherSocket !== socket && otherSocket.readyState === WebSocket.OPEN) {
+            if (otherSocket !== socket && otherSocket.readyState === WebSocketOpenStatus) {
               otherSocket.send(message);
             }
           }
@@ -113,8 +115,8 @@ export class UserNetworkingServer {
     socket.on("close", () => {
       this.clients.delete(id);
       const disconnectMessage = JSON.stringify({ id, disconnect: true });
-      for (const { socket: otherSocket } of this.clients.values()) {
-        if (otherSocket.readyState === WebSocket.OPEN) {
+      for (const [clientId, { socket: otherSocket }] of this.clients) {
+        if (otherSocket.readyState === WebSocketOpenStatus) {
           otherSocket.send(disconnectMessage);
         }
       }
@@ -123,15 +125,17 @@ export class UserNetworkingServer {
 
   sendUpdates(): void {
     const updates: UserNetworkingClientUpdate[] = [];
-    this.clients.forEach((client) => {
+    for (const [clientId, client] of this.clients) {
       updates.push(client.update);
-    });
+    }
 
     for (const update of updates) {
       const encodedUpdate = UserNetworkingCodec.encodeUpdate(update);
-      this.clients.forEach((client) => {
-        client.socket.send(encodedUpdate);
-      });
+      for (const [clientId, client] of this.clients) {
+        if (client.socket.readyState === WebSocketOpenStatus) {
+          client.socket.send(encodedUpdate);
+        }
+      }
     }
   }
 }
