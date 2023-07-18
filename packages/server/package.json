@@ -3,6 +3,14 @@
 
 
 
+    "node": "16.x"
+
+
+  "type": "module",
+
+
+    "build": "rimraf ./build && node build.js --build",
+    "start": "NODE_ENV=production node build/index.js",
 
 
 
@@ -10,25 +18,17 @@
 
 
 
+    "networked-dom-server": "0.2.0",
+
+
+
+    "cors": "^2.8.5",
+    "http-proxy": "^1.18.1",
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    "@types/cors": "2.8.13",
 
 
 

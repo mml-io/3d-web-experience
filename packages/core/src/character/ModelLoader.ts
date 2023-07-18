@@ -4,6 +4,9 @@
 
 
 
+  private readonly loadingManager: LoadingManager;
+  private readonly fbxLoader: FBXLoader;
+  private readonly gltfLoader: GLTFLoader;
 
 
 
@@ -21,10 +24,7 @@
 
 
 
-
-
-
-
+    if (this.debug) {
 
 
 

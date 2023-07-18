@@ -1,6 +1,7 @@
 
 
 
+    "module": "esnext",
 
 
 
@@ -11,9 +12,8 @@
 
 
 
-
-
-
+    "baseUrl": ".",
+    "incremental": true,
 
 
 

@@ -1,14 +1,14 @@
 
 
 
+  "version": "0.0.1",
+  "type": "module",
+
+    "/build"
 
 
-
-
-
-
-
-
+    "build": "rimraf ./build && node build.js --build",
+    "iterate": "node ./build.js --watch",
 
 
 

@@ -1,6 +1,15 @@
 
 
 
+  "version": "0.0.1",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+
+
+    "/build"
+
+
+    "build": "rimraf ./build && node ./build.js --build",
 
 
 
@@ -8,16 +17,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
+    "mml-web": "0.2.0",
 
 
 

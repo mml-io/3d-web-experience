@@ -22,23 +22,33 @@
 
 
 
+          documentUrl: `${window.params.EXAMPLES_HOST_URL}/duck.html`,
 
 
 
 
 
+          documentUrl: `${window.params.EXAMPLES_HOST_URL}/dice.html`,
 
 
 
 
 
+          documentUrl: `${window.params.EXAMPLES_HOST_URL}/videoplayer.html`,
 
 
 
 
 
+          documentUrl: `${window.params.EXAMPLES_HOST_URL}/weather.html`,
 
 
+        {
+          x: -20,
+          z: (SLOT_DEPTH + SPACE_BETWEEN_SLOTS) * 4,
+          documentUrl: `/assets/static-mml.html`,
+          title: "Static MML",
+        },
 
 
 
@@ -227,21 +237,11 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+          if (this.labelValue !== value) {
+            this.labelValue = value;
+            for (const labelElem of this.documentLabelElems) {
+              labelElem.setAttribute("content", value);
+            }
 
 
 

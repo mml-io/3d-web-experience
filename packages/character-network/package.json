@@ -2,14 +2,14 @@
 
 
 
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "type": "module",
+
+    "/build"
 
 
-
-
-
-
-
-
+    "build": "rimraf ./build && node ./build.js --build",
 
 
 

@@ -2,6 +2,13 @@
 
 
 
+    "node": "16.x"
+
+
+
+
+    "start": "npm run start -w @mml-playground/server",
+    "iterate": "npm run build && lerna run --parallel --stream iterate",
 
 
 
@@ -14,15 +21,8 @@
 
 
 
-
-
-
-
-
-
-
-
-
+    "esbuild-plugin-copy": "2.1.1",
+    "esbuild-plugin-d.ts": "^1.1.0",
 
 
 
