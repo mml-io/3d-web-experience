@@ -1,0 +1,27 @@
+{
+  "name": "@mml-io/3d-web-client-core",
+  "version": "0.1.0",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "type": "module",
+  "files": [
+    "/build"
+  ],
+  "scripts": {
+    "build": "rimraf ./build && node ./build.js --build",
+    "iterate": "node ./build.js --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint \"./src/**/*.{ts,}\" --max-warnings 0",
+    "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
+  },
+  "dependencies": {
+    "@mml-io/3d-web-user-networking": "0.1.0",
+    "mml-web": "0.2.0",
+    "three": "^0.153.0",
+    "postprocessing": "6.32.1",
+    "three-mesh-bvh": "0.6.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.152.1"
+  }
+}

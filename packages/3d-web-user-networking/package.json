@@ -1,0 +1,24 @@
+{
+  "name": "@mml-io/3d-web-user-networking",
+  "version": "0.1.0",
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "type": "module",
+  "files": [
+    "/build"
+  ],
+  "scripts": {
+    "build": "rimraf ./build && node ./build.js --build",
+    "iterate": "node ./build.js --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint \"./src/**/*.{ts,}\" --max-warnings 0",
+    "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
+  },
+  "dependencies": {
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.1.7",
+    "@types/ws": "^8.5.4"
+  }
+}
