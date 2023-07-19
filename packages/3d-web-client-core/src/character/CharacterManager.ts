@@ -167,11 +167,7 @@ export class CharacterManager {
 
         const characterController = this.remoteCharacterControllers.get(id);
         if (characterController) {
-          characterController.update(
-            update,
-            this.timeManager.time,
-            this.timeManager.smoothDeltaTime,
-          );
+          characterController.update(update, this.timeManager.time, this.timeManager.deltaTime);
         }
       }
 
