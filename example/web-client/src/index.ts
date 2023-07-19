@@ -5,7 +5,7 @@ import {
   CharacterState,
   CollisionsManager,
   Composer,
-  CoreMMLScene,
+  MMLCompositionScene,
   KeyInputManager,
   TimeManager,
 } from "@mml-io/3d-web-client-core";
@@ -94,7 +94,7 @@ export class App {
     );
     this.group.add(this.characterManager.group);
 
-    const mmlScene = new CoreMMLScene(
+    const mmlComposition = new MMLCompositionScene(
       this.composer.renderer,
       this.scene,
       this.camera,
@@ -103,9 +103,9 @@ export class App {
       () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
-      `${protocol}//${host}/mml-documents/dice.html`,
+      [`${protocol}//${host}/mml-documents/example-mml.html`],
     );
-    this.group.add(mmlScene.group);
+    this.group.add(mmlComposition.group);
     this.group.add(new Environment(this.scene, this.composer.renderer));
     this.group.add(new Lights());
 

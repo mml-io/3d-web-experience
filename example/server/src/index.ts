@@ -12,8 +12,6 @@ import { addWebAppRoutes } from "./router/web-app-routes";
 
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
 const PORT = process.env.PORT || 8080;
-const CHARACTER_NETWORK_SOCKET_PATH = "/network";
-const MML_DOCUMENTS_SOCKET_PATH = "/mml-documents";
 const documentsWatchPath = path.resolve(path.join(dirname, "../mml-documents"), "*.html");
 
 const { app } = enableWs(express());
@@ -22,7 +20,7 @@ app.enable("trust proxy");
 const mmlDocumentsServer = new MMLDocumentsServer(documentsWatchPath);
 
 // Handle example document sockets
-app.ws(`${MML_DOCUMENTS_SOCKET_PATH}/:filename`, (ws: WebSocket, req: express.Request) => {
+app.ws(`/mml-documents/:filename`, (ws: WebSocket, req: express.Request) => {
   const { filename } = req.params;
   mmlDocumentsServer.handle(filename, ws);
 });
@@ -31,7 +29,7 @@ app.ws(`${MML_DOCUMENTS_SOCKET_PATH}/:filename`, (ws: WebSocket, req: express.Re
 app.use("/assets/", cors(), express.static(path.resolve(dirname, "../assets/")));
 
 const userNetworkingServer = new UserNetworkingServer();
-app.ws(CHARACTER_NETWORK_SOCKET_PATH, (ws) => {
+app.ws("/network", (ws) => {
   userNetworkingServer.connectClient(ws);
 });
 

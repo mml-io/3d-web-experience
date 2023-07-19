@@ -8,9 +8,11 @@ This repository contains packages used to run a web-based, multi-user 3D web exp
 
 There is an example implementation of a 3D web experience in the `examples` directory. This example contains:
 
-* `web-client` - A THREE.js 3D experience utilizing the `@mml-io/3d-web-client-core` package.
-* `server` - A server which serves the `web-client` and handles user networking WebSocket connections with `@mml-io/3d-web-user-networking` 
-  * Additionally, it runs MML documents in the `mml-documents` directory which can be connected to by the `web-client`.
+* `web-client`
+  * A THREE.js 3D experience utilizing the `@mml-io/3d-web-client-core` and `@mml-io/3d-web-user-networking` packages to create a multi-user 3D web client that connects to the server.
+* `server`
+  * A server which serves the `web-client` and handles user networking WebSocket connections with `@mml-io/3d-web-user-networking` 
+  * Additionally, the server runs MML documents in the `mml-documents` directory which are then connected to by the `web-client`.
 
 It can be easily deployed to environments that support Node.js and expose ports to the internet.
 

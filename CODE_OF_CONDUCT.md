@@ -1,4 +1,4 @@
-# Code of Conduct - MML Playground
+# Code of Conduct - MML 3D Web Experience
 
 ## Our Pledge
 

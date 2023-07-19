@@ -1,4 +1,4 @@
-# Contributing to MML Playground
+# Contributing to MML 3D Web Experience
 
 First off, thanks for taking the time to contribute! ❤️
 
@@ -21,7 +21,7 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 ## Code of Conduct
 
 This project and everyone participating in it is governed by the
-[MML Playground Code of Conduct](https://github.com/mml-io/mml-playground/blob/main/CODE_OF_CONDUCT.md).
+[MML 3D Web Experience Code of Conduct](https://github.com/mml-io/3d-web-experience/blob/main/CODE_OF_CONDUCT.md).
 By participating, you are expected to uphold this code. Please report unacceptable behavior
 to <marcus@mml.io>.
 
@@ -30,11 +30,11 @@ to <marcus@mml.io>.
 
 > If you want to ask a question, we assume that you have read the available [Documentation](https://mml.io).
 
-Before you ask a question, it is best to search for existing [Issues](https://github.com/mml-io/mml-playground/issues) that might help you. In case you have found a suitable issue and still need clarification, you can write your question in this issue. It is also advisable to search the internet for answers first.
+Before you ask a question, it is best to search for existing [Issues](https://github.com/mml-io/3d-web-experience/issues) that might help you. In case you have found a suitable issue and still need clarification, you can write your question in this issue. It is also advisable to search the internet for answers first.
 
-If you then still feel the need to ask a question specific to MML Playground and need clarification, we recommend the following:
+If you then still feel the need to ask a question specific to MML 3D Web Experience and need clarification, we recommend the following:
 
-- Create a new [Issue](https://github.com/mml-io/mml-playground/issues/new) in this repository.
+- Create a new [Issue](https://github.com/mml-io/3d-web-experience/issues/new) in this repository.
 - Provide as much context as you can about what you're running into.
 - Provide project and platform versions (nodejs, npm, etc), depending on what seems relevant.
 
@@ -55,7 +55,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 - Make sure that you are using the latest version.
 - Determine if your bug is really a bug and not an error on your side e.g. using incompatible environment components/versions (Make sure that you have read the [documentation](https://mml.io). If you are looking for support, you might want to check [this section](#i-have-a-question)).
-- To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/mml-io/mml-playground/issues?q=label%3Abug).
+- To see if other users have experienced (and potentially already solved) the same issue you are having, check if there is not already a bug report existing for your bug or error in the [bug tracker](https://github.com/mml-io/3d-web-experience/issues?q=label%3Abug).
 - Also make sure to search the internet (including Stack Overflow) to see if users outside of the GitHub community have discussed the issue.
 - Collect information about the bug:
   - Stack trace (Traceback)
@@ -68,7 +68,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 
 We use GitHub issues to track bugs and errors. If you run into an issue with the project:
 
-- Open a new [Issue](https://github.com/mml-io/mml-playground/issues/new).
+- Open a new [Issue](https://github.com/mml-io/3d-web-experience/issues/new).
 - Explain the behavior you would expect and the actual behavior.
 - Please provide as much context as possible and describe the *reproduction steps* that someone else can follow to recreate the issue on their own. This usually includes your code. For good bug reports you should isolate the problem and create a reduced test case.
 - Provide the information you collected in the previous section.
@@ -86,12 +86,12 @@ This section guides you through submitting an enhancement suggestion for MML, **
 
 - Make sure that you are using the latest version.
 - Read the [documentation](https://mml.io) carefully and find out if the functionality is already covered, maybe by an individual configuration.
-- Look through the existing [issues](https://github.com/mml-io/mml-playground/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
+- Look through the existing [issues](https://github.com/mml-io/3d-web-experience/issues) to see if the enhancement has already been suggested. If it has, add a comment to the existing issue instead of opening a new one.
 - Find out whether your idea fits with the scope and aims of the project. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Keep in mind that we want features that will be useful to the majority of our users and not just a small subset. If you're just targeting a minority of users, consider writing an add-on/plugin library.
 
 #### How Do I Submit a Good Enhancement Suggestion?
 
-Enhancement suggestions for this project are tracked as [GitHub Issues](https://github.com/mml-io/mml-playground/issues) in this repository. If your suggestion relates to the overall MML project, please start a new [discussion](https://github.com/mml-io/mml/discussions/new) in the [MML repository](https://github.com/mml-io/mml).
+Enhancement suggestions for this project are tracked as [GitHub Issues](https://github.com/mml-io/3d-web-experience/issues) in this repository. If your suggestion relates to the overall MML project, please start a new [discussion](https://github.com/mml-io/mml/discussions/new) in the [MML repository](https://github.com/mml-io/mml).
 
 - Use a **clear and descriptive title** for the discussion to identify the suggestion.
 - Provide a **step-by-step description of the suggested enhancement** in as many details as possible.

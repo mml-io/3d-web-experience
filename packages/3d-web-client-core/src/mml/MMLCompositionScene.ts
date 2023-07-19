@@ -15,7 +15,7 @@ import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 
-export class CoreMMLScene {
+export class MMLCompositionScene {
   public group: Group;
   private debug: boolean = false;
 
@@ -31,7 +31,7 @@ export class CoreMMLScene {
     private audioListener: AudioListener,
     private collisionsManager: CollisionsManager,
     private getUserPositionAndRotation: () => PositionAndRotation,
-    documentAddress: string,
+    documentAddresses: Array<string>,
   ) {
     this.group = new Group();
     this.promptManager = PromptManager.init(document.body);
@@ -74,8 +74,10 @@ export class CoreMMLScene {
     if (this.debug) {
       console.log(this.clickTrigger);
     }
-    const frameElement = document.createElement("m-frame");
-    frameElement.setAttribute("src", documentAddress);
-    document.body.appendChild(frameElement);
+    for (const address of documentAddresses) {
+      const frameElement = document.createElement("m-frame");
+      frameElement.setAttribute("src", address);
+      document.body.appendChild(frameElement);
+    }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@mml-playground/server",
+  "name": "@example/server",
   "private": true,
   "version": "0.0.1",
   "engines": {
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@mml-io/3d-web-user-networking": "0.1.0",
-    "@mml-playground/web": "0.0.1",
+    "@example/web-client": "0.0.1",
     "networked-dom-server": "0.3.0",
     "chokidar": "^3.5.3",
     "express": "4.18.2",
