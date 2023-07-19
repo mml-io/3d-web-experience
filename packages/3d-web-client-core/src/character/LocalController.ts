@@ -1,4 +1,3 @@
-import { AnimationState, UserNetworkingClientUpdate } from "@mml-io/3d-web-user-networking";
 import { Box3, Line3, Matrix4, PerspectiveCamera, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
@@ -8,6 +7,7 @@ import { KeyInputManager } from "../input/KeyInputManager";
 import { TimeManager } from "../time/TimeManager";
 
 import { CharacterModel } from "./CharacterModel";
+import { AnimationState, CharacterState } from "./CharacterState";
 
 export class LocalController {
   private collisionDetectionSteps = 15;
@@ -53,7 +53,7 @@ export class LocalController {
   private speed: number = 0;
   private targetSpeed: number = 0;
 
-  public networkState: UserNetworkingClientUpdate = {
+  public networkState: CharacterState = {
     id: 0,
     position: { x: 0, y: 0, z: 0 },
     rotation: { quaternionY: 0, quaternionW: 0 },

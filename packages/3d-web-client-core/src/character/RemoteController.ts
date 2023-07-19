@@ -1,4 +1,3 @@
-import { AnimationState, UserNetworkingClientUpdate } from "@mml-io/3d-web-user-networking";
 import {
   AnimationAction,
   AnimationClip,
@@ -12,6 +11,7 @@ import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { Character } from "./Character";
+import { AnimationState, CharacterState } from "./CharacterState";
 
 export class RemoteController {
   public characterModel: Object3D | null = null;
@@ -24,7 +24,7 @@ export class RemoteController {
   private fbxLoader: FBXLoader = new FBXLoader(this.loadManager);
   private gltfLoader: GLTFLoader = new GLTFLoader(this.loadManager);
 
-  public networkState: UserNetworkingClientUpdate = {
+  public networkState: CharacterState = {
     id: 0,
     position: { x: 0, y: 0, z: 0 },
     rotation: { quaternionY: 0, quaternionW: 0 },
@@ -36,7 +36,7 @@ export class RemoteController {
     this.animationMixer = new AnimationMixer(this.characterModel);
   }
 
-  public update(clientUpdate: UserNetworkingClientUpdate, time: number, deltaTime: number): void {
+  public update(clientUpdate: CharacterState, time: number, deltaTime: number): void {
     if (!this.character) return;
     this.character.update(time);
     this.updateFromNetwork(clientUpdate);
@@ -108,7 +108,7 @@ export class RemoteController {
     this.currentAnimation = targetAnimation;
   }
 
-  private updateFromNetwork(clientUpdate: UserNetworkingClientUpdate): void {
+  private updateFromNetwork(clientUpdate: CharacterState): void {
     if (!this.characterModel) return;
     const { position, rotation, state } = clientUpdate;
     this.characterModel.position.lerp(new Vector3(position.x, position.y, position.z), 0.2);

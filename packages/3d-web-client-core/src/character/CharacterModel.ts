@@ -1,4 +1,3 @@
-import { AnimationState } from "@mml-io/3d-web-user-networking";
 import {
   AnimationAction,
   AnimationClip,
@@ -11,6 +10,7 @@ import {
 
 import { CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
+import { AnimationState } from "./CharacterState";
 import { ModelLoader } from "./ModelLoader";
 
 export class CharacterModel {

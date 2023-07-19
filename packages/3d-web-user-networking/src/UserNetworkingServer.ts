@@ -1,11 +1,14 @@
 import WebSocket from "ws";
 
-import { heartBeatRate, packetsUpdateRate, pingPongRate } from "./user-networking-settings";
 import {
-  AnimationState,
-  UserNetworkingClientUpdate,
-  UserNetworkingCodec,
-} from "./UserNetworkingCodec";
+  CONNECTED_MESSAGE_TYPE,
+  DISCONNECTED_MESSAGE_TYPE,
+  FromClientMessage,
+  FromServerMessage,
+  IDENTITY_MESSAGE_TYPE,
+} from "./messages";
+import { heartBeatRate, packetsUpdateRate, pingPongRate } from "./user-networking-settings";
+import { UserNetworkingClientUpdate, UserNetworkingCodec } from "./UserNetworkingCodec";
 
 export type Client = {
   socket: WebSocket;
@@ -30,7 +33,10 @@ export class UserNetworkingServer {
       if (now - clientLastPong > heartBeatRate) {
         this.clients.delete(id);
         this.clientLastPong.delete(id);
-        const disconnectMessage = JSON.stringify({ id, disconnect: true });
+        const disconnectMessage = JSON.stringify({
+          id,
+          type: DISCONNECTED_MESSAGE_TYPE,
+        } as FromServerMessage);
         for (const { socket: otherSocket } of this.clients.values()) {
           if (otherSocket.readyState === WebSocketOpenStatus) {
             otherSocket.send(disconnectMessage);
@@ -43,7 +49,7 @@ export class UserNetworkingServer {
   pingClients() {
     this.clients.forEach((client) => {
       if (client.socket.readyState === WebSocketOpenStatus) {
-        client.socket.send(JSON.stringify({ type: "ping" }));
+        client.socket.send(JSON.stringify({ type: "ping" } as FromServerMessage));
       }
     });
   }
@@ -56,14 +62,23 @@ export class UserNetworkingServer {
 
   connectClient(socket: WebSocket) {
     const id = this.getId();
+    console.log(`Client ID: ${id} joined`);
 
-    const connectMessage = JSON.stringify({ id, connected: true });
-    socket.send(connectMessage);
+    const connectMessage = JSON.stringify({
+      id,
+      type: CONNECTED_MESSAGE_TYPE,
+    } as FromServerMessage);
     for (const { socket: otherSocket } of this.clients.values()) {
       if (otherSocket.readyState === WebSocketOpenStatus) {
         otherSocket.send(connectMessage);
       }
     }
+
+    const identityMessage = JSON.stringify({
+      id,
+      type: IDENTITY_MESSAGE_TYPE,
+    } as FromServerMessage);
+    socket.send(identityMessage);
 
     for (const { update } of this.clients.values()) {
       socket.send(UserNetworkingCodec.encodeUpdate(update));
@@ -75,46 +90,37 @@ export class UserNetworkingServer {
         id,
         position: { x: 0, y: 0, z: 0 },
         rotation: { quaternionY: 0, quaternionW: 0 },
-        state: AnimationState.idle,
+        state: 0,
       },
     });
 
     socket.on("message", (message: WebSocket.Data, _isBinary: boolean) => {
-      let update;
-
       if (message instanceof Buffer) {
         const arrayBuffer = new Uint8Array(message).buffer;
-        update = UserNetworkingCodec.decodeUpdate(arrayBuffer);
-      } else {
-        try {
-          const data = JSON.parse(message as string);
-          if (data.type === "pong") {
-            this.clientLastPong.set(data.id, Date.now());
-          }
-        } catch (e) {
-          console.error("Error parsing JSON message", message, e);
-        }
-
-        return;
-      }
-
-      if (update) {
+        const update = UserNetworkingCodec.decodeUpdate(arrayBuffer);
         update.id = id;
         if (this.clients.get(id) !== undefined) {
           this.clients.get(id)!.update = update;
-
-          for (const { socket: otherSocket } of this.clients.values()) {
-            if (otherSocket !== socket && otherSocket.readyState === WebSocketOpenStatus) {
-              otherSocket.send(message);
-            }
+        }
+      } else {
+        try {
+          const data = JSON.parse(message as string) as FromClientMessage;
+          if (data.type === "pong") {
+            this.clientLastPong.set(id, Date.now());
           }
+        } catch (e) {
+          console.error("Error parsing JSON message", message, e);
         }
       }
     });
 
     socket.on("close", () => {
+      console.log("Client disconnected", id);
       this.clients.delete(id);
-      const disconnectMessage = JSON.stringify({ id, disconnect: true });
+      const disconnectMessage = JSON.stringify({
+        id,
+        type: DISCONNECTED_MESSAGE_TYPE,
+      } as FromServerMessage);
       for (const [clientId, { socket: otherSocket }] of this.clients) {
         if (otherSocket.readyState === WebSocketOpenStatus) {
           otherSocket.send(disconnectMessage);
@@ -124,16 +130,13 @@ export class UserNetworkingServer {
   }
 
   sendUpdates(): void {
-    const updates: UserNetworkingClientUpdate[] = [];
     for (const [clientId, client] of this.clients) {
-      updates.push(client.update);
-    }
-
-    for (const update of updates) {
+      const update = client.update;
       const encodedUpdate = UserNetworkingCodec.encodeUpdate(update);
-      for (const [clientId, client] of this.clients) {
-        if (client.socket.readyState === WebSocketOpenStatus) {
-          client.socket.send(encodedUpdate);
+
+      for (const [otherClientId, otherClient] of this.clients) {
+        if (otherClientId !== clientId && otherClient.socket.readyState === WebSocketOpenStatus) {
+          otherClient.socket.send(encodedUpdate);
         }
       }
     }

@@ -5,33 +5,12 @@
 import express from "express";
 import enableWs from "express-ws";
 
+import { UserNetworkingClientUpdate } from "../src";
+import { WebsocketStatus } from "../src/ReconnectingWebSocket";
 import { UserNetworkingClient } from "../src/UserNetworkingClient";
 import { UserNetworkingServer } from "../src/UserNetworkingServer";
 
-function waitUntil(checkFn: () => boolean) {
-  return new Promise((resolve, reject) => {
-    if (checkFn()) {
-      resolve(null);
-      return;
-    }
-
-    let maxTimeout: NodeJS.Timeout | null = null;
-    const interval = setInterval(() => {
-      if (checkFn()) {
-        clearInterval(interval);
-        if (maxTimeout) {
-          clearTimeout(maxTimeout);
-        }
-        resolve(null);
-      }
-    }, 10);
-
-    maxTimeout = setTimeout(() => {
-      clearInterval(interval);
-      reject(new Error("waitUntil timed out"));
-    }, 3000);
-  });
-}
+import { createWaitable, waitUntil } from "./test-utils";
 
 describe("UserNetworking", () => {
   test("should see updates end-to-end", async () => {
@@ -43,11 +22,59 @@ describe("UserNetworking", () => {
     });
     const listener = app.listen(8585);
 
-    const user1 = new UserNetworkingClient();
-    const user2 = new UserNetworkingClient();
+    const serverAddress = "ws://localhost:8585/user-networking";
 
-    await user1.connection.connect("ws://localhost:8585/user-networking");
-    await user2.connection.connect("ws://localhost:8585/user-networking");
+    const [user1IdentityPromise, user1IdentityResolve] = await createWaitable<number>();
+    const [user1ConnectPromise, user1ConnectResolve] = await createWaitable<null>();
+    const [user2IdentityPromise, user2IdentityResolve] = await createWaitable<number>();
+    const [user2ConnectPromise, user2ConnectResolve] = await createWaitable<null>();
+
+    const user1UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
+    const user1 = new UserNetworkingClient(
+      serverAddress,
+      (url) => new WebSocket(url),
+      (status) => {
+        if (status === WebsocketStatus.Connected) {
+          user1ConnectResolve(null);
+        }
+      },
+      (clientId: number) => {
+        user1IdentityResolve(clientId);
+      },
+      (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
+        if (userNetworkingClientUpdate === null) {
+          user1UserStates.delete(clientId);
+        } else {
+          user1UserStates.set(clientId, userNetworkingClientUpdate);
+        }
+      },
+    );
+    await user1ConnectPromise;
+    expect(await user1IdentityPromise).toEqual(1);
+
+    const user2UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
+    const user2 = new UserNetworkingClient(
+      serverAddress,
+      (url) => new WebSocket(url),
+      (status) => {
+        if (status === WebsocketStatus.Connected) {
+          user2ConnectResolve(null);
+        }
+      },
+      (clientId: number) => {
+        user2IdentityResolve(clientId);
+      },
+      (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
+        if (userNetworkingClientUpdate === null) {
+          user2UserStates.delete(clientId);
+        } else {
+          user2UserStates.set(clientId, userNetworkingClientUpdate);
+        }
+      },
+    );
+
+    await user2ConnectPromise;
+    expect(await user2IdentityPromise).toEqual(2);
 
     user1.sendUpdate({
       id: 1,
@@ -58,13 +85,11 @@ describe("UserNetworking", () => {
 
     // Wait for user 2 to see the update
     await waitUntil(
-      () =>
-        user2.clientUpdates.size === 2 &&
-        user2.clientUpdates.has(1) &&
-        user2.clientUpdates.get(1).position.x !== 0,
+      () => user2UserStates.has(1) && user2UserStates.get(1).position.x !== 0,
+      "wait for user 2 to see the update from user 1",
     );
 
-    expect(Array.from(user2.clientUpdates.entries())).toEqual([
+    expect(Array.from(user2UserStates.entries())).toEqual([
       [
         1,
         {
@@ -72,15 +97,6 @@ describe("UserNetworking", () => {
           position: { x: 1, y: 2, z: 3 },
           rotation: { quaternionY: expect.closeTo(0.1), quaternionW: expect.closeTo(0.2) },
           state: 1,
-        },
-      ],
-      [
-        2,
-        {
-          id: 2,
-          position: { x: 0, y: 0, z: 0 },
-          rotation: { quaternionY: expect.closeTo(0), quaternionW: expect.closeTo(0) },
-          state: 0,
         },
       ],
     ]);
@@ -94,19 +110,11 @@ describe("UserNetworking", () => {
 
     // Wait for user 1 to see the update
     await waitUntil(
-      () => user1.clientUpdates.has(2) && user1.clientUpdates.get(2).position.x !== 0,
+      () => user1UserStates.has(2) && user1UserStates.get(2).position.x !== 0,
+      "wait for user 1 to see the update from user 2",
     );
 
-    expect(Array.from(user1.clientUpdates.entries())).toEqual([
-      [
-        1,
-        {
-          id: 1,
-          position: { x: 1, y: 2, z: 3 },
-          rotation: { quaternionY: expect.closeTo(0.1), quaternionW: expect.closeTo(0.2) },
-          state: 1,
-        },
-      ],
+    expect(Array.from(user1UserStates.entries())).toEqual([
       [
         2,
         {
@@ -118,22 +126,12 @@ describe("UserNetworking", () => {
       ],
     ]);
 
-    user2.connection.ws.close();
+    user2.stop();
 
     // Wait for user 1 to see the removal
-    await waitUntil(() => !user1.clientUpdates.has(2));
+    await waitUntil(() => !user1UserStates.has(2), "wait for user 1 to see the removal of user 2");
 
-    expect(Array.from(user1.clientUpdates.entries())).toEqual([
-      [
-        1,
-        {
-          id: 1,
-          position: { x: 1, y: 2, z: 3 },
-          rotation: { quaternionY: expect.closeTo(0.1), quaternionW: expect.closeTo(0.2) },
-          state: 1,
-        },
-      ],
-    ]);
+    expect(Array.from(user1UserStates.entries())).toEqual([]);
 
     listener.close();
   });

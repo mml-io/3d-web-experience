@@ -1,58 +1,11 @@
-export enum AnimationState {
-  "idle" = 0,
-  "walking" = 1,
-  "running" = 2,
-  "jumpToAir" = 3,
-  "air" = 4,
-  "airToGround" = 5,
-}
-
 export type UserNetworkingClientUpdate = {
   id: number;
   position: { x: number; y: number; z: number };
   rotation: { quaternionY: number; quaternionW: number };
-  state: AnimationState;
+  state: number;
 };
 
 export class UserNetworkingCodec {
-  static animationStateToByte(state: AnimationState): number {
-    switch (state) {
-      case AnimationState.idle:
-        return 0;
-      case AnimationState.walking:
-        return 1;
-      case AnimationState.running:
-        return 2;
-      case AnimationState.jumpToAir:
-        return 3;
-      case AnimationState.air:
-        return 4;
-      case AnimationState.airToGround:
-        return 5;
-      default:
-        throw new Error("Invalid animation state");
-    }
-  }
-
-  static byteToAnimationState(byte: number): AnimationState {
-    switch (byte) {
-      case 0:
-        return AnimationState.idle;
-      case 1:
-        return AnimationState.walking;
-      case 2:
-        return AnimationState.running;
-      case 3:
-        return AnimationState.jumpToAir;
-      case 4:
-        return AnimationState.air;
-      case 5:
-        return AnimationState.airToGround;
-      default:
-        throw new Error("Invalid byte for animation state");
-    }
-  }
-
   static encodeUpdate(update: UserNetworkingClientUpdate): Uint8Array {
     const buffer = new ArrayBuffer(19);
     const dataView = new DataView(buffer);
@@ -62,7 +15,7 @@ export class UserNetworkingCodec {
     dataView.setFloat32(10, update.position.z); // position.z
     dataView.setInt16(14, update.rotation.quaternionY * 32767); // quaternion.y
     dataView.setInt16(16, update.rotation.quaternionW * 32767); // quaternion.w
-    dataView.setUint8(18, UserNetworkingCodec.animationStateToByte(update.state)); // animationState
+    dataView.setUint8(18, update.state); // animationState
     return new Uint8Array(buffer);
   }
 
@@ -74,7 +27,7 @@ export class UserNetworkingCodec {
     const z = dataView.getFloat32(10); // position.z
     const quaternionY = dataView.getInt16(14) / 32767; // quaternion.y
     const quaternionW = dataView.getInt16(16) / 32767; // quaternion.w
-    const state = UserNetworkingCodec.byteToAnimationState(dataView.getUint8(18)); // animationState
+    const state = dataView.getUint8(18); // animationState
     const position = { x, y, z };
     const rotation = { quaternionY, quaternionW };
     return { id, position, rotation, state };

@@ -1,4 +1,3 @@
-import { AnimationState, UserNetworkingClient } from "@mml-io/3d-web-user-networking";
 import { PositionAndRotation } from "mml-web";
 import { Camera, Group, Object3D, PerspectiveCamera, Vector3 } from "three";
 
@@ -9,6 +8,7 @@ import { KeyInputManager } from "../input/KeyInputManager";
 import { TimeManager } from "../time/TimeManager";
 
 import { Character, CharacterDescription } from "./Character";
+import { AnimationState, CharacterState } from "./CharacterState";
 import { RemoteController } from "./RemoteController";
 
 function encodeCharacterAndCamera(character: Object3D, camera: PerspectiveCamera): string {
@@ -51,7 +51,8 @@ export class CharacterManager {
     private readonly cameraManager: CameraManager,
     private readonly timeManager: TimeManager,
     private readonly inputManager: KeyInputManager,
-    private readonly userNetworkingClient: UserNetworkingClient,
+    private readonly clientStates: Map<number, CharacterState>,
+    private readonly sendUpdate: (update: CharacterState) => void,
   ) {
     this.group = new Group();
   }
@@ -59,7 +60,6 @@ export class CharacterManager {
   public spawnCharacter(
     characterDescription: CharacterDescription,
     id: number,
-    group: Group,
     isLocal: boolean = false,
   ) {
     this.characterDescription = characterDescription;
@@ -85,7 +85,7 @@ export class CharacterManager {
             );
           }
           character.model!.hideMaterialByMeshName("SK_UE5Mannequin_1");
-          group.add(character.model!.mesh!);
+          this.group.add(character.model!.mesh!);
 
           if (isLocal) {
             this.character = character;
@@ -133,6 +133,19 @@ export class CharacterManager {
     };
   }
 
+  public clear() {
+    for (const [id, character] of this.remoteCharacters) {
+      this.group.remove(character.model!.mesh!);
+      this.remoteCharacters.delete(id);
+      this.remoteCharacterControllers.delete(id);
+    }
+    if (this.character) {
+      this.group.remove(this.character.model!.mesh!);
+      this.character = null;
+    }
+    this.loadingCharacters.clear();
+  }
+
   public update() {
     if (this.character) {
       this.character.update(this.timeManager.time);
@@ -140,14 +153,14 @@ export class CharacterManager {
 
       if (this.character.controller) {
         this.character.controller.update();
-      }
-      if (this.userNetworkingClient.connected && this.timeManager.frame % 2 === 0) {
-        this.userNetworkingClient.sendUpdate(this.character.controller!.networkState);
+        if (this.timeManager.frame % 2 === 0) {
+          this.sendUpdate(this.character.controller.networkState);
+        }
       }
 
-      for (const [id, update] of this.userNetworkingClient.clientUpdates) {
+      for (const [id, update] of this.clientStates) {
         if (!this.remoteCharacters.has(id) && !this.loadingCharacters.has(id)) {
-          this.spawnCharacter(this.characterDescription!, id, this.group).then(() => {
+          this.spawnCharacter(this.characterDescription!, id).then(() => {
             this.loadingCharacters.delete(id);
           });
         }
@@ -163,7 +176,7 @@ export class CharacterManager {
       }
 
       for (const [id, character] of this.remoteCharacters) {
-        if (!this.userNetworkingClient.clientUpdates.has(id)) {
+        if (!this.clientStates.has(id)) {
           this.group.remove(character.model!.mesh!);
           this.remoteCharacters.delete(id);
           this.remoteCharacterControllers.delete(id);
