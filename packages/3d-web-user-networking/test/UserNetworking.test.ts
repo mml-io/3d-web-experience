@@ -52,6 +52,11 @@ describe("UserNetworking", () => {
     await user1ConnectPromise;
     expect(await user1IdentityPromise).toEqual(1);
 
+    await waitUntil(
+      () => (server as any).clients.size === 1,
+      "wait for server to see the presence of user 1",
+    );
+
     const user2UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
     const user2 = new UserNetworkingClient(
       serverAddress,
@@ -75,6 +80,11 @@ describe("UserNetworking", () => {
 
     await user2ConnectPromise;
     expect(await user2IdentityPromise).toEqual(2);
+
+    await waitUntil(
+      () => (server as any).clients.size === 2,
+      "wait for server to see the presence of user 2",
+    );
 
     user1.sendUpdate({
       id: 1,
@@ -128,10 +138,22 @@ describe("UserNetworking", () => {
 
     user2.stop();
 
+    await waitUntil(
+      () => (server as any).clients.size === 1,
+      "wait for server to see the removal of user 2",
+    );
+
     // Wait for user 1 to see the removal
     await waitUntil(() => !user1UserStates.has(2), "wait for user 1 to see the removal of user 2");
 
     expect(Array.from(user1UserStates.entries())).toEqual([]);
+
+    user1.stop();
+
+    await waitUntil(
+      () => (server as any).clients.size === 0,
+      "wait for server to see the removal of user 1",
+    );
 
     listener.close();
   });
