@@ -30,9 +30,11 @@ export class Sun extends Group {
     this.add(this.directionalLight);
   }
 
-  private updateCharacterPosition(position: Vector3) {
-    const newPosition = position.clone().add(this.sunOffset);
-    this.directionalLight.position.set(newPosition.x, newPosition.y, newPosition.z);
-    this.directionalLight.updateMatrixWorld();
+  public updateCharacterPosition(position: Vector3 | undefined) {
+    if (!position) return;
+    const newSunPosition = position.clone().add(this.sunOffset);
+    this.directionalLight.position.set(newSunPosition.x, newSunPosition.y, newSunPosition.z);
+    this.directionalLight.target.position.copy(position.clone());
+    this.directionalLight.target.updateMatrixWorld();
   }
 }
