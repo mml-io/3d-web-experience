@@ -17,5 +17,5 @@
     "incremental": true,
     "baseUrl": "."
   },
-  "include": ["./src/**/*.ts*"]
+  "include": ["./src/**/*.ts", "./test/**/*.ts"]
 }
