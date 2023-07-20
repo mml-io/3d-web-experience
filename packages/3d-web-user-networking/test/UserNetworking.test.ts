@@ -17,7 +17,7 @@ describe("UserNetworking", () => {
     const server = new UserNetworkingServer();
 
     const { app } = enableWs(express());
-    app.ws("/user-networking", (ws: WebSocket) => {
+    app.ws("/user-networking", (ws) => {
       server.connectClient(ws);
     });
     const listener = app.listen(8585);
@@ -95,7 +95,7 @@ describe("UserNetworking", () => {
 
     // Wait for user 2 to see the update
     await waitUntil(
-      () => user2UserStates.has(1) && user2UserStates.get(1).position.x !== 0,
+      () => user2UserStates.has(1) && user2UserStates.get(1)!.position.x !== 0,
       "wait for user 2 to see the update from user 1",
     );
 
@@ -120,7 +120,7 @@ describe("UserNetworking", () => {
 
     // Wait for user 1 to see the update
     await waitUntil(
-      () => user1UserStates.has(2) && user1UserStates.get(2).position.x !== 0,
+      () => user1UserStates.has(2) && user1UserStates.get(2)!.position.x !== 0,
       "wait for user 1 to see the update from user 2",
     );
 

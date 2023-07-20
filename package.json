@@ -12,7 +12,10 @@
     "type-check-all": "lerna run --stream type-check",
     "test-all": "lerna run --parallel --stream --no-bail test",
     "lint-all": "lerna run --stream lint",
-    "lint-fix-all": "lerna run --stream lint:fix"
+    "lint-fix-all": "lerna run --stream lint:fix",
+    "link-all": "lerna exec \"npm link\" --no-private && npm run print-links",
+    "print-links": "echo \"Run this command in the package you would like to link this repo's packages to:\n\"; echo \"npm link\" $(lerna ls --loglevel=error)",
+    "version": "lerna version --no-push"
   },
   "workspaces": [
     "packages/*",

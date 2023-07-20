@@ -23,8 +23,8 @@ export function waitUntil(checkFn: () => boolean, message?: string) {
   });
 }
 
-export async function createWaitable<T>(): Promise<[Promise<T>, (T) => void]> {
-  return new Promise<[Promise<T>, (T) => void]>((outerResolve) => {
+export async function createWaitable<T>(): Promise<[Promise<T>, (arg: T) => void]> {
+  return new Promise<[Promise<T>, (arg: T) => void]>((outerResolve) => {
     const internalPromise = new Promise<T>((resolve) => {
       process.nextTick(() => {
         outerResolve([internalPromise, resolve]);
