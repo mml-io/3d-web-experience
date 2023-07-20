@@ -16,9 +16,8 @@ import {
 } from "@mml-io/3d-web-user-networking";
 import { AudioListener, Fog, Group, PerspectiveCamera, Scene } from "three";
 
-import { Environment } from "./Environment";
-import { Lights } from "./Lights";
 import { Room } from "./Room";
+import { Sun } from "./Sun";
 
 export class App {
   private readonly group: Group;
@@ -39,8 +38,10 @@ export class App {
 
   constructor() {
     this.scene = new Scene();
-    this.scene.fog = new Fog(0xdcdcdc, 0.1, 100);
+    this.scene.fog = new Fog(0xc7cad0, 30, 210);
+
     this.audioListener = new AudioListener();
+
     document.addEventListener("mousedown", () => {
       if (this.audioListener.context.state === "suspended") {
         this.audioListener.context.resume();
@@ -56,6 +57,7 @@ export class App {
     this.camera = this.cameraManager.camera;
     this.camera.add(this.audioListener);
     this.composer = new Composer(this.scene, this.camera);
+    this.composer.useHDRI("/web-client/assets/hdr/industrial_sunset_2k.hdr");
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
@@ -105,9 +107,9 @@ export class App {
       },
       [`${protocol}//${host}/mml-documents/example-mml.html`],
     );
+
     this.group.add(mmlComposition.group);
-    this.group.add(new Environment(this.scene, this.composer.renderer));
-    this.group.add(new Lights());
+    this.group.add(new Sun());
 
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
