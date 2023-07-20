@@ -8,19 +8,26 @@ import {
 } from "postprocessing";
 import {
   ACESFilmicToneMapping,
+  LinearSRGBColorSpace,
+  LoadingManager,
   PCFSoftShadowMap,
+  PMREMGenerator,
   PerspectiveCamera,
   Scene,
   Vector2,
   WebGLRenderer,
 } from "three";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
 
 export class Composer {
   private width: number = window.innerWidth;
   private height: number = window.innerHeight;
+
   public resolution: Vector2 = new Vector2(this.width, this.height);
+
+  private isEnvHDRI: boolean = false;
 
   private readonly scene: Scene;
   private readonly camera: PerspectiveCamera;
@@ -49,7 +56,7 @@ export class Composer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.renderer.toneMapping = ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.5;
+    this.renderer.toneMappingExposure = 0.7;
     document.body.appendChild(this.renderer.domElement);
 
     this.composer = new EffectComposer(this.renderer);
@@ -87,6 +94,31 @@ export class Composer {
     this.gaussGrainEffect.uniforms.time.value = time;
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.gaussGrainEffect.uniforms.amount.value = 0.035;
-    this.bloomEffect.intensity = 1.0;
+    this.bloomEffect.intensity = 1.5;
+  }
+
+  public useHDRI(url: string): void {
+    if (this.isEnvHDRI || !this.renderer) return;
+    const pmremGenerator = new PMREMGenerator(this.renderer);
+    new RGBELoader(new LoadingManager()).load(
+      url,
+      (texture) => {
+        console.log(texture);
+        const envMap = pmremGenerator!.fromEquirectangular(texture).texture;
+        if (envMap) {
+          envMap.colorSpace = LinearSRGBColorSpace;
+          envMap.needsUpdate = true;
+          this.scene.environment = envMap;
+          this.scene.background = envMap;
+          this.isEnvHDRI = true;
+          texture.dispose();
+          pmremGenerator!.dispose();
+        }
+      },
+      () => {},
+      (error: ErrorEvent) => {
+        console.error(`Can't load ${url}: ${JSON.stringify(error)}`);
+      },
+    );
   }
 }
