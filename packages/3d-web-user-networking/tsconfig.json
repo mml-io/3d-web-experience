@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "noImplicitAny": true,
     "module": "esnext",
@@ -15,7 +16,7 @@
     "downlevelIteration": true,
     "baseUrl": ".",
     "incremental": true,
-    "types": ["node", "jest"],
+    "types": ["node", "jest"]
   },
   "include": ["./src/**/*.ts", "./test/**/*.ts"]
 }
