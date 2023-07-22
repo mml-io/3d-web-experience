@@ -11,10 +11,11 @@ import {
 import { CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
 import { AnimationState } from "./CharacterState";
-import { ModelLoader } from "./ModelLoader";
+import MODEL_LOADER from "./ModelLoader";
 
 export class CharacterModel {
-  private modelLoader: ModelLoader = new ModelLoader();
+  /* TODO: pick between below eager instantiation or ModelLoader.getInstance() lazy one */
+  private modelLoader = MODEL_LOADER;
 
   public mesh: Object3D | null = null;
   public material: CharacterMaterial = new CharacterMaterial();
