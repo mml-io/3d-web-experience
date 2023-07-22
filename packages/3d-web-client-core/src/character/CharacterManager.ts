@@ -78,11 +78,11 @@ export class CharacterManager {
           } else {
             const spawnPosition = getSpawnPositionInsideCircle(3, 30, id);
             character.model!.mesh!.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            this.cameraManager.camera.position.set(
-              spawnPosition.x,
-              spawnPosition.y + 1.5,
-              spawnPosition.z + 3,
-            );
+            // this.cameraManager.camera.position.set(
+            //   spawnPosition.x,
+            //   spawnPosition.y + 1.5,
+            //   spawnPosition.z + 3,
+            // );
           }
           character.model!.hideMaterialByMeshName("SK_Mannequin_2");
           this.group.add(character.model!.mesh!);
