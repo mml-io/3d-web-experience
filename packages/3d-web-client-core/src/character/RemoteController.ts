@@ -2,27 +2,23 @@ import {
   AnimationAction,
   AnimationClip,
   AnimationMixer,
-  LoadingManager,
   Object3D,
   Quaternion,
   Vector3,
 } from "three";
-import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { Character } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
+import MODEL_LOADER from "./ModelLoader";
 
 export class RemoteController {
+  private modelLoader = MODEL_LOADER;
+
   public characterModel: Object3D | null = null;
-  private loadManager: LoadingManager = new LoadingManager();
 
   private animationMixer: AnimationMixer = new AnimationMixer(new Object3D());
   private animations = new Map<AnimationState, AnimationAction>();
   public currentAnimation: AnimationState = AnimationState.idle;
-
-  private fbxLoader: FBXLoader = new FBXLoader(this.loadManager);
-  private gltfLoader: GLTFLoader = new GLTFLoader(this.loadManager);
 
   public networkState: CharacterState = {
     id: 0,
@@ -43,47 +39,21 @@ export class RemoteController {
     this.animationMixer.update(deltaTime);
   }
 
-  public setAnimationFromFile(animationType: AnimationState, fileName: string): void {
-    const animationFile = `${fileName}`;
-    const extension = fileName.split(".").pop();
-    if (typeof extension !== "string") {
-      console.error(`Error: could not recognize extension of animation: ${animationFile}`);
-      return;
-    }
-    if (["gltf", "glb"].includes(extension)) {
-      this.gltfLoader.load(
-        animationFile,
-        (anim) => {
-          const animation = anim.animations[0] as AnimationClip;
-          const animationAction = this.animationMixer.clipAction(animation);
-          this.animations.set(animationType, animationAction);
-          if (animationType === AnimationState.idle) {
-            animationAction.play();
-          }
-        },
-        undefined,
-        (error) => console.error(`Error loading ${animationFile}: ${error}`),
-      );
-    } else if (["fbx"].includes(extension)) {
-      this.fbxLoader.load(
-        animationFile,
-        (anim) => {
-          const animation = anim.animations[0] as AnimationClip;
-          const animationAction = this.animationMixer.clipAction(animation);
-          this.animations.set(animationType, animationAction);
-          if (animationType === AnimationState.idle) {
-            animationAction.play();
-          }
-        },
-        undefined,
-        (error) => console.error(`Error loading ${animationFile}: ${error}`),
-      );
+  public async setAnimationFromFile(
+    animationType: AnimationState,
+    fileName: string,
+  ): Promise<void> {
+    const animation = await this.modelLoader.load(fileName, "animation");
+    const animationAction = this.animationMixer.clipAction(animation as AnimationClip);
+    this.animations.set(animationType, animationAction);
+    if (animationType === AnimationState.idle) {
+      animationAction.play();
     }
   }
 
   private transitionToAnimation(
     targetAnimation: AnimationState,
-    transitionDuration: number = 0.21,
+    transitionDuration: number = 0.15,
   ): void {
     if (this.currentAnimation === targetAnimation) return;
 
@@ -113,7 +83,8 @@ export class RemoteController {
     const { position, rotation, state } = clientUpdate;
     this.characterModel.position.lerp(new Vector3(position.x, position.y, position.z), 0.2);
     const rotationQuaternion = new Quaternion(0, rotation.quaternionY, 0, rotation.quaternionW);
-    this.characterModel.quaternion.slerp(rotationQuaternion, 0.2);
+    this.characterModel.quaternion.slerp(rotationQuaternion, 0.6);
+    // this.characterModel.rotation.setFromQuaternion(rotationQuaternion);
     if (state !== this.currentAnimation) {
       this.transitionToAnimation(state);
     }

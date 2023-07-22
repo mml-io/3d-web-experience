@@ -119,11 +119,12 @@ export class App {
     this.group.add(room);
 
     this.characterDescription = {
-      meshFileUrl: `${this.modelsPath}/unreal_idle.glb`,
-      idleAnimationFileUrl: `${this.modelsPath}/unreal_idle.glb`,
-      jogAnimationFileUrl: `${this.modelsPath}/unreal_jog.glb`,
-      sprintAnimationFileUrl: `${this.modelsPath}/unreal_run.glb`,
-      modelScale: 1.0,
+      meshFileUrl: `${this.modelsPath}/unreal-mesh.glb`,
+      idleAnimationFileUrl: `${this.modelsPath}/unreal-idle.glb`,
+      jogAnimationFileUrl: `${this.modelsPath}/unreal-jog.glb`,
+      sprintAnimationFileUrl: `${this.modelsPath}/unreal-run.glb`,
+      airAnimationFileUrl: `${this.modelsPath}/unreal-air.glb`,
+      modelScale: 1,
     };
   }
 

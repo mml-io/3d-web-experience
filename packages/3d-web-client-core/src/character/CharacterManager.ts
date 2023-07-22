@@ -84,7 +84,7 @@ export class CharacterManager {
               spawnPosition.z + 3,
             );
           }
-          character.model!.hideMaterialByMeshName("SK_UE5Mannequin_1");
+          character.model!.hideMaterialByMeshName("SK_Mannequin_2");
           this.group.add(character.model!.mesh!);
 
           if (isLocal) {
@@ -103,6 +103,10 @@ export class CharacterManager {
             remoteController.setAnimationFromFile(
               AnimationState.running,
               characterDescription.sprintAnimationFileUrl,
+            );
+            remoteController.setAnimationFromFile(
+              AnimationState.air,
+              characterDescription.airAnimationFileUrl,
             );
             this.remoteCharacterControllers.set(id, remoteController);
           }

@@ -22,12 +22,39 @@ export class KeyInputManager {
     return ["w", "a", "s", "d"].some((key) => this.isKeyPressed(key));
   }
 
-  public isShiftPressed(): boolean {
+  get forward(): boolean {
+    return this.isKeyPressed("w");
+  }
+
+  get backward(): boolean {
+    return this.isKeyPressed("s");
+  }
+
+  get left(): boolean {
+    return this.isKeyPressed("a");
+  }
+
+  get right(): boolean {
+    return this.isKeyPressed("d");
+  }
+
+  get run(): boolean {
     return this.isKeyPressed("shift");
   }
 
-  public isJumping(): boolean {
+  get jump(): boolean {
     return this.isKeyPressed(" ");
+  }
+
+  get anyDirection(): boolean {
+    return this.isMovementKeyPressed();
+  }
+
+  get conflictingDirection(): boolean {
+    return (
+      (this.isKeyPressed("w") && this.isKeyPressed("s")) ||
+      (this.isKeyPressed("a") && this.isKeyPressed("d"))
+    );
   }
 
   public dispose() {

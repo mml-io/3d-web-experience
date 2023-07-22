@@ -13,6 +13,7 @@ export type CharacterDescription = {
   idleAnimationFileUrl: string;
   jogAnimationFileUrl: string;
   sprintAnimationFileUrl: string;
+  airAnimationFileUrl: string;
   modelScale: number;
 };
 
