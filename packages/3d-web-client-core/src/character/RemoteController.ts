@@ -29,6 +29,7 @@ export class RemoteController {
 
   constructor(public readonly character: Character, public readonly id: number) {
     this.characterModel = this.character.model!.mesh!;
+    this.characterModel.updateMatrixWorld();
     this.animationMixer = new AnimationMixer(this.characterModel);
   }
 
@@ -81,10 +82,9 @@ export class RemoteController {
   private updateFromNetwork(clientUpdate: CharacterState): void {
     if (!this.characterModel) return;
     const { position, rotation, state } = clientUpdate;
-    this.characterModel.position.lerp(new Vector3(position.x, position.y, position.z), 0.2);
+    this.characterModel.position.lerp(new Vector3(position.x, position.y, position.z), 0.15);
     const rotationQuaternion = new Quaternion(0, rotation.quaternionY, 0, rotation.quaternionW);
     this.characterModel.quaternion.slerp(rotationQuaternion, 0.6);
-    // this.characterModel.rotation.setFromQuaternion(rotationQuaternion);
     if (state !== this.currentAnimation) {
       this.transitionToAnimation(state);
     }

@@ -61,6 +61,15 @@ export class App {
     this.composer = new Composer(this.scene, this.camera);
     this.composer.useHDRI("/web-client/assets/hdr/industrial_sunset_2k.hdr");
 
+    this.characterDescription = {
+      meshFileUrl: `${this.modelsPath}/unreal-mesh.glb`,
+      idleAnimationFileUrl: `${this.modelsPath}/unreal-idle.glb`,
+      jogAnimationFileUrl: `${this.modelsPath}/unreal-jog.glb`,
+      sprintAnimationFileUrl: `${this.modelsPath}/unreal-run.glb`,
+      airAnimationFileUrl: `${this.modelsPath}/unreal-air.glb`,
+      modelScale: 1,
+    };
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
     this.networkClient = new UserNetworkingClient(
@@ -117,15 +126,6 @@ export class App {
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
     this.group.add(room);
-
-    this.characterDescription = {
-      meshFileUrl: `${this.modelsPath}/unreal-mesh.glb`,
-      idleAnimationFileUrl: `${this.modelsPath}/unreal-idle.glb`,
-      jogAnimationFileUrl: `${this.modelsPath}/unreal-jog.glb`,
-      sprintAnimationFileUrl: `${this.modelsPath}/unreal-run.glb`,
-      airAnimationFileUrl: `${this.modelsPath}/unreal-air.glb`,
-      modelScale: 1,
-    };
   }
 
   public update(): void {

@@ -55,12 +55,14 @@ export class CharacterManager {
     private readonly sendUpdate: (update: CharacterState) => void,
   ) {
     this.group = new Group();
+    setInterval(() => this.update.bind(this), 3000);
   }
 
   public spawnCharacter(
     characterDescription: CharacterDescription,
     id: number,
     isLocal: boolean = false,
+    spawnPosition: Vector3 = new Vector3(),
   ) {
     this.characterDescription = characterDescription;
     const characterLoadingPromise = new Promise<Character>((resolve) => {
@@ -76,15 +78,26 @@ export class CharacterManager {
               this.cameraManager.camera,
             );
           } else {
-            const spawnPosition = getSpawnPositionInsideCircle(3, 30, id);
+            spawnPosition = getSpawnPositionInsideCircle(3, 30, id, 0.4);
             character.model!.mesh!.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            // this.cameraManager.camera.position.set(
-            //   spawnPosition.x,
-            //   spawnPosition.y + 1.5,
-            //   spawnPosition.z + 3,
-            // );
+            character.model!.mesh!.updateMatrixWorld();
+            this.sendUpdate({
+              id: id,
+              position: {
+                x: spawnPosition.x,
+                y: spawnPosition.y,
+                z: spawnPosition.z,
+              },
+              rotation: { quaternionY: 0, quaternionW: 0 },
+              state: AnimationState.idle,
+            });
           }
           character.model!.hideMaterialByMeshName("SK_Mannequin_2");
+          if (!isLocal) {
+            character.model?.mesh?.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+            character.model?.mesh?.updateMatrixWorld();
+            character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+          }
           this.group.add(character.model!.mesh!);
 
           if (isLocal) {
@@ -108,9 +121,13 @@ export class CharacterManager {
               AnimationState.air,
               characterDescription.airAnimationFileUrl,
             );
+            remoteController.characterModel?.position.set(
+              spawnPosition.x,
+              spawnPosition.y,
+              spawnPosition.z,
+            );
             this.remoteCharacterControllers.set(id, remoteController);
           }
-
           resolve(character);
         },
         this.collisionsManager,
@@ -163,8 +180,14 @@ export class CharacterManager {
       }
 
       for (const [id, update] of this.clientStates) {
+        const { position } = update;
         if (!this.remoteCharacters.has(id) && !this.loadingCharacters.has(id)) {
-          this.spawnCharacter(this.characterDescription!, id).then(() => {
+          this.spawnCharacter(
+            this.characterDescription!,
+            id,
+            false,
+            new Vector3(position.x, position.y, position.z),
+          ).then((_character) => {
             this.loadingCharacters.delete(id);
           });
         }

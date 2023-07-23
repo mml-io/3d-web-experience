@@ -5,7 +5,7 @@ import { ease } from "../helpers/math-helpers";
 export class TimeManager {
   private clock: Clock = new Clock();
   private roundMagnitude: number = 200000;
-  private maxAverageFrames: number = 300;
+  private maxAverageFrames: number = 700;
   private deltaTimes: number[] = [];
   private targetAverageDeltaTime: number = 0;
   private lerpedAverageMagDelta: number = 0;

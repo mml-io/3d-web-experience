@@ -72,7 +72,9 @@ export class LocalController {
     private readonly keyInputManager: KeyInputManager,
     private readonly cameraManager: CameraManager,
     private readonly timeManager: TimeManager,
-  ) {}
+  ) {
+    setInterval(() => this.update.bind(this), 3000);
+  }
 
   public update(): void {
     if (!this.model?.mesh || !this.model?.animationMixer) return;
@@ -285,7 +287,7 @@ export class LocalController {
   private resetPosition(): void {
     if (!this.model?.mesh) return;
     this.characterVelocity.y = 0;
-    this.model.mesh.position.y = 5;
+    this.model.mesh.position.y = 3;
     this.characterOnGround = false;
   }
 }
