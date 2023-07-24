@@ -2,8 +2,8 @@ import { DirectionalLight, Group, OrthographicCamera, Vector3 } from "three";
 
 export class Sun extends Group {
   private readonly sunOffset: Vector3 = new Vector3(50, 80, 35);
-  private readonly shadowResolution: number = 8192;
-  private readonly shadowCamFrustum: number = 25;
+  private readonly shadowResolution: number = 4096;
+  private readonly shadowCamFrustum: number = 21;
 
   private readonly shadowCamera: OrthographicCamera;
   private readonly directionalLight: DirectionalLight;
@@ -30,9 +30,11 @@ export class Sun extends Group {
     this.add(this.directionalLight);
   }
 
-  private updateCharacterPosition(position: Vector3) {
-    const newPosition = position.clone().add(this.sunOffset);
-    this.directionalLight.position.set(newPosition.x, newPosition.y, newPosition.z);
-    this.directionalLight.updateMatrixWorld();
+  public updateCharacterPosition(position: Vector3 | undefined) {
+    if (!position) return;
+    const newSunPosition = position.clone().add(this.sunOffset);
+    this.directionalLight.position.set(newSunPosition.x, newSunPosition.y, newSunPosition.z);
+    this.directionalLight.target.position.copy(position.clone());
+    this.directionalLight.target.updateMatrixWorld();
   }
 }

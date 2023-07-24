@@ -36,6 +36,8 @@ export class App {
   private readonly modelsPath: string = "/web-client/assets/models";
   private readonly characterDescription: CharacterDescription | null = null;
 
+  private readonly sun: Sun;
+
   constructor() {
     this.scene = new Scene();
     this.scene.fog = new Fog(0xc7cad0, 30, 210);
@@ -58,6 +60,15 @@ export class App {
     this.camera.add(this.audioListener);
     this.composer = new Composer(this.scene, this.camera);
     this.composer.useHDRI("/web-client/assets/hdr/industrial_sunset_2k.hdr");
+
+    this.characterDescription = {
+      meshFileUrl: `${this.modelsPath}/unreal-mesh.glb`,
+      idleAnimationFileUrl: `${this.modelsPath}/unreal-idle.glb`,
+      jogAnimationFileUrl: `${this.modelsPath}/unreal-jog.glb`,
+      sprintAnimationFileUrl: `${this.modelsPath}/unreal-run.glb`,
+      airAnimationFileUrl: `${this.modelsPath}/unreal-air.glb`,
+      modelScale: 1,
+    };
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
@@ -109,25 +120,19 @@ export class App {
     );
 
     this.group.add(mmlComposition.group);
-    this.group.add(new Sun());
+    this.sun = new Sun();
+    this.group.add(this.sun);
 
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
     this.group.add(room);
-
-    this.characterDescription = {
-      meshFileUrl: `${this.modelsPath}/unreal_idle.glb`,
-      idleAnimationFileUrl: `${this.modelsPath}/unreal_idle.glb`,
-      jogAnimationFileUrl: `${this.modelsPath}/unreal_jog.glb`,
-      sprintAnimationFileUrl: `${this.modelsPath}/unreal_run.glb`,
-      modelScale: 1.0,
-    };
   }
 
   public update(): void {
     this.timeManager.update();
     this.characterManager.update();
     this.cameraManager.update();
+    this.sun.updateCharacterPosition(this.characterManager.character?.position);
     this.composer.render(this.timeManager.time);
     requestAnimationFrame(() => {
       this.update();

@@ -35,9 +35,27 @@ export class CollisionsManager {
   private collisionMeshState: Map<Group, CollisionMeshState> = new Map();
   private collisionTrigger: MMLCollisionTrigger;
 
+  public colliders: Group = new Group();
+  private collisionEnabledMeshes: Record<string, Mesh> = {};
+
   constructor(scene: Scene) {
     this.scene = scene;
     this.collisionTrigger = MMLCollisionTrigger.init();
+  }
+
+  private safeAddColliders(child: Mesh): void {
+    if (!(child.uuid in this.collisionEnabledMeshes)) {
+      const clone = child.clone();
+      this.collisionEnabledMeshes[child.uuid] = clone;
+      this.colliders.add(clone);
+    }
+  }
+
+  private removeFromColliders(child: Mesh): void {
+    if (child.uuid in this.collisionEnabledMeshes) {
+      this.colliders.remove(this.collisionEnabledMeshes[child.uuid]);
+      delete this.collisionEnabledMeshes[child.uuid];
+    }
   }
 
   private createCollisionMeshState(group: Group): CollisionMeshState {
@@ -47,6 +65,7 @@ export class CollisionsManager {
         const mesh = child as Mesh;
         mesh.localToWorld(new Vector3());
         mesh.updateMatrixWorld();
+        this.safeAddColliders(mesh);
         const clonedGeometry = mesh.geometry.clone();
         clonedGeometry.applyMatrix4(mesh.matrixWorld);
 
@@ -113,6 +132,13 @@ export class CollisionsManager {
         this.scene.remove(meshState.visualizer);
       }
       this.collisionMeshState.delete(group);
+      if (group) {
+        group.traverse((child) => {
+          if (child.type === "Mesh") {
+            this.removeFromColliders(child as Mesh);
+          }
+        });
+      }
     }
   }
 

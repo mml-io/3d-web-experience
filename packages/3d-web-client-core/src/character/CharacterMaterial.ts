@@ -17,15 +17,17 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
     super();
     this.color = new Color(0xffffff);
     this.transmission = 0.5;
-    this.metalness = 0.5;
-    this.roughness = 0.3;
-    this.ior = 2.0;
+    this.metalness = 0.8;
+    this.roughness = 0.2;
+    this.ior = 1.2;
     this.thickness = 0.1;
     this.specularColor = new Color(0x0077ff);
     this.specularIntensity = 0.1;
+    this.emissive = new Color(0xffffff);
+    this.emissiveIntensity = 0.1;
     this.envMapIntensity = 1.8;
-    this.sheenColor = new Color(0x770077);
-    this.sheen = 0.35;
+    this.sheenColor = new Color(0xffffff);
+    this.sheen = 0.5;
 
     this.onBeforeCompile = (shader) => {
       this.uniforms = UniformsUtils.clone(shader.uniforms);
@@ -43,6 +45,7 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
       shader.fragmentShader = injectBeforeMain(
         shader.fragmentShader,
         /* glsl */ `
+          //#define showPattern
           varying vec2 vUv;
           uniform float nearClip;
           uniform float farClip;
@@ -51,6 +54,25 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
           uniform float time;
           uniform vec3 diffuseRandomColor;
           ${bayerDither}
+
+          #ifdef showPattern
+          vec2 rand2(vec2 p) {
+            return fract(vec2(sin(p.x * 591.32 + p.y * 154.077), cos(p.x * 391.32 + p.y * 49.077)));
+          }
+          float voronoi(in vec2 x) {
+            vec2 p = floor(x);
+            vec2 f = fract(x);
+            float minDistance = 1.0;
+            for(int j = -1; j <= 1; j ++)
+            for(int i = -1; i <= 1; i ++) {
+              vec2 b = vec2(i, j);
+              vec2 rand = 0.5 + 0.5 * sin(time * 1.5 + 12.0 * rand2(p + b));
+              vec2 r = vec2(b) - f + rand;
+              minDistance = min(minDistance, length(r));
+            }
+            return minDistance;
+          }
+          #endif
         `,
       );
 
@@ -72,10 +94,22 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
             d = bayerDither(bayerbr, p - ivec2(4, 4));
           }
           if (distance <= ditheringNear + d * ditheringRange) discard;
-          vec2 suv = vUv;
-          float s = clamp(0.35 + 0.35 * sin(5.0 * -time + suv.y * 500.0), 0.0, 1.0);
+
+          vec2 uv = vUv;
+          float s = clamp(0.35 + 0.35 * sin(5.0 * -time + vUv.y * 600.0), 0.0, 1.0);
           float scanLines = pow(s, 1.33);
+
           outgoingLight *= diffuseRandomColor;
+
+          #ifdef showPattern
+          float val = pow(voronoi(uv * 8.0) * 1.2, 0.5);
+          float thickness = 1.0 / 500.0;
+          vec2 g = step(mod(uv, 0.015), vec2(thickness));
+          float a = 1.0 - clamp(val * (g.x + g.y), 0.0, 1.0);
+          vec3 grid = vec3(smoothstep(0.01, 0.0, a) * 1.15) * diffuseRandomColor;
+          outgoingLight += grid;
+          #endif
+
           outgoingLight += smoothstep(0.1, 0.0, scanLines) * 0.1;
         `,
       );
@@ -85,8 +119,8 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
   }
 
   private generateColorCube() {
-    const saturation = 0.7;
-    const lightness = 0.8;
+    const saturation = 0.4;
+    const lightness = 0.7;
     const goldenRatioConjugate = 0.618033988749895;
     let hue = 0;
 

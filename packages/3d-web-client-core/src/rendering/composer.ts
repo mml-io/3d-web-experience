@@ -103,7 +103,6 @@ export class Composer {
     new RGBELoader(new LoadingManager()).load(
       url,
       (texture) => {
-        console.log(texture);
         const envMap = pmremGenerator!.fromEquirectangular(texture).texture;
         if (envMap) {
           envMap.colorSpace = LinearSRGBColorSpace;

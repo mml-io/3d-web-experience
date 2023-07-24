@@ -1,26 +1,45 @@
 import { PerspectiveCamera, Vector3 } from "three";
 
-import { ease } from "../helpers/math-helpers";
+import { ease, remap, clamp } from "../helpers/math-helpers";
 
 export class CameraManager {
   public readonly camera: PerspectiveCamera;
-  private dragging: boolean = false;
-  private target: Vector3 = new Vector3(0, 1.55, 0);
-  private targetDistance: number;
-  private maxTargetDistance: number = 20;
-  private distance: number;
+
+  public initialDistance: number = 2.5;
+
+  private minDistance: number = 0.1;
+  private maxDistance: number = 6;
+
+  private initialFOV: number = 80;
+  private fov: number = this.initialFOV;
+  private minFOV: number = 78;
+  private maxFOV: number = 85;
+  private targetFOV: number = this.initialFOV;
+
+  private minPolarAngle: number = Math.PI * 0.25;
+  private maxPolarAngle: number = Math.PI * 0.95;
+
+  private dampingFactor: number = 0.091;
+
+  private targetDistance: number = this.initialDistance;
+  private distance: number = this.initialDistance;
+
   private targetPhi: number | null = Math.PI / 2;
   private phi: number | null = Math.PI / 2;
   private targetTheta: number | null = -Math.PI / 2;
   private theta: number | null = -Math.PI / 2;
+  private dragging: boolean = false;
+  private target: Vector3 = new Vector3(0, 1.55, 0);
   private hadTarget: boolean = false;
 
   constructor() {
-    this.camera = new PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 2000);
-    this.camera.position.set(0, 1.4, 3);
-
-    this.targetDistance = 2.5;
-    this.distance = this.targetDistance;
+    this.camera = new PerspectiveCamera(
+      this.fov,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      2000,
+    );
+    this.camera.position.set(0, 1.4, -this.initialDistance);
 
     document.addEventListener("mousedown", this.onMouseDown.bind(this));
     document.addEventListener("mouseup", this.onMouseUp.bind(this));
@@ -45,23 +64,20 @@ export class CameraManager {
   }
 
   private onMouseMove(event: MouseEvent): void {
-    if (!this.dragging) {
-      return;
-    }
-    if (this.targetTheta === null || this.targetPhi === null) {
-      return;
-    }
+    if (!this.dragging) return;
+    if (this.targetTheta === null || this.targetPhi === null) return;
     this.targetTheta += event.movementX * 0.01;
     this.targetPhi -= event.movementY * 0.01;
-    this.targetPhi = Math.max(Math.PI * 0.1, Math.min(Math.PI - Math.PI * 0.1, this.targetPhi));
-    this.targetPhi = Math.min(Math.PI * 0.7, this.targetPhi);
+    this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
   }
 
   private onMouseWheel(event: WheelEvent): void {
-    const scrollAmount = event.deltaY * 0.01;
+    const scrollAmount = event.deltaY * 0.001;
     this.targetDistance += scrollAmount;
-    this.targetDistance = Math.max(0, this.targetDistance);
-    this.targetDistance = Math.min(this.targetDistance, this.maxTargetDistance);
+    this.targetDistance = Math.max(
+      this.minDistance,
+      Math.min(this.maxDistance, this.targetDistance),
+    );
   }
 
   public setTarget(target: THREE.Vector3): void {
@@ -86,25 +102,34 @@ export class CameraManager {
   }
 
   public update(): void {
-    if (this.target === null) {
-      return;
-    }
+    if (this.target === null) return;
     if (
       this.phi !== null &&
       this.targetPhi !== null &&
       this.theta !== null &&
       this.targetTheta !== null
     ) {
-      this.distance += ease(this.targetDistance, this.distance, 0.02);
-      this.distance = Math.min(this.distance, this.maxTargetDistance);
-      this.phi += ease(this.targetPhi, this.phi, 0.07);
-      this.theta += ease(this.targetTheta, this.theta, 0.07);
+      this.distance += (this.targetDistance - this.distance) * this.dampingFactor * 0.21;
+      this.phi += (this.targetPhi - this.phi) * this.dampingFactor;
+      this.theta += (this.targetTheta - this.theta) * this.dampingFactor;
 
       const x = this.target.x + this.distance * Math.sin(this.phi) * Math.cos(this.theta);
       const y = this.target.y + this.distance * Math.cos(this.phi);
       const z = this.target.z + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
 
-      this.camera.position.set(x, y, z);
+      this.targetFOV = remap(
+        this.targetDistance,
+        this.minDistance,
+        this.maxDistance,
+        this.minFOV,
+        this.maxFOV,
+      );
+
+      this.fov += ease(this.targetFOV, this.fov, 0.07);
+      this.camera.fov = this.fov;
+      this.camera.updateProjectionMatrix();
+
+      this.camera.position.set(x, clamp(y, 0.1, Infinity), z);
       this.camera.lookAt(this.target);
     }
   }

@@ -11,10 +11,11 @@ import {
 import { CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
 import { AnimationState } from "./CharacterState";
-import { ModelLoader } from "./ModelLoader";
+import MODEL_LOADER from "./ModelLoader";
 
 export class CharacterModel {
-  private modelLoader: ModelLoader = new ModelLoader();
+  /* TODO: pick between below eager instantiation or ModelLoader.getInstance() lazy one */
+  private modelLoader = MODEL_LOADER;
 
   public mesh: Object3D | null = null;
   public material: CharacterMaterial = new CharacterMaterial();
@@ -38,6 +39,10 @@ export class CharacterModel {
     await this.setAnimationFromFile(
       this.characterDescription.sprintAnimationFileUrl,
       AnimationState.running,
+    );
+    await this.setAnimationFromFile(
+      this.characterDescription.airAnimationFileUrl,
+      AnimationState.air,
     );
     this.applyMaterialToAllSkinnedMeshes(this.material);
   }
@@ -98,7 +103,7 @@ export class CharacterModel {
     if (typeof mainMesh !== "undefined") {
       this.mesh = new Object3D();
       const model = mainMesh as Object3D;
-      model.position.set(0, -0.35, 0);
+      model.position.set(0, -0.4, 0);
       this.mesh.add(model);
       this.mesh.name = name;
       this.mesh.scale.set(scale, scale, scale);
@@ -128,7 +133,7 @@ export class CharacterModel {
 
   private transitionToAnimation(
     targetAnimation: AnimationState,
-    transitionDuration: number = 0.21,
+    transitionDuration: number = 0.15,
   ): void {
     if (!this.mesh || this.currentAnimation === null) return;
 
