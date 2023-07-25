@@ -20,8 +20,8 @@ export class LocalController {
   private maxWalkSpeed = 6;
   private maxRunSpeed = 8.5;
   private gravity: number = -42;
-  private jumpForce: number = 15;
-  private coyoteTimeThreshold: number = 350;
+  private jumpForce: number = 16;
+  private coyoteTimeThreshold: number = 290;
 
   private coyoteTime: boolean = false;
   private canJump: boolean = true;
@@ -99,7 +99,7 @@ export class LocalController {
     const hit = this.rayCaster.intersectObjects([this.collisionsManager.colliders]);
     if (hit.length > 0) this.currentHeight = hit[0].distance;
 
-    if (anyDirection) {
+    if (anyDirection || !this.characterOnGround) {
       const targetAnimation = this.getTargetAnimation();
       this.model.updateAnimation(targetAnimation, this.timeManager.deltaTime);
     } else {
@@ -184,7 +184,7 @@ export class LocalController {
       }
     } else if (this.jump && this.coyoteTime) {
       console.log("coyoteJump");
-      this.characterVelocity.y += this.jumpForce;
+      this.characterVelocity.y = this.jumpForce;
       this.canJump = false;
     } else {
       this.characterVelocity.y += deltaTime * this.gravity;
