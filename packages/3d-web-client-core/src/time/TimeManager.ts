@@ -7,6 +7,10 @@ export class TimeManager {
   private roundMagnitude: number = 200000;
   private maxAverageFrames: number = 700;
   private deltaTimes: number[] = [];
+
+  private fpsMaxSamples: number = 10;
+  private fpsSamples: number[] = [];
+
   private targetAverageDeltaTime: number = 0;
   private lerpedAverageMagDelta: number = 0;
   private fpsUpdateTime: number = 0;
@@ -17,6 +21,7 @@ export class TimeManager {
   public rawDeltaTime: number = 0;
   public frame: number = 0;
   public fps: number = 0;
+  public averageFPS: number = 0;
 
   update() {
     this.rawDeltaTime = this.clock.getDelta();
@@ -24,9 +29,7 @@ export class TimeManager {
     this.time += this.rawDeltaTime;
     this.deltaTimes.push(this.rawDeltaTime);
 
-    if (this.deltaTimes.length > this.maxAverageFrames) {
-      this.deltaTimes.shift();
-    }
+    if (this.deltaTimes.length > this.maxAverageFrames) this.deltaTimes.shift();
 
     this.targetAverageDeltaTime =
       this.deltaTimes.reduce((prev, curr) => prev + curr, 0) / this.deltaTimes.length;
@@ -43,9 +46,19 @@ export class TimeManager {
     this.deltaTime = smoothDT > this.rawDeltaTime * 1.75 ? this.rawDeltaTime : smoothDT;
 
     this.framesSinceLastFPSUpdate++;
-    if (this.framesSinceLastFPSUpdate >= this.maxAverageFrames) {
+    if (this.framesSinceLastFPSUpdate >= 60) {
       this.fps =
         Math.round((this.framesSinceLastFPSUpdate / (this.time - this.fpsUpdateTime)) * 100) / 100;
+
+      this.fpsSamples.push(this.fps);
+      if (this.fpsSamples.length > this.fpsMaxSamples) this.fpsSamples.shift();
+      this.averageFPS =
+        this.fpsSamples.length === this.fpsMaxSamples
+          ? Math.round(
+              this.fpsSamples.reduce((prev, curr) => prev + curr, 0) / this.fpsSamples.length,
+            )
+          : this.fps;
+
       this.fpsUpdateTime = this.time;
       this.framesSinceLastFPSUpdate = 0;
     }

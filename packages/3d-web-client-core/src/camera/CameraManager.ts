@@ -1,6 +1,7 @@
 import { PerspectiveCamera, Vector3 } from "three";
 
 import { ease, remap, clamp } from "../helpers/math-helpers";
+import { getTweakpaneActive } from "../rendering/tweakPaneActivity";
 
 export class CameraManager {
   public readonly camera: PerspectiveCamera;
@@ -12,7 +13,7 @@ export class CameraManager {
 
   private initialFOV: number = 80;
   private fov: number = this.initialFOV;
-  private minFOV: number = 78;
+  private minFOV: number = 65;
   private maxFOV: number = 85;
   private targetFOV: number = this.initialFOV;
 
@@ -64,7 +65,7 @@ export class CameraManager {
   }
 
   private onMouseMove(event: MouseEvent): void {
-    if (!this.dragging) return;
+    if (!this.dragging || getTweakpaneActive() === true) return;
     if (this.targetTheta === null || this.targetPhi === null) return;
     this.targetTheta += event.movementX * 0.01;
     this.targetPhi -= event.movementY * 0.01;

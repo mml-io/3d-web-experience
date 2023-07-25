@@ -133,7 +133,7 @@ export class App {
     this.characterManager.update();
     this.cameraManager.update();
     this.sun.updateCharacterPosition(this.characterManager.character?.position);
-    this.composer.render(this.timeManager.time);
+    this.composer.render(this.timeManager);
     requestAnimationFrame(() => {
       this.update();
     });

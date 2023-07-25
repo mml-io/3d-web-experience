@@ -82,7 +82,6 @@ export class ModelLoader {
   /* TODO: decide between below lazy initialization or eager on this file's bottom export */
   static getInstance(): ModelLoader {
     if (!ModelLoader.instance) {
-      console.log("Instantiating ModelLoader");
       ModelLoader.instance = new ModelLoader();
     }
     return ModelLoader.instance;
