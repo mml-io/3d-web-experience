@@ -2,8 +2,8 @@ import { DirectionalLight, Group, OrthographicCamera, Vector3 } from "three";
 
 export class Sun extends Group {
   private readonly sunOffset: Vector3 = new Vector3(50, 80, 35);
-  private readonly shadowResolution: number = 4096;
-  private readonly shadowCamFrustum: number = 21;
+  private readonly shadowResolution: number = 16384;
+  private readonly shadowCamFrustum: number = 150;
 
   private readonly shadowCamera: OrthographicCamera;
   private readonly directionalLight: DirectionalLight;

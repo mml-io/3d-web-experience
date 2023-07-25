@@ -17,8 +17,8 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
     super();
     this.color = new Color(0xffffff);
     this.transmission = 0.5;
-    this.metalness = 0.8;
-    this.roughness = 0.2;
+    this.metalness = 0.9;
+    this.roughness = 0.1;
     this.ior = 1.2;
     this.thickness = 0.1;
     this.specularColor = new Color(0x0077ff);

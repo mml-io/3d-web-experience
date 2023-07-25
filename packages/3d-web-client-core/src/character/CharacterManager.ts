@@ -58,6 +58,12 @@ export class CharacterManager {
     setInterval(() => this.update.bind(this), 3000);
   }
 
+  /* TODO: 
+    1) Separate this method into spawnLocalCharacter and spawnRemoteCharacter
+    2) Make this synchronous to avoid having loadingCharacters and instead manage
+      the mesh loading async (would allow us to show a nameplate where a remote
+      user is before the asset loads).
+  */
   public spawnCharacter(
     characterDescription: CharacterDescription,
     id: number,
