@@ -174,12 +174,16 @@ export class Composer {
     this.width = window.innerWidth;
     this.height = innerHeight;
     this.resolution = new Vector2(this.width, this.height);
-    if (this.composer) this.composer.setSize(this.width, this.height);
-    if (this.fxaaPass) this.fxaaPass.setSize(this.width, this.height);
-    if (this.renderPass) this.renderPass.setSize(this.width, this.height);
-    if (this.bloomPass) this.bloomPass.setSize(this.width, this.height);
-    if (this.ssaoPass) this.ssaoPass.setSize(this.width, this.height);
-    if (this.normalPass) this.normalPass.setSize(this.width, this.height);
+    this.composer.setSize(this.width, this.height);
+    this.renderPass.setSize(this.width, this.height);
+    this.normalPass.setSize(this.width, this.height);
+    this.ssaoPass.setSize(this.width, this.height);
+    this.fxaaPass.setSize(this.width, this.height);
+    this.smaaPass.setSize(this.width, this.height);
+    this.bloomPass.setSize(this.width, this.height);
+    this.toneMappingPass.setSize(this.width, this.height);
+    this.bchsPass.setSize(this.width, this.height);
+    this.gaussGrainPass.setSize(this.width, this.height);
     this.renderer.setSize(this.width, this.height);
   }
 
