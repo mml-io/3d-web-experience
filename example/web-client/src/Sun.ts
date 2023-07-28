@@ -20,7 +20,7 @@ export class Sun extends Group {
       0.5,
       500,
     );
-    this.directionalLight = new DirectionalLight(0xffffff, 1);
+    this.directionalLight = new DirectionalLight(0xffffff, 0.8);
     this.directionalLight.shadow.camera = this.shadowCamera;
     this.directionalLight.shadow.mapSize.set(this.shadowResolution, this.shadowResolution);
     this.directionalLight.castShadow = true;

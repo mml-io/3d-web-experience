@@ -62,6 +62,7 @@ export class Character {
     if (typeof this.model.material.uniforms.time !== "undefined") {
       this.model.material.uniforms.time.value = time;
       this.model.material.uniforms.diffuseRandomColor.value = this.color;
+      this.model.material.update();
     }
   }
 }

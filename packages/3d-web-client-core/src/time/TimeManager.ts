@@ -5,11 +5,8 @@ import { ease } from "../helpers/math-helpers";
 export class TimeManager {
   private clock: Clock = new Clock();
   private roundMagnitude: number = 200000;
-  private maxAverageFrames: number = 700;
+  private maxAverageFrames: number = 150;
   private deltaTimes: number[] = [];
-
-  private fpsMaxSamples: number = 10;
-  private fpsSamples: number[] = [];
 
   private targetAverageDeltaTime: number = 0;
   private lerpedAverageMagDelta: number = 0;
@@ -19,6 +16,7 @@ export class TimeManager {
   public time: number = 0;
   public deltaTime: number = 0;
   public rawDeltaTime: number = 0;
+  public smoothDeltaTime: number = 0;
   public frame: number = 0;
   public fps: number = 0;
   public averageFPS: number = 0;
@@ -43,21 +41,13 @@ export class TimeManager {
     const revertMagnitude = this.lerpedAverageMagDelta / this.roundMagnitude;
     const smoothDT = Math.round(revertMagnitude * this.roundMagnitude) / this.roundMagnitude;
 
-    this.deltaTime = smoothDT > this.rawDeltaTime * 1.75 ? this.rawDeltaTime : smoothDT;
+    this.smoothDeltaTime = smoothDT > this.rawDeltaTime * 1.75 ? this.rawDeltaTime : smoothDT;
+    this.deltaTime = this.smoothDeltaTime;
 
     this.framesSinceLastFPSUpdate++;
     if (this.framesSinceLastFPSUpdate >= 60) {
       this.fps =
         Math.round((this.framesSinceLastFPSUpdate / (this.time - this.fpsUpdateTime)) * 100) / 100;
-
-      this.fpsSamples.push(this.fps);
-      if (this.fpsSamples.length > this.fpsMaxSamples) this.fpsSamples.shift();
-      this.averageFPS =
-        this.fpsSamples.length === this.fpsMaxSamples
-          ? Math.round(
-              this.fpsSamples.reduce((prev, curr) => prev + curr, 0) / this.fpsSamples.length,
-            )
-          : this.fps;
 
       this.fpsUpdateTime = this.time;
       this.framesSinceLastFPSUpdate = 0;
