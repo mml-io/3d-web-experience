@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Vector3 } from "three";
 
 import { ease, remap, clamp } from "../helpers/math-helpers";
-import { getTweakpaneActive } from "../rendering/tweakPaneActivity";
+import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
 export class CameraManager {
   public readonly camera: PerspectiveCamera;
@@ -34,12 +34,7 @@ export class CameraManager {
   private hadTarget: boolean = false;
 
   constructor() {
-    this.camera = new PerspectiveCamera(
-      this.fov,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      2000,
-    );
+    this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
 
     document.addEventListener("mousedown", this.onMouseDown.bind(this));

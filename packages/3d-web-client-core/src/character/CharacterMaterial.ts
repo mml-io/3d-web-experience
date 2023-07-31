@@ -6,6 +6,7 @@ import {
   injectBeforeMain,
   injectInsideMain,
 } from "../rendering/shaders/shader-helpers";
+import { characterValues } from "../tweakpane/characterSettings";
 
 type TUniform<TValue = any> = { value: TValue };
 
@@ -16,18 +17,20 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
   constructor() {
     super();
     this.color = new Color(0xffffff);
-    this.transmission = 0.5;
-    this.metalness = 0.9;
-    this.roughness = 0.1;
-    this.ior = 1.2;
-    this.thickness = 0.1;
-    this.specularColor = new Color(0x0077ff);
-    this.specularIntensity = 0.1;
-    this.emissive = new Color(0xffffff);
-    this.emissiveIntensity = 0.1;
-    this.envMapIntensity = 1.8;
-    this.sheenColor = new Color(0xffffff);
-    this.sheen = 0.5;
+    this.transmission = characterValues.material.transmission;
+    this.metalness = characterValues.material.metalness;
+    this.roughness = characterValues.material.roughness;
+    this.ior = characterValues.material.ior;
+    this.thickness = characterValues.material.thickness;
+    this.specularColor = characterValues.material.specularColor;
+    this.specularIntensity = characterValues.material.specularIntensity;
+    this.emissive = characterValues.material.emissive;
+    this.emissiveIntensity = characterValues.material.emissiveIntensity;
+    this.envMapIntensity = characterValues.material.envMapIntensity;
+    this.sheenColor = characterValues.material.sheenColor;
+    this.sheen = characterValues.material.sheen;
+    this.clearcoat = characterValues.material.clearcoat;
+    this.clearcoatRoughness = characterValues.material.clearcoatRoughness;
 
     this.onBeforeCompile = (shader) => {
       this.uniforms = UniformsUtils.clone(shader.uniforms);
@@ -130,5 +133,22 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
       this.colorsCube216.push(color);
       hue = (hue + goldenRatioConjugate) % 1;
     }
+  }
+
+  public update() {
+    this.transmission = characterValues.material.transmission;
+    this.metalness = characterValues.material.metalness;
+    this.roughness = characterValues.material.roughness;
+    this.ior = characterValues.material.ior;
+    this.thickness = characterValues.material.thickness;
+    this.specularColor = characterValues.material.specularColor;
+    this.specularIntensity = characterValues.material.specularIntensity;
+    this.emissive = characterValues.material.emissive;
+    this.emissiveIntensity = characterValues.material.emissiveIntensity;
+    this.envMapIntensity = characterValues.material.envMapIntensity;
+    this.sheenColor = characterValues.material.sheenColor;
+    this.sheen = characterValues.material.sheen;
+    this.clearcoat = characterValues.material.clearcoat;
+    this.clearcoatRoughness = characterValues.material.clearcoatRoughness;
   }
 }
