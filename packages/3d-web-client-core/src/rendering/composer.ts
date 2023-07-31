@@ -14,10 +14,9 @@ import {
   SMAAPreset,
   EdgeDetectionMode,
   PredicationMode,
-  BrightnessContrastEffect,
-  HueSaturationEffect,
 } from "postprocessing";
 import {
+  Color,
   LinearSRGBColorSpace,
   LoadingManager,
   PMREMGenerator,
@@ -34,6 +33,7 @@ import { TimeManager } from "../time/TimeManager";
 import { composerValues as vals } from "../tweakpane/composerSettings";
 import { TweakPane } from "../tweakpane/TweakPane";
 
+import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat";
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
 
 export class Composer {
@@ -56,8 +56,6 @@ export class Composer {
   private readonly bloomPass: EffectPass;
   private readonly toneMappingEffect: ToneMappingEffect;
   private readonly smaaEffect: SMAAEffect;
-  private readonly brightnessContrastEffect: BrightnessContrastEffect;
-  private readonly hueSaturationEffect: HueSaturationEffect;
 
   private readonly normalPass: NormalPass;
   private readonly normalTextureEffect: TextureEffect;
@@ -65,7 +63,9 @@ export class Composer {
   private readonly ssaoPass: EffectPass;
   private readonly toneMappingPass: EffectPass;
   private readonly smaaPass: EffectPass;
-  private readonly bchsPass: EffectPass;
+
+  private readonly bcs = BrightnessContrastSaturation;
+  private readonly bcsPass: ShaderPass;
 
   private readonly gaussGrainEffect = GaussGrainEffect;
   private readonly gaussGrainPass: ShaderPass;
@@ -106,7 +106,22 @@ export class Composer {
       intensity: vals.bloom,
     });
     this.ssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
-      ...vals.ssao,
+      blendFunction: vals.ssao.blendFunction,
+      distanceScaling: vals.ssao.distanceScaling,
+      depthAwareUpsampling: vals.ssao.depthAwareUpsampling,
+      samples: vals.ssao.samples,
+      rings: vals.ssao.rings,
+      luminanceInfluence: vals.ssao.luminanceInfluence,
+      radius: vals.ssao.radius,
+      intensity: vals.ssao.intensity,
+      bias: vals.ssao.bias,
+      fade: vals.ssao.fade,
+      resolutionScale: vals.ssao.resolutionScale,
+      color: new Color().setRGB(vals.ssao.color.r, vals.ssao.color.g, vals.ssao.color.b),
+      worldDistanceThreshold: vals.ssao.worldDistanceThreshold,
+      worldDistanceFalloff: vals.ssao.worldDistanceFalloff,
+      worldProximityThreshold: vals.ssao.worldProximityThreshold,
+      worldProximityFalloff: vals.ssao.worldProximityFalloff,
     });
 
     this.fxaaPass = new EffectPass(this.camera, this.fxaaEffect);
@@ -128,24 +143,16 @@ export class Composer {
     });
 
     this.toneMappingPass = new EffectPass(this.camera, this.toneMappingEffect);
-    this.toneMappingPass.enabled = vals.renderer.toneMapping === 5 ? true : false;
+    this.toneMappingPass.enabled =
+      vals.renderer.toneMapping === 5 || vals.renderer.toneMapping === 0 ? true : false;
+
+    this.bcsPass = new ShaderPass(this.bcs, "tDiffuse");
+    this.bcs.uniforms.brightness.value = vals.brightness;
+    this.bcs.uniforms.contrast.value = vals.contrast;
+    this.bcs.uniforms.saturation.value = vals.saturation;
 
     this.gaussGrainPass = new ShaderPass(this.gaussGrainEffect, "tDiffuse");
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
-
-    this.brightnessContrastEffect = new BrightnessContrastEffect({
-      brightness: vals.brightness,
-      contrast: vals.contrast,
-    });
-    this.hueSaturationEffect = new HueSaturationEffect({
-      hue: vals.hue,
-      saturation: vals.saturation,
-    });
-    this.bchsPass = new EffectPass(
-      this.camera,
-      this.brightnessContrastEffect,
-      this.hueSaturationEffect,
-    );
 
     this.composer.addPass(this.renderPass);
     this.composer.addPass(this.normalPass);
@@ -154,15 +161,14 @@ export class Composer {
     this.composer.addPass(this.smaaPass);
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.toneMappingPass);
-    this.composer.addPass(this.bchsPass);
+    this.composer.addPass(this.bcsPass);
     this.composer.addPass(this.gaussGrainPass);
 
     this.tweakPane.setupRenderPane(
       this.ssaoEffect,
       this.toneMappingEffect,
       this.toneMappingPass,
-      this.brightnessContrastEffect,
-      this.hueSaturationEffect,
+      this.bcs,
       this.bloomEffect,
       this.gaussGrainEffect,
     );
@@ -182,7 +188,6 @@ export class Composer {
     this.smaaPass.setSize(this.width, this.height);
     this.bloomPass.setSize(this.width, this.height);
     this.toneMappingPass.setSize(this.width, this.height);
-    this.bchsPass.setSize(this.width, this.height);
     this.gaussGrainPass.setSize(this.width, this.height);
     this.renderer.setSize(this.width, this.height);
   }

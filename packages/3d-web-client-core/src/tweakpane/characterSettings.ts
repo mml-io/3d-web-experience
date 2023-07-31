@@ -1,5 +1,3 @@
-import { Color } from "three";
-
 export const characterValues = {
   material: {
     transmission: 1,
@@ -7,12 +5,12 @@ export const characterValues = {
     roughness: 0.12,
     ior: 1.5,
     thickness: 0.1,
-    specularColor: new Color(0xffffff),
+    specularColor: { r: 1.0, g: 1.0, b: 1.0 },
     specularIntensity: 0.1,
-    emissive: new Color(0xffffff),
+    emissive: { r: 1.0, g: 1.0, b: 1.0 },
     emissiveIntensity: 0.1,
     envMapIntensity: 1.0,
-    sheenColor: new Color(0xffffff),
+    sheenColor: { r: 1.0, g: 1.0, b: 1.0 },
     sheen: 0.5,
     clearcoat: 0.0,
     clearcoatRoughness: 0.0,
