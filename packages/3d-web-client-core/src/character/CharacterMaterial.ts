@@ -22,12 +22,24 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
     this.roughness = characterValues.material.roughness;
     this.ior = characterValues.material.ior;
     this.thickness = characterValues.material.thickness;
-    this.specularColor = characterValues.material.specularColor;
+    this.specularColor = new Color().setRGB(
+      characterValues.material.specularColor.r,
+      characterValues.material.specularColor.g,
+      characterValues.material.specularColor.b,
+    );
     this.specularIntensity = characterValues.material.specularIntensity;
-    this.emissive = characterValues.material.emissive;
+    this.emissive = new Color().setRGB(
+      characterValues.material.emissive.r,
+      characterValues.material.emissive.g,
+      characterValues.material.emissive.b,
+    );
     this.emissiveIntensity = characterValues.material.emissiveIntensity;
     this.envMapIntensity = characterValues.material.envMapIntensity;
-    this.sheenColor = characterValues.material.sheenColor;
+    this.sheenColor = new Color().setRGB(
+      characterValues.material.sheenColor.r,
+      characterValues.material.sheenColor.g,
+      characterValues.material.sheenColor.b,
+    );
     this.sheen = characterValues.material.sheen;
     this.clearcoat = characterValues.material.clearcoat;
     this.clearcoatRoughness = characterValues.material.clearcoatRoughness;
@@ -141,12 +153,24 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
     this.roughness = characterValues.material.roughness;
     this.ior = characterValues.material.ior;
     this.thickness = characterValues.material.thickness;
-    this.specularColor = characterValues.material.specularColor;
+    this.specularColor = new Color().setRGB(
+      characterValues.material.specularColor.r,
+      characterValues.material.specularColor.g,
+      characterValues.material.specularColor.b,
+    );
     this.specularIntensity = characterValues.material.specularIntensity;
-    this.emissive = characterValues.material.emissive;
+    this.emissive = new Color().setRGB(
+      characterValues.material.emissive.r,
+      characterValues.material.emissive.g,
+      characterValues.material.emissive.b,
+    );
     this.emissiveIntensity = characterValues.material.emissiveIntensity;
     this.envMapIntensity = characterValues.material.envMapIntensity;
-    this.sheenColor = characterValues.material.sheenColor;
+    this.sheenColor = new Color().setRGB(
+      characterValues.material.sheenColor.r,
+      characterValues.material.sheenColor.g,
+      characterValues.material.sheenColor.b,
+    );
     this.sheen = characterValues.material.sheen;
     this.clearcoat = characterValues.material.clearcoat;
     this.clearcoatRoughness = characterValues.material.clearcoatRoughness;

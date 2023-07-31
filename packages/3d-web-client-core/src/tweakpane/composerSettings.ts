@@ -1,12 +1,11 @@
 import { BlendFunction, ToneMappingMode } from "postprocessing";
-import { Color } from "three";
 
 export const composerValues = {
   renderer: {
     shadowMap: 2,
-    toneMapping: 5,
-    exposure: 0.95,
-    bgIntensity: 0.5,
+    toneMapping: 4,
+    exposure: 1,
+    bgIntensity: 0.6,
     bgBlurriness: 0.0,
   },
   ssao: {
@@ -17,11 +16,11 @@ export const composerValues = {
     rings: 7,
     luminanceInfluence: 0.7,
     radius: 0.03,
-    intensity: 2.1,
+    intensity: 2.5,
     bias: 0.05,
     fade: 0.03,
-    resolutionScale: 0.5,
-    color: new Color(0x000000),
+    resolutionScale: 0.75,
+    color: { r: 0, g: 0, b: 0 },
     worldDistanceThreshold: 30,
     worldDistanceFalloff: 7,
     worldProximityThreshold: 0.5,
@@ -36,19 +35,18 @@ export const composerValues = {
     averageLuminance: 0.01,
     adaptationRate: 2.0,
   },
-  brightness: 0.0,
-  contrast: 0.0,
-  hue: 0.0,
-  saturation: -0.05,
-  grain: 0.05,
-  bloom: 0.5,
+  brightness: -0.03,
+  contrast: 1.3,
+  saturation: 0.95,
+  grain: 0.055,
+  bloom: 0.4,
 };
 
 export const composerOptions = {
   renderer: {
     shadowMap: { min: 0, max: 2, step: 1 },
     toneMapping: { min: 0, max: 5, step: 1 },
-    exposure: { min: 0, max: 1, step: 0.01 },
+    exposure: { min: 0, max: 3, step: 0.01 },
     bgIntensity: { min: 0, max: 1, step: 0.01 },
     bgBlurriness: { min: 0, max: 0.1, step: 0.001 },
   },
@@ -79,13 +77,10 @@ export const composerOptions = {
     amount: { min: -1.0, max: 1.0, step: 0.01 },
   },
   contrast: {
-    amount: { min: -1.0, max: 1.0, step: 0.01 },
-  },
-  hue: {
-    amount: { min: 0.0, max: Math.PI * 2.0, step: 0.001 },
+    amount: { min: 0.0, max: 2.0, step: 0.01 },
   },
   saturation: {
-    amount: { min: -1.0, max: 1.0, step: 0.01 },
+    amount: { min: 0.0, max: 2.0, step: 0.01 },
   },
   grain: {
     amount: { min: 0, max: 0.2, step: 0.002 },

@@ -1,10 +1,8 @@
 import {
   BlendFunction,
   BloomEffect,
-  BrightnessContrastEffect,
   EffectComposer,
   EffectPass,
-  HueSaturationEffect,
   SSAOEffect,
   ToneMappingEffect,
 } from "postprocessing";
@@ -14,6 +12,7 @@ import { FolderApi, Pane, TpChangeEvent } from "tweakpane";
 import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
 import { TimeManager } from "../time/TimeManager";
 
+import { BrightnessContrastSaturation } from "./../rendering/post-effects/bright-contrast-sat";
 import { characterOptions, characterValues } from "./characterSettings";
 import {
   ssaoMaterialParams,
@@ -45,9 +44,21 @@ export class TweakPane {
 
   private characterMaterial: FolderApi;
 
+  private saveVisibilityInLocalStorage: boolean = true;
   public guiVisible: boolean = false;
 
   constructor(renderer: WebGLRenderer, scene: Scene, composer: EffectComposer) {
+    if (this.saveVisibilityInLocalStorage) {
+      const localStorageGuiVisible = localStorage.getItem("guiVisible");
+      if (localStorageGuiVisible !== null) {
+        if (localStorageGuiVisible === "true") {
+          this.guiVisible = true;
+        } else if (localStorageGuiVisible === "false") {
+          this.guiVisible = false;
+        }
+      }
+    }
+
     this.renderer = renderer;
     this.scene = scene;
     this.composer = composer;
@@ -59,7 +70,6 @@ export class TweakPane {
     this.toneMapping = this.render.addFolder({ title: "customToneMapping", expanded: false });
     this.ssao = this.render.addFolder({ title: "ambientOcclusion", expanded: false });
     this.post = this.render.addFolder({ title: "post", expanded: false });
-    this.export = this.render.addFolder({ title: "import/export", expanded: false });
 
     this.toneMapping.hidden = composerValues.renderer.toneMapping === 5 ? false : true;
 
@@ -130,22 +140,32 @@ export class TweakPane {
         return;
       }
       if (e.presetKey === "specularColor") {
-        characterValues.material.specularColor = new Color().setRGB(
-          e.value.r,
-          e.value.g,
-          e.value.b,
-        );
+        characterValues.material.specularColor = {
+          r: e.value.r,
+          g: e.value.g,
+          b: e.value.b,
+        };
         return;
       }
       if (e.presetKey === "emissive") {
-        characterValues.material.emissive = new Color().setRGB(e.value.r, e.value.g, e.value.b);
+        characterValues.material.emissive = {
+          r: e.value.r,
+          g: e.value.g,
+          b: e.value.b,
+        };
         return;
       }
       if (e.presetKey === "sheenColor") {
-        characterValues.material.sheenColor = new Color().setRGB(e.value.r, e.value.g, e.value.b);
+        characterValues.material.sheenColor = {
+          r: e.value.r,
+          g: e.value.g,
+          b: e.value.b,
+        };
         return;
       }
     });
+
+    this.export = this.gui.addFolder({ title: "import/export", expanded: false });
 
     window.addEventListener("keydown", this.processKey.bind(this));
 
@@ -170,8 +190,7 @@ export class TweakPane {
     ssaoEffect: SSAOEffect,
     toneMappingEffect: ToneMappingEffect,
     toneMappingPass: EffectPass,
-    brightnessContrastEffect: BrightnessContrastEffect,
-    hueSaturationEffect: HueSaturationEffect,
+    brightnessContrastSaturation: typeof BrightnessContrastSaturation,
     bloomEffect: BloomEffect,
     gaussGrainEffect: typeof GaussGrainEffect,
   ): void {
@@ -227,12 +246,12 @@ export class TweakPane {
           break;
         case "toneMapping":
           this.renderer.toneMapping = e.value;
-          if (e.value !== 5) {
+          if (e.value !== 5 && e.value !== 0) {
             this.toneMapping.hidden = true;
           } else {
             this.toneMapping.hidden = false;
           }
-          toneMappingPass.enabled = e.value === 5 ? true : false;
+          toneMappingPass.enabled = e.value === 5 || e.value === 0 ? true : false;
           setToneMappingType(e.value);
           break;
         case "exposure":
@@ -287,7 +306,7 @@ export class TweakPane {
       composerOptions.ssao.worldProximityFalloff,
     );
     this.ssao.addInput(composerValues.ssao, "color", {
-      color: { type: "float" },
+      color: { alpha: false, type: "float" },
     });
     this.ssao.on("change", (e: TpChangeEvent<any>) => {
       if (!e.presetKey) {
@@ -359,7 +378,6 @@ export class TweakPane {
 
     this.post.addInput(composerValues, "brightness", composerOptions.brightness.amount);
     this.post.addInput(composerValues, "contrast", composerOptions.contrast.amount);
-    this.post.addInput(composerValues, "hue", composerOptions.hue.amount);
     this.post.addInput(composerValues, "saturation", composerOptions.saturation.amount);
 
     this.post.addInput(composerValues, "bloom", composerOptions.bloom.amount);
@@ -369,16 +387,13 @@ export class TweakPane {
       const target = e.presetKey;
       switch (target) {
         case "brightness":
-          brightnessContrastEffect.brightness = e.value;
+          brightnessContrastSaturation.uniforms.brightness.value = e.value;
           break;
         case "contrast":
-          brightnessContrastEffect.contrast = e.value;
-          break;
-        case "hue":
-          hueSaturationEffect.hue = e.value;
+          brightnessContrastSaturation.uniforms.contrast.value = e.value;
           break;
         case "saturation":
-          hueSaturationEffect.saturation = e.value;
+          brightnessContrastSaturation.uniforms.saturation.value = e.value;
           break;
         case "bloom":
           bloomEffect.intensity = e.value;
@@ -466,5 +481,8 @@ export class TweakPane {
     const paneElement: HTMLElement = gui.containerElem_;
     paneElement.style.display = this.guiVisible ? "none" : "unset";
     this.guiVisible = !this.guiVisible;
+    if (this.saveVisibilityInLocalStorage) {
+      localStorage.setItem("guiVisible", this.guiVisible === true ? "true" : "false");
+    }
   }
 }
