@@ -116,7 +116,6 @@ export class App {
       () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
-      // [`${protocol}//${host}/mml-documents/example-mml.html`],
       [`${protocol}//${host}/mml-documents/example-mml.html`],
     );
 
