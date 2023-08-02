@@ -6,7 +6,6 @@ import {
   ShaderPass,
   BloomEffect,
   SSAOEffect,
-  NormalPass,
   BlendFunction,
   TextureEffect,
   ToneMappingEffect,
@@ -14,9 +13,11 @@ import {
   SMAAPreset,
   EdgeDetectionMode,
   PredicationMode,
+  NormalPass,
 } from "postprocessing";
 import {
   Color,
+  HalfFloatType,
   LinearSRGBColorSpace,
   LoadingManager,
   PMREMGenerator,
@@ -90,7 +91,9 @@ export class Composer {
 
     document.body.appendChild(this.renderer.domElement);
 
-    this.composer = new EffectComposer(this.renderer);
+    this.composer = new EffectComposer(this.renderer, {
+      frameBufferType: HalfFloatType,
+    });
 
     this.tweakPane = new TweakPane(this.renderer, this.scene, this.composer);
 

@@ -3,7 +3,7 @@ import { Camera, Group, Object3D, PerspectiveCamera, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { getSpawnPositionInsideCircle } from "../helpers/math-helpers";
+import { ease, getSpawnPositionInsideCircle } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
 import { TimeManager } from "../time/TimeManager";
 
@@ -43,6 +43,9 @@ export class CharacterManager {
 
   private characterDescription: CharacterDescription | null = null;
   public character: Character | null = null;
+
+  private cameraOffsetTarget: number = 0;
+  private cameraOffset: number = 0;
 
   public readonly group: Group;
 
@@ -176,7 +179,14 @@ export class CharacterManager {
   public update() {
     if (this.character) {
       this.character.update(this.timeManager.time);
-      this.cameraManager.setTarget(this.character.position.add(new Vector3(0, 1.3, 0)));
+
+      if (this.character.model?.mesh) {
+        this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.6 : 0;
+        this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
+        const targetOffset = new Vector3(0, 1.3, this.cameraOffset);
+        targetOffset.applyQuaternion(this.character.model.mesh.quaternion);
+        this.cameraManager.setTarget(this.character.position.add(targetOffset));
+      }
 
       if (this.character.controller) {
         this.character.controller.update();
