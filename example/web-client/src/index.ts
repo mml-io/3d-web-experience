@@ -41,6 +41,7 @@ export class App {
   constructor() {
     this.scene = new Scene();
     this.scene.fog = new Fog(0xc7cad0, 30, 150);
+    this.collisionsManager = new CollisionsManager(this.scene);
 
     this.audioListener = new AudioListener();
 
@@ -55,7 +56,7 @@ export class App {
 
     this.timeManager = new TimeManager();
     this.keyInputManager = new KeyInputManager();
-    this.cameraManager = new CameraManager();
+    this.cameraManager = new CameraManager(this.collisionsManager);
     this.camera = this.cameraManager.camera;
     this.camera.add(this.audioListener);
     this.composer = new Composer(this.scene, this.camera);
@@ -94,7 +95,6 @@ export class App {
       },
     );
 
-    this.collisionsManager = new CollisionsManager(this.scene);
     this.characterManager = new CharacterManager(
       this.collisionsManager,
       this.cameraManager,

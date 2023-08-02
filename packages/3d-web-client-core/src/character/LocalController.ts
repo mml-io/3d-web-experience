@@ -96,8 +96,10 @@ export class LocalController {
     this.speed += ease(this.targetSpeed, this.speed, 0.07);
 
     this.rayCaster.set(this.model.mesh.position, this.vectorDown);
-    const hit = this.rayCaster.intersectObjects([this.collisionsManager.colliders]);
-    if (hit.length > 0) this.currentHeight = hit[0].distance;
+    const minimumDistance = this.collisionsManager.raycastFirstDistance(this.rayCaster.ray);
+    if (minimumDistance !== null) {
+      this.currentHeight = minimumDistance;
+    }
 
     if (anyDirection || !this.characterOnGround) {
       const targetAnimation = this.getTargetAnimation();
@@ -150,10 +152,17 @@ export class LocalController {
 
   private updateAzimuthalAngle(): void {
     if (!this.thirdPersonCamera || !this.model?.mesh) return;
-    this.azimuthalAngle = Math.atan2(
-      this.thirdPersonCamera.position.x - this.model.mesh.position.x,
-      this.thirdPersonCamera.position.z - this.model.mesh.position.z,
-    );
+    const camToModelDistance = this.thirdPersonCamera.position.distanceTo(this.model.mesh.position);
+    const isCameraFirstPerson = camToModelDistance < 1.5;
+    if (isCameraFirstPerson) {
+      const cameraForward = new Vector3(0, 0, 1).applyQuaternion(this.thirdPersonCamera.quaternion);
+      this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);
+    } else {
+      this.azimuthalAngle = Math.atan2(
+        this.thirdPersonCamera.position.x - this.model.mesh.position.x,
+        this.thirdPersonCamera.position.z - this.model.mesh.position.z,
+      );
+    }
   }
 
   private updateRotation(): void {

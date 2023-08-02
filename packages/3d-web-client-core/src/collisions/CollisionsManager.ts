@@ -7,6 +7,7 @@ import {
   Box3,
   BufferGeometry,
   Color,
+  DoubleSide,
   Euler,
   FrontSide,
   Group,
@@ -14,6 +15,7 @@ import {
   Mesh,
   MeshStandardMaterial,
   Object3D,
+  Ray,
   Scene,
   Vector3,
 } from "three";
@@ -32,30 +34,25 @@ export class CollisionsManager {
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
 
-  private collisionMeshState: Map<Group, CollisionMeshState> = new Map();
+  public collisionMeshState: Map<Group, CollisionMeshState> = new Map();
   private collisionTrigger: MMLCollisionTrigger;
-
-  public colliders: Group = new Group();
-  private collisionEnabledMeshes: Record<string, Mesh> = {};
 
   constructor(scene: Scene) {
     this.scene = scene;
     this.collisionTrigger = MMLCollisionTrigger.init();
   }
 
-  private safeAddColliders(child: Mesh): void {
-    if (!(child.uuid in this.collisionEnabledMeshes)) {
-      const clone = child.clone();
-      this.collisionEnabledMeshes[child.uuid] = clone;
-      this.colliders.add(clone);
+  public raycastFirstDistance(ray: Ray): number | null {
+    let minimumDistance: number = Infinity;
+    for (const [, value] of this.collisionMeshState) {
+      const hit = value.meshBVH.raycast(ray, DoubleSide);
+      if (hit.length > 0) {
+        if (hit[0].distance < minimumDistance) {
+          minimumDistance = hit[0].distance;
+        }
+      }
     }
-  }
-
-  private removeFromColliders(child: Mesh): void {
-    if (child.uuid in this.collisionEnabledMeshes) {
-      this.colliders.remove(this.collisionEnabledMeshes[child.uuid]);
-      delete this.collisionEnabledMeshes[child.uuid];
-    }
+    return minimumDistance;
   }
 
   private createCollisionMeshState(group: Group): CollisionMeshState {
@@ -65,7 +62,6 @@ export class CollisionsManager {
         const mesh = child as Mesh;
         mesh.localToWorld(new Vector3());
         mesh.updateMatrixWorld();
-        this.safeAddColliders(mesh);
         const clonedGeometry = mesh.geometry.clone();
         clonedGeometry.applyMatrix4(mesh.matrixWorld);
 
@@ -132,13 +128,6 @@ export class CollisionsManager {
         this.scene.remove(meshState.visualizer);
       }
       this.collisionMeshState.delete(group);
-      if (group) {
-        group.traverse((child) => {
-          if (child.type === "Mesh") {
-            this.removeFromColliders(child as Mesh);
-          }
-        });
-      }
     }
   }
 

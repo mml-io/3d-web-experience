@@ -1,5 +1,6 @@
-import { PerspectiveCamera, Vector3 } from "three";
+import { PerspectiveCamera, Raycaster, Vector3 } from "three";
 
+import { CollisionsManager } from "../collisions/CollisionsManager";
 import { ease, remap, clamp } from "../helpers/math-helpers";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
@@ -30,12 +31,18 @@ export class CameraManager {
   private targetTheta: number | null = -Math.PI / 2;
   private theta: number | null = -Math.PI / 2;
   private dragging: boolean = false;
+
   private target: Vector3 = new Vector3(0, 1.55, 0);
+
   private hadTarget: boolean = false;
 
-  constructor() {
+  private rayCaster: Raycaster;
+
+  constructor(private collisionsManager: CollisionsManager) {
     this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
+
+    this.rayCaster = new Raycaster();
 
     document.addEventListener("mousedown", this.onMouseDown.bind(this));
     document.addEventListener("mouseup", this.onMouseUp.bind(this));
@@ -76,7 +83,7 @@ export class CameraManager {
     );
   }
 
-  public setTarget(target: THREE.Vector3): void {
+  public setTarget(target: Vector3): void {
     this.target.copy(target);
     if (!this.hadTarget) {
       this.hadTarget = true;
@@ -95,6 +102,20 @@ export class CameraManager {
     this.phi = this.targetPhi;
     this.theta = this.targetTheta;
     this.distance = this.targetDistance;
+  }
+
+  public adjustCameraPosition(): void {
+    this.rayCaster.set(
+      this.camera.position,
+      this.target.clone().sub(this.camera.position).normalize(),
+    );
+    const minimumDistance = this.collisionsManager.raycastFirstDistance(this.rayCaster.ray);
+    const cameraToPlayerDistance = this.camera.position.distanceTo(this.target);
+
+    if (minimumDistance !== null && minimumDistance <= cameraToPlayerDistance) {
+      this.targetDistance = cameraToPlayerDistance - minimumDistance;
+      this.distance = this.targetDistance;
+    }
   }
 
   public update(): void {
@@ -124,8 +145,12 @@ export class CameraManager {
       this.fov += ease(this.targetFOV, this.fov, 0.07);
       this.camera.fov = this.fov;
       this.camera.updateProjectionMatrix();
+      this.camera.updateMatrixWorld();
 
       this.camera.position.set(x, clamp(y, 0.1, Infinity), z);
+
+      this.adjustCameraPosition();
+
       this.camera.lookAt(this.target);
     }
   }
