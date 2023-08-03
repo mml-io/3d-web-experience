@@ -153,7 +153,7 @@ export class LocalController {
   private updateAzimuthalAngle(): void {
     if (!this.thirdPersonCamera || !this.model?.mesh) return;
     const camToModelDistance = this.thirdPersonCamera.position.distanceTo(this.model.mesh.position);
-    const isCameraFirstPerson = camToModelDistance < 1.5;
+    const isCameraFirstPerson = camToModelDistance < 2;
     if (isCameraFirstPerson) {
       const cameraForward = new Vector3(0, 0, 1).applyQuaternion(this.thirdPersonCamera.quaternion);
       this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);

@@ -14,7 +14,7 @@ export class CameraManager {
 
   private initialFOV: number = 80;
   private fov: number = this.initialFOV;
-  private minFOV: number = 65;
+  private minFOV: number = 63;
   private maxFOV: number = 85;
   private targetFOV: number = this.initialFOV;
 
@@ -23,7 +23,7 @@ export class CameraManager {
 
   private dampingFactor: number = 0.091;
 
-  private targetDistance: number = this.initialDistance;
+  public targetDistance: number = this.initialDistance;
   private distance: number = this.initialDistance;
 
   private targetPhi: number | null = Math.PI / 2;

@@ -66,4 +66,5 @@ export const BrightnessContrastSaturation = new ShaderMaterial({
       );
     }
   `,
+  dithering: true,
 });

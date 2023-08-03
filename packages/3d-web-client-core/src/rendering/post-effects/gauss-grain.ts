@@ -33,7 +33,7 @@ export const GaussGrainEffect = new ShaderMaterial({
     }
 
     vec3 gaussgrain() {
-      vec2 ps = vec2(1.01) / resolution.xy;
+      vec2 ps = vec2(1.0) / resolution.xy;
       vec2 uv = gl_FragCoord.xy * ps;
       float t = time;
       float seed = dot(uv, vec2(12.9898, 78.233));
@@ -50,4 +50,5 @@ export const GaussGrainEffect = new ShaderMaterial({
       gl_FragColor = vec4(clamp(col, 0.0, 1.0), alpha);
     }
   `,
+  dithering: true,
 });
