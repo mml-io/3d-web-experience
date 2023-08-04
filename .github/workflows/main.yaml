@@ -63,7 +63,7 @@ jobs:
         run: |
           version="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')"
           echo $version
-          lerna version $version --no-git-tag-version --yes
+          ./node_modules/.bin/lerna version $version --no-git-tag-version --ignore-scripts --yes
 
       - name: Publish Experimental Package - 3d-web-client-core
         uses: JS-DevTools/npm-publish@v2
