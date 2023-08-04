@@ -61,18 +61,18 @@ jobs:
 
       - name: Experimental Package Versioning
         run: |
-          version="0.0.0-experimental-$GITHUB_SHA-$(date +'%Y%m%d')"
+          version="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')"
           echo $version
           lerna version $version --no-git-tag-version --yes
 
-      - name: Publish Package - 3d-web-client-core
+      - name: Publish Experimental Package - 3d-web-client-core
         uses: JS-DevTools/npm-publish@v2
         with:
           package: packages/3d-web-client-core/package.json
           token: ${{ secrets.NPM_TOKEN }}
           tag: experimental
 
-      - name: Publish Package - 3d-web-user-networking
+      - name: Publish Experimental Package - 3d-web-user-networking
         uses: JS-DevTools/npm-publish@v2
         with:
           package: packages/3d-web-user-networking/package.json
