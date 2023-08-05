@@ -49,6 +49,11 @@ jobs:
 
       - name: Publish
         run: |
+          # Set up git user for lerna to create a local commit with
+          git config --global user.email "lerna-ci@mml.io"
+          git config --global user.name "lerna-ci-mml"
+          
+          # Set up npm auth token from secret for publishing
           echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
           
           # Attempt to publish at the current version - this will skip if the version already exists
