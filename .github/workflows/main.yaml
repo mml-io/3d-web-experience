@@ -47,35 +47,17 @@ jobs:
       - name: Lint
         run: npm run lint-all
 
-      - name: Publish Package - 3d-web-client-core
-        uses: JS-DevTools/npm-publish@v2
-        with:
-          package: packages/3d-web-client-core/package.json
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish Package - 3d-web-user-networking
-        uses: JS-DevTools/npm-publish@v2
-        with:
-          package: packages/3d-web-user-networking/package.json
-          token: ${{ secrets.NPM_TOKEN }}
-
-      - name: Experimental Package Versioning
+      - name: Publish
         run: |
+          echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > .npmrc
+          
+          # Attempt to publish at the current version - this will skip if the version already exists
+          echo "Attempting to publishing latest version"
+          ./node_modules/.bin/lerna publish --no-private --dist-tag latest --ignore-scripts
+          
+          # Publish the current commit as an "experimental" version
           version="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')"
-          echo $version
-          ./node_modules/.bin/lerna version $version --no-git-tag-version --ignore-scripts --yes
-
-      - name: Publish Experimental Package - 3d-web-client-core
-        uses: JS-DevTools/npm-publish@v2
-        with:
-          package: packages/3d-web-client-core/package.json
-          token: ${{ secrets.NPM_TOKEN }}
-          tag: experimental
-
-      - name: Publish Experimental Package - 3d-web-user-networking
-        uses: JS-DevTools/npm-publish@v2
-        with:
-          package: packages/3d-web-user-networking/package.json
-          token: ${{ secrets.NPM_TOKEN }}
-          tag: experimental
-
+          echo "Publishing experimental version $version"
+          ./node_modules/.bin/lerna publish $version --no-private --dist-tag experimental --ignore-scripts
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
