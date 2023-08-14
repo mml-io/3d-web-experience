@@ -43,11 +43,11 @@ export class CollisionsManager {
   }
 
   public raycastFirstDistance(ray: Ray): number | null {
-    let minimumDistance: number = Infinity;
+    let minimumDistance: number | null = null;
     for (const [, value] of this.collisionMeshState) {
       const hit = value.meshBVH.raycastFirst(ray, DoubleSide);
       if (hit) {
-        if (hit.distance < minimumDistance) {
+        if (minimumDistance === null || hit.distance < minimumDistance) {
           minimumDistance = hit.distance;
         }
       }
