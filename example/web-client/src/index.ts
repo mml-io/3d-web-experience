@@ -40,7 +40,7 @@ export class App {
 
   constructor() {
     this.scene = new Scene();
-    this.scene.fog = new Fog(0xc7cad0, 30, 150);
+    this.scene.fog = new Fog(0xc7cad0, 30, 210);
     this.collisionsManager = new CollisionsManager(this.scene);
 
     this.audioListener = new AudioListener();
