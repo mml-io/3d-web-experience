@@ -1,9 +1,11 @@
-import { DirectionalLight, Group, OrthographicCamera, Vector3 } from "three";
+import { CameraHelper, DirectionalLight, Group, OrthographicCamera, Vector3 } from "three";
 
 export class Sun extends Group {
+  private readonly debug: boolean = false;
   private readonly sunOffset: Vector3 = new Vector3(50, 80, 35);
-  private readonly shadowResolution: number = 16384;
-  private readonly shadowCamFrustum: number = 150;
+  private readonly shadowResolution: number = 8192;
+  private readonly shadowCamFrustum: number = 50;
+  private readonly camHelper: CameraHelper | null = null;
 
   private readonly shadowCamera: OrthographicCamera;
   private readonly directionalLight: DirectionalLight;
@@ -17,10 +19,15 @@ export class Sun extends Group {
       this.shadowCamFrustum,
       this.shadowCamFrustum,
       -this.shadowCamFrustum,
-      0.5,
-      500,
+      0.1,
+      200,
     );
-    this.directionalLight = new DirectionalLight(0xffffff, 0.8);
+    if (this.debug === true) {
+      this.camHelper = new CameraHelper(this.shadowCamera);
+    }
+    this.directionalLight = new DirectionalLight(0xffffff, 0.5);
+    this.directionalLight.shadow.normalBias = 0.05;
+    this.directionalLight.shadow.radius = 1.5;
     this.directionalLight.shadow.camera = this.shadowCamera;
     this.directionalLight.shadow.mapSize.set(this.shadowResolution, this.shadowResolution);
     this.directionalLight.castShadow = true;
@@ -28,6 +35,9 @@ export class Sun extends Group {
     this.updateCharacterPosition(new Vector3(0, 0, 0));
 
     this.add(this.directionalLight);
+    if (this.debug === true && this.camHelper instanceof CameraHelper) {
+      this.add(this.camHelper);
+    }
   }
 
   public updateCharacterPosition(position: Vector3 | undefined) {
