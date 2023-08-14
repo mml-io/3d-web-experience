@@ -21,7 +21,7 @@ export class LocalController {
   private maxRunSpeed = 8.5;
   private gravity: number = -42;
   private jumpForce: number = 16;
-  private coyoteTimeThreshold: number = 290;
+  private coyoteTimeThreshold: number = 70;
 
   private coyoteTime: boolean = false;
   private canJump: boolean = true;
@@ -165,13 +165,22 @@ export class LocalController {
     }
   }
 
+  private computeAngularDifference(rotationQuaternion: Quaternion): number {
+    if (!this.model?.mesh) return 0;
+    return 2 * Math.acos(Math.abs(this.model.mesh.quaternion.dot(rotationQuaternion)));
+  }
+
   private updateRotation(): void {
     if (!this.thirdPersonCamera || !this.model?.mesh) return;
     this.updateRotationOffset();
     this.updateAzimuthalAngle();
     const rotationQuaternion = new Quaternion();
     rotationQuaternion.setFromAxisAngle(this.vectorUp, this.azimuthalAngle + this.rotationOffset);
-    this.model.mesh.quaternion.rotateTowards(rotationQuaternion, 0.07);
+    const angularDifference = this.computeAngularDifference(rotationQuaternion);
+    const desiredTime = 0.07;
+    const angularSpeed = angularDifference / desiredTime;
+    const frameRotation = angularSpeed * this.timeManager.deltaTime;
+    this.model.mesh.quaternion.rotateTowards(rotationQuaternion, frameRotation);
   }
 
   private addScaledVectorToCharacter(deltaTime: number) {
