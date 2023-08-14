@@ -246,12 +246,8 @@ export class TweakPane {
           break;
         case "toneMapping":
           this.renderer.toneMapping = e.value;
-          if (e.value !== 5 && e.value !== 0) {
-            this.toneMapping.hidden = true;
-          } else {
-            this.toneMapping.hidden = false;
-          }
-          toneMappingPass.enabled = e.value === 5 || e.value === 0 ? true : false;
+          this.toneMapping.hidden = e.value !== 5;
+          toneMappingPass.enabled = e.value === 5 ? true : false;
           setToneMappingType(e.value);
           break;
         case "exposure":

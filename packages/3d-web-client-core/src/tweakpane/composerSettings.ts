@@ -3,9 +3,9 @@ import { BlendFunction, ToneMappingMode } from "postprocessing";
 export const composerValues = {
   renderer: {
     shadowMap: 2,
-    toneMapping: 4,
+    toneMapping: 5,
     exposure: 1,
-    bgIntensity: 0.6,
+    bgIntensity: 0.5,
     bgBlurriness: 0.0,
   },
   ssao: {
@@ -37,9 +37,9 @@ export const composerValues = {
   },
   brightness: -0.03,
   contrast: 1.3,
-  saturation: 0.95,
-  grain: 0.055,
-  bloom: 0.4,
+  saturation: 0.91,
+  grain: 0.061,
+  bloom: 0.45,
 };
 
 export const composerOptions = {
@@ -86,7 +86,7 @@ export const composerOptions = {
     amount: { min: 0, max: 0.2, step: 0.002 },
   },
   bloom: {
-    amount: { min: 0, max: 4, step: 0.1 },
+    amount: { min: 0, max: 2, step: 0.05 },
   },
 };
 
