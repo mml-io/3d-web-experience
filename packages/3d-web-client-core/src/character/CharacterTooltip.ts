@@ -18,6 +18,7 @@ enum LabelAlignment {
   right = "right",
 }
 
+const fontScale = 5;
 const defaultLabelColor = new Color(0x000000);
 const defaultFontColor = new Color(0xffffff);
 const defaultLabelAlignment = LabelAlignment.center;
@@ -75,7 +76,7 @@ export class CharacterTooltip {
     }
     const { texture, width, height } = THREECanvasTextTexture(content, {
       bold: true,
-      fontSize: this.props.fontSize,
+      fontSize: this.props.fontSize * fontScale,
       paddingPx: this.props.padding,
       textColorRGB255A1: {
         r: this.props.fontColor.r * 255,
@@ -90,8 +91,8 @@ export class CharacterTooltip {
         a: 1.0,
       },
       dimensions: {
-        width: this.props.width * 100,
-        height: this.props.height * 100,
+        width: this.props.width * (100 * fontScale),
+        height: this.props.height * (100 * fontScale),
       },
       alignment: this.props.alignment,
     });
@@ -101,8 +102,8 @@ export class CharacterTooltip {
     this.material.map.minFilter = LinearFilter;
     this.material.needsUpdate = true;
 
-    this.mesh.scale.x = width / 100;
-    this.mesh.scale.y = height / 100;
+    this.mesh.scale.x = width / (100 * fontScale);
+    this.mesh.scale.y = height / (100 * fontScale);
     this.mesh.position.y = 1.6;
   }
 
