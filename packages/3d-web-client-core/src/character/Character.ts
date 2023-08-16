@@ -6,6 +6,7 @@ import { KeyInputManager } from "../input/KeyInputManager";
 import { TimeManager } from "../time/TimeManager";
 
 import { CharacterModel } from "./CharacterModel";
+import { CharacterTooltip } from "./CharacterTooltip";
 import { LocalController } from "./LocalController";
 
 export type CharacterDescription = {
@@ -26,6 +27,8 @@ export class Character {
 
   public position: Vector3 = new Vector3();
 
+  public tooltip: CharacterTooltip | null = null;
+
   constructor(
     private readonly characterDescription: CharacterDescription,
     private readonly id: number,
@@ -42,6 +45,9 @@ export class Character {
   private async load(): Promise<void> {
     this.model = new CharacterModel(this.characterDescription);
     await this.model.init();
+    if (this.tooltip === null) {
+      this.tooltip = new CharacterTooltip(this.model.mesh!);
+    }
     this.color = this.model.material.colorsCube216[this.id];
     if (this.isLocal) {
       this.controller = new LocalController(
@@ -58,6 +64,9 @@ export class Character {
 
   public update(time: number) {
     if (!this.model) return;
+    if (this.tooltip) {
+      this.tooltip.update(this.cameraManager.camera);
+    }
     this.model.mesh!.getWorldPosition(this.position);
     if (typeof this.model.material.uniforms.time !== "undefined") {
       this.model.material.uniforms.time.value = time;
