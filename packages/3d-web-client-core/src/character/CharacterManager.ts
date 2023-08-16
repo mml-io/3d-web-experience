@@ -111,6 +111,7 @@ export class CharacterManager {
 
           if (isLocal) {
             this.character = character;
+            this.character.tooltip?.setText(`${id}`);
           } else {
             this.remoteCharacters.set(id, character);
             const remoteController = new RemoteController(character, id);
@@ -136,6 +137,7 @@ export class CharacterManager {
               spawnPosition.z,
             );
             this.remoteCharacterControllers.set(id, remoteController);
+            character.tooltip?.setText(`${id}`);
           }
           resolve(character);
         },
