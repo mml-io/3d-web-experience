@@ -58,12 +58,7 @@ export class LocalController {
   private speed: number = 0;
   private targetSpeed: number = 0;
 
-  public networkState: CharacterState = {
-    id: 0,
-    position: { x: 0, y: 0, z: 0 },
-    rotation: { quaternionY: 0, quaternionW: 0 },
-    state: AnimationState.idle,
-  };
+  public networkState: CharacterState;
 
   constructor(
     private readonly model: CharacterModel,
@@ -73,7 +68,12 @@ export class LocalController {
     private readonly cameraManager: CameraManager,
     private readonly timeManager: TimeManager,
   ) {
-    setInterval(() => this.update.bind(this), 3000);
+    this.networkState = {
+      id: this.id,
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { quaternionY: 0, quaternionW: 1 },
+      state: AnimationState.idle,
+    };
   }
 
   public update(): void {
@@ -287,19 +287,27 @@ export class LocalController {
   }
 
   private updateNetworkState(): void {
-    if (!this.model?.mesh) return;
-    const characterQuaternion = this.model.mesh.getWorldQuaternion(new Quaternion());
-    const positionUpdate = new Vector3(
-      this.model.mesh.position.x,
-      this.model.mesh.position.y,
-      this.model.mesh.position.z,
-    );
-    this.networkState = {
-      id: this.id,
-      position: positionUpdate,
-      rotation: { quaternionY: characterQuaternion?.y, quaternionW: characterQuaternion?.w },
-      state: this.model.currentAnimation as AnimationState,
-    };
+    if (!this.model?.mesh) {
+      this.networkState = {
+        id: this.id,
+        position: new Vector3(),
+        rotation: { quaternionY: 0, quaternionW: 1 },
+        state: AnimationState.idle as AnimationState,
+      };
+    } else {
+      const characterQuaternion = this.model.mesh.getWorldQuaternion(new Quaternion());
+      const positionUpdate = new Vector3(
+        this.model.mesh.position.x,
+        this.model.mesh.position.y,
+        this.model.mesh.position.z,
+      );
+      this.networkState = {
+        id: this.id,
+        position: positionUpdate,
+        rotation: { quaternionY: characterQuaternion.y, quaternionW: characterQuaternion.w },
+        state: this.model.currentAnimation as AnimationState,
+      };
+    }
   }
 
   private resetPosition(): void {

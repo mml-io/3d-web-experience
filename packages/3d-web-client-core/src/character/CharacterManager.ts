@@ -58,7 +58,6 @@ export class CharacterManager {
     private readonly sendUpdate: (update: CharacterState) => void,
   ) {
     this.group = new Group();
-    setInterval(() => this.update.bind(this), 3000);
   }
 
   /* TODO: 
@@ -97,7 +96,7 @@ export class CharacterManager {
                 y: spawnPosition.y,
                 z: spawnPosition.z,
               },
-              rotation: { quaternionY: 0, quaternionW: 0 },
+              rotation: { quaternionY: 0, quaternionW: 1 },
               state: AnimationState.idle,
             });
           }

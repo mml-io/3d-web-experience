@@ -20,17 +20,18 @@ export class RemoteController {
   private animations = new Map<AnimationState, AnimationAction>();
   public currentAnimation: AnimationState = AnimationState.idle;
 
-  public networkState: CharacterState = {
-    id: 0,
-    position: { x: 0, y: 0, z: 0 },
-    rotation: { quaternionY: 0, quaternionW: 0 },
-    state: this.currentAnimation as AnimationState,
-  };
+  public networkState: CharacterState;
 
   constructor(public readonly character: Character, public readonly id: number) {
     this.characterModel = this.character.model!.mesh!;
     this.characterModel.updateMatrixWorld();
     this.animationMixer = new AnimationMixer(this.characterModel);
+    this.networkState = {
+      id: this.id,
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { quaternionY: 0, quaternionW: 1 },
+      state: this.currentAnimation as AnimationState,
+    };
   }
 
   public update(clientUpdate: CharacterState, time: number, deltaTime: number): void {
