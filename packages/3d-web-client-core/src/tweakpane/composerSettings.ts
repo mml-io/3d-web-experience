@@ -36,10 +36,10 @@ export const composerValues = {
     adaptationRate: 2.0,
   },
   brightness: -0.03,
-  contrast: 1.3,
+  contrast: 1.21,
   saturation: 0.91,
   grain: 0.061,
-  bloom: 0.45,
+  bloom: 0.25,
 };
 
 export const composerOptions = {
@@ -47,7 +47,7 @@ export const composerOptions = {
     shadowMap: { min: 0, max: 2, step: 1 },
     toneMapping: { min: 0, max: 5, step: 1 },
     exposure: { min: 0, max: 3, step: 0.01 },
-    bgIntensity: { min: 0, max: 1, step: 0.01 },
+    bgIntensity: { min: 0, max: 1.3, step: 0.01 },
     bgBlurriness: { min: 0, max: 0.1, step: 0.001 },
   },
   ssao: {

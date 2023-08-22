@@ -7,3 +7,4 @@ export { MMLCompositionScene } from "./mml/MMLCompositionScene";
 export { Composer } from "./rendering/composer";
 export { TimeManager } from "./time/TimeManager";
 export { CollisionsManager } from "./collisions/CollisionsManager";
+export { Sun } from "./sun/Sun";
