@@ -16,7 +16,9 @@ import {
   NormalPass,
 } from "postprocessing";
 import {
+  AmbientLight,
   Color,
+  Fog,
   HalfFloatType,
   LinearSRGBColorSpace,
   LoadingManager,
@@ -30,8 +32,10 @@ import {
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
+import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { composerValues as vals } from "../tweakpane/composerSettings";
+import { envValues } from "../tweakpane/envSettings";
 import { TweakPane } from "../tweakpane/TweakPane";
 
 import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat";
@@ -71,11 +75,17 @@ export class Composer {
   private readonly gaussGrainEffect = GaussGrainEffect;
   private readonly gaussGrainPass: ShaderPass;
 
+  private ambientLight: AmbientLight | null = null;
+
+  public sun: Sun | null = null;
+  public spawnSun: boolean;
+
   private tweakPane: TweakPane;
 
-  constructor(scene: Scene, camera: PerspectiveCamera) {
+  constructor(scene: Scene, camera: PerspectiveCamera, spawnSun: boolean = false) {
     this.scene = scene;
     this.camera = camera;
+    this.spawnSun = spawnSun;
     this.renderer = new WebGLRenderer({
       powerPreference: "high-performance",
       antialias: false,
@@ -88,6 +98,9 @@ export class Composer {
     this.renderer.shadowMap.type = vals.renderer.shadowMap as ShadowMapType;
     this.renderer.toneMapping = vals.renderer.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = vals.renderer.exposure;
+
+    this.setAmbientLight();
+    this.setFog();
 
     document.body.appendChild(this.renderer.domElement);
 
@@ -167,6 +180,11 @@ export class Composer {
     this.composer.addPass(this.bcsPass);
     this.composer.addPass(this.gaussGrainPass);
 
+    if (this.spawnSun === true) {
+      this.sun = new Sun();
+      this.scene.add(this.sun);
+    }
+
     this.tweakPane.setupRenderPane(
       this.ssaoEffect,
       this.toneMappingEffect,
@@ -174,6 +192,11 @@ export class Composer {
       this.bcs,
       this.bloomEffect,
       this.gaussGrainEffect,
+      this.spawnSun,
+      this.sun,
+      this.setHDRIFromFile.bind(this),
+      this.setAmbientLight.bind(this),
+      this.setFog.bind(this),
     );
     window.addEventListener("resize", () => this.updateProjection());
     this.updateProjection();
@@ -212,8 +235,8 @@ export class Composer {
     }
   }
 
-  public useHDRI(url: string): void {
-    if (this.isEnvHDRI || !this.renderer) return;
+  public useHDRI(url: string, fromFile: boolean = false): void {
+    if ((this.isEnvHDRI && fromFile === false) || !this.renderer) return;
     const pmremGenerator = new PMREMGenerator(this.renderer);
     new RGBELoader(new LoadingManager()).load(
       url,
@@ -235,5 +258,53 @@ export class Composer {
         console.error(`Can't load ${url}: ${JSON.stringify(error)}`);
       },
     );
+  }
+
+  public setHDRIFromFile(): void {
+    if (!this.renderer) return;
+    const fileInput = document.createElement("input");
+    fileInput.type = "file";
+    fileInput.accept = ".hdr";
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      if (!file) {
+        console.log("no file");
+        return;
+      }
+      const fileURL = URL.createObjectURL(file);
+      if (fileURL) {
+        this.useHDRI(fileURL, true);
+        URL.revokeObjectURL(fileURL);
+        document.body.removeChild(fileInput);
+      }
+    });
+    document.body.appendChild(fileInput);
+    fileInput.click();
+  }
+
+  public setFog(): void {
+    const fogColor = new Color().setRGB(
+      envValues.fog.fogColor.r,
+      envValues.fog.fogColor.g,
+      envValues.fog.fogColor.b,
+    );
+    this.scene.fog = new Fog(fogColor, envValues.fog.fogNear, envValues.fog.fogFar);
+  }
+
+  public setAmbientLight(): void {
+    if (this.ambientLight) {
+      this.scene.remove(this.ambientLight);
+      this.ambientLight.dispose();
+    }
+    const ambientLightColor = new Color().setRGB(
+      envValues.ambientLight.ambientLightColor.r,
+      envValues.ambientLight.ambientLightColor.g,
+      envValues.ambientLight.ambientLightColor.b,
+    );
+    this.ambientLight = new AmbientLight(
+      ambientLightColor,
+      envValues.ambientLight.ambientLightIntensity,
+    );
+    this.scene.add(this.ambientLight);
   }
 }

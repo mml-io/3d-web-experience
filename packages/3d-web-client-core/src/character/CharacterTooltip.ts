@@ -1,6 +1,5 @@
 import {
   Camera,
-  CanvasTexture,
   Color,
   FrontSide,
   LinearFilter,
@@ -29,8 +28,6 @@ const defaultLabelHeight = 0.125;
 const defaultLabelCastShadows = true;
 
 export class CharacterTooltip {
-  private texture: CanvasTexture;
-
   private geometry: PlaneGeometry;
   private material: MeshBasicMaterial;
   private mesh: Mesh<PlaneGeometry, MeshBasicMaterial>;
@@ -55,7 +52,7 @@ export class CharacterTooltip {
   constructor(parentModel: Object3D) {
     this.setText = this.setText.bind(this);
     this.material = new MeshBasicMaterial({
-      map: this.texture,
+      map: null,
       transparent: true,
       opacity: 0,
     });

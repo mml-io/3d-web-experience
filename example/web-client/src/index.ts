@@ -8,13 +8,14 @@ import {
   MMLCompositionScene,
   KeyInputManager,
   TimeManager,
+  Sun as ComposerSun,
 } from "@mml-io/3d-web-client-core";
 import {
   UserNetworkingClient,
   UserNetworkingClientUpdate,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
-import { AudioListener, Fog, Group, PerspectiveCamera, Scene } from "three";
+import { AudioListener, Group, PerspectiveCamera, Scene } from "three";
 
 import { Room } from "./Room";
 import { Sun } from "./Sun";
@@ -36,11 +37,12 @@ export class App {
   private readonly modelsPath: string = "/web-client/assets/models";
   private readonly characterDescription: CharacterDescription | null = null;
 
-  private readonly sun: Sun;
+  private readonly useComposerSun: boolean = true;
+
+  private readonly sun: Sun | ComposerSun | null;
 
   constructor() {
     this.scene = new Scene();
-    this.scene.fog = new Fog(0xc7cad0, 30, 210);
     this.collisionsManager = new CollisionsManager(this.scene);
 
     this.audioListener = new AudioListener();
@@ -59,7 +61,7 @@ export class App {
     this.cameraManager = new CameraManager(this.collisionsManager);
     this.camera = this.cameraManager.camera;
     this.camera.add(this.audioListener);
-    this.composer = new Composer(this.scene, this.camera);
+    this.composer = new Composer(this.scene, this.camera, true);
     this.composer.useHDRI("/web-client/assets/hdr/industrial_sunset_2k.hdr");
 
     this.characterDescription = {
@@ -120,8 +122,13 @@ export class App {
     );
 
     this.group.add(mmlComposition.group);
-    this.sun = new Sun();
-    this.group.add(this.sun);
+
+    if (this.useComposerSun === true) {
+      this.sun = this.composer.sun;
+    } else {
+      this.sun = new Sun();
+      this.group.add(this.sun);
+    }
 
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
@@ -132,7 +139,9 @@ export class App {
     this.timeManager.update();
     this.characterManager.update();
     this.cameraManager.update();
-    this.sun.updateCharacterPosition(this.characterManager.character?.position);
+    if (this.sun) {
+      this.sun.updateCharacterPosition(this.characterManager.character?.position);
+    }
     this.composer.render(this.timeManager);
     requestAnimationFrame(() => {
       this.update();

@@ -7,15 +7,15 @@ import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 export class CameraManager {
   public readonly camera: PerspectiveCamera;
 
-  public initialDistance: number = 2.5;
+  public initialDistance: number = 3.3;
 
   private minDistance: number = 0.1;
-  private maxDistance: number = 6;
+  private maxDistance: number = 8;
 
-  private initialFOV: number = 80;
+  private initialFOV: number = 60;
   private fov: number = this.initialFOV;
-  private minFOV: number = 63;
-  private maxFOV: number = 85;
+  private minFOV: number = 50;
+  private maxFOV: number = 70;
   private targetFOV: number = this.initialFOV;
 
   private minPolarAngle: number = Math.PI * 0.25;
