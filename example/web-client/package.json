@@ -1,7 +1,7 @@
 {
   "name": "@example/web-client",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "files": [
     "/build"
@@ -14,7 +14,7 @@
     "lint:fix": "eslint \"./src/**/*.{ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-client-core": "^0.6.0",
+    "@mml-io/3d-web-client-core": "^0.6.1",
     "three": "^0.153.0"
   },
   "devDependencies": {

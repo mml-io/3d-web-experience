@@ -1,7 +1,7 @@
 {
   "name": "@example/server",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "engines": {
     "node": "16.x"
   },
@@ -16,8 +16,8 @@
     "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
   },
   "dependencies": {
-    "@example/web-client": "^0.6.0",
-    "@mml-io/3d-web-user-networking": "^0.6.0",
+    "@example/web-client": "^0.6.1",
+    "@mml-io/3d-web-user-networking": "^0.6.1",
     "chokidar": "^3.5.3",
     "cors": "^2.8.5",
     "express": "4.18.2",
