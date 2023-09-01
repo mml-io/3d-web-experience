@@ -10,6 +10,7 @@ import {
   TimeManager,
   Sun as ComposerSun,
 } from "@mml-io/3d-web-client-core";
+import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
 import {
   UserNetworkingClient,
   UserNetworkingClientUpdate,
@@ -40,6 +41,14 @@ export class App {
   private readonly useComposerSun: boolean = true;
 
   private readonly sun: Sun | ComposerSun | null;
+
+  private networkChat: ChatNetworkingClient | null = null;
+
+  private clientId: number | null = null;
+  private textChatUI: TextChatUI | null = null;
+
+  private readonly protocol: string = window.location.protocol === "https:" ? "wss:" : "ws:";
+  private readonly host: string = window.location.host;
 
   constructor() {
     this.scene = new Scene();
@@ -73,10 +82,8 @@ export class App {
       modelScale: 1,
     };
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = window.location.host;
     this.networkClient = new UserNetworkingClient(
-      `${protocol}//${host}/network`,
+      `${this.protocol}//${this.host}/network`,
       (url: string) => new WebSocket(url),
       (status: WebsocketStatus) => {
         if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
@@ -86,6 +93,8 @@ export class App {
         }
       },
       (clientId: number) => {
+        this.clientId = clientId;
+        this.connectToTextChat();
         this.characterManager.spawnCharacter(this.characterDescription!, clientId, true);
       },
       (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
@@ -118,7 +127,7 @@ export class App {
       () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
-      [`${protocol}//${host}/mml-documents/example-mml.html`],
+      [`${this.protocol}//${this.host}/mml-documents/example-mml.html`],
     );
 
     this.group.add(mmlComposition.group);
@@ -133,6 +142,55 @@ export class App {
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
     this.group.add(room);
+
+    // let i = 1;
+    // setTimeout(() => {
+    //   setInterval(() => {
+    //     this.textChatUI?.addTextMessage("testUser", `this is message ${i}`);
+    //     i++;
+    //   }, 2000);
+    // }, 500);
+  }
+
+  private sendMessageToServer = (_clientName: string, message: string): void => {
+    if (this.clientId === null || this.networkChat === null) return;
+    const chatMessage: FromClientChatMessage = {
+      type: "chat",
+      id: this.clientId,
+      text: message,
+    };
+    this.networkChat.sendUpdate(chatMessage);
+  };
+
+  private connectToTextChat() {
+    if (this.clientId === null) return;
+
+    if (this.textChatUI === null) {
+      this.textChatUI = new TextChatUI(this.clientId.toString(), this.sendMessageToServer);
+      this.textChatUI.init();
+    }
+
+    if (this.networkChat === null) {
+      this.networkChat = new ChatNetworkingClient(
+        `${this.protocol}//${this.host}/chat-network?id=${this.clientId}`,
+        (url: string) => new WebSocket(`${url}?id=${this.clientId}`),
+        (status: WebsocketStatus) => {
+          if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
+            // The connection was lost after being established - the connection may be re-established with a different client ID
+            this.characterManager.clear();
+            this.remoteUserStates.clear();
+          }
+        },
+        (clientId: number) => {
+          console.log(`Assigned Chat ID: ${clientId}`);
+        },
+        (clientId: number, chatNetworkingUpdate: null | FromClientChatMessage) => {
+          if (chatNetworkingUpdate !== null && this.textChatUI !== null) {
+            this.textChatUI.addTextMessage(clientId.toString(), chatNetworkingUpdate.text);
+          }
+        },
+      );
+    }
   }
 
   public update(): void {
