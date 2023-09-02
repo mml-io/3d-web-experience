@@ -37,7 +37,6 @@ export class LocalController {
   private rotationOffset: number = 0;
   private azimuthalAngle: number = 0;
 
-  private tempBox: Box3 = new Box3();
   private tempMatrix: Matrix4 = new Matrix4();
   private tempSegment: Line3 = new Line3();
   private tempVector: Vector3 = new Vector3();
@@ -240,19 +239,11 @@ export class LocalController {
 
     this.model.mesh.updateMatrixWorld();
 
-    this.tempBox.makeEmpty();
-
     this.tempSegment.copy(this.capsuleInfo.segment!);
     this.tempSegment.start.applyMatrix4(this.model.mesh.matrixWorld).applyMatrix4(this.tempMatrix);
     this.tempSegment.end.applyMatrix4(this.model.mesh.matrixWorld).applyMatrix4(this.tempMatrix);
 
-    this.tempBox.expandByPoint(this.tempSegment.start);
-    this.tempBox.expandByPoint(this.tempSegment.end);
-
-    this.tempBox.min.subScalar(this.capsuleInfo.radius!);
-    this.tempBox.max.addScalar(this.capsuleInfo.radius!);
-
-    this.collisionsManager.applyColliders(this.tempSegment, this.capsuleInfo.radius!, this.tempBox);
+    this.collisionsManager.applyColliders(this.tempSegment, this.capsuleInfo.radius!);
 
     const newPosition = this.tempVector;
     newPosition.copy(this.tempSegment.start);

@@ -1,22 +1,25 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "noImplicitAny": true,
     "module": "esnext",
-    "target": "es2018",
+    "target": "ES6",
     "jsx": "react",
-    "lib": ["es2022", "dom"],
+    "lib": ["es2020", "dom"],
     "sourceMap": true,
     "allowJs": true,
-    "esModuleInterop": true,
+    "types": [
+      "node",
+    ],
     "strictNullChecks": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "esModuleInterop": true,
     "downlevelIteration": true,
-    "baseUrl": ".",
-    "incremental": true,
-    "types": ["node", "jest"]
+    "outDir": "./build",
+    "incremental": true
   },
-  "include": ["./src/**/*.ts", "./test/**/*.ts"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": ["**/build/*", "types-src"]
 }

@@ -1,5 +1,7 @@
-const { readFileSync } = require("fs");
-const { resolve } = require("path");
+#!/usr/bin/env node
+
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 let nvmrc;
 try {
@@ -12,8 +14,8 @@ try {
 const currentVersion = process.version.trim();
 const nvmrcVersion = nvmrc.trim();
 
-if (currentVersion.startsWith(nvmrcVersion)) {
-  console.log(`nvmrc node version (${nvmrcVersion}) matches: ${currentVersion}`);
+if (currentVersion === nvmrcVersion) {
+  console.log(`Node version matches: ${currentVersion}`);
 } else {
   console.error(`Node version mismatch (${currentVersion} != ${nvmrcVersion}).`);
   console.log(`Run 'nvm install ${nvmrcVersion}' to resolve.`);

@@ -22,7 +22,10 @@ export class RemoteController {
 
   public networkState: CharacterState;
 
-  constructor(public readonly character: Character, public readonly id: number) {
+  constructor(
+    public readonly character: Character,
+    public readonly id: number,
+  ) {
     this.characterModel = this.character.model!.mesh!;
     this.characterModel.updateMatrixWorld();
     this.animationMixer = new AnimationMixer(this.characterModel);

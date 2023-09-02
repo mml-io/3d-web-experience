@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Texture, LinearFilter, RGBAFormat, MeshBasicMaterial } from "three";
 
 type RGBA = {
   r: number;
@@ -146,13 +146,13 @@ export function CanvasText(message: string, options: CanvasTextOptions): HTMLCan
 export function THREECanvasTextTexture(
   text: string,
   options: CanvasTextOptions,
-): { texture: THREE.Texture; width: number; height: number } {
+): { texture: Texture; width: number; height: number } {
   const canvas = CanvasText(text, options);
 
-  const texture = new THREE.Texture(canvas);
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.format = THREE.RGBAFormat;
+  const texture = new Texture(canvas);
+  texture.minFilter = LinearFilter;
+  texture.magFilter = LinearFilter;
+  texture.format = RGBAFormat;
   texture.needsUpdate = true;
 
   return { texture, width: canvas.width, height: canvas.height };
@@ -161,10 +161,10 @@ export function THREECanvasTextTexture(
 export function THREECanvasTextMaterial(
   text: string,
   options: CanvasTextOptions,
-): { material: THREE.MeshBasicMaterial; width: number; height: number } {
+): { material: MeshBasicMaterial; width: number; height: number } {
   const { texture, width, height } = THREECanvasTextTexture(text, options);
 
-  const material = new THREE.MeshBasicMaterial();
+  const material = new MeshBasicMaterial();
   material.map = texture;
   material.transparent = true;
   material.depthWrite = false;

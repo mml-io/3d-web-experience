@@ -6,6 +6,7 @@
     "target": "es2022",
     "jsx": "react",
     "lib": ["es2022", "dom"],
+    "esModuleInterop": true,
     "sourceMap": true,
     "allowJs": true,
     "strictNullChecks": true,

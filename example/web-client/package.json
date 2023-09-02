@@ -2,22 +2,22 @@
   "name": "@example/web-client",
   "private": true,
   "version": "0.6.1",
-  "type": "module",
   "files": [
     "/build"
   ],
+  "type": "module",
   "scripts": {
-    "build": "rimraf ./build && node build.js --build",
-    "iterate": "node ./build.js --watch",
+    "build": "rimraf ./build && tsx ./build.ts --build",
+    "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./src/**/*.{ts,tsx}\" --max-warnings 0",
     "lint:fix": "eslint \"./src/**/*.{ts,tsx}\" --fix"
   },
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.6.1",
-    "three": "^0.153.0"
+    "three": "0.153.0"
   },
   "devDependencies": {
-    "@types/three": "^0.152.1"
+    "@types/three": "0.153.0"
   }
 }

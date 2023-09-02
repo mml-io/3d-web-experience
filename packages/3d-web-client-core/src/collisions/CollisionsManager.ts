@@ -1,7 +1,7 @@
 import {
+  getRelativePositionAndRotationRelativeToObject,
   MElement,
   MMLCollisionTrigger,
-  getRelativePositionAndRotationRelativeToObject,
 } from "mml-web";
 import {
   Box3,
@@ -9,23 +9,27 @@ import {
   Color,
   DoubleSide,
   Euler,
-  FrontSide,
   Group,
   Line3,
+  LineBasicMaterial,
+  Matrix4,
   Mesh,
-  MeshStandardMaterial,
+  MeshBasicMaterial,
   Object3D,
   Ray,
   Scene,
   Vector3,
 } from "three";
+import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper.js";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MeshBVH, MeshBVHVisualizer } from "three-mesh-bvh";
 
 type CollisionMeshState = {
+  matrix: Matrix4;
   source: Group;
   meshBVH: MeshBVH;
-  visualizer: MeshBVHVisualizer | null;
+  debugGroup?: Group;
+  trackCollisions: boolean;
 };
 
 export class CollisionsManager {
@@ -33,6 +37,13 @@ export class CollisionsManager {
   private scene: Scene;
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
+  private tempRay: Ray = new Ray();
+  private tempMatrix = new Matrix4();
+  private tempMatrix2 = new Matrix4();
+  private tempBox = new Box3();
+  private tempEuler = new Euler();
+  private tempSegment = new Line3();
+  private tempSegment2 = new Line3();
 
   public collisionMeshState: Map<Group, CollisionMeshState> = new Map();
   private collisionTrigger: MMLCollisionTrigger;
@@ -45,25 +56,35 @@ export class CollisionsManager {
   public raycastFirstDistance(ray: Ray): number | null {
     let minimumDistance: number | null = null;
     for (const [, value] of this.collisionMeshState) {
-      const hit = value.meshBVH.raycastFirst(ray, DoubleSide);
+      this.tempRay.copy(ray).applyMatrix4(this.tempMatrix.copy(value.matrix).invert());
+      const hit = value.meshBVH.raycastFirst(this.tempRay, DoubleSide);
       if (hit) {
-        if (minimumDistance === null || hit.distance < minimumDistance) {
-          minimumDistance = hit.distance;
+        this.tempSegment.start.copy(this.tempRay.origin);
+        this.tempSegment.end.copy(hit.point);
+        this.tempSegment.applyMatrix4(value.matrix);
+        const dist = this.tempSegment.distance();
+        if (minimumDistance === null || dist < minimumDistance) {
+          minimumDistance = dist;
         }
       }
     }
     return minimumDistance;
   }
 
-  private createCollisionMeshState(group: Group): CollisionMeshState {
+  private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
     const geometries: Array<BufferGeometry> = [];
+    group.updateWorldMatrix(true, false);
+    const invertedRootMatrix = this.tempMatrix.copy(group.matrixWorld).invert();
     group.traverse((child: Object3D) => {
       if (child.type === "Mesh") {
         const mesh = child as Mesh;
-        mesh.localToWorld(new Vector3());
-        mesh.updateMatrixWorld();
         const clonedGeometry = mesh.geometry.clone();
-        clonedGeometry.applyMatrix4(mesh.matrixWorld);
+        if (child !== group) {
+          mesh.updateWorldMatrix(true, false);
+          clonedGeometry.applyMatrix4(
+            this.tempMatrix2.multiplyMatrices(invertedRootMatrix, mesh.matrixWorld),
+          );
+        }
 
         for (const key in clonedGeometry.attributes) {
           if (key !== "position") {
@@ -77,31 +98,45 @@ export class CollisionsManager {
         }
       }
     });
-    const newBufferGeometry = BufferGeometryUtils.mergeGeometries(geometries);
+    const newBufferGeometry = BufferGeometryUtils.mergeGeometries(geometries, false);
+    newBufferGeometry.computeVertexNormals();
     const meshBVH = new MeshBVH(newBufferGeometry);
 
-    if (!this.debug) {
-      return { source: group, visualizer: null, meshBVH };
-    }
+    const meshState: CollisionMeshState = {
+      source: group,
+      meshBVH,
+      matrix: group.matrixWorld.clone(),
+      trackCollisions,
+    };
+    if (this.debug) {
+      // Have to cast to add the boundsTree property to the geometry so that the MeshBVHVisualizer can find it
+      (newBufferGeometry as any).boundsTree = meshBVH;
 
-    const mergedMesh = new Mesh(
-      newBufferGeometry,
-      new MeshStandardMaterial({ color: 0xff0000, side: FrontSide, wireframe: true }),
-    );
-    mergedMesh.geometry.boundsTree = meshBVH;
-    const visualizer = new MeshBVHVisualizer(mergedMesh, 3);
-    visualizer.edgeMaterial.color = new Color(0x0000ff);
-    visualizer.update();
-    return { source: group, visualizer, meshBVH };
+      const wireframeMesh = new Mesh(newBufferGeometry, new MeshBasicMaterial({ wireframe: true }));
+
+      const normalsHelper = new VertexNormalsHelper(wireframeMesh, 0.25, 0x00ff00);
+
+      const visualizer = new MeshBVHVisualizer(wireframeMesh, 4);
+      (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
+
+      const debugGroup = new Group();
+      debugGroup.add(wireframeMesh, normalsHelper, visualizer as unknown as Object3D);
+
+      group.matrixWorld.decompose(debugGroup.position, debugGroup.quaternion, debugGroup.scale);
+      visualizer.update();
+
+      meshState.debugGroup = debugGroup;
+    }
+    return meshState;
   }
 
   public addMeshesGroup(group: Group, mElement?: MElement): void {
     if (mElement) {
       this.collisionTrigger.addCollider(group, mElement);
     }
-    const meshState = this.createCollisionMeshState(group);
-    if (meshState.visualizer) {
-      this.scene.add(meshState.visualizer);
+    const meshState = this.createCollisionMeshState(group, mElement !== undefined);
+    if (meshState.debugGroup) {
+      this.scene.add(meshState.debugGroup);
     }
     this.collisionMeshState.set(group, meshState);
   }
@@ -109,14 +144,15 @@ export class CollisionsManager {
   public updateMeshesGroup(group: Group): void {
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      const newMeshState = this.createCollisionMeshState(group);
-      if (meshState.visualizer) {
-        this.scene.remove(meshState.visualizer);
+      group.updateWorldMatrix(true, false);
+      meshState.matrix.copy(group.matrixWorld);
+      if (meshState.debugGroup) {
+        group.matrixWorld.decompose(
+          meshState.debugGroup.position,
+          meshState.debugGroup.quaternion,
+          meshState.debugGroup.scale,
+        );
       }
-      if (newMeshState.visualizer) {
-        this.scene.add(newMeshState.visualizer);
-      }
-      this.collisionMeshState.set(group, newMeshState);
     }
   }
 
@@ -124,39 +160,93 @@ export class CollisionsManager {
     this.collisionTrigger.removeCollider(group);
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      if (meshState.visualizer) {
-        this.scene.remove(meshState.visualizer);
+      if (meshState.debugGroup) {
+        this.scene.remove(meshState.debugGroup);
       }
       this.collisionMeshState.delete(group);
     }
   }
 
   private applyCollider(
-    tempSegment: Line3,
-    radius: number,
-    boundingBox: Box3,
+    worldBasedCapsuleSegment: Line3,
+    capsuleRadius: number,
     meshState: CollisionMeshState,
   ): Vector3 | null {
+    // Create a matrix to convert from world-space to mesh-space
+    const meshMatrix = this.tempMatrix.copy(meshState.matrix).invert();
+
+    // Create the bounding box for the capsule if it were in mesh-space
+    const meshRelativeCapsuleBoundingBox = this.tempBox;
+    meshRelativeCapsuleBoundingBox.makeEmpty();
+    meshRelativeCapsuleBoundingBox.expandByPoint(worldBasedCapsuleSegment.start);
+    meshRelativeCapsuleBoundingBox.expandByPoint(worldBasedCapsuleSegment.end);
+    meshRelativeCapsuleBoundingBox.min.subScalar(capsuleRadius);
+    meshRelativeCapsuleBoundingBox.max.addScalar(capsuleRadius);
+    meshRelativeCapsuleBoundingBox.applyMatrix4(meshMatrix);
+
+    // Create a segment/line for the capsule in mesh-space
+    const meshRelativeCapsuleSegment = this.tempSegment;
+    meshRelativeCapsuleSegment.start.copy(worldBasedCapsuleSegment.start);
+    meshRelativeCapsuleSegment.end.copy(worldBasedCapsuleSegment.end);
+    meshRelativeCapsuleSegment.applyMatrix4(meshMatrix);
+
     let collisionPosition: Vector3 | null = null;
     meshState.meshBVH.shapecast({
-      intersectsBounds: (box) => box.intersectsBox(boundingBox),
-      intersectsTriangle: (tri) => {
-        const triPoint = this.tempVector;
-        const capsulePoint = this.tempVector2;
-        const distance = tri.closestPointToSegment(tempSegment, triPoint, capsulePoint);
-        if (distance < radius) {
-          const depth = radius - distance;
-          collisionPosition = new Vector3().copy(capsulePoint);
-          const direction = capsulePoint.sub(triPoint).normalize();
-          tempSegment.start.addScaledVector(direction, depth);
-          tempSegment.end.addScaledVector(direction, depth);
+      intersectsBounds: (meshBox) => {
+        // Determine if this portion of the mesh overlaps with the capsule bounding box and is therefore worth checking
+        // all of the triangles within
+        return meshBox.intersectsBox(meshRelativeCapsuleBoundingBox);
+      },
+      intersectsTriangle: (meshTriangle) => {
+        const closestPointOnTriangle = this.tempVector;
+        const closestPointOnSegment = this.tempVector2;
+        // Find the closest point between this triangle and the capsule segment in mesh-space
+        meshTriangle.closestPointToSegment(
+          meshRelativeCapsuleSegment,
+          closestPointOnTriangle,
+          closestPointOnSegment,
+        );
+        // Create a line segment between the closest points
+        const intersectionSegment = this.tempSegment2;
+        intersectionSegment.start.copy(closestPointOnTriangle);
+        intersectionSegment.end.copy(closestPointOnSegment);
+        // Calculate the distance between the closest points in mesh-space
+        const modelReferenceDistance = intersectionSegment.distance();
+
+        // Calculate the distance between the points in world-space
+        intersectionSegment.applyMatrix4(meshState.matrix);
+        const realDistance = intersectionSegment.distance();
+
+        // If the real distance is less than the capsule radius then there is actually a collision between the capsule
+        // and the triangle
+        if (realDistance < capsuleRadius) {
+          if (!collisionPosition) {
+            collisionPosition = new Vector3().copy(closestPointOnSegment);
+          }
+          // Calculate the ratio between the real distance and the mesh-space distance
+          const ratio = realDistance / modelReferenceDistance;
+          // Calculate the depth of the collision in world-space
+          const realDepth = capsuleRadius - realDistance;
+          // Convert that depth back into mesh-space as all calculations during collision are to a mesh-space segment
+          const modelDepth = realDepth / ratio;
+
+          // Apply a corrective movement to the segment in mesh-spcae
+          const direction = closestPointOnSegment.sub(closestPointOnTriangle).normalize();
+          meshRelativeCapsuleSegment.start.addScaledVector(direction, modelDepth);
+          meshRelativeCapsuleSegment.end.addScaledVector(direction, modelDepth);
         }
       },
     });
+
+    // Convert the potentially-modified mesh-space segment back to world-space
+    worldBasedCapsuleSegment.start.copy(meshRelativeCapsuleSegment.start);
+    worldBasedCapsuleSegment.end.copy(meshRelativeCapsuleSegment.end);
+    worldBasedCapsuleSegment.applyMatrix4(meshState.matrix);
+
     return collisionPosition;
   }
 
-  public applyColliders(tempSegment: Line3, radius: number, boundingBox: Box3) {
+  public applyColliders(tempSegment: Line3, radius: number) {
     let collidedElements: Map<
       Object3D,
       {
@@ -164,17 +254,17 @@ export class CollisionsManager {
       }
     > | null = null;
     for (const meshState of this.collisionMeshState.values()) {
-      const collisionPosition = this.applyCollider(tempSegment, radius, boundingBox, meshState);
-      if (collisionPosition) {
+      const collisionPosition = this.applyCollider(tempSegment, radius, meshState);
+      if (collisionPosition && meshState.trackCollisions) {
         if (collidedElements === null) {
           collidedElements = new Map();
         }
         const relativePosition = getRelativePositionAndRotationRelativeToObject(
           {
             position: collisionPosition,
-            rotation: new Euler(),
+            rotation: this.tempEuler.set(0, 0, 0),
           },
-          meshState.source,
+          meshState.source as Object3D,
         );
         collidedElements.set(meshState.source, {
           position: relativePosition.position,
