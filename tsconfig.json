@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": "."
-  },
-  "include": ["./packages/**/*.ts", "./example/**/*.ts"]
+    "esModuleInterop": true
+  }
 }

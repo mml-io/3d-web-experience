@@ -1,5 +1,4 @@
-import esbuild from "esbuild";
-import { dtsPlugin } from "esbuild-plugin-d.ts";
+import * as esbuild from "esbuild";
 
 const buildMode = "--build";
 const watchMode = "--watch";
@@ -15,17 +14,15 @@ if (args.length !== 1) {
 
 const mode = args[0];
 
-const buildOptions = {
+const buildOptions: esbuild.BuildOptions = {
   entryPoints: ["src/index.ts"],
+  outdir: "./build",
   bundle: true,
   format: "esm",
-  outdir: "build",
-  target: "es2020",
-  platform: "node",
   packages: "external",
   sourcemap: true,
-  loader: {},
-  plugins: [dtsPlugin()],
+  platform: "node",
+  target: "es2020",
 };
 
 switch (mode) {

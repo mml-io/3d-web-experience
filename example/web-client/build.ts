@@ -1,4 +1,4 @@
-import esbuild from "esbuild";
+import * as esbuild from "esbuild";
 import { copy } from "esbuild-plugin-copy";
 
 const buildMode = "--build";
@@ -15,7 +15,7 @@ if (args.length !== 1) {
 
 const mode = args[0];
 
-const buildOptions = {
+const buildOptions: esbuild.BuildOptions = {
   entryPoints: {
     index: "src/index.ts",
   },
@@ -24,7 +24,7 @@ const buildOptions = {
   sourcemap: true,
   outdir: "./build/",
   assetNames: "[dir]/[name]-[hash]",
-  target: "es2020",
+  preserveSymlinks: true,
   loader: {
     ".svg": "file",
     ".png": "file",
@@ -36,7 +36,6 @@ const buildOptions = {
       assets: {
         from: ["./public/**/*"],
         to: ["./build/"],
-        keepStructure: true,
       },
     }),
   ],
@@ -48,9 +47,12 @@ switch (mode) {
     break;
   case watchMode:
     esbuild
-      .context({ ...buildOptions, banner: {
+      .context({
+        ...buildOptions,
+        banner: {
           js: ` (() => new WebSocket((window.location.protocol === "https:" ? "wss://" : "ws://")+window.location.host+'/web-client-build').addEventListener('message', () => location.reload()))();`,
-        }, })
+        },
+      })
       .then((context) => context.watch())
       .catch(() => process.exit(1));
     break;

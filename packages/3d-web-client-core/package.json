@@ -8,21 +8,23 @@
     "/build"
   ],
   "scripts": {
-    "build": "rimraf ./build && node ./build.js --build",
-    "iterate": "node ./build.js --watch",
+    "build": "tsx ./build.ts --build",
+    "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./src/**/*.{ts,}\" --max-warnings 0",
     "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
   },
   "dependencies": {
-    "mml-web": "0.6.1",
-    "postprocessing": "6.32.1",
-    "three": "^0.153.0",
-    "three-mesh-bvh": "0.6.0",
+    "mml-web": "0.7.0",
+    "postprocessing": "6.33.0",
+    "three-mesh-bvh": "0.6.4",
     "tweakpane": "3.1.10"
+  },
+  "peerDependencies": {
+    "three": ">= 0.153.0"
   },
   "devDependencies": {
     "@tweakpane/core": "1.1.9",
-    "@types/three": "^0.152.1"
+    "@types/three": "0.153.0"
   }
 }
