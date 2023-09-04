@@ -100,12 +100,6 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
   });
 
   useEffect(() => {
-    console.log(`isSticky: ${isSticky}`);
-    console.log(`isFocused: ${isFocused}`);
-    console.log(`isVisible: ${isVisible}`);
-  }, [isSticky, isVisible, isFocused]);
-
-  useEffect(() => {
     setPanelStyle(isVisible || isFocused || isSticky ? styles.fadeIn : styles.fadeOut);
     setStickyStyle(isSticky ? styles.stickyButtonEnabled : styles.stickyButton);
     if (chatPanelRef.current && chatPanelRef.current.style.zIndex !== "100") {

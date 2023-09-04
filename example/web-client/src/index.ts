@@ -142,14 +142,6 @@ export class App {
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
     this.group.add(room);
-
-    // let i = 1;
-    // setTimeout(() => {
-    //   setInterval(() => {
-    //     this.textChatUI?.addTextMessage("testUser", `this is message ${i}`);
-    //     i++;
-    //   }, 2000);
-    // }, 500);
   }
 
   private sendMessageToServer(message: string): void {
