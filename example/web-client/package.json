@@ -14,6 +14,7 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
+    "@mml-io/3d-web-user-networking": "^0.6.1",
     "@mml-io/3d-web-client-core": "^0.6.1",
     "@mml-io/3d-web-text-chat": "^0.6.1",
     "three": "0.153.0"
