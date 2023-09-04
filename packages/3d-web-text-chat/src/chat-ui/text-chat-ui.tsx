@@ -25,11 +25,11 @@ type ChatUIInstance = {
 
 type ChatUIProps = {
   clientName: string;
-  sendMessageToServer: (clientname: string, message: string) => void;
+  sendMessageToServer: (message: string) => void;
 };
 
 const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProps> = (
-  props,
+  props: ChatUIProps,
   ref,
 ) => {
   const [messages, setMessages] = useState<Array<{ username: string; message: string }>>([]);
@@ -120,7 +120,7 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
   }));
 
   const handleSendMessage = (message: string) => {
-    props.sendMessageToServer(props.clientName, message);
+    props.sendMessageToServer(message);
     appendMessages(props.clientName, message);
   };
 
@@ -152,10 +152,10 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
           }}
           onClick={hide}
         >
-          <ChatIcon />
+          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
         </div>
         <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
-          <PinButton />
+          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
         </div>
         <div
           ref={closeButtonRef}
@@ -194,7 +194,7 @@ export class TextChatUI {
 
   constructor(
     private clientname: string,
-    private sendMessageToServerMethod: (clientname: string, message: string) => void,
+    private sendMessageToServerMethod: (message: string) => void,
   ) {
     this.root = createRoot(this.container);
     this.sendMessageToServerMethod = sendMessageToServerMethod;

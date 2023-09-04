@@ -152,7 +152,7 @@ export class App {
     // }, 500);
   }
 
-  private sendMessageToServer = (_clientName: string, message: string): void => {
+  private sendMessageToServer(message: string): void {
     if (this.clientId === null || this.networkChat === null) return;
     const chatMessage: FromClientChatMessage = {
       type: "chat",
@@ -160,13 +160,16 @@ export class App {
       text: message,
     };
     this.networkChat.sendUpdate(chatMessage);
-  };
+  }
 
   private connectToTextChat() {
     if (this.clientId === null) return;
 
     if (this.textChatUI === null) {
-      this.textChatUI = new TextChatUI(this.clientId.toString(), this.sendMessageToServer);
+      this.textChatUI = new TextChatUI(
+        this.clientId.toString(),
+        this.sendMessageToServer.bind(this),
+      );
       this.textChatUI.init();
     }
 

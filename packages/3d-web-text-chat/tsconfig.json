@@ -1,30 +1,22 @@
 {
-  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "sourceMap": true,
-    "declaration": true,
-    "outDir": "./build",
-    "target": "ES2020",
-    "jsx": "react-jsx",
-    "lib": ["esnext", "dom", "dom.iterable"],
     "noImplicitAny": true,
-    "strictNullChecks": true,
-    "strictFunctionTypes": true,
-    "noImplicitThis": true,
-    "noUnusedParameters": false,
-    "noImplicitReturns": false,
-    "allowSyntheticDefaultImports": true,
+    "module": "esnext",
+    "target": "ES6",
+    "jsx": "react-jsx",
+    "lib": ["es2020", "dom"],
     "esModuleInterop": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
+    "sourceMap": true,
+    "allowJs": true,
+    "types": ["node", "jest"],
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
-    "noUnusedLocals": false,
-    "baseUrl": ".",
-    "paths": {
-      "tests/*": ["tests/*"]
-    },
-    "types": ["node", "react", "./styles.d.ts", "./images.d.ts"]
+    "resolveJsonModule": true,
+    "downlevelIteration": true,
+    "outDir": "./build",
+    "incremental": true
   },
-  "exclude": ["node_modules"],
-  "include": ["./src/**/*.ts", "./src/**/*.tsx"]
+  "include": ["src/**/*", "test/**/*", "./build.ts"],
+  "exclude": ["**/build/*", "types-src"]
 }

@@ -12,8 +12,8 @@
     "iterate": "concurrently \"tsx ./build.ts --watch\" \"nodemon\"",
     "start": "NODE_ENV=production node build/index.js",
     "type-check": "tsc --noEmit",
-    "lint": "eslint \"./src/**/*.{ts,}\" --max-warnings 0",
-    "lint:fix": "eslint \"./src/**/*.{ts,}\" --fix"
+    "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
     "@example/web-client": "^0.6.1",

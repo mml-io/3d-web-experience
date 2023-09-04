@@ -54,7 +54,7 @@
   left: 23px;
 }
 
-.controls .openTab svg {
+.controls .openTab img {
   filter: invert(50%);
   width: 30px;
   height: 30px;
@@ -105,7 +105,7 @@
   border: 1px solid rgba(55, 255, 55, 1);
 }
 
-.controls .stickyButton svg {
+.controls .stickyButton img {
   width: 25px;
   height: 25px;
   position: relative;
@@ -116,12 +116,12 @@
   transition: all 0.3s ease-in-out;
 }
 
-.controls .stickyButton:hover svg {
+.controls .stickyButton:hover img {
   filter: invert(70%);
   transform: scale(0.8);
 }
 
-.controls .stickyButtonEnabled svg {
+.controls .stickyButtonEnabled img {
   width: 25px;
   height: 25px;
   position: relative;
@@ -132,7 +132,7 @@
   transition: all 0.3s ease-in-out;
 }
 
-.controls .stickyButtonEnabled:hover svg {
+.controls .stickyButtonEnabled:hover img {
   filter: invert(70%);
   transform: scale(0.8);
 }

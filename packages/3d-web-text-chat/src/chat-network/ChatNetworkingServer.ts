@@ -99,7 +99,7 @@ export class ChatNetworkingServer {
         type: DISCONNECTED_MESSAGE_TYPE,
       } as FromServerMessage);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for (const [_clientId, { socket: otherSocket }] of this.clients) {
+      for (const [, { socket: otherSocket }] of this.clients) {
         if (otherSocket.readyState === WebSocketOpenStatus) {
           otherSocket.send(disconnectMessage);
         }

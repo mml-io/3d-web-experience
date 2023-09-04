@@ -25,6 +25,13 @@ const InputBox = forwardRef<{ focusInput: () => void } | null, InputBoxProps>(
       setInputValue(e.target.value);
     };
 
+    const handleSendClick = () => {
+      if (inputValue.trim() !== "") {
+        onSendMessage(inputValue.trim());
+        setInputValue("");
+      }
+    };
+
     const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
       e.stopPropagation();
       if (e.key === "Enter") {
@@ -34,13 +41,6 @@ const InputBox = forwardRef<{ focusInput: () => void } | null, InputBoxProps>(
           return;
         }
         handleSendClick();
-      }
-    };
-
-    const handleSendClick = () => {
-      if (inputValue.trim() !== "") {
-        onSendMessage(inputValue.trim());
-        setInputValue("");
       }
     };
 
@@ -58,7 +58,7 @@ const InputBox = forwardRef<{ focusInput: () => void } | null, InputBoxProps>(
         />
         <button ref={buttonRef} onClick={handleSendClick} className={styles.sendButton}>
           <div className={styles.svgIcon}>
-            <SendButton />
+            <img src={`data:image/svg+xml;utf8,${encodeURIComponent(SendButton)}`} />
           </div>
         </button>
       </div>
