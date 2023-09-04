@@ -1,0 +1,10 @@
+.messageContainer {
+  border-bottom: 1px solid rgba(128, 128, 128, 0.21);
+  padding: 5px 0px;
+  overflow-x: hidden;
+}
+
+.userName {
+  color: #cccccc;
+  font-weight: 900;
+}

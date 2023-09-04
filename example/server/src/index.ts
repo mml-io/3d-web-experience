@@ -1,6 +1,7 @@
 import path from "path";
 import url from "url";
 
+import { ChatNetworkingServer } from "@mml-io/3d-web-text-chat";
 import { UserNetworkingServer } from "@mml-io/3d-web-user-networking";
 import cors from "cors";
 import express from "express";
@@ -31,6 +32,11 @@ app.use("/assets/", cors(), express.static(path.resolve(dirname, "../assets/")))
 const userNetworkingServer = new UserNetworkingServer();
 app.ws("/network", (ws) => {
   userNetworkingServer.connectClient(ws);
+});
+
+const chatNetworkingServer = new ChatNetworkingServer();
+app.ws("/chat-network", (ws, req) => {
+  chatNetworkingServer.connectClient(ws, parseInt(req.query.id as string, 10));
 });
 
 // Serve the app (including development mode)

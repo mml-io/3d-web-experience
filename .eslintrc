@@ -12,7 +12,10 @@
     "plugin:import/errors",
     "plugin:import/warnings",
     "plugin:import/typescript",
-    "plugin:prettier/recommended"
+    "plugin:prettier/recommended",
+    'plugin:react/recommended',
+    'plugin:react/jsx-runtime',
+    'plugin:react-hooks/recommended'
   ],
   "plugins": ["@typescript-eslint", "prettier"],
   "rules": {
@@ -42,5 +45,10 @@
         "@typescript-eslint/no-var-requires": "off"
       }
     }
-  ]
+  ],
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
 }
