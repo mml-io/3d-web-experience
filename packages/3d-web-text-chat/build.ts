@@ -1,8 +1,8 @@
 import * as path from "path";
 
-import { handleLibraryBuild } from "../../utils/build-library";
+import cssModulesPlugin from "esbuild-css-modules-plugin";
 
-const cssModulesPlugin = require("esbuild-css-modules-plugin");
+import { handleLibraryBuild } from "../../utils/build-library";
 
 handleLibraryBuild(
   [

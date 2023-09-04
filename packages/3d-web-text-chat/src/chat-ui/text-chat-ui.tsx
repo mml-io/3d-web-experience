@@ -11,6 +11,7 @@ import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
 import ChatIcon from "./chat.svg";
+import { useClickOutside } from "./helpers";
 import InputBox from "./input-box";
 import Messages from "./messages";
 import PinButton from "./pin.svg";
@@ -41,7 +42,6 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
   const [panelStyle, setPanelStyle] = useState(styles.fadeOut);
   const [stickyStyle, setStickyStyle] = useState(styles.stickyButton);
 
-  const chatPanelRef = useRef<HTMLDivElement>(null);
   const stickyButtonRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,6 +92,19 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
     }
   };
 
+  const chatPanelRef = useClickOutside(() => {
+    if (isFocused) {
+      setIsFocused(false);
+      startHideTimeout();
+    }
+  });
+
+  useEffect(() => {
+    console.log(`isSticky: ${isSticky}`);
+    console.log(`isFocused: ${isFocused}`);
+    console.log(`isVisible: ${isVisible}`);
+  }, [isSticky, isVisible, isFocused]);
+
   useEffect(() => {
     setPanelStyle(isVisible || isFocused || isSticky ? styles.fadeIn : styles.fadeOut);
     setStickyStyle(isSticky ? styles.stickyButtonEnabled : styles.stickyButton);
@@ -102,7 +115,7 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
         if (chatPanelRef.current) chatPanelRef.current.style.zIndex = "100";
       }, 2000);
     }
-  }, [isVisible, isSticky, isFocused]);
+  }, [isVisible, isSticky, isFocused, chatPanelRef]);
 
   const appendMessages = (username: string, message: string) => {
     setMessages((prev) => {
