@@ -23,7 +23,7 @@
     "express-ws": "5.0.2",
     "@types/express": "^4.17.17",
     "@types/express-ws": "^3.0.1",
-    "@types/node": "^20.5.7",
+    "@types/node": "^20.5.9",
     "@types/ws": "^8.5.5"
   }
 }

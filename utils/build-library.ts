@@ -21,7 +21,9 @@ export function handleLibraryBuild(
   const mode = args[0];
 
   const buildOptions: esbuild.BuildOptions = {
-    entryPoints: ["src/index.ts"],
+    entryPoints: {
+      index: "src/index.ts",
+    },
     write: true,
     bundle: true,
     format: "esm",
