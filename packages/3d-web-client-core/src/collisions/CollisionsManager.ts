@@ -37,6 +37,7 @@ export class CollisionsManager {
   private scene: Scene;
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
+  private tempVector3: Vector3 = new Vector3();
   private tempRay: Ray = new Ray();
   private tempMatrix = new Matrix4();
   private tempMatrix2 = new Matrix4();
@@ -183,12 +184,16 @@ export class CollisionsManager {
     meshRelativeCapsuleBoundingBox.min.subScalar(capsuleRadius);
     meshRelativeCapsuleBoundingBox.max.addScalar(capsuleRadius);
     meshRelativeCapsuleBoundingBox.applyMatrix4(meshMatrix);
-
     // Create a segment/line for the capsule in mesh-space
     const meshRelativeCapsuleSegment = this.tempSegment;
     meshRelativeCapsuleSegment.start.copy(worldBasedCapsuleSegment.start);
     meshRelativeCapsuleSegment.end.copy(worldBasedCapsuleSegment.end);
     meshRelativeCapsuleSegment.applyMatrix4(meshMatrix);
+
+    // Keep track of where the segment started in mesh-space so that we can calculate the delta later
+    const initialMeshRelativeCapsuleSegmentStart = this.tempVector3.copy(
+      meshRelativeCapsuleSegment.start,
+    );
 
     let collisionPosition: Vector3 | null = null;
     meshState.meshBVH.shapecast({
@@ -230,7 +235,7 @@ export class CollisionsManager {
           // Convert that depth back into mesh-space as all calculations during collision are to a mesh-space segment
           const modelDepth = realDepth / ratio;
 
-          // Apply a corrective movement to the segment in mesh-spcae
+          // Apply a corrective movement to the segment in mesh-space
           const direction = closestPointOnSegment.sub(closestPointOnTriangle).normalize();
           meshRelativeCapsuleSegment.start.addScaledVector(direction, modelDepth);
           meshRelativeCapsuleSegment.end.addScaledVector(direction, modelDepth);
@@ -238,10 +243,23 @@ export class CollisionsManager {
       },
     });
 
-    // Convert the potentially-modified mesh-space segment back to world-space
-    worldBasedCapsuleSegment.start.copy(meshRelativeCapsuleSegment.start);
-    worldBasedCapsuleSegment.end.copy(meshRelativeCapsuleSegment.end);
-    worldBasedCapsuleSegment.applyMatrix4(meshState.matrix);
+    if (collisionPosition) {
+      // If there was a collision, calculate the delta between the original mesh-space segment and the now-moved one
+      const delta = this.tempVector
+        .copy(meshRelativeCapsuleSegment.start)
+        .sub(initialMeshRelativeCapsuleSegmentStart);
+
+      // Use the matrix for the mesh to convert the delta vector back to world-space (remove the position component of the matrix first to avoid translation)
+      this.tempMatrix.copy(meshState.matrix).setPosition(0, 0, 0);
+      delta.applyMatrix4(this.tempMatrix);
+
+      // There's a possibility that the matrix is invalid (or scale zero) and the delta is NaN - if so, don't apply the delta
+      if (!(isNaN(delta.x) && isNaN(delta.y) && isNaN(delta.z))) {
+        // Convert the potentially-modified mesh-space segment back to world-space
+        worldBasedCapsuleSegment.start.add(delta);
+        worldBasedCapsuleSegment.end.add(delta);
+      }
+    }
 
     return collisionPosition;
   }
