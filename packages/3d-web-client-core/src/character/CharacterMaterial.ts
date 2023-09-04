@@ -6,7 +6,7 @@ import {
   injectBeforeMain,
   injectInsideMain,
 } from "../rendering/shaders/shader-helpers";
-import { characterValues } from "../tweakpane/characterSettings";
+import { characterValues } from "../tweakpane/blades/characterFolder";
 
 type TUniform<TValue = any> = { value: TValue };
 
@@ -17,32 +17,32 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
   constructor() {
     super();
     this.color = new Color(0xffffff);
-    this.transmission = characterValues.material.transmission;
-    this.metalness = characterValues.material.metalness;
-    this.roughness = characterValues.material.roughness;
-    this.ior = characterValues.material.ior;
-    this.thickness = characterValues.material.thickness;
+    this.transmission = characterValues.transmission;
+    this.metalness = characterValues.metalness;
+    this.roughness = characterValues.roughness;
+    this.ior = characterValues.ior;
+    this.thickness = characterValues.thickness;
     this.specularColor = new Color().setRGB(
-      characterValues.material.specularColor.r,
-      characterValues.material.specularColor.g,
-      characterValues.material.specularColor.b,
+      characterValues.specularColor.r,
+      characterValues.specularColor.g,
+      characterValues.specularColor.b,
     );
-    this.specularIntensity = characterValues.material.specularIntensity;
+    this.specularIntensity = characterValues.specularIntensity;
     this.emissive = new Color().setRGB(
-      characterValues.material.emissive.r,
-      characterValues.material.emissive.g,
-      characterValues.material.emissive.b,
+      characterValues.emissive.r,
+      characterValues.emissive.g,
+      characterValues.emissive.b,
     );
-    this.emissiveIntensity = characterValues.material.emissiveIntensity;
-    this.envMapIntensity = characterValues.material.envMapIntensity;
+    this.emissiveIntensity = characterValues.emissiveIntensity;
+    this.envMapIntensity = characterValues.envMapIntensity;
     this.sheenColor = new Color().setRGB(
-      characterValues.material.sheenColor.r,
-      characterValues.material.sheenColor.g,
-      characterValues.material.sheenColor.b,
+      characterValues.sheenColor.r,
+      characterValues.sheenColor.g,
+      characterValues.sheenColor.b,
     );
-    this.sheen = characterValues.material.sheen;
-    this.clearcoat = characterValues.material.clearcoat;
-    this.clearcoatRoughness = characterValues.material.clearcoatRoughness;
+    this.sheen = characterValues.sheen;
+    this.clearcoat = characterValues.clearcoat;
+    this.clearcoatRoughness = characterValues.clearcoatRoughness;
 
     this.onBeforeCompile = (shader) => {
       this.uniforms = UniformsUtils.clone(shader.uniforms);
@@ -148,31 +148,31 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
   }
 
   public update() {
-    this.transmission = characterValues.material.transmission;
-    this.metalness = characterValues.material.metalness;
-    this.roughness = characterValues.material.roughness;
-    this.ior = characterValues.material.ior;
-    this.thickness = characterValues.material.thickness;
+    this.transmission = characterValues.transmission;
+    this.metalness = characterValues.metalness;
+    this.roughness = characterValues.roughness;
+    this.ior = characterValues.ior;
+    this.thickness = characterValues.thickness;
     this.specularColor = new Color().setRGB(
-      characterValues.material.specularColor.r,
-      characterValues.material.specularColor.g,
-      characterValues.material.specularColor.b,
+      characterValues.specularColor.r,
+      characterValues.specularColor.g,
+      characterValues.specularColor.b,
     );
-    this.specularIntensity = characterValues.material.specularIntensity;
+    this.specularIntensity = characterValues.specularIntensity;
     this.emissive = new Color().setRGB(
-      characterValues.material.emissive.r,
-      characterValues.material.emissive.g,
-      characterValues.material.emissive.b,
+      characterValues.emissive.r,
+      characterValues.emissive.g,
+      characterValues.emissive.b,
     );
-    this.emissiveIntensity = characterValues.material.emissiveIntensity;
-    this.envMapIntensity = characterValues.material.envMapIntensity;
+    this.emissiveIntensity = characterValues.emissiveIntensity;
+    this.envMapIntensity = characterValues.envMapIntensity;
     this.sheenColor = new Color().setRGB(
-      characterValues.material.sheenColor.r,
-      characterValues.material.sheenColor.g,
-      characterValues.material.sheenColor.b,
+      characterValues.sheenColor.r,
+      characterValues.sheenColor.g,
+      characterValues.sheenColor.b,
     );
-    this.sheen = characterValues.material.sheen;
-    this.clearcoat = characterValues.material.clearcoat;
-    this.clearcoatRoughness = characterValues.material.clearcoatRoughness;
+    this.sheen = characterValues.sheen;
+    this.clearcoat = characterValues.clearcoat;
+    this.clearcoatRoughness = characterValues.clearcoatRoughness;
   }
 }

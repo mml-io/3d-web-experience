@@ -16,15 +16,17 @@
   },
   "dependencies": {
     "mml-web": "0.7.0",
+    "n8ao": "^1.6.8",
     "postprocessing": "6.33.0",
     "three-mesh-bvh": "0.6.4",
-    "tweakpane": "3.1.10"
+    "tweakpane": "4.0.0",
+    "@tweakpane/core": "2.0.0",
+    "@tweakpane/plugin-essentials": "0.2.0"
   },
   "peerDependencies": {
     "three": ">= 0.153.0"
   },
   "devDependencies": {
-    "@tweakpane/core": "1.1.9",
     "@types/three": "0.153.0"
   }
 }

@@ -1,3 +1,5 @@
+/* @ts-ignore */
+import { N8AOPostPass } from "n8ao";
 import {
   EffectComposer,
   RenderPass,
@@ -34,8 +36,12 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
-import { composerValues as vals } from "../tweakpane/composerSettings";
-import { envValues } from "../tweakpane/envSettings";
+import { bcsValues } from "../tweakpane/blades/bcsFolder";
+import { envValues } from "../tweakpane/blades/environmentFolder";
+import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
+import { rendererValues } from "../tweakpane/blades/rendererFolder";
+import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
+import { toneMappingValues } from "../tweakpane/blades/toneMappingFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
 
 import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat";
@@ -55,6 +61,13 @@ export class Composer {
 
   private readonly composer: EffectComposer;
   private readonly renderPass: RenderPass;
+
+  private readonly normalPass: NormalPass;
+  private readonly normalTextureEffect: TextureEffect;
+  private readonly ppssaoEffect: SSAOEffect;
+  private readonly ppssaoPass: EffectPass;
+  private readonly n8aopass: N8AOPostPass;
+
   private readonly fxaaEffect: FXAAEffect;
   private readonly fxaaPass: EffectPass;
   private readonly bloomEffect: BloomEffect;
@@ -62,10 +75,6 @@ export class Composer {
   private readonly toneMappingEffect: ToneMappingEffect;
   private readonly smaaEffect: SMAAEffect;
 
-  private readonly normalPass: NormalPass;
-  private readonly normalTextureEffect: TextureEffect;
-  private readonly ssaoEffect: SSAOEffect;
-  private readonly ssaoPass: EffectPass;
   private readonly toneMappingPass: EffectPass;
   private readonly smaaPass: EffectPass;
 
@@ -95,9 +104,9 @@ export class Composer {
     this.renderer.info.autoReset = false;
     this.renderer.setSize(this.width, this.height);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = vals.renderer.shadowMap as ShadowMapType;
-    this.renderer.toneMapping = vals.renderer.toneMapping as ToneMapping;
-    this.renderer.toneMappingExposure = vals.renderer.exposure;
+    this.renderer.shadowMap.type = rendererValues.shadowMap as ShadowMapType;
+    this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
+    this.renderer.toneMappingExposure = rendererValues.exposure;
 
     this.setAmbientLight();
     this.setFog();
@@ -111,46 +120,64 @@ export class Composer {
     this.tweakPane = new TweakPane(this.renderer, this.scene, this.composer);
 
     this.renderPass = new RenderPass(this.scene, this.camera);
+
     this.normalPass = new NormalPass(this.scene, this.camera);
+    this.normalPass.enabled = ppssaoValues.enabled;
     this.normalTextureEffect = new TextureEffect({
       blendFunction: BlendFunction.SKIP,
       texture: this.normalPass.texture,
     });
+    this.ppssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
+      blendFunction: ppssaoValues.blendFunction,
+      distanceScaling: ppssaoValues.distanceScaling,
+      depthAwareUpsampling: ppssaoValues.depthAwareUpsampling,
+      samples: ppssaoValues.samples,
+      rings: ppssaoValues.rings,
+      luminanceInfluence: ppssaoValues.luminanceInfluence,
+      radius: ppssaoValues.radius,
+      intensity: ppssaoValues.intensity,
+      bias: ppssaoValues.bias,
+      fade: ppssaoValues.fade,
+      resolutionScale: ppssaoValues.resolutionScale,
+      color: new Color().setRGB(ppssaoValues.color.r, ppssaoValues.color.g, ppssaoValues.color.b),
+      worldDistanceThreshold: ppssaoValues.worldDistanceThreshold,
+      worldDistanceFalloff: ppssaoValues.worldDistanceFalloff,
+      worldProximityThreshold: ppssaoValues.worldProximityThreshold,
+      worldProximityFalloff: ppssaoValues.worldProximityFalloff,
+    });
+    this.ppssaoPass = new EffectPass(this.camera, this.ppssaoEffect, this.normalTextureEffect);
+    this.ppssaoPass.enabled = ppssaoValues.enabled;
 
     this.fxaaEffect = new FXAAEffect();
     this.bloomEffect = new BloomEffect({
-      intensity: vals.bloom,
+      intensity: extrasValues.bloom,
     });
-    this.ssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
-      blendFunction: vals.ssao.blendFunction,
-      distanceScaling: vals.ssao.distanceScaling,
-      depthAwareUpsampling: vals.ssao.depthAwareUpsampling,
-      samples: vals.ssao.samples,
-      rings: vals.ssao.rings,
-      luminanceInfluence: vals.ssao.luminanceInfluence,
-      radius: vals.ssao.radius,
-      intensity: vals.ssao.intensity,
-      bias: vals.ssao.bias,
-      fade: vals.ssao.fade,
-      resolutionScale: vals.ssao.resolutionScale,
-      color: new Color().setRGB(vals.ssao.color.r, vals.ssao.color.g, vals.ssao.color.b),
-      worldDistanceThreshold: vals.ssao.worldDistanceThreshold,
-      worldDistanceFalloff: vals.ssao.worldDistanceFalloff,
-      worldProximityThreshold: vals.ssao.worldProximityThreshold,
-      worldProximityFalloff: vals.ssao.worldProximityFalloff,
-    });
+
+    this.n8aopass = new N8AOPostPass(this.scene, this.camera, this.width, this.height);
+    this.n8aopass.configuration.aoRadius = n8ssaoValues.aoRadius;
+    this.n8aopass.configuration.distanceFalloff = n8ssaoValues.distanceFalloff;
+    this.n8aopass.configuration.intensity = n8ssaoValues.intensity;
+    this.n8aopass.configuration.color = new Color().setRGB(
+      n8ssaoValues.color.r,
+      n8ssaoValues.color.g,
+      n8ssaoValues.color.b,
+    );
+    this.n8aopass.configuration.aoSamples = n8ssaoValues.aoSamples;
+    this.n8aopass.configuration.denoiseSamples = n8ssaoValues.denoiseSamples;
+    this.n8aopass.configuration.denoiseRadius = n8ssaoValues.denoiseRadius;
+    this.n8aopass.enabled = n8ssaoValues.enabled;
 
     this.fxaaPass = new EffectPass(this.camera, this.fxaaEffect);
     this.bloomPass = new EffectPass(this.camera, this.bloomEffect);
-    this.ssaoPass = new EffectPass(this.camera, this.ssaoEffect, this.normalTextureEffect);
+
     this.toneMappingEffect = new ToneMappingEffect({
-      mode: vals.toneMapping.mode,
-      resolution: vals.toneMapping.resolution,
-      whitePoint: vals.toneMapping.whitePoint,
-      middleGrey: vals.toneMapping.middleGrey,
-      minLuminance: vals.toneMapping.minLuminance,
-      averageLuminance: vals.toneMapping.averageLuminance,
-      adaptationRate: vals.toneMapping.adaptationRate,
+      mode: toneMappingValues.mode,
+      resolution: toneMappingValues.resolution,
+      whitePoint: toneMappingValues.whitePoint,
+      middleGrey: toneMappingValues.middleGrey,
+      minLuminance: toneMappingValues.minLuminance,
+      averageLuminance: toneMappingValues.averageLuminance,
+      adaptationRate: toneMappingValues.adaptationRate,
     });
     this.smaaEffect = new SMAAEffect({
       preset: SMAAPreset.ULTRA,
@@ -160,19 +187,24 @@ export class Composer {
 
     this.toneMappingPass = new EffectPass(this.camera, this.toneMappingEffect);
     this.toneMappingPass.enabled =
-      vals.renderer.toneMapping === 5 || vals.renderer.toneMapping === 0 ? true : false;
+      rendererValues.toneMapping === 5 || rendererValues.toneMapping === 0 ? true : false;
 
     this.bcsPass = new ShaderPass(this.bcs, "tDiffuse");
-    this.bcs.uniforms.brightness.value = vals.brightness;
-    this.bcs.uniforms.contrast.value = vals.contrast;
-    this.bcs.uniforms.saturation.value = vals.saturation;
+    this.bcs.uniforms.brightness.value = bcsValues.brightness;
+    this.bcs.uniforms.contrast.value = bcsValues.contrast;
+    this.bcs.uniforms.saturation.value = bcsValues.saturation;
 
     this.gaussGrainPass = new ShaderPass(this.gaussGrainEffect, "tDiffuse");
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.composer.addPass(this.renderPass);
-    this.composer.addPass(this.normalPass);
-    this.composer.addPass(this.ssaoPass);
+    if (ppssaoValues.enabled) {
+      this.composer.addPass(this.normalPass);
+      this.composer.addPass(this.ppssaoPass);
+    }
+    if (n8ssaoValues.enabled) {
+      this.composer.addPass(this.n8aopass);
+    }
     this.composer.addPass(this.fxaaPass);
     this.composer.addPass(this.smaaPass);
     this.composer.addPass(this.bloomPass);
@@ -186,7 +218,11 @@ export class Composer {
     }
 
     this.tweakPane.setupRenderPane(
-      this.ssaoEffect,
+      this.composer,
+      this.normalPass,
+      this.ppssaoEffect,
+      this.ppssaoPass,
+      this.n8aopass,
       this.toneMappingEffect,
       this.toneMappingPass,
       this.bcs,
@@ -208,8 +244,14 @@ export class Composer {
     this.resolution = new Vector2(this.width, this.height);
     this.composer.setSize(this.width, this.height);
     this.renderPass.setSize(this.width, this.height);
-    this.normalPass.setSize(this.width, this.height);
-    this.ssaoPass.setSize(this.width, this.height);
+    if (ppssaoValues.enabled) {
+      this.normalPass.setSize(this.width, this.height);
+      this.normalTextureEffect.setSize(this.width, this.height);
+      this.ppssaoPass.setSize(this.width, this.height);
+    }
+    if (n8ssaoValues.enabled) {
+      this.n8aopass.setSize(this.width, this.height);
+    }
     this.fxaaPass.setSize(this.width, this.height);
     this.smaaPass.setSize(this.width, this.height);
     this.bloomPass.setSize(this.width, this.height);
@@ -247,7 +289,7 @@ export class Composer {
           envMap.needsUpdate = true;
           this.scene.environment = envMap;
           this.scene.background = envMap;
-          this.scene.backgroundIntensity = vals.renderer.bgIntensity;
+          this.scene.backgroundIntensity = rendererValues.bgIntensity;
           this.isEnvHDRI = true;
           texture.dispose();
           pmremGenerator!.dispose();
