@@ -1,6 +1,6 @@
 import { CameraHelper, Color, DirectionalLight, Group, OrthographicCamera, Vector3 } from "three";
 
-import { sunValues } from "../tweakpane/sunSettings";
+import { sunValues } from "../tweakpane/blades/environmentFolder";
 
 export class Sun extends Group {
   private readonly debug: boolean = false;
@@ -37,6 +37,7 @@ export class Sun extends Group {
     this.directionalLight.shadow.camera = this.shadowCamera;
     this.directionalLight.shadow.mapSize.set(this.shadowResolution, this.shadowResolution);
     this.directionalLight.castShadow = true;
+    this.setColor();
 
     this.updateCharacterPosition(new Vector3(0, 0, 0));
 
