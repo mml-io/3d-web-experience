@@ -5,8 +5,8 @@ import {
   CharacterState,
   CollisionsManager,
   Composer,
-  MMLCompositionScene,
   KeyInputManager,
+  MMLCompositionScene,
   TimeManager,
   Sun as ComposerSun,
 } from "@mml-io/3d-web-client-core";
@@ -19,6 +19,7 @@ import {
 import { AudioListener, Group, PerspectiveCamera, Scene } from "three";
 
 import { Room } from "./Room";
+import { SpatialVoiceManager } from "./SpatialVoiceManager";
 import { Sun } from "./Sun";
 
 export class App {
@@ -82,6 +83,10 @@ export class App {
       modelScale: 1,
     };
 
+    let spatialVoiceManager: SpatialVoiceManager | null = null;
+    const latestCharacterObj = {
+      characterState: null as null | CharacterState,
+    };
     this.networkClient = new UserNetworkingClient(
       `${this.protocol}//${this.host}/network`,
       (url: string) => new WebSocket(url),
@@ -90,12 +95,21 @@ export class App {
           // The connection was lost after being established - the connection may be re-established with a different client ID
           this.characterManager.clear();
           this.remoteUserStates.clear();
+          if (spatialVoiceManager) {
+            spatialVoiceManager.dispose();
+            spatialVoiceManager = null;
+          }
         }
       },
       (clientId: number) => {
         this.clientId = clientId;
         this.connectToTextChat();
         this.characterManager.spawnCharacter(this.characterDescription!, clientId, true);
+        spatialVoiceManager = new SpatialVoiceManager(
+          clientId,
+          this.remoteUserStates,
+          latestCharacterObj,
+        );
       },
       (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
         if (userNetworkingClientUpdate === null) {
@@ -113,6 +127,7 @@ export class App {
       this.keyInputManager,
       this.remoteUserStates,
       (characterState: CharacterState) => {
+        latestCharacterObj.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
     );
