@@ -1,13 +1,14 @@
 import { FC, useEffect, useRef } from "react";
 
-import Message from "./message";
-import styles from "./messages.module.css";
+import Message from "../Message/Message";
+
+import styles from "./Messages.module.css";
 
 type MessagesProps = {
   messages: Array<{ username: string; message: string }>;
 };
 
-const Messages: FC<MessagesProps> = ({ messages }) => {
+export const Messages: FC<MessagesProps> = ({ messages }) => {
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,5 +27,3 @@ const Messages: FC<MessagesProps> = ({ messages }) => {
     </div>
   );
 };
-
-export default Messages;

@@ -1,7 +1,8 @@
 import { forwardRef, KeyboardEvent, useImperativeHandle, useRef, useState } from "react";
 
-import styles from "./input-box.module.css";
-import SendButton from "./paper-plane-solid.svg";
+import SendButton from "../../icons/PaperPlane.svg";
+
+import styles from "./InputBox.module.css";
 
 type InputBoxProps = {
   onSendMessage: (message: string) => void;
@@ -9,7 +10,7 @@ type InputBoxProps = {
   setFocus: () => void;
 };
 
-const InputBox = forwardRef<{ focusInput: () => void } | null, InputBoxProps>(
+export const InputBox = forwardRef<{ focusInput: () => void } | null, InputBoxProps>(
   ({ onSendMessage, hide, setFocus }, ref) => {
     const inputRef = useRef<HTMLInputElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
@@ -66,5 +67,3 @@ const InputBox = forwardRef<{ focusInput: () => void } | null, InputBoxProps>(
   },
 );
 InputBox.displayName = "InputBox";
-
-export default InputBox;

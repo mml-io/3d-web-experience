@@ -1,4 +1,4 @@
-export { TextChatUI } from "./chat-ui/text-chat-ui";
+export { TextChatUI } from "./chat-ui/TextChatUI";
 export * from "./chat-network/ChatNetworkingServer";
 export * from "./chat-network/ChatNetworkingClient";
 export * from "./chat-network/ReconnectingWebsocket";

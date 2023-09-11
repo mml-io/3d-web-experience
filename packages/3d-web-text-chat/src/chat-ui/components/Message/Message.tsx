@@ -1,6 +1,6 @@
 import { FC } from "react";
 
-import styles from "./message.module.css";
+import styles from "./Message.module.css";
 
 type MessageProps = {
   username: string;
