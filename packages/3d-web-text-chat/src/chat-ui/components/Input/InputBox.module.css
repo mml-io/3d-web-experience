@@ -1,8 +1,11 @@
 .inputWrapper {
   display: flex;
   align-items: center;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  padding-top: 7px;
+}
+
+.inputWrapper input {
+  /* backdrop-filter: blur(12px); */
+  background-color: rgba(0, 0, 0, 0.7);
 }
 
 .chatInput {
@@ -29,7 +32,7 @@
   justify-content: center;
 }
 
-.sendButton .svgIcon svg {
+.sendButton .svgIcon img {
   width: 25px;
   height: 25px;
   position: relative;
@@ -40,7 +43,7 @@
   transition: all 0.3s ease-in-out;
 }
 
-.sendButton .svgIcon:hover svg {
+.sendButton .svgIcon:hover img {
   filter: invert(70%);
   transform: scale(0.8);
 }

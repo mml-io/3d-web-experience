@@ -1,35 +1,30 @@
 import {
-  createRef,
-  forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
+  ForwardRefRenderFunction,
 } from "react";
-import { flushSync } from "react-dom";
-import { createRoot, Root } from "react-dom/client";
 
-import ChatIcon from "./chat.svg";
-import { useClickOutside } from "./helpers";
-import InputBox from "./input-box";
-import Messages from "./messages";
-import PinButton from "./pin.svg";
-import styles from "./text-chat-ui.module.css";
+import { useClickOutside } from "../../Helpers";
+import ChatIcon from "../../icons/Chat.svg";
+import PinButton from "../../icons/Pin.svg";
+import { gradient } from "../../images/gradient";
+import { type ChatUIInstance } from "../../TextChatUI";
+import { InputBox } from "../Input/InputBox";
+import { Messages } from "../Messages/Messages";
 
-const MAX_MESSAGES = 50;
-const SECONDS_TO_FADE_OUT = 6;
-
-type ChatUIInstance = {
-  addMessage: (username: string, message: string) => void;
-};
-
+import styles from "./TextChatUIComponent.module.css";
 type ChatUIProps = {
   clientName: string;
   sendMessageToServer: (message: string) => void;
 };
 
-const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProps> = (
+const MAX_MESSAGES = 50;
+const SECONDS_TO_FADE_OUT = 6;
+
+export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIProps> = (
   props: ChatUIProps,
   ref,
 ) => {
@@ -38,6 +33,7 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
   const [isVisible, setIsVisible] = useState(false);
   const [isSticky, setSticky] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [isOpenHovered, setOpenHovered] = useState(false);
 
   const [panelStyle, setPanelStyle] = useState(styles.fadeOut);
   const [stickyStyle, setStickyStyle] = useState(styles.stickyButton);
@@ -87,9 +83,15 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
   };
 
   const handleMouseLeave = () => {
+    setOpenHovered(false);
     if (!isFocused && !isSticky && isVisible) {
       startHideTimeout();
     }
+  };
+
+  const handleMouseEnter = () => {
+    setOpenHovered(true);
+    if (!isVisible) setIsVisible(true);
   };
 
   const chatPanelRef = useClickOutside(() => {
@@ -101,7 +103,13 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
 
   useEffect(() => {
     setPanelStyle(isVisible || isFocused || isSticky ? styles.fadeIn : styles.fadeOut);
-    setStickyStyle(isSticky ? styles.stickyButtonEnabled : styles.stickyButton);
+    setStickyStyle(
+      isSticky
+        ? styles.stickyButtonEnabled
+        : isOpenHovered
+        ? styles.stickyButton
+        : styles.stickyButtonFadeOut,
+    );
     if (chatPanelRef.current && chatPanelRef.current.style.zIndex !== "100") {
       // we just want to change the z-index after the browser has the chance
       // to apply the CSS to the SVG icons
@@ -109,7 +117,7 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
         if (chatPanelRef.current) chatPanelRef.current.style.zIndex = "100";
       }, 2000);
     }
-  }, [isVisible, isSticky, isFocused, chatPanelRef]);
+  }, [isVisible, isSticky, isFocused, chatPanelRef, isOpenHovered]);
 
   const appendMessages = (username: string, message: string) => {
     setMessages((prev) => {
@@ -143,79 +151,40 @@ const ChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProp
   }, [handleBlur, handleKeyDown]);
 
   return (
-    <div
-      ref={chatPanelRef}
-      style={{ position: "fixed", zIndex: -1 }}
-      id="text-chat-wrapper"
-      className={`${styles.textChat} ${panelStyle}`}
-      onMouseLeave={handleMouseLeave}
-      onWheel={handleWheel}
-    >
-      <div className={styles.controls}>
-        <div
-          className={styles.openTab}
-          onMouseEnter={() => {
-            if (!isVisible) setIsVisible(true);
-          }}
-          onClick={hide}
-        >
-          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
-        </div>
-        <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
-          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
-        </div>
-        <div
-          ref={closeButtonRef}
-          className={styles.closeButton}
-          onClick={() => {
-            if (isSticky) setSticky(false);
-            hide();
-          }}
-        >
-          X
-        </div>
+    <div className={styles.uiHover} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div className={styles.openTab} onClick={hide}>
+        <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
       </div>
-      <Messages messages={messages} />
-      <InputBox
-        ref={inputBoxRef}
-        onSendMessage={handleSendMessage}
-        hide={hide}
-        setFocus={setFocus}
-      />
+      <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
+        <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
+      </div>
+      <div
+        ref={chatPanelRef}
+        style={{ position: "fixed", zIndex: -1 }}
+        id="text-chat-wrapper"
+        className={`${styles.textChat} ${panelStyle}`}
+        onWheel={handleWheel}
+      >
+        <div
+          className={styles.messagesWrapper}
+          style={{
+            WebkitMaskImage: `url(data:image/png;base64,${gradient})`,
+            maskImage: `url(data:image/png;base64,${gradient})`,
+            WebkitMaskRepeat: "repeat-x",
+            maskRepeat: "repeat-x",
+            WebkitMaskSize: "contain",
+            maskSize: "contain",
+          }}
+        >
+          <Messages messages={messages} />
+        </div>
+        <InputBox
+          ref={inputBoxRef}
+          onSendMessage={handleSendMessage}
+          hide={hide}
+          setFocus={setFocus}
+        />
+      </div>
     </div>
   );
 };
-
-const ForwardedChatUIComponent = forwardRef(ChatUIComponent);
-
-export class TextChatUI {
-  private root: Root;
-  private appRef: React.RefObject<ChatUIInstance> = createRef<ChatUIInstance>();
-
-  public addTextMessage(username: string, message: string) {
-    if (this.appRef.current) this.appRef.current.addMessage(username, message);
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  private container = document.getElementById("text-chat-ui")!;
-
-  constructor(
-    private clientname: string,
-    private sendMessageToServerMethod: (message: string) => void,
-  ) {
-    this.root = createRoot(this.container);
-    this.sendMessageToServerMethod = sendMessageToServerMethod;
-  }
-
-  init() {
-    flushSync(() =>
-      this.root.render(
-        <ForwardedChatUIComponent
-          ref={this.appRef}
-          clientName={this.clientname}
-          sendMessageToServer={this.sendMessageToServerMethod}
-        />,
-      ),
-    );
-  }
-}

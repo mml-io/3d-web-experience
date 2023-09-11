@@ -1,0 +1,203 @@
+.textChat {
+  z-index: -1;
+  position: fixed;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+
+  bottom: 45px;
+  left: 60px;
+
+  width: 400px;
+  min-width: 400px;
+  max-height: 500px;
+
+  color: #ffffff;
+  padding: 7px;
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  opacity: 0;
+  transform: translateX(-100%);
+  transition:
+    opacity 0.25s ease-in-out,
+    transform 0.2s ease-in-out;
+}
+
+.fadeIn {
+  transform: translateX(0%);
+  opacity: 1;
+}
+
+.fadeOut {
+  transform: translateX(calc(-100% - 72px));
+  opacity: 0.6;
+}
+
+.controls {
+  position: absolute;
+  right: 0px;
+  top: 2px;
+}
+
+.openTab {
+  z-index: 1001;
+  position: fixed;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  bottom: 12px;
+  left: 12px;
+  background-color: rgba(0, 0, 0, 0.8);
+  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.21);
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.openTab img {
+  filter: invert(60%);
+  width: 35px;
+  height: 35px;
+  transition: all 0.3s ease-in-out;
+  position: relative;
+  top: 3px;
+  left: 4px;
+  transform: scale(0.7);
+}
+
+.stickyButton {
+  z-index: 1002;
+  position: fixed;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+
+  bottom: 62px;
+  left: 12px;
+
+  background-color: rgba(0, 0, 0, 0.8);
+  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.21);
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  transition: border 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.stickyButton:hover {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.stickyButtonEnabled {
+  z-index: 1002;
+  position: fixed;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+
+  bottom: 62px;
+  left: 12px;
+
+  background-color: rgba(0, 0, 0, 0.8);
+  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.21);
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  border: 1px solid rgba(21, 210, 21, 0.9);
+  transition: border 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.stickyButtonEnabled:hover {
+  border: 1px solid rgba(55, 255, 55, 1);
+}
+
+.stickyButton img {
+  /* width: 25px;
+  height: 25px;
+  position: relative;
+  top: 1px;
+  left: 0px;
+  filter: invert(50%);
+  transform: scale(0.7);
+  transition: all 0.3s ease-in-out; */
+
+  filter: invert(50%);
+  width: 31px;
+  height: 31px;
+  position: relative;
+  top: 7px;
+  left: 6px;
+  transform: scale(0.7);
+  transition: all 0.3s ease-in-out;
+}
+
+.stickyButton:hover img {
+  filter: invert(70%);
+  transform: scale(0.8);
+}
+
+.stickyButtonEnabled img {
+  filter: invert(50%);
+  width: 31px;
+  height: 31px;
+  position: relative;
+  top: 7px;
+  left: 6px;
+  transform: scale(0.7);
+  transition: all 0.3s ease-in-out;
+}
+
+.stickyButtonEnabled:hover img {
+  filter: invert(70%);
+  transform: scale(0.8);
+}
+
+.controls .closeButton {
+  font-family: "arial black";
+  font-weight: 900;
+  color: #aaaaaa;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 25px;
+  height: 24px;
+  background-color: rgba(0, 0, 0, 0.9);
+  line-height: 24px;
+  text-align: center;
+  vertical-align: middle;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: border 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.messagesWrapper {
+  position: relative;
+  height: 500px;
+  min-height: 500px;
+  max-height: 500px;
+  -webkit-mask-image: url("http://localhost:8080/assets/chat-gradient.png");
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: repeat-x;
+  mask-image: url("http://localhost:8080/assets/chat-gradient.png");
+  mask-size: contain;
+  mask-repeat: repeat-x;
+  direction: rtl;
+}
