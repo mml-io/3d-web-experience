@@ -1,6 +1,9 @@
 {
   "name": "@mml-io/3d-web-user-networking",
   "version": "0.6.1",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "type": "module",
