@@ -7,7 +7,7 @@ import {
   ForwardRefRenderFunction,
 } from "react";
 
-import { useClickOutside } from "../../Helpers";
+import { useClickOutside } from "../../helpers";
 import ChatIcon from "../../icons/Chat.svg";
 import PinButton from "../../icons/Pin.svg";
 import { gradient } from "../../images/gradient";
