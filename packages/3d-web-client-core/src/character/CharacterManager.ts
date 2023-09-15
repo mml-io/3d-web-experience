@@ -182,7 +182,7 @@ export class CharacterManager {
       this.character.update(this.timeManager.time);
 
       if (this.character.model?.mesh) {
-        this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.6 : 0;
+        this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.13 : 0;
         this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
         const targetOffset = new Vector3(0, 1.3, this.cameraOffset);
         targetOffset.applyQuaternion(this.character.model.mesh.quaternion);
