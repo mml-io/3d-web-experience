@@ -75,6 +75,10 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
   };
 
+  const handleRootClick = (e: MouseEvent) => {
+    e.stopPropagation();
+  };
+
   const handleStickyButton = (e: MouseEvent) => {
     e.stopPropagation();
     setSticky(!isSticky);
@@ -158,7 +162,7 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
         className={styles.uiHover}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onClick={() => {}}
+        onClick={handleRootClick}
       >
         <div className={styles.openTab} onClick={hide}>
           <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
