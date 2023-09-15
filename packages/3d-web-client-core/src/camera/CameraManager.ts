@@ -25,6 +25,7 @@ export class CameraManager {
 
   public targetDistance: number = this.initialDistance;
   private distance: number = this.initialDistance;
+  private desiredDistance: number = this.initialDistance;
 
   private targetPhi: number | null = Math.PI / 2;
   private phi: number | null = Math.PI / 2;
@@ -81,6 +82,7 @@ export class CameraManager {
       this.minDistance,
       Math.min(this.maxDistance, this.targetDistance),
     );
+    this.desiredDistance = this.targetDistance;
   }
 
   public setTarget(target: Vector3): void {
@@ -115,6 +117,8 @@ export class CameraManager {
     if (minimumDistance !== null && minimumDistance <= cameraToPlayerDistance) {
       this.targetDistance = cameraToPlayerDistance - minimumDistance;
       this.distance = this.targetDistance;
+    } else {
+      this.targetDistance += (this.desiredDistance - this.targetDistance) * this.dampingFactor * 4;
     }
   }
 
