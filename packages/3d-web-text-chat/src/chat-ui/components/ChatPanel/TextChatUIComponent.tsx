@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   ForwardRefRenderFunction,
+  MouseEvent,
 } from "react";
 
 import { useClickOutside } from "../../helpers";
@@ -74,7 +75,8 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
   };
 
-  const handleStickyButton = () => {
+  const handleStickyButton = (e: MouseEvent) => {
+    e.stopPropagation();
     setSticky(!isSticky);
   };
 
@@ -151,12 +153,19 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
   }, [handleBlur, handleKeyDown]);
 
   return (
-    <div className={styles.uiHover} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-      <div className={styles.openTab} onClick={hide}>
-        <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
-      </div>
-      <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
-        <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
+    <>
+      <div
+        className={styles.uiHover}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onClick={() => {}}
+      >
+        <div className={styles.openTab} onClick={hide}>
+          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
+        </div>
+        <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
+          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
+        </div>
       </div>
       <div
         ref={chatPanelRef}
@@ -185,6 +194,6 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
           setFocus={setFocus}
         />
       </div>
-    </div>
+    </>
   );
 };
