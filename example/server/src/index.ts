@@ -27,16 +27,18 @@ if (process.env.PASS) {
   app.use(authMiddleware(process.env.PASS));
 }
 
-const APP_KEY = process.env.APP_KEY ?? "";
-const APP_SECRET = process.env.APP_SECRET ?? "";
+const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
+const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
 let apiTokenPromise: Promise<JwtToken>;
 
 const fetchApiToken = (): Promise<JwtToken> => {
-  if (APP_KEY && APP_SECRET) {
-    const apiAccessToken = dolbyio.authentication.getApiAccessToken(APP_KEY, APP_SECRET, 600, [
-      "comms:client_access_token:create",
-    ]);
-    console.log(`apiAccessToken: ${apiAccessToken}`);
+  if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
+    const apiAccessToken = dolbyio.authentication.getApiAccessToken(
+      DOLBY_APP_KEY,
+      DOLBY_APP_SECRET,
+      600,
+      ["comms:client_access_token:create"],
+    );
     return apiAccessToken;
   }
   throw new Error("Audio service not configured");
@@ -51,7 +53,7 @@ const fetchAccessToken = (apiToken: JwtToken, id: string) => {
   return accessToken;
 };
 
-if (APP_KEY && APP_SECRET) {
+if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
   apiTokenPromise = fetchApiToken();
 }
 
