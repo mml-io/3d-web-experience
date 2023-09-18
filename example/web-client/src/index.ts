@@ -208,9 +208,7 @@ export class App {
     if (this.clientId === null) return;
 
     if (this.voiceChatUI === null) {
-      this.voiceChatUI = new VoiceChatUI(this.clientId.toString(), (message: string) => {
-        console.log(message);
-      });
+      this.voiceChatUI = new VoiceChatUI();
       this.voiceChatUI?.init();
     }
   }

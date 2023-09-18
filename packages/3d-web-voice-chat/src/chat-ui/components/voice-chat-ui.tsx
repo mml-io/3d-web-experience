@@ -1,4 +1,4 @@
-import { createRef, forwardRef, useEffect, useRef, useState, MouseEvent } from "react";
+import { useEffect, useRef, useState, MouseEvent } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
@@ -7,19 +7,7 @@ import MicrophoneOn from "../icons/MicrophoneOn.svg";
 
 import styles from "./voice-chat-ui.module.css";
 
-type VoiceChatUIInstance = {
-  addMessage: (username: string, message: string) => void;
-};
-
-type VoiceChatUIProps = {
-  clientName: string;
-  sendMessageToServer: (message: string) => void;
-};
-
-const VoiceChatUIComponent: React.ForwardRefRenderFunction<
-  VoiceChatUIInstance,
-  VoiceChatUIProps
-> = (props: VoiceChatUIProps, ref) => {
+const VoiceChatUIComponent = () => {
   const joinVoiceChatRef = useRef<HTMLDivElement>(null);
   const voiceParticipantsRef = useRef<HTMLDivElement>(null);
   const [participantsStyle, setParticipantsStyle] = useState(styles.voiceParticipants);
@@ -79,36 +67,17 @@ const VoiceChatUIComponent: React.ForwardRefRenderFunction<
   );
 };
 
-const ForwardedVoiceChatUIComponent = forwardRef(VoiceChatUIComponent);
-
 export class VoiceChatUI {
   private root: Root;
-  private appRef: React.RefObject<VoiceChatUIInstance> = createRef<VoiceChatUIInstance>();
-
-  public addTextMessage(username: string, message: string) {
-    if (this.appRef.current) this.appRef.current.addMessage(username, message);
-  }
 
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   private container = document.getElementById("voice-chat-ui")!;
 
-  constructor(
-    private clientname: string,
-    private sendMessageToServerMethod: (message: string) => void,
-  ) {
+  constructor() {
     this.root = createRoot(this.container);
-    this.sendMessageToServerMethod = sendMessageToServerMethod;
   }
 
   init() {
-    flushSync(() =>
-      this.root.render(
-        <ForwardedVoiceChatUIComponent
-          ref={this.appRef}
-          clientName={this.clientname}
-          sendMessageToServer={this.sendMessageToServerMethod}
-        />,
-      ),
-    );
+    flushSync(() => this.root.render(<VoiceChatUIComponent />));
   }
 }
