@@ -3,7 +3,6 @@ import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
 import HourGlass from "../icons/Hourglass.svg";
-import MicrophoneOff from "../icons/MicrophoneOff.svg";
 import MicrophoneOn from "../icons/MicrophoneOn.svg";
 
 import styles from "./voice-chat-ui.module.css";
@@ -24,8 +23,6 @@ const VoiceChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatU
   const joinVoiceChatRef = useRef<HTMLDivElement>(null);
   const voiceParticipantsRef = useRef<HTMLDivElement>(null);
   const [participantsStyle, setParticipantsStyle] = useState(styles.voiceParticipants);
-  const micOn = `<img src="data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOn)}" />`;
-  const micOff = `<img src="data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOff)}" />`;
   const hourGlass = `<img src="data:image/svg+xml;utf8,${encodeURIComponent(HourGlass)}" />`;
 
   const joining = useRef<boolean>(false);

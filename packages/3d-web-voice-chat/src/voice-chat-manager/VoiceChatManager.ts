@@ -88,10 +88,27 @@ export class VoiceChatManager {
       this.participantsDiv!.innerText = this.activeSpeakers.toString();
     }
 
-    this.joinButton!.style.border = this.speaking
-      ? "1px solid rgba(0, 250, 0, 0.8)"
-      : "1px solid rgba(255, 255, 255, 0.21)";
-    this.joinButton!.innerHTML = this.speaking ? this.micOffIcon : this.micOnIcon;
+    if (this.speaking === true) {
+      if (this.joinButton!.style.border !== "1px solid rgba(0, 250, 0, 0.8)") {
+        this.joinButton!.style.border = "1px solid rgba(0, 250, 0, 0.8)";
+      }
+      if (this.joinButton!.style.backgroundColor !== "rgba(30, 70, 30, 0.8)") {
+        this.joinButton!.style.backgroundColor = "rgba(30, 70, 30, 0.8)";
+      }
+      if (this.joinButton!.innerHTML !== this.micOffIcon) {
+        this.joinButton!.innerHTML = this.micOffIcon;
+      }
+    } else {
+      if (this.joinButton!.style.border !== "1px solid rgba(255, 255, 255, 0.21)") {
+        this.joinButton!.style.border = "1px solid rgba(255, 255, 255, 0.21)";
+      }
+      if (this.joinButton!.style.backgroundColor !== "rgba(0, 0, 0, 0.8)") {
+        this.joinButton!.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
+      }
+      if (this.joinButton!.innerHTML !== this.micOnIcon) {
+        this.joinButton!.innerHTML = this.micOnIcon;
+      }
+    }
   }
 
   private tick() {
