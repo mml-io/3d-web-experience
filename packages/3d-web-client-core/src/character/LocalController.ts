@@ -1,4 +1,4 @@
-import { Box3, Line3, Matrix4, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from "three";
+import { Line3, Matrix4, PerspectiveCamera, Quaternion, Raycaster, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
