@@ -1,0 +1,89 @@
+.voiceChat {
+  position: fixed;
+  bottom: 65px;
+  left: 12px;
+}
+
+.joinVoiceChat {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  position: fixed;
+  bottom: 65px;
+  left: 12px;
+  box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.21);
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: pointer;
+  z-index: 102;
+}
+
+.joinVoiceChat img {
+  filter: invert(60%);
+  width: 35px;
+  height: 35px;
+  transition: all 0.3s ease-in-out;
+  position: relative;
+  top: 3px;
+  left: 4px;
+  transform: scale(0.7);
+}
+
+.voiceParticipants {
+  z-index: 104;
+  color: white;
+  position: absolute;
+
+  left: 30px;
+  bottom: 30px;
+
+  width: 23px;
+  height: 22px;
+
+  background-color: rgba(0, 0, 0, 0.8);
+  line-height: 24px;
+  text-align: center;
+  vertical-align: middle;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: border 0.2s ease-in-out;
+  cursor: pointer;
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.voiceParticipantsVisible {
+  z-index: 104;
+  color: white;
+  position: absolute;
+
+  left: 30px;
+  bottom: 30px;
+
+  width: 23px;
+  height: 22px;
+
+  background-color: rgba(0, 0, 0, 0.8);
+  line-height: 24px;
+  text-align: center;
+  vertical-align: middle;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: border 0.2s ease-in-out;
+  cursor: pointer;
+
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
