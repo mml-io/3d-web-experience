@@ -7,19 +7,19 @@ import MicrophoneOn from "../icons/MicrophoneOn.svg";
 
 import styles from "./voice-chat-ui.module.css";
 
-type ChatUIInstance = {
+type VoiceChatUIInstance = {
   addMessage: (username: string, message: string) => void;
 };
 
-type ChatUIProps = {
+type VoiceChatUIProps = {
   clientName: string;
   sendMessageToServer: (message: string) => void;
 };
 
-const VoiceChatUIComponent: React.ForwardRefRenderFunction<ChatUIInstance, ChatUIProps> = (
-  props: ChatUIProps,
-  ref,
-) => {
+const VoiceChatUIComponent: React.ForwardRefRenderFunction<
+  VoiceChatUIInstance,
+  VoiceChatUIProps
+> = (props: VoiceChatUIProps, ref) => {
   const joinVoiceChatRef = useRef<HTMLDivElement>(null);
   const voiceParticipantsRef = useRef<HTMLDivElement>(null);
   const [participantsStyle, setParticipantsStyle] = useState(styles.voiceParticipants);
@@ -83,7 +83,7 @@ const ForwardedVoiceChatUIComponent = forwardRef(VoiceChatUIComponent);
 
 export class VoiceChatUI {
   private root: Root;
-  private appRef: React.RefObject<ChatUIInstance> = createRef<ChatUIInstance>();
+  private appRef: React.RefObject<VoiceChatUIInstance> = createRef<VoiceChatUIInstance>();
 
   public addTextMessage(username: string, message: string) {
     if (this.appRef.current) this.appRef.current.addMessage(username, message);
