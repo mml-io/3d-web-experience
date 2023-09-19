@@ -11,13 +11,13 @@ function decodeCredentials(authHeader: string): [string, string] {
 
 export function authMiddleware(serverPassword: string) {
   return (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const [username, password] = decodeCredentials(req.headers.authorization || "");
-
-    if (password === serverPassword) {
-      return next();
+    if (typeof req.headers["x-custom-auth"] !== undefined) {
+      if (req.headers["x-custom-auth"] === serverPassword) {
+        return next();
+      }
     }
 
-    res.set("WWW-Authenticate", 'Basic realm="user_pages"');
+    // Removed the setting of the WWW-Authenticate header
     res.status(401).send("Authentication required.");
   };
 }

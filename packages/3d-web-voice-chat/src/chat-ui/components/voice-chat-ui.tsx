@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
 import { SessionStatus } from "../../voice-chat-manager/VoiceChatManager";
+import HeadSet from "../icons/Headset.svg";
 import HourGlass from "../icons/Hourglass.svg";
 import MicrophoneOff from "../icons/MicrophoneOff.svg";
 import MicrophoneOn from "../icons/MicrophoneOn.svg";
@@ -34,10 +35,15 @@ const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
       return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOn)}`} />;
     } else if (status === SessionStatus.Connected && speaking === true) {
       return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOff)}`} />;
+    } else {
+      return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(HeadSet)}`} />;
     }
   };
 
   const getStatusString = (): string => {
+    if (status === SessionStatus.Disconnected) {
+      return "voice chat";
+    }
     if (status === SessionStatus.Unavailable) {
       return "disabled";
     }
@@ -51,7 +57,13 @@ const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
     <div className={styles.voiceChat}>
       <div
         ref={joinVoiceChatRef}
-        className={speaking ? styles.speaking : styles.connected}
+        className={
+          status === SessionStatus.Unavailable
+            ? styles.unavailable
+            : speaking
+            ? styles.speaking
+            : styles.connected
+        }
         onClick={handleMicClick}
         onMouseEnter={() => setMicHovered(true)}
         onMouseLeave={() => setMicHovered(false)}
@@ -79,7 +91,7 @@ export class VoiceChatUI {
 
   private activeSpeakers: number = 0;
   private speaking: boolean = false;
-  private status: SessionStatus = SessionStatus.Connecting;
+  private status: SessionStatus = SessionStatus.Disconnected;
 
   constructor(private handleClickMic: () => void) {
     this.root = createRoot(this.container);

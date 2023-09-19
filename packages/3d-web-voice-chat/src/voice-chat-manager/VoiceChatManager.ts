@@ -31,18 +31,26 @@ type ConferenceSettings = {
 };
 
 export enum SessionStatus {
+  Disconnected = "disconnected",
   Connecting = "connecting",
   Connected = "connected",
   Unavailable = "unavailable",
 }
 
+const RETRY_DELAY = 3000;
+
 export class VoiceChatManager {
   private debug = false;
+
+  private password: string | null = null;
 
   private disposed = false;
   private pending = false;
   private hasJoinedAudio = false;
   private speaking = false;
+  private status: SessionStatus = SessionStatus.Disconnected;
+
+  private accessToken: string | null = null;
 
   private conferenceAlias: string;
   private participants = new Map<string, string>();
@@ -67,13 +75,18 @@ export class VoiceChatManager {
     private latestCharacterObj: {
       characterState: null | CharacterState;
     },
+    private autoJoin: boolean = false,
   ) {
     this.conferenceAlias = window.location.host;
+
     this.voiceChatUI = new VoiceChatUI(this.handleJoinClick.bind(this));
     this.voiceChatUI.render();
+    this.tick = this.tick.bind(this);
 
-    this.init();
-    this.tickInterval = setInterval(() => this.tick(), 1000);
+    if (this.autoJoin === true) {
+      this.init();
+      this.tickInterval = setInterval(() => this.tick(), 1000);
+    }
   }
 
   private tick() {
@@ -82,9 +95,6 @@ export class VoiceChatManager {
       let activeSpeakers = 0;
       for (const [, participant] of VoxeetSDK.conference.participants) {
         const parsed = parseInt(participant.info.name!, 10);
-        if (this.debug === true) {
-          console.log("parsed", parsed, "userId", this.userId);
-        }
         if (!parsed) break;
         if (participant.status === "Connected" && participant.audioTransmitting === true) {
           activeSpeakers++;
@@ -124,36 +134,107 @@ export class VoiceChatManager {
     }
   }
 
-  private async init() {
+  private async sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async fetchAccessToken(retries: number = 3): Promise<string | null> {
+    if (this.password === null) return null;
     try {
-      this.voiceChatUI.setStatus(SessionStatus.Connecting);
-      const accessToken = await fetch(`/voice-token/${this.userId.toString(10)}`)
-        .then((res) => res.json())
-        .then((res) => res.accessToken as string)
-        .catch((err) => {
-          console.error(err);
-          this.voiceChatUI.setStatus(SessionStatus.Unavailable);
-        });
-      if (!accessToken) {
-        this.voiceChatUI.setStatus(SessionStatus.Unavailable);
-        return;
+      this.status = SessionStatus.Connecting;
+      console.log(this.password);
+      const response = await fetch(`/voice-token/${this.userId.toString(10)}`, {
+        headers: {
+          "x-custom-auth": this.password,
+        },
+      });
+      if (response.status === 501 && response.statusText === "Not Implemented") {
+        console.log("Voice Chat Disabled");
+        this.status = SessionStatus.Unavailable;
+        this.voiceChatUI.setStatus(this.status);
+        return null;
       }
-      VoxeetSDK.initializeToken(accessToken, (isExpired: boolean) => {
-        return new Promise((resolve, reject) => {
+      const data = await response.json();
+      if (!data.accessToken) {
+        this.status = SessionStatus.Unavailable;
+        this.accessToken = null;
+        return null;
+      }
+      this.accessToken = data.accessToken as string;
+      return data.accessToken as string;
+    } catch (err) {
+      console.error(`Failed fetching AccessToken. Retries left: ${retries}`);
+      if (retries > 0) {
+        this.accessToken = null;
+        await this.sleep(RETRY_DELAY);
+        return this.fetchAccessToken(retries - 1);
+      }
+      this.status = SessionStatus.Unavailable;
+      throw err;
+    }
+  }
+
+  private async initializeAccessToken(retries: number = 3): Promise<void> {
+    this.status = SessionStatus.Connecting;
+
+    try {
+      if (this.accessToken === null) {
+        await this.fetchAccessToken();
+      } else {
+        VoxeetSDK.initializeToken(this.accessToken, async (isExpired: boolean) => {
           if (isExpired) {
-            this.voiceChatUI.setStatus(SessionStatus.Unavailable);
-            reject("The access token has expired.");
-          } else {
-            resolve(accessToken);
+            console.error(`AccessToken expired. Retries left: ${retries}`);
+            await this.fetchAccessToken();
+            if (retries > 0) {
+              await this.sleep(RETRY_DELAY);
+              return this.initializeAccessToken(retries - 1);
+            }
           }
         });
-      });
-      // Open the session
+      }
+    } catch (error) {
+      console.error(`AccessToken expired. Retries left: ${retries}`);
+      if (retries > 0) {
+        await this.sleep(RETRY_DELAY);
+        return this.initializeAccessToken(retries - 1);
+      } else {
+        this.status = SessionStatus.Unavailable;
+        throw new Error("Error: can't get a valid access token.");
+      }
+    }
+  }
+
+  private async openSession(retries: number = 3): Promise<void> {
+    try {
+      this.status = SessionStatus.Connecting;
       await VoxeetSDK.session.open({ name: this.userId.toString(10) });
-      this.createAndJoinConference();
-      // this.conference = await this.createConference();
+      this.status = SessionStatus.Connected;
     } catch (err) {
-      alert("Something went wrong : " + err);
+      console.error(`Failed to open session. Retries left: ${retries}`);
+      if (retries > 0) {
+        await this.sleep(RETRY_DELAY);
+        return this.openSession(retries - 1);
+      }
+      this.status = SessionStatus.Unavailable;
+    }
+  }
+
+  private async init() {
+    try {
+      const token = await this.fetchAccessToken();
+      if (token) {
+        await this.initializeAccessToken();
+        await this.openSession();
+        this.createAndJoinConference();
+        if (this.tickInterval === null) {
+          this.tickInterval = setInterval(() => this.tick(), 1000);
+        }
+      } else {
+        this.status = SessionStatus.Unavailable;
+      }
+    } catch (err) {
+      console.error(`Something went wrong: ${err}`);
+      this.status = SessionStatus.Unavailable;
     }
   }
 
@@ -210,10 +291,7 @@ export class VoiceChatManager {
       this.conference = await this.createConference();
       if (this.conference) {
         await VoxeetSDK.conference.join(this.conference, {
-          constraints: {
-            audio: false,
-            video: false,
-          },
+          constraints: { audio: false, video: false },
           spatialAudio: true,
           dvwc: false,
         });
@@ -239,7 +317,6 @@ export class VoiceChatManager {
 
         this.hasJoinedAudio = true;
         this.pending = false;
-        console.log("connected");
         this.voiceChatUI.setStatus(SessionStatus.Connected);
       }
     } catch (err) {
@@ -273,16 +350,27 @@ export class VoiceChatManager {
     if (this.pending) return;
     this.pending = true;
 
-    if (this.hasJoinedAudio && this.speaking) {
-      await VoxeetSDK.audio.local.stop();
-      this.speaking = false;
-      this.pending = false;
-      this.voiceChatUI.setSpeaking(false);
-    } else if (this.hasJoinedAudio && !this.speaking) {
-      await VoxeetSDK.audio.local.start();
-      this.speaking = true;
-      this.pending = false;
-      this.voiceChatUI.setSpeaking(true);
+    if (this.status !== SessionStatus.Connected) {
+      const userPassword = prompt("Please provide the voice-chat password:");
+      if (userPassword === null || userPassword === "") {
+        console.warn("No password entered. Aborting the joining process.");
+        this.pending = false;
+        return;
+      }
+      this.password = userPassword;
+      this.init();
+    } else {
+      if (this.hasJoinedAudio && this.speaking) {
+        await VoxeetSDK.audio.local.stop();
+        this.speaking = false;
+        this.pending = false;
+        this.voiceChatUI.setSpeaking(false);
+      } else if (this.hasJoinedAudio && !this.speaking) {
+        await VoxeetSDK.audio.local.start();
+        this.speaking = true;
+        this.pending = false;
+        this.voiceChatUI.setSpeaking(true);
+      }
     }
   }
 }

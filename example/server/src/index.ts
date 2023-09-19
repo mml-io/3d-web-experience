@@ -23,10 +23,6 @@ const documentsWatchPath = path.resolve(path.join(dirname, "../mml-documents"), 
 const { app } = enableWs(express());
 app.enable("trust proxy");
 
-if (process.env.PASS) {
-  app.use(authMiddleware(process.env.PASS));
-}
-
 const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
 const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
 let apiTokenPromise: Promise<JwtToken>;
@@ -55,6 +51,10 @@ const fetchAccessToken = (apiToken: JwtToken, id: string) => {
 
 if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
   apiTokenPromise = fetchApiToken();
+}
+
+if (process.env.PASS) {
+  app.use("/voice-token/:id", authMiddleware(process.env.PASS));
 }
 
 app.get("/voice-token/:id", async (req, res) => {
