@@ -3,8 +3,7 @@ import VoxeetSDK from "@voxeet/voxeet-web-sdk";
 import Conference from "@voxeet/voxeet-web-sdk/types/models/Conference";
 import type { SpatialAudioStyle } from "@voxeet/voxeet-web-sdk/types/models/SpatialAudio";
 
-import MicrophoneOff from "../chat-ui/icons/MicrophoneOff.svg";
-import MicrophoneOn from "../chat-ui/icons/MicrophoneOn.svg";
+import { VoiceChatUI } from "../chat-ui/components/voice-chat-ui";
 
 import { getEulerFromQuaternion, formatPos, formatDirection } from "./helpers";
 
@@ -31,6 +30,12 @@ type ConferenceSettings = {
   right: Vector3;
 };
 
+export enum SessionStatus {
+  Connecting = "connecting",
+  Connected = "connected",
+  Unavailable = "unavailable",
+}
+
 export class VoiceChatManager {
   private debug = false;
 
@@ -43,12 +48,7 @@ export class VoiceChatManager {
   private participants = new Map<string, string>();
   private activeSpeakers: number = 0;
 
-  private micOnIcon: string = `<img src="data:image/svg+xml;utf8,${encodeURIComponent(
-    MicrophoneOn,
-  )}" />`;
-  private micOffIcon: string = `<img src="data:image/svg+xml;utf8,${encodeURIComponent(
-    MicrophoneOff,
-  )}" />`;
+  private voiceChatUI: VoiceChatUI;
 
   private conference: Conference | null = null;
 
@@ -58,9 +58,6 @@ export class VoiceChatManager {
     up: { x: 0, y: 0, z: 1 },
     right: { x: -1, y: 0, z: 0 },
   };
-
-  private joinButton: HTMLElement | null = null;
-  private participantsDiv: HTMLElement | null = null;
 
   private tickInterval: NodeJS.Timeout | null = null;
 
@@ -72,49 +69,16 @@ export class VoiceChatManager {
     },
   ) {
     this.conferenceAlias = window.location.host;
+    this.voiceChatUI = new VoiceChatUI(this.handleJoinClick.bind(this));
+    this.voiceChatUI.render();
+
     this.init();
     this.tickInterval = setInterval(() => this.tick(), 1000);
-  }
-
-  private setStatusElement() {
-    if (!this.joinButton) {
-      this.joinButton = document.getElementById("voice-join-button");
-    }
-    if (!this.participantsDiv) {
-      this.participantsDiv = document.getElementById("voice-participants-count");
-    }
-
-    if (this.participantsDiv!.innerText !== this.activeSpeakers.toString()) {
-      this.participantsDiv!.innerText = this.activeSpeakers.toString();
-    }
-
-    if (this.speaking === true) {
-      if (this.joinButton!.style.border !== "1px solid rgba(0, 250, 0, 0.8)") {
-        this.joinButton!.style.border = "1px solid rgba(0, 250, 0, 0.8)";
-      }
-      if (this.joinButton!.style.backgroundColor !== "rgba(30, 70, 30, 0.8)") {
-        this.joinButton!.style.backgroundColor = "rgba(30, 70, 30, 0.8)";
-      }
-      if (this.joinButton!.innerHTML !== this.micOffIcon) {
-        this.joinButton!.innerHTML = this.micOffIcon;
-      }
-    } else {
-      if (this.joinButton!.style.border !== "1px solid rgba(255, 255, 255, 0.21)") {
-        this.joinButton!.style.border = "1px solid rgba(255, 255, 255, 0.21)";
-      }
-      if (this.joinButton!.style.backgroundColor !== "rgba(0, 0, 0, 0.8)") {
-        this.joinButton!.style.backgroundColor = "rgba(0, 0, 0, 0.8)";
-      }
-      if (this.joinButton!.innerHTML !== this.micOnIcon) {
-        this.joinButton!.innerHTML = this.micOnIcon;
-      }
-    }
   }
 
   private tick() {
     if (!this.hasJoinedAudio) return;
     if (VoxeetSDK.conference.participants.size > 0) {
-      this.setStatusElement();
       let activeSpeakers = 0;
       for (const [, participant] of VoxeetSDK.conference.participants) {
         const parsed = parseInt(participant.info.name!, 10);
@@ -154,34 +118,30 @@ export class VoiceChatManager {
         }
       }
       this.activeSpeakers = activeSpeakers;
+      this.voiceChatUI.setActiveSpeakers(this.activeSpeakers);
     } else {
-      this.setStatusElement();
+      this.voiceChatUI.setActiveSpeakers(0);
     }
-  }
-
-  private bindDOMElements() {
-    this.joinButton = document.getElementById("voice-join-button") as HTMLDivElement;
-    this.joinButton.addEventListener("click", () => {
-      this.joinClick();
-    });
-    this.participantsDiv = document.getElementById("voice-participants-count") as HTMLDivElement;
   }
 
   private async init() {
     try {
+      this.voiceChatUI.setStatus(SessionStatus.Connecting);
       const accessToken = await fetch(`/voice-token/${this.userId.toString(10)}`)
         .then((res) => res.json())
         .then((res) => res.accessToken as string)
         .catch((err) => {
           console.error(err);
-          return null;
+          this.voiceChatUI.setStatus(SessionStatus.Unavailable);
         });
       if (!accessToken) {
+        this.voiceChatUI.setStatus(SessionStatus.Unavailable);
         return;
       }
       VoxeetSDK.initializeToken(accessToken, (isExpired: boolean) => {
         return new Promise((resolve, reject) => {
           if (isExpired) {
+            this.voiceChatUI.setStatus(SessionStatus.Unavailable);
             reject("The access token has expired.");
           } else {
             resolve(accessToken);
@@ -195,8 +155,6 @@ export class VoiceChatManager {
     } catch (err) {
       alert("Something went wrong : " + err);
     }
-
-    this.bindDOMElements();
   }
 
   public dispose() {
@@ -222,7 +180,6 @@ export class VoiceChatManager {
       });
       this.hasJoinedAudio = false;
       this.pending = false;
-      this.setStatusElement();
     } catch (err) {
       return console.error(err);
     }
@@ -282,8 +239,8 @@ export class VoiceChatManager {
 
         this.hasJoinedAudio = true;
         this.pending = false;
-
-        this.setStatusElement();
+        console.log("connected");
+        this.voiceChatUI.setStatus(SessionStatus.Connected);
       }
     } catch (err) {
       /* TODO:
@@ -312,7 +269,7 @@ export class VoiceChatManager {
     }
   }
 
-  private async joinClick() {
+  private async handleJoinClick() {
     if (this.pending) return;
     this.pending = true;
 
@@ -320,12 +277,12 @@ export class VoiceChatManager {
       await VoxeetSDK.audio.local.stop();
       this.speaking = false;
       this.pending = false;
-      this.setStatusElement();
+      this.voiceChatUI.setSpeaking(false);
     } else if (this.hasJoinedAudio && !this.speaking) {
       await VoxeetSDK.audio.local.start();
       this.speaking = true;
       this.pending = false;
-      this.setStatusElement();
+      this.voiceChatUI.setSpeaking(true);
     }
   }
 }

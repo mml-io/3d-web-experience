@@ -16,7 +16,7 @@ import {
   UserNetworkingClientUpdate,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
-import { VoiceChatUI, VoiceChatManager } from "@mml-io/3d-web-voice-chat";
+import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
 import { AudioListener, Group, PerspectiveCamera, Scene } from "three";
 
 import { Room } from "./Room";
@@ -48,7 +48,6 @@ export class App {
   private clientId: number | null = null;
   private textChatUI: TextChatUI | null = null;
 
-  private voiceChatUI: VoiceChatUI | null = null;
   private voiceChatManager: VoiceChatManager | null = null;
   private latestCharacterObject = {
     characterState: null as null | CharacterState,
@@ -102,7 +101,6 @@ export class App {
       (clientId: number) => {
         this.clientId = clientId;
         this.connectToTextChat();
-        this.getVoiceChat();
         if (this.voiceChatManager === null) {
           this.voiceChatManager = new VoiceChatManager(
             clientId,
@@ -201,15 +199,6 @@ export class App {
           }
         },
       );
-    }
-  }
-
-  private getVoiceChat() {
-    if (this.clientId === null) return;
-
-    if (this.voiceChatUI === null) {
-      this.voiceChatUI = new VoiceChatUI();
-      this.voiceChatUI?.init();
     }
   }
 

@@ -1,83 +1,121 @@
-import { useEffect, useRef, useState, MouseEvent } from "react";
+import { useRef, useState, MouseEvent } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
+import { SessionStatus } from "../../voice-chat-manager/VoiceChatManager";
 import HourGlass from "../icons/Hourglass.svg";
+import MicrophoneOff from "../icons/MicrophoneOff.svg";
 import MicrophoneOn from "../icons/MicrophoneOn.svg";
 
 import styles from "./voice-chat-ui.module.css";
 
-const VoiceChatUIComponent = () => {
+type VoiceChatUIComponentProps = {
+  activeSpeakers: number;
+  speaking: boolean;
+  status: SessionStatus;
+  handleJoinClick: () => void;
+};
+
+const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
+  const { activeSpeakers, speaking, status, handleJoinClick } = props;
   const joinVoiceChatRef = useRef<HTMLDivElement>(null);
   const voiceParticipantsRef = useRef<HTMLDivElement>(null);
-  const [participantsStyle, setParticipantsStyle] = useState(styles.voiceParticipants);
-  const hourGlass = `<img src="data:image/svg+xml;utf8,${encodeURIComponent(HourGlass)}" />`;
+  const [micHovered, setMicHovered] = useState(false);
 
-  const joining = useRef<boolean>(false);
+  const handleMicClick = (e: MouseEvent) => {
+    e.stopPropagation();
+    handleJoinClick();
+  };
 
-  useEffect(() => {
-    const targetNode = voiceParticipantsRef.current;
-    if (targetNode) {
-      const observerOptions = { childList: true, subtree: true, characterData: true };
-      const callback = (mutationsList: MutationRecord[], observer: MutationObserver) => {
-        for (const mutation of mutationsList) {
-          if (mutation.type === "characterData" || mutation.type === "childList") {
-            if (joinVoiceChatRef.current) {
-              const participants = parseInt(targetNode.innerText);
-              if (!isNaN(participants)) {
-                setParticipantsStyle(
-                  participants > 0 ? styles.voiceParticipantsVisible : styles.voiceParticipants,
-                );
-              } else {
-                setParticipantsStyle(styles.voiceParticipants);
-              }
-            }
-          }
-        }
-      };
-
-      const observer = new MutationObserver(callback);
-      observer.observe(targetNode, observerOptions);
-      return () => observer.disconnect();
-    }
-  }, [voiceParticipantsRef]);
-
-  const handleJoinClick = (e: MouseEvent) => {
-    if (joinVoiceChatRef.current) {
-      joinVoiceChatRef.current.innerHTML = hourGlass;
+  const renderIcon = () => {
+    if (status === SessionStatus.Connecting) {
+      return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(HourGlass)}`} />;
+    } else if (status === SessionStatus.Connected && speaking === false) {
+      return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOn)}`} />;
+    } else if (status === SessionStatus.Connected && speaking === true) {
+      return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOff)}`} />;
     }
   };
 
+  const getStatusString = (): string => {
+    if (status === SessionStatus.Unavailable) {
+      return "disabled";
+    }
+    if (status === SessionStatus.Connected) {
+      return speaking ? "mute" : "unmute";
+    }
+    return "loading";
+  };
+
   return (
-    <div id="voice-chat-wrapper" className={styles.voiceChat}>
+    <div className={styles.voiceChat}>
       <div
-        id="voice-join-button"
         ref={joinVoiceChatRef}
-        className={styles.joinVoiceChat}
-        onClick={handleJoinClick}
+        className={speaking ? styles.speaking : styles.connected}
+        onClick={handleMicClick}
+        onMouseEnter={() => setMicHovered(true)}
+        onMouseLeave={() => setMicHovered(false)}
       >
-        <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOn)}`} />
+        <span
+          className={micHovered ? `${styles.tooltip} ${styles.tooltipVisible}` : styles.tooltip}
+        >
+          {getStatusString()}
+        </span>
+        {renderIcon()}
       </div>
       <div
         ref={voiceParticipantsRef}
-        id="voice-participants-count"
-        className={participantsStyle}
-      ></div>
+        className={activeSpeakers > 0 ? styles.voiceParticipantsVisible : styles.voiceParticipants}
+      >
+        {activeSpeakers > 0 && activeSpeakers}
+      </div>
     </div>
   );
 };
 
 export class VoiceChatUI {
   private root: Root;
-
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   private container = document.getElementById("voice-chat-ui")!;
 
-  constructor() {
+  private activeSpeakers: number = 0;
+  private speaking: boolean = false;
+  private status: SessionStatus = SessionStatus.Connecting;
+
+  constructor(private handleClickMic: () => void) {
     this.root = createRoot(this.container);
   }
 
-  init() {
-    flushSync(() => this.root.render(<VoiceChatUIComponent />));
+  public setActiveSpeakers(activeSpeakers: number): void {
+    if (this.activeSpeakers !== activeSpeakers) {
+      this.activeSpeakers = activeSpeakers;
+      this.render();
+    }
+  }
+
+  public setSpeaking(speaking: boolean): void {
+    if (this.speaking !== speaking) {
+      this.speaking = speaking;
+      this.render();
+    }
+  }
+
+  public setStatus(status: SessionStatus): void {
+    if (this.status !== status) {
+      this.status = status;
+      this.render();
+    }
+  }
+
+  public render(): void {
+    flushSync(() =>
+      this.root.render(
+        <VoiceChatUIComponent
+          handleJoinClick={this.handleClickMic}
+          activeSpeakers={this.activeSpeakers}
+          speaking={this.speaking}
+          status={this.status}
+        />,
+      ),
+    );
   }
 }
