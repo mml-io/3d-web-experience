@@ -142,7 +142,6 @@ export class VoiceChatManager {
     if (this.password === null) return null;
     try {
       this.status = SessionStatus.Connecting;
-      console.log(this.password);
       const response = await fetch(`/voice-token/${this.userId.toString(10)}`, {
         headers: {
           "x-custom-auth": this.password,
