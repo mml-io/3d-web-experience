@@ -226,7 +226,9 @@ export class CollisionsManager {
         // and the triangle
         if (realDistance < capsuleRadius) {
           if (!collisionPosition) {
-            collisionPosition = new Vector3().copy(closestPointOnSegment);
+            collisionPosition = new Vector3()
+              .copy(closestPointOnSegment)
+              .applyMatrix4(meshState.matrix);
           }
           // Calculate the ratio between the real distance and the mesh-space distance
           const ratio = realDistance / modelReferenceDistance;
