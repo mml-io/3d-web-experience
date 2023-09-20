@@ -1,4 +1,4 @@
-import { useRef, useState, MouseEvent } from "react";
+import { useRef, useState, MouseEvent, useEffect } from "react";
 import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
@@ -15,6 +15,46 @@ type VoiceChatUIComponentProps = {
   speaking: boolean;
   status: SessionStatus;
   handleJoinClick: () => void;
+  showPasswordModal: boolean;
+  passCallback: (password: string) => void;
+};
+
+const PasswordModal = ({ onSubmit }: { onSubmit: (password: string) => void }) => {
+  const [password, setPassword] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    const handleKeyPress = (event: KeyboardEvent) => {
+      event.stopPropagation();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        onSubmit(inputRef.current?.value || "");
+      }
+    };
+
+    const inputEl = inputRef.current;
+    if (inputEl) inputEl.addEventListener("keydown", handleKeyPress);
+    return () => {
+      if (inputEl) inputEl.removeEventListener("keydown", handleKeyPress);
+    };
+  }, [onSubmit]);
+
+  return (
+    <div className={styles.modal}>
+      <h3>Password for Voice Chat</h3>
+      <div className={styles.inputWrapper}>
+        <input
+          ref={inputRef}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Enter your password..."
+        />
+        <button onClick={() => onSubmit(password)}>Submit</button>
+      </div>
+    </div>
+  );
 };
 
 const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
@@ -32,9 +72,9 @@ const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
     if (status === SessionStatus.Connecting) {
       return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(HourGlass)}`} />;
     } else if (status === SessionStatus.Connected && speaking === false) {
-      return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOn)}`} />;
-    } else if (status === SessionStatus.Connected && speaking === true) {
       return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOff)}`} />;
+    } else if (status === SessionStatus.Connected && speaking === true) {
+      return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(MicrophoneOn)}`} />;
     } else {
       return <img src={`data:image/svg+xml;utf8,${encodeURIComponent(HeadSet)}`} />;
     }
@@ -81,6 +121,7 @@ const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
       >
         {activeSpeakers > 0 && activeSpeakers}
       </div>
+      {props.showPasswordModal && <PasswordModal onSubmit={props.passCallback} />}
     </div>
   );
 };
@@ -92,8 +133,12 @@ export class VoiceChatUI {
   private activeSpeakers: number = 0;
   private speaking: boolean = false;
   private status: SessionStatus = SessionStatus.Disconnected;
+  private passwordModal: boolean = false;
 
-  constructor(private handleClickMic: () => void) {
+  constructor(
+    private handleClickMic: () => void,
+    private handlePassword: (password: string) => void,
+  ) {
     this.root = createRoot(this.container);
   }
 
@@ -118,10 +163,19 @@ export class VoiceChatUI {
     }
   }
 
+  public askForPassword(value: boolean): void {
+    if (this.passwordModal !== value) {
+      this.passwordModal = value;
+      this.render();
+    }
+  }
+
   public render(): void {
     flushSync(() =>
       this.root.render(
         <VoiceChatUIComponent
+          showPasswordModal={this.passwordModal}
+          passCallback={this.handlePassword}
           handleJoinClick={this.handleClickMic}
           activeSpeakers={this.activeSpeakers}
           speaking={this.speaking}

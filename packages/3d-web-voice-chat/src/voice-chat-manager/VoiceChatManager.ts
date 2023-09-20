@@ -39,6 +39,8 @@ export enum SessionStatus {
 
 const RETRY_DELAY = 3000;
 
+const UPDATE_INTERVAL = 333;
+
 export class VoiceChatManager {
   private debug = false;
 
@@ -79,13 +81,16 @@ export class VoiceChatManager {
   ) {
     this.conferenceAlias = window.location.host;
 
-    this.voiceChatUI = new VoiceChatUI(this.handleJoinClick.bind(this));
+    this.voiceChatUI = new VoiceChatUI(
+      this.handleJoinClick.bind(this),
+      this.handlePassword.bind(this),
+    );
     this.voiceChatUI.render();
     this.tick = this.tick.bind(this);
 
     if (this.autoJoin === true) {
       this.init();
-      this.tickInterval = setInterval(() => this.tick(), 1000);
+      this.tickInterval = setInterval(() => this.tick(), UPDATE_INTERVAL);
     }
   }
 
@@ -226,7 +231,7 @@ export class VoiceChatManager {
         await this.openSession();
         this.createAndJoinConference();
         if (this.tickInterval === null) {
-          this.tickInterval = setInterval(() => this.tick(), 1000);
+          this.tickInterval = setInterval(() => this.tick(), UPDATE_INTERVAL);
         }
       } else {
         this.status = SessionStatus.Unavailable;
@@ -345,19 +350,25 @@ export class VoiceChatManager {
     }
   }
 
+  private handlePassword(password: string) {
+    if (password === null || password === "") {
+      console.warn("No password entered. Aborting the joining process.");
+      this.voiceChatUI.askForPassword(false);
+      this.pending = false;
+      return;
+    } else {
+      this.voiceChatUI.askForPassword(false);
+      this.password = password;
+      this.init();
+    }
+  }
+
   private async handleJoinClick() {
     if (this.pending) return;
     this.pending = true;
 
     if (this.status !== SessionStatus.Connected) {
-      const userPassword = prompt("Please provide the voice-chat password:");
-      if (userPassword === null || userPassword === "") {
-        console.warn("No password entered. Aborting the joining process.");
-        this.pending = false;
-        return;
-      }
-      this.password = userPassword;
-      this.init();
+      this.voiceChatUI.askForPassword(true);
     } else {
       if (this.hasJoinedAudio && this.speaking) {
         await VoxeetSDK.audio.local.stop();
