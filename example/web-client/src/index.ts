@@ -16,6 +16,7 @@ import {
   UserNetworkingClientUpdate,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
+import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
 import { AudioListener, Group, PerspectiveCamera, Scene } from "three";
 
 import { Room } from "./Room";
@@ -46,6 +47,11 @@ export class App {
 
   private clientId: number | null = null;
   private textChatUI: TextChatUI | null = null;
+
+  private voiceChatManager: VoiceChatManager | null = null;
+  private latestCharacterObject = {
+    characterState: null as null | CharacterState,
+  };
 
   private readonly protocol: string = window.location.protocol === "https:" ? "wss:" : "ws:";
   private readonly host: string = window.location.host;
@@ -95,6 +101,13 @@ export class App {
       (clientId: number) => {
         this.clientId = clientId;
         this.connectToTextChat();
+        if (this.voiceChatManager === null) {
+          this.voiceChatManager = new VoiceChatManager(
+            clientId,
+            this.remoteUserStates,
+            this.latestCharacterObject,
+          );
+        }
         this.characterManager.spawnCharacter(this.characterDescription!, clientId, true);
       },
       (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
@@ -113,6 +126,7 @@ export class App {
       this.keyInputManager,
       this.remoteUserStates,
       (characterState: CharacterState) => {
+        this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
     );

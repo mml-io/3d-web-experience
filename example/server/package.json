@@ -19,6 +19,7 @@
     "@example/web-client": "^0.7.0",
     "@mml-io/3d-web-text-chat": "^0.7.0",
     "@mml-io/3d-web-user-networking": "^0.7.0",
+    "@dolbyio/dolbyio-rest-apis-client": "4.0.0",
     "chokidar": "^3.5.3",
     "cors": "^2.8.5",
     "express": "4.18.2",
