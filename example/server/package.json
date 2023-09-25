@@ -1,7 +1,7 @@
 {
   "name": "@example/server",
   "private": true,
-  "version": "0.7.0",
+  "version": "0.8.0",
   "engines": {
     "node": "18.x"
   },
@@ -16,10 +16,10 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@example/web-client": "^0.7.0",
-    "@mml-io/3d-web-text-chat": "^0.7.0",
-    "@mml-io/3d-web-user-networking": "^0.7.0",
     "@dolbyio/dolbyio-rest-apis-client": "4.0.0",
+    "@example/web-client": "^0.8.0",
+    "@mml-io/3d-web-text-chat": "^0.8.0",
+    "@mml-io/3d-web-user-networking": "^0.8.0",
     "chokidar": "^3.5.3",
     "cors": "^2.8.5",
     "express": "4.18.2",
