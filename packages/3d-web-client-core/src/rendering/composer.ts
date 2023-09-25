@@ -56,6 +56,7 @@ export class Composer {
   private isEnvHDRI: boolean = false;
 
   private readonly scene: Scene;
+  public postPostScene: Scene;
   private readonly camera: PerspectiveCamera;
   public readonly renderer: WebGLRenderer;
 
@@ -93,6 +94,7 @@ export class Composer {
 
   constructor(scene: Scene, camera: PerspectiveCamera, spawnSun: boolean = false) {
     this.scene = scene;
+    this.postPostScene = new Scene();
     this.camera = camera;
     this.spawnSun = spawnSun;
     this.renderer = new WebGLRenderer({
@@ -271,6 +273,7 @@ export class Composer {
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.composer.render();
+    this.renderer.render(this.postPostScene, this.camera);
 
     if (this.tweakPane.guiVisible) {
       this.tweakPane.updateStats(timeManager);
