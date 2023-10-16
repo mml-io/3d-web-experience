@@ -48,8 +48,9 @@ import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
 
 export class Composer {
-  private width: number = window.innerWidth;
-  private height: number = window.innerHeight;
+  private width: number = 1;
+  private height: number = 1;
+  private resizeListener: () => void;
 
   public resolution: Vector2 = new Vector2(this.width, this.height);
 
@@ -60,7 +61,7 @@ export class Composer {
   private readonly camera: PerspectiveCamera;
   public readonly renderer: WebGLRenderer;
 
-  private readonly composer: EffectComposer;
+  public readonly effectComposer: EffectComposer;
   private readonly renderPass: RenderPass;
 
   private readonly normalPass: NormalPass;
@@ -90,8 +91,6 @@ export class Composer {
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
-  private tweakPane: TweakPane;
-
   constructor(scene: Scene, camera: PerspectiveCamera, spawnSun: boolean = false) {
     this.scene = scene;
     this.postPostScene = new Scene();
@@ -113,13 +112,9 @@ export class Composer {
     this.setAmbientLight();
     this.setFog();
 
-    document.body.appendChild(this.renderer.domElement);
-
-    this.composer = new EffectComposer(this.renderer, {
+    this.effectComposer = new EffectComposer(this.renderer, {
       frameBufferType: HalfFloatType,
     });
-
-    this.tweakPane = new TweakPane(this.renderer, this.scene, this.composer);
 
     this.renderPass = new RenderPass(this.scene, this.camera);
 
@@ -199,28 +194,36 @@ export class Composer {
     this.gaussGrainPass = new ShaderPass(this.gaussGrainEffect, "tDiffuse");
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
-    this.composer.addPass(this.renderPass);
+    this.effectComposer.addPass(this.renderPass);
     if (ppssaoValues.enabled) {
-      this.composer.addPass(this.normalPass);
-      this.composer.addPass(this.ppssaoPass);
+      this.effectComposer.addPass(this.normalPass);
+      this.effectComposer.addPass(this.ppssaoPass);
     }
     if (n8ssaoValues.enabled) {
-      this.composer.addPass(this.n8aopass);
+      this.effectComposer.addPass(this.n8aopass);
     }
-    this.composer.addPass(this.fxaaPass);
-    this.composer.addPass(this.smaaPass);
-    this.composer.addPass(this.bloomPass);
-    this.composer.addPass(this.toneMappingPass);
-    this.composer.addPass(this.bcsPass);
-    this.composer.addPass(this.gaussGrainPass);
+    this.effectComposer.addPass(this.fxaaPass);
+    this.effectComposer.addPass(this.smaaPass);
+    this.effectComposer.addPass(this.bloomPass);
+    this.effectComposer.addPass(this.toneMappingPass);
+    this.effectComposer.addPass(this.bcsPass);
+    this.effectComposer.addPass(this.gaussGrainPass);
 
     if (this.spawnSun === true) {
       this.sun = new Sun();
       this.scene.add(this.sun);
     }
 
-    this.tweakPane.setupRenderPane(
-      this.composer,
+    this.resizeListener = () => {
+      this.fitContainer();
+    };
+    window.addEventListener("resize", this.resizeListener, false);
+    this.fitContainer();
+  }
+
+  public setupTweakPane(tweakPane: TweakPane) {
+    tweakPane.setupRenderPane(
+      this.effectComposer,
       this.normalPass,
       this.ppssaoEffect,
       this.ppssaoPass,
@@ -236,15 +239,34 @@ export class Composer {
       this.setAmbientLight.bind(this),
       this.setFog.bind(this),
     );
-    window.addEventListener("resize", () => this.updateProjection());
-    this.updateProjection();
   }
 
-  private updateProjection(): void {
-    this.width = window.innerWidth;
-    this.height = innerHeight;
-    this.resolution = new Vector2(this.width, this.height);
-    this.composer.setSize(this.width, this.height);
+  public dispose() {
+    window.removeEventListener("resize", this.resizeListener);
+  }
+
+  public fitContainer() {
+    if (!this) {
+      console.error("Composer not initialized");
+      return;
+    }
+    const parentElement = this.renderer.domElement.parentNode as HTMLElement;
+    if (!parentElement) {
+      return;
+    }
+    this.width = parentElement.clientWidth;
+    this.height = parentElement.clientHeight;
+    this.camera.aspect = this.width / this.height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.resolution.set(
+      this.width * window.devicePixelRatio,
+      this.height * window.devicePixelRatio,
+    );
+    this.effectComposer.setSize(
+      this.width / window.devicePixelRatio,
+      this.height / window.devicePixelRatio,
+    );
     this.renderPass.setSize(this.width, this.height);
     if (ppssaoValues.enabled) {
       this.normalPass.setSize(this.width, this.height);
@@ -262,22 +284,14 @@ export class Composer {
     this.renderer.setSize(this.width, this.height);
   }
 
-  public isTweakPaneVisible(): boolean {
-    return this.tweakPane.guiVisible;
-  }
-
   public render(timeManager: TimeManager): void {
     this.renderer.info.reset();
     this.normalPass.texture.needsUpdate = true;
     this.gaussGrainEffect.uniforms.resolution.value = this.resolution;
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
-    this.composer.render();
+    this.effectComposer.render();
     this.renderer.render(this.postPostScene, this.camera);
-
-    if (this.tweakPane.guiVisible) {
-      this.tweakPane.updateStats(timeManager);
-    }
   }
 
   public useHDRI(url: string, fromFile: boolean = false): void {

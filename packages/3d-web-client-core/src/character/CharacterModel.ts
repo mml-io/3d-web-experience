@@ -12,12 +12,9 @@ import {
 import { CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
 import { AnimationState } from "./CharacterState";
-import MODEL_LOADER from "./ModelLoader";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 
 export class CharacterModel {
-  /* TODO: pick between below eager instantiation or ModelLoader.getInstance() lazy one */
-  private modelLoader = MODEL_LOADER;
-
   public mesh: Object3D | null = null;
   public material: CharacterMaterial = new CharacterMaterial();
   public headBone: Bone | null = null;
@@ -26,7 +23,10 @@ export class CharacterModel {
   public animationMixer: AnimationMixer | null = null;
   public currentAnimation: AnimationState = AnimationState.idle;
 
-  constructor(private readonly characterDescription: CharacterDescription) {}
+  constructor(
+    private readonly characterDescription: CharacterDescription,
+    private characterModelLoader: CharacterModelLoader,
+  ) {}
 
   public async init(): Promise<void> {
     await this.loadMainMesh();
@@ -104,7 +104,7 @@ export class CharacterModel {
     const scale = this.characterDescription.modelScale;
     const extension = mainMeshUrl.split(".").pop();
     const name = mainMeshUrl.split("/").pop()!.replace(`.${extension}`, "");
-    const mainMesh = await this.modelLoader.load(mainMeshUrl, "model");
+    const mainMesh = await this.characterModelLoader.load(mainMeshUrl, "model");
     if (typeof mainMesh !== "undefined") {
       this.mesh = new Object3D();
       const model = mainMesh as Object3D;
@@ -122,7 +122,7 @@ export class CharacterModel {
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       this.initAnimationMixer();
-      const animation = await this.modelLoader.load(animationFileUrl, "animation");
+      const animation = await this.characterModelLoader.load(animationFileUrl, "animation");
       if (typeof animation !== "undefined" && animation instanceof AnimationClip) {
         this.animations[animationType] = this.animationMixer!.clipAction(animation);
         this.animations[animationType].stop();

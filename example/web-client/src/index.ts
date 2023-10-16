@@ -2,13 +2,14 @@ import {
   CameraManager,
   CharacterDescription,
   CharacterManager,
+  CharacterModelLoader,
   CharacterState,
   CollisionsManager,
   Composer,
-  MMLCompositionScene,
   KeyInputManager,
+  MMLCompositionScene,
   TimeManager,
-  Sun as ComposerSun,
+  TweakPane,
 } from "@mml-io/3d-web-client-core";
 import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
 import {
@@ -17,50 +18,61 @@ import {
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
 import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
-import { AudioListener, Group, PerspectiveCamera, Scene } from "three";
+import { IMMLScene, registerCustomElementsToWindow, setGlobalMMLScene } from "mml-web";
+import { AudioListener, Scene } from "three";
+
+import hdrUrl from "../../assets/hdr/industrial_sunset_2k.hdr";
+import airAnimationFileUrl from "../../assets/models/unreal-air.glb";
+import idleAnimationFileUrl from "../../assets/models/unreal-idle.glb";
+import jogAnimationFileUrl from "../../assets/models/unreal-jog.glb";
+import meshFileUrl from "../../assets/models/unreal-mesh.glb";
+import sprintAnimationFileUrl from "../../assets/models/unreal-run.glb";
 
 import { Room } from "./Room";
-import { Sun } from "./Sun";
+
+const characterDescription: CharacterDescription = {
+  airAnimationFileUrl,
+  idleAnimationFileUrl,
+  jogAnimationFileUrl,
+  meshFileUrl,
+  sprintAnimationFileUrl,
+  modelScale: 1,
+};
+
+const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+const host = window.location.host;
+const userNetworkAddress = `${protocol}//${host}/network`;
 
 export class App {
-  private readonly group: Group;
-  private readonly scene: Scene;
-  private readonly audioListener: AudioListener;
   private readonly composer: Composer;
-  private readonly camera: PerspectiveCamera;
-  private readonly timeManager: TimeManager;
-  private readonly keyInputManager: KeyInputManager;
+  private readonly tweakPane: TweakPane;
+
+  private readonly scene = new Scene();
+  private readonly audioListener = new AudioListener();
+  private readonly characterModelLoader = new CharacterModelLoader();
+  private readonly timeManager = new TimeManager();
+  private readonly keyInputManager = new KeyInputManager(() => {
+    return this.cameraManager.dragging;
+  });
   private readonly characterManager: CharacterManager;
   private readonly cameraManager: CameraManager;
-  private readonly collisionsManager: CollisionsManager;
+  private readonly collisionsManager = new CollisionsManager(this.scene);
   private readonly networkClient: UserNetworkingClient;
-
   private readonly remoteUserStates = new Map<number, CharacterState>();
-  private readonly modelsPath: string = "/web-client/assets/models";
-  private readonly characterDescription: CharacterDescription | null = null;
-
-  private readonly useComposerSun: boolean = true;
-
-  private readonly sun: Sun | ComposerSun | null;
 
   private networkChat: ChatNetworkingClient | null = null;
-
-  private clientId: number | null = null;
   private textChatUI: TextChatUI | null = null;
 
-  private voiceChatManager: VoiceChatManager | null = null;
-  private latestCharacterObject = {
+  private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
   };
 
-  private readonly protocol: string = window.location.protocol === "https:" ? "wss:" : "ws:";
-  private readonly host: string = window.location.host;
+  private voiceChatManager: VoiceChatManager | null = null;
+
+  private clientId: number | null = null;
 
   constructor() {
-    this.scene = new Scene();
-    this.collisionsManager = new CollisionsManager(this.scene);
-
-    this.audioListener = new AudioListener();
+    registerCustomElementsToWindow(window);
 
     document.addEventListener("mousedown", () => {
       if (this.audioListener.context.state === "suspended") {
@@ -68,28 +80,33 @@ export class App {
       }
     });
 
-    this.group = new Group();
-    this.scene.add(this.group);
+    const composerHolderElement = document.createElement("div");
+    composerHolderElement.style.position = "absolute";
+    composerHolderElement.style.width = "100%";
+    composerHolderElement.style.height = "100%";
+    document.body.appendChild(composerHolderElement);
 
-    this.timeManager = new TimeManager();
-    this.keyInputManager = new KeyInputManager();
-    this.cameraManager = new CameraManager(this.collisionsManager);
-    this.camera = this.cameraManager.camera;
-    this.camera.add(this.audioListener);
-    this.composer = new Composer(this.scene, this.camera, true);
-    this.composer.useHDRI("/web-client/assets/hdr/industrial_sunset_2k.hdr");
+    this.cameraManager = new CameraManager(composerHolderElement, this.collisionsManager);
+    this.cameraManager.camera.add(this.audioListener);
 
-    this.characterDescription = {
-      meshFileUrl: `${this.modelsPath}/unreal-mesh.glb`,
-      idleAnimationFileUrl: `${this.modelsPath}/unreal-idle.glb`,
-      jogAnimationFileUrl: `${this.modelsPath}/unreal-jog.glb`,
-      sprintAnimationFileUrl: `${this.modelsPath}/unreal-run.glb`,
-      airAnimationFileUrl: `${this.modelsPath}/unreal-air.glb`,
-      modelScale: 1,
-    };
+    this.composer = new Composer(this.scene, this.cameraManager.camera, true);
+    this.composer.useHDRI(hdrUrl);
+    composerHolderElement.appendChild(this.composer.renderer.domElement);
+
+    this.tweakPane = new TweakPane(
+      this.composer.renderer,
+      this.scene,
+      this.composer.effectComposer,
+    );
+    this.composer.setupTweakPane(this.tweakPane);
+
+    const resizeObserver = new ResizeObserver(() => {
+      this.composer.fitContainer();
+    });
+    resizeObserver.observe(composerHolderElement);
 
     this.networkClient = new UserNetworkingClient(
-      `${this.protocol}//${this.host}/network`,
+      userNetworkAddress,
       (url: string) => new WebSocket(url),
       (status: WebsocketStatus) => {
         if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
@@ -108,7 +125,7 @@ export class App {
             this.latestCharacterObject,
           );
         }
-        this.characterManager.spawnCharacter(this.characterDescription!, clientId, true);
+        this.characterManager.spawnCharacter(characterDescription, clientId, true);
       },
       (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
         if (userNetworkingClientUpdate === null) {
@@ -121,6 +138,7 @@ export class App {
 
     this.characterManager = new CharacterManager(
       this.composer,
+      this.characterModelLoader,
       this.collisionsManager,
       this.cameraManager,
       this.timeManager,
@@ -131,32 +149,32 @@ export class App {
         this.networkClient.sendUpdate(characterState);
       },
     );
-    this.group.add(this.characterManager.group);
+    this.scene.add(this.characterManager.group);
 
-    const mmlComposition = new MMLCompositionScene(
+    const mmlCompositionScene = new MMLCompositionScene(
+      composerHolderElement,
       this.composer.renderer,
       this.scene,
-      this.camera,
+      this.cameraManager.camera,
       this.audioListener,
       this.collisionsManager,
       () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
-      [`${this.protocol}//${this.host}/mml-documents/example-mml.html`],
     );
+    this.scene.add(mmlCompositionScene.group);
+    setGlobalMMLScene(mmlCompositionScene.mmlScene as IMMLScene);
 
-    this.group.add(mmlComposition.group);
-
-    if (this.useComposerSun === true) {
-      this.sun = this.composer.sun;
-    } else {
-      this.sun = new Sun();
-      this.group.add(this.sun);
+    const documentAddresses = [`${protocol}//${host}/mml-documents/example-mml.html`];
+    for (const address of documentAddresses) {
+      const frameElement = document.createElement("m-frame");
+      frameElement.setAttribute("src", address);
+      document.body.appendChild(frameElement);
     }
 
     const room = new Room();
     this.collisionsManager.addMeshesGroup(room);
-    this.group.add(room);
+    this.scene.add(room);
   }
 
   private sendMessageToServer(message: string): void {
@@ -182,17 +200,12 @@ export class App {
 
     if (this.networkChat === null) {
       this.networkChat = new ChatNetworkingClient(
-        `${this.protocol}//${this.host}/chat-network?id=${this.clientId}`,
+        `${protocol}//${host}/chat-network?id=${this.clientId}`,
         (url: string) => new WebSocket(`${url}?id=${this.clientId}`),
         (status: WebsocketStatus) => {
           if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
             // The connection was lost after being established - the connection may be re-established with a different client ID
-            this.characterManager.clear();
-            this.remoteUserStates.clear();
           }
-        },
-        (clientId: number) => {
-          console.log(`Assigned Chat ID: ${clientId}`);
         },
         (clientId: number, chatNetworkingUpdate: null | FromClientChatMessage) => {
           if (chatNetworkingUpdate !== null && this.textChatUI !== null) {
@@ -210,10 +223,11 @@ export class App {
       this.characterManager.setSpeakingCharacter(id, value);
     });
     this.cameraManager.update();
-    if (this.sun) {
-      this.sun.updateCharacterPosition(this.characterManager.character?.position);
-    }
+    this.composer.sun?.updateCharacterPosition(this.characterManager.character?.position);
     this.composer.render(this.timeManager);
+    if (this.tweakPane.guiVisible) {
+      this.tweakPane.updateStats(this.timeManager);
+    }
     requestAnimationFrame(() => {
       this.update();
     });

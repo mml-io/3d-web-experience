@@ -200,7 +200,6 @@ export class LocalController {
         this.characterVelocity.y = deltaTime * this.gravity;
       }
     } else if (this.jump && this.coyoteTime) {
-      console.log("coyoteJump");
       this.characterVelocity.y = this.jumpForce;
       this.canJump = false;
     } else {

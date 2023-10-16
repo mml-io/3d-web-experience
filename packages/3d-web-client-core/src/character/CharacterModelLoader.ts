@@ -65,8 +65,8 @@ interface CachedModel {
   originalExtension: string;
 }
 
-export class ModelLoader {
-  private static instance: ModelLoader | null = null;
+export class CharacterModelLoader {
+  private static instance: CharacterModelLoader | null = null;
 
   private readonly loadingManager: LoadingManager;
   private readonly gltfLoader: CachedGLTFLoader;
@@ -80,11 +80,11 @@ export class ModelLoader {
   }
 
   /* TODO: decide between below lazy initialization or eager on this file's bottom export */
-  static getInstance(): ModelLoader {
-    if (!ModelLoader.instance) {
-      ModelLoader.instance = new ModelLoader();
+  static getInstance(): CharacterModelLoader {
+    if (!CharacterModelLoader.instance) {
+      CharacterModelLoader.instance = new CharacterModelLoader();
     }
-    return ModelLoader.instance;
+    return CharacterModelLoader.instance;
   }
 
   async load(
@@ -151,5 +151,5 @@ export class ModelLoader {
 }
 
 /* TODO: decide between below eager initialization or static getInstance() lazy one */
-const MODEL_LOADER = ModelLoader.getInstance();
+const MODEL_LOADER = CharacterModelLoader.getInstance();
 export default MODEL_LOADER;

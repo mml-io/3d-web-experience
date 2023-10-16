@@ -9,11 +9,9 @@ import {
 
 import { Character } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
-import MODEL_LOADER from "./ModelLoader";
+import MODEL_LOADER, { CharacterModelLoader } from "./CharacterModelLoader";
 
 export class RemoteController {
-  private modelLoader = MODEL_LOADER;
-
   public characterModel: Object3D | null = null;
 
   private animationMixer: AnimationMixer = new AnimationMixer(new Object3D());
@@ -24,6 +22,7 @@ export class RemoteController {
 
   constructor(
     public readonly character: Character,
+    private readonly characterModelLoader: CharacterModelLoader,
     public readonly id: number,
   ) {
     this.characterModel = this.character.model!.mesh!;
@@ -48,7 +47,7 @@ export class RemoteController {
     animationType: AnimationState,
     fileName: string,
   ): Promise<void> {
-    const animation = await this.modelLoader.load(fileName, "animation");
+    const animation = await this.characterModelLoader.load(fileName, "animation");
     const animationAction = this.animationMixer.clipAction(animation as AnimationClip);
     this.animations.set(animationType, animationAction);
     if (animationType === AnimationState.idle) {

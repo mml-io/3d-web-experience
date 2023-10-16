@@ -2,6 +2,7 @@ import { PerspectiveCamera, Raycaster, Vector3 } from "three";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { ease, remap, clamp } from "../helpers/math-helpers";
+import { EventHandlerCollection } from "../input/EventHandlerCollection";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
 export class CameraManager {
@@ -27,11 +28,11 @@ export class CameraManager {
   private distance: number = this.initialDistance;
   private desiredDistance: number = this.initialDistance;
 
-  private targetPhi: number | null = Math.PI / 2;
-  private phi: number | null = Math.PI / 2;
-  private targetTheta: number | null = -Math.PI / 2;
-  private theta: number | null = -Math.PI / 2;
-  private dragging: boolean = false;
+  private targetPhi: number | null;
+  private phi: number | null;
+  private targetTheta: number | null;
+  private theta: number | null;
+  public dragging: boolean = false;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
 
@@ -39,27 +40,32 @@ export class CameraManager {
 
   private rayCaster: Raycaster;
 
-  constructor(private collisionsManager: CollisionsManager) {
+  private eventHandlerCollection: EventHandlerCollection;
+
+  constructor(
+    private targetElement: HTMLElement,
+    private collisionsManager: CollisionsManager,
+    initialPhi = Math.PI / 2,
+    initialTheta = -Math.PI / 2,
+  ) {
+    this.phi = initialPhi;
+    this.targetPhi = initialPhi;
+    this.theta = initialTheta;
+    this.targetTheta = initialTheta;
     this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
 
     this.rayCaster = new Raycaster();
 
-    document.addEventListener("mousedown", this.onMouseDown.bind(this));
-    document.addEventListener("mouseup", this.onMouseUp.bind(this));
-    document.addEventListener("mousemove", this.onMouseMove.bind(this));
-    document.addEventListener("wheel", this.onMouseWheel.bind(this));
-    window.addEventListener("resize", this.onResize.bind(this));
+    this.eventHandlerCollection = EventHandlerCollection.create([
+      [targetElement, "mousedown", this.onMouseDown.bind(this)],
+      [document, "mouseup", this.onMouseUp.bind(this)],
+      [document, "mousemove", this.onMouseMove.bind(this)],
+      [targetElement, "wheel", this.onMouseWheel.bind(this)],
+    ]);
   }
 
-  private onResize(): void {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    this.camera.aspect = width / height;
-    this.camera.updateProjectionMatrix();
-  }
-
-  private onMouseDown(_event: MouseEvent): void {
+  private onMouseDown(event: MouseEvent): void {
     this.dragging = true;
   }
 
@@ -68,11 +74,12 @@ export class CameraManager {
   }
 
   private onMouseMove(event: MouseEvent): void {
-    if (!this.dragging || getTweakpaneActive() === true) return;
+    if (!this.dragging || getTweakpaneActive()) return;
     if (this.targetTheta === null || this.targetPhi === null) return;
     this.targetTheta += event.movementX * 0.01;
     this.targetPhi -= event.movementY * 0.01;
     this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
+    event.preventDefault();
   }
 
   private onMouseWheel(event: WheelEvent): void {
@@ -83,6 +90,7 @@ export class CameraManager {
       Math.min(this.maxDistance, this.targetDistance),
     );
     this.desiredDistance = this.targetDistance;
+    event.preventDefault();
   }
 
   public setTarget(target: Vector3): void {
@@ -120,6 +128,10 @@ export class CameraManager {
     } else {
       this.targetDistance += (this.desiredDistance - this.targetDistance) * this.dampingFactor * 4;
     }
+  }
+
+  public dispose() {
+    this.eventHandlerCollection.clear();
   }
 
   public update(): void {

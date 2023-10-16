@@ -26,6 +26,7 @@ const buildOptions: esbuild.BuildOptions = {
   assetNames: "[dir]/[name]-[hash]",
   preserveSymlinks: true,
   loader: {
+    ".html": "text",
     ".svg": "file",
     ".png": "file",
     ".jpg": "file",
@@ -34,7 +35,7 @@ const buildOptions: esbuild.BuildOptions = {
   },
   outbase: "../",
   sourceRoot: "./src",
-  publicPath: "/web-client/",
+  publicPath: "/local-multi-web-client/",
   plugins: [
     copy({
       resolveFrom: "cwd",
@@ -55,7 +56,7 @@ switch (mode) {
       .context({
         ...buildOptions,
         banner: {
-          js: ` (() => new WebSocket((window.location.protocol === "https:" ? "wss://" : "ws://")+window.location.host+'/web-client-build').addEventListener('message', () => location.reload()))();`,
+          js: ` (() => new WebSocket((window.location.protocol === "https:" ? "wss://" : "ws://")+window.location.host+'/local-multi-web-client-build').addEventListener('message', () => location.reload()))();`,
         },
       })
       .then((context) => context.watch())

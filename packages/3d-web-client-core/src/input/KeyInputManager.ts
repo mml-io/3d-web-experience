@@ -1,10 +1,13 @@
+import { EventHandlerCollection } from "./EventHandlerCollection";
+
 export class KeyInputManager {
   private keys = new Map<string, boolean>();
+  private eventHandlerCollection = new EventHandlerCollection();
 
-  constructor() {
-    document.addEventListener("keydown", this.onKeyDown.bind(this));
-    document.addEventListener("keyup", this.onKeyUp.bind(this));
-    window.addEventListener("blur", this.handleUnfocus.bind(this));
+  constructor(private shouldCaptureKeyPress: () => boolean) {
+    this.eventHandlerCollection.add(document, "keydown", this.onKeyDown.bind(this));
+    this.eventHandlerCollection.add(document, "keyup", this.onKeyUp.bind(this));
+    this.eventHandlerCollection.add(window, "blur", this.handleUnfocus.bind(this));
   }
 
   private handleUnfocus(_event: FocusEvent): void {
@@ -12,7 +15,10 @@ export class KeyInputManager {
   }
 
   private onKeyDown(event: KeyboardEvent): void {
-    this.keys.set(event.key.toLowerCase(), true);
+    if (this.shouldCaptureKeyPress()) {
+      this.keys.set(event.key.toLowerCase(), true);
+      event.preventDefault();
+    }
   }
 
   private onKeyUp(event: KeyboardEvent): void {
@@ -63,8 +69,6 @@ export class KeyInputManager {
   }
 
   public dispose() {
-    document.removeEventListener("keydown", this.onKeyDown.bind(this));
-    document.removeEventListener("keyup", this.onKeyDown.bind(this));
-    window.removeEventListener("blur", this.handleUnfocus.bind(this));
+    this.eventHandlerCollection.clear();
   }
 }

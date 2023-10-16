@@ -1,5 +1,5 @@
 import { PositionAndRotation } from "mml-web";
-import { Camera, Group, Object3D, PerspectiveCamera, Vector3 } from "three";
+import { Camera, Euler, Group, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -10,6 +10,7 @@ import { TimeManager } from "../time/TimeManager";
 
 import { Character, CharacterDescription } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 import { RemoteController } from "./RemoteController";
 
 function encodeCharacterAndCamera(character: Object3D, camera: PerspectiveCamera): string {
@@ -56,6 +57,7 @@ export class CharacterManager {
 
   constructor(
     private readonly composer: Composer,
+    private readonly characterModelLoader: CharacterModelLoader,
     private readonly collisionsManager: CollisionsManager,
     private readonly cameraManager: CameraManager,
     private readonly timeManager: TimeManager,
@@ -77,11 +79,13 @@ export class CharacterManager {
     id: number,
     isLocal: boolean = false,
     spawnPosition: Vector3 = new Vector3(),
+    spawnRotation: Euler = new Euler(),
   ) {
     this.characterDescription = characterDescription;
     const characterLoadingPromise = new Promise<Character>((resolve) => {
       const character = new Character(
         characterDescription,
+        this.characterModelLoader,
         id,
         isLocal,
         () => {
@@ -92,9 +96,12 @@ export class CharacterManager {
               this.cameraManager.camera,
             );
           } else {
-            spawnPosition = getSpawnPositionInsideCircle(3, 30, id, 0.4);
+            spawnPosition = spawnPosition || getSpawnPositionInsideCircle(3, 30, id, 0.4);
             character.model!.mesh!.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+            character.model!.mesh!.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+            character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
             character.model!.mesh!.updateMatrixWorld();
+            const quaternion = new Quaternion().setFromEuler(character.model!.mesh!.rotation);
             this.sendUpdate({
               id: id,
               position: {
@@ -102,7 +109,7 @@ export class CharacterManager {
                 y: spawnPosition.y,
                 z: spawnPosition.z,
               },
-              rotation: { quaternionY: 0, quaternionW: 1 },
+              rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
               state: AnimationState.idle,
             });
           }
@@ -120,7 +127,7 @@ export class CharacterManager {
             this.character.tooltip?.setText(`${id}`);
           } else {
             this.remoteCharacters.set(id, character);
-            const remoteController = new RemoteController(character, id);
+            const remoteController = new RemoteController(character, this.characterModelLoader, id);
             remoteController.setAnimationFromFile(
               AnimationState.idle,
               characterDescription.idleAnimationFileUrl,

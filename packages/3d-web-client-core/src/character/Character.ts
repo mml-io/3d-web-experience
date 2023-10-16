@@ -10,6 +10,7 @@ import { CharacterModel } from "./CharacterModel";
 import { CharacterSpeakingIndicator } from "./CharacterSpeakingIndicator";
 import { CharacterTooltip } from "./CharacterTooltip";
 import { LocalController } from "./LocalController";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 
 export type CharacterDescription = {
   meshFileUrl: string;
@@ -34,6 +35,7 @@ export class Character {
 
   constructor(
     private readonly characterDescription: CharacterDescription,
+    private readonly characterModelLoader: CharacterModelLoader,
     private readonly id: number,
     private readonly isLocal: boolean,
     private readonly modelLoadedCallback: () => void,
@@ -47,7 +49,7 @@ export class Character {
   }
 
   private async load(): Promise<void> {
-    this.model = new CharacterModel(this.characterDescription);
+    this.model = new CharacterModel(this.characterDescription, this.characterModelLoader);
     await this.model.init();
     if (this.tooltip === null) {
       this.tooltip = new CharacterTooltip(this.model.mesh!);
