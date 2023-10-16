@@ -4,7 +4,7 @@ export class KeyInputManager {
   private keys = new Map<string, boolean>();
   private eventHandlerCollection = new EventHandlerCollection();
 
-  constructor(private shouldCaptureKeyPress: () => boolean) {
+  constructor(private shouldCaptureKeyPress: () => boolean = () => true) {
     this.eventHandlerCollection.add(document, "keydown", this.onKeyDown.bind(this));
     this.eventHandlerCollection.add(document, "keyup", this.onKeyUp.bind(this));
     this.eventHandlerCollection.add(window, "blur", this.handleUnfocus.bind(this));

@@ -51,9 +51,7 @@ export class App {
   private readonly audioListener = new AudioListener();
   private readonly characterModelLoader = new CharacterModelLoader();
   private readonly timeManager = new TimeManager();
-  private readonly keyInputManager = new KeyInputManager(() => {
-    return this.cameraManager.dragging;
-  });
+  private readonly keyInputManager = new KeyInputManager();
   private readonly characterManager: CharacterManager;
   private readonly cameraManager: CameraManager;
   private readonly collisionsManager = new CollisionsManager(this.scene);
