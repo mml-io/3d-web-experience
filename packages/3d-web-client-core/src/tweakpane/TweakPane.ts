@@ -10,11 +10,11 @@ import {
 import { Scene, WebGLRenderer } from "three";
 import { FolderApi, Pane } from "tweakpane";
 
+import { BrightnessContrastSaturation } from "../rendering/post-effects/bright-contrast-sat";
 import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 
-import { BrightnessContrastSaturation } from "./../rendering/post-effects/bright-contrast-sat";
 import { BrightnessContrastSaturationFolder } from "./blades/bcsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
 import { EnvironmentFolder } from "./blades/environmentFolder";

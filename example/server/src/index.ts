@@ -12,6 +12,7 @@ import enableWs from "express-ws";
 import WebSocket from "ws";
 
 import { authMiddleware } from "./auth";
+import { addLocalMultiWebAppRoutes } from "./router/local-multi-web-client-app-routes";
 import { MMLDocumentsServer } from "./router/MMLDocumentsServer";
 import { addWebAppRoutes } from "./router/web-app-routes";
 
@@ -117,8 +118,11 @@ app.ws("/chat-network", (ws, req) => {
   chatNetworkingServer.connectClient(ws, parseInt(req.query.id as string, 10));
 });
 
-// Serve the app (including development mode)
+// Serve the web-client app (including development mode)
 addWebAppRoutes(app);
+
+// Serve the local-multi-web-client app
+addLocalMultiWebAppRoutes(app);
 
 // Start listening
 console.log("Listening on port", PORT);

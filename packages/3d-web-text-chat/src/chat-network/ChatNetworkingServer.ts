@@ -5,7 +5,6 @@ import {
   DISCONNECTED_MESSAGE_TYPE,
   FromClientMessage,
   FromServerMessage,
-  IDENTITY_MESSAGE_TYPE,
 } from "./ChatNetworkingMessages";
 import { heartBeatRate, pingPongRate } from "./ChatNetworkingSettings";
 
@@ -54,6 +53,12 @@ export class ChatNetworkingServer {
   connectClient(socket: WebSocket, id: number) {
     console.log(`Client joined chat with ID: ${id}`);
 
+    if (this.clients.has(id)) {
+      console.error(`Client ID ${id} already exists`);
+      socket.close();
+      return;
+    }
+
     const connectMessage = JSON.stringify({
       id,
       type: CONNECTED_MESSAGE_TYPE,
@@ -63,12 +68,6 @@ export class ChatNetworkingServer {
         otherSocket.send(connectMessage);
       }
     }
-
-    const identityMessage = JSON.stringify({
-      id,
-      type: IDENTITY_MESSAGE_TYPE,
-    } as FromServerMessage);
-    socket.send(identityMessage);
 
     this.clients.set(id, {
       socket: socket as WebSocket,
