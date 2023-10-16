@@ -7,10 +7,10 @@ import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
 
 import { CharacterModel } from "./CharacterModel";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 import { CharacterSpeakingIndicator } from "./CharacterSpeakingIndicator";
 import { CharacterTooltip } from "./CharacterTooltip";
 import { LocalController } from "./LocalController";
-import { CharacterModelLoader } from "./CharacterModelLoader";
 
 export type CharacterDescription = {
   meshFileUrl: string;

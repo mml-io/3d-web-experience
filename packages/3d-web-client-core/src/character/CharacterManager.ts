@@ -9,8 +9,8 @@ import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
 
 import { Character, CharacterDescription } from "./Character";
-import { AnimationState, CharacterState } from "./CharacterState";
 import { CharacterModelLoader } from "./CharacterModelLoader";
+import { AnimationState, CharacterState } from "./CharacterState";
 import { RemoteController } from "./RemoteController";
 
 function encodeCharacterAndCamera(character: Object3D, camera: PerspectiveCamera): string {

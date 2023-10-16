@@ -11,8 +11,8 @@ import {
 
 import { CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
-import { AnimationState } from "./CharacterState";
 import { CharacterModelLoader } from "./CharacterModelLoader";
+import { AnimationState } from "./CharacterState";
 
 export class CharacterModel {
   public mesh: Object3D | null = null;

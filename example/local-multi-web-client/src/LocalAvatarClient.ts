@@ -150,6 +150,7 @@ export class LocalAvatarClient {
     this.localAvatarServer.removeClient(this.localClientId);
     this.documentRunnerClients.clear();
     this.resizeObserver.disconnect();
+    this.mmlComposition.dispose();
     this.characterManager.clear();
     this.cameraManager.dispose();
     this.composer.dispose();

@@ -8,8 +8,8 @@ import {
 } from "three";
 
 import { Character } from "./Character";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
-import MODEL_LOADER, { CharacterModelLoader } from "./CharacterModelLoader";
 
 export class RemoteController {
   public characterModel: Object3D | null = null;

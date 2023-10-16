@@ -18,6 +18,7 @@ export class MMLCompositionScene {
 
   public readonly mmlScene: IMMLScene;
   private readonly promptManager: PromptManager;
+  private readonly interactionManager: InteractionManager;
   private readonly interactionListener: InteractionListener;
   private readonly clickTrigger: MMLClickTrigger;
 
@@ -33,7 +34,12 @@ export class MMLCompositionScene {
     this.group = new Group();
     this.promptManager = PromptManager.init(targetElement);
 
-    const { interactionListener } = InteractionManager.init(targetElement, this.camera, this.scene);
+    const { interactionListener, interactionManager } = InteractionManager.init(
+      targetElement,
+      this.camera,
+      this.scene,
+    );
+    this.interactionManager = interactionManager;
     this.interactionListener = interactionListener;
 
     this.mmlScene = {
@@ -45,10 +51,10 @@ export class MMLCompositionScene {
       addCollider: (object: Object3D, mElement: MElement) => {
         this.collisionsManager.addMeshesGroup(object as Group, mElement);
       },
-      updateCollider: (object: Object3D, mElement: MElement) => {
+      updateCollider: (object: Object3D) => {
         this.collisionsManager.updateMeshesGroup(object as Group);
       },
-      removeCollider: (object: Object3D, mElement: MElement) => {
+      removeCollider: (object: Object3D) => {
         this.collisionsManager.removeMeshesGroup(object as Group);
       },
       getUserPositionAndRotation: this.getUserPositionAndRotation,
@@ -67,5 +73,11 @@ export class MMLCompositionScene {
     };
 
     this.clickTrigger = MMLClickTrigger.init(targetElement, this.mmlScene as IMMLScene);
+  }
+
+  dispose() {
+    this.promptManager.dispose();
+    this.clickTrigger.dispose();
+    this.interactionManager.dispose();
   }
 }

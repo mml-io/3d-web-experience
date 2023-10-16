@@ -43,7 +43,7 @@ export class CameraManager {
   private eventHandlerCollection: EventHandlerCollection;
 
   constructor(
-    private targetElement: HTMLElement,
+    targetElement: HTMLElement,
     private collisionsManager: CollisionsManager,
     initialPhi = Math.PI / 2,
     initialTheta = -Math.PI / 2,
@@ -65,7 +65,7 @@ export class CameraManager {
     ]);
   }
 
-  private onMouseDown(event: MouseEvent): void {
+  private onMouseDown(): void {
     this.dragging = true;
   }
 
