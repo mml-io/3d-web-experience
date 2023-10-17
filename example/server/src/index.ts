@@ -106,7 +106,7 @@ app.ws(`/mml-documents/:filename`, (ws: WebSocket, req: express.Request) => {
 });
 
 // Serve assets with CORS allowing all origins
-app.use("/assets/", cors(), express.static(path.resolve(dirname, "../assets/")));
+app.use("/assets/", cors(), express.static(path.resolve(dirname, "../../assets/")));
 
 const userNetworkingServer = new UserNetworkingServer();
 app.ws("/network", (ws) => {
