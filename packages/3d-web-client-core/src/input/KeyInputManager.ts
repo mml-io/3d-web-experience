@@ -1,5 +1,14 @@
 import { EventHandlerCollection } from "./EventHandlerCollection";
 
+enum Key {
+  W = "w",
+  A = "a",
+  S = "s",
+  D = "d",
+  SHIFT = "shift",
+  SPACE = " ",
+}
+
 export class KeyInputManager {
   private keys = new Map<string, boolean>();
   private eventHandlerCollection = new EventHandlerCollection();
@@ -16,6 +25,14 @@ export class KeyInputManager {
 
   private onKeyDown(event: KeyboardEvent): void {
     if (this.shouldCaptureKeyPress()) {
+      if (event.key.length === 2 && event.key[0] === "F") {
+        // Ignore all Function keys
+        return;
+      }
+      if (event.metaKey) {
+        // Ignore all meta keys (e.g. Alt, Cmd)
+        return;
+      }
       this.keys.set(event.key.toLowerCase(), true);
       event.preventDefault();
     }
@@ -30,31 +47,31 @@ export class KeyInputManager {
   }
 
   public isMovementKeyPressed(): boolean {
-    return ["w", "a", "s", "d"].some((key) => this.isKeyPressed(key));
+    return [Key.W, Key.A, Key.S, Key.D].some((key) => this.isKeyPressed(key));
   }
 
   get forward(): boolean {
-    return this.isKeyPressed("w");
+    return this.isKeyPressed(Key.W);
   }
 
   get backward(): boolean {
-    return this.isKeyPressed("s");
+    return this.isKeyPressed(Key.S);
   }
 
   get left(): boolean {
-    return this.isKeyPressed("a");
+    return this.isKeyPressed(Key.A);
   }
 
   get right(): boolean {
-    return this.isKeyPressed("d");
+    return this.isKeyPressed(Key.D);
   }
 
   get run(): boolean {
-    return this.isKeyPressed("shift");
+    return this.isKeyPressed(Key.SHIFT);
   }
 
   get jump(): boolean {
-    return this.isKeyPressed(" ");
+    return this.isKeyPressed(Key.SPACE);
   }
 
   get anyDirection(): boolean {
@@ -63,8 +80,8 @@ export class KeyInputManager {
 
   get conflictingDirection(): boolean {
     return (
-      (this.isKeyPressed("w") && this.isKeyPressed("s")) ||
-      (this.isKeyPressed("a") && this.isKeyPressed("d"))
+      (this.isKeyPressed(Key.W) && this.isKeyPressed(Key.S)) ||
+      (this.isKeyPressed(Key.A) && this.isKeyPressed(Key.D))
     );
   }
 
