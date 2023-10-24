@@ -3,22 +3,22 @@
     {
       "dude1": {
         "name": "Dude Head 1",
-        "asset": "/assets/avatar/parts/head_blue.glb",
-        "thumb": "/assets/avatar/thumbs/head_blue.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Hat_02.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Hat_02.jpg"
       }
     },
     {
       "dude2": {
         "name": "Dude Head 2",
-        "asset": "/assets/avatar/parts/head_red.glb",
-        "thumb": "/assets/avatar/thumbs/head_red.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Hat_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Hat_01.jpg"
       }
     },
     {
       "dude3": {
         "name": "Dude Head 3",
-        "asset": "/assets/avatar/parts/head_green.glb",
-        "thumb": "/assets/avatar/thumbs/head_green.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Hat_03.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Hat_03.jpg"
       }
     }
   ],
@@ -26,22 +26,22 @@
     {
       "dude1": {
         "name": "Dude Upper Body 1",
-        "asset": "/assets/avatar/parts/torso_blue.glb",
-        "thumb": "/assets/avatar/thumbs/torso_blue.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_One_Hoody_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_One_Hoody_01.jpg"
       }
     },
     {
       "dude2": {
         "name": "Dude Upper Body 2",
-        "asset": "/assets/avatar/parts/torso_red.glb",
-        "thumb": "/assets/avatar/thumbs/torso_red.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Two_Long_Coat_with_Collared_Shirt_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Two_Long_Coat_with_Collared_Shirt_01.jpg"
       }
     },
     {
       "dude3": {
         "name": "Dude Upper Body 3",
-        "asset": "/assets/avatar/parts/torso_green.glb",
-        "thumb": "/assets/avatar/thumbs/torso_green.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Three_Flanel_Shirt_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Three_Flanel_Shirt_01.jpg"
       }
     }
   ],
@@ -49,22 +49,22 @@
     {
       "dude1": {
         "name": "Dude Lower Body 1",
-        "asset": "/assets/avatar/parts/legs_blue.glb",
-        "thumb": "/assets/avatar/thumbs/legs_blue.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Two_Tight_Joggers_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Two_Tight_Joggers_01.jpg"
       }
     },
     {
       "dude2": {
         "name": "Dude Lower Body 2",
-        "asset": "/assets/avatar/parts/legs_red.glb",
-        "thumb": "/assets/avatar/thumbs/legs_red.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Three_Tight_Jeans_with_Chain_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Three_Tight_Jeans_with_Chain_01.jpg"
       }
     },
     {
       "dude3": {
         "name": "Dude Lower Body 3",
-        "asset": "/assets/avatar/parts/legs_green.glb",
-        "thumb": "/assets/avatar/thumbs/legs_green.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_One_Cargo_Shorts_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_One_Cargo_Shorts_01.jpg"
       }
     }
   ],
@@ -72,22 +72,22 @@
     {
       "dude1": {
         "name": "Dude Feet 1",
-        "asset": "/assets/avatar/parts/feet_blue.glb",
-        "thumb": "/assets/avatar/thumbs/feet_blue.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_One_High_Tops_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_One_High_Tops_01.jpg"
       }
     },
     {
       "dude2": {
         "name": "Dude Feet 2",
-        "asset": "/assets/avatar/parts/feet_red.glb",
-        "thumb": "/assets/avatar/thumbs/feet_red.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Three_Mid_Tops_01.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Three_Mid_Tops_01.jpg"
       }
     },
     {
       "dude3": {
         "name": "Dude Feet 3",
-        "asset": "/assets/avatar/parts/feet_green.glb",
-        "thumb": "/assets/avatar/thumbs/feet_green.jpg"
+        "asset": "/assets/avatar/parts/SK_Outfit_Three_Mid_Tops_02.glb",
+        "thumb": "/assets/avatar/thumbs/SK_Outfit_Three_Mid_Tops_02.jpg"
       }
     }
   ]

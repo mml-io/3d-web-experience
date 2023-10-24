@@ -57,7 +57,7 @@ export class Character {
     feetURL: string,
     callBack: (bodyMesh: Object3D) => void,
   ): Promise<void> {
-    const fullBodyAsset = await this.modelLoader.load("/assets/avatar/cylinderman.glb");
+    const fullBodyAsset = await this.modelLoader.load("/assets/avatar/SK_Outfit_Body_Male.glb");
     const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
 
     const headAsset = await this.modelLoader.load(headURL);
@@ -72,7 +72,6 @@ export class Character {
     fullBodyModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
         (child as SkinnedMesh).castShadow = true;
-        skinnedMeshesToRemove.push(child as SkinnedMesh);
         if (this.skinnedMeshesParent === null) {
           this.skinnedMeshesParent = child.parent as Group;
         }
@@ -90,7 +89,6 @@ export class Character {
     const headModelGroup = headGLTF.gltf.scene;
     headModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
-        console.log(child.name);
         (child as SkinnedMesh).castShadow = true;
         (child as SkinnedMesh).bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
         this.skinnedMeshesParent?.children.splice(0, 0, child as SkinnedMesh);
@@ -101,7 +99,6 @@ export class Character {
     const upperBodyModelGroup = upperBodyGLTF.gltf.scene;
     upperBodyModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
-        console.log(child.name);
         (child as SkinnedMesh).castShadow = true;
         (child as SkinnedMesh).bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
         this.skinnedMeshesParent?.children.splice(1, 0, child as SkinnedMesh);
@@ -112,7 +109,6 @@ export class Character {
     const lowerBodyModelGroup = lowerBodyGLTF.gltf.scene;
     lowerBodyModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
-        console.log(child.name);
         (child as SkinnedMesh).castShadow = true;
         (child as SkinnedMesh).bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
         this.skinnedMeshesParent?.children.splice(2, 0, child as SkinnedMesh);
@@ -123,7 +119,6 @@ export class Character {
     const feetModelGroup = feetGLTF.gltf.scene;
     feetModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
-        console.log(child.name);
         (child as SkinnedMesh).castShadow = true;
         (child as SkinnedMesh).bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
         this.skinnedMeshesParent?.children.splice(3, 0, child as SkinnedMesh);

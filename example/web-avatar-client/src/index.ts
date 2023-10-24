@@ -34,7 +34,7 @@ export class App {
       (mesh: Object3D) => {
         this.currentCharacter = mesh;
         this.character.animationManager?.setAnimationFromURL(
-          "/assets/avatar/character-idle-animation.glb",
+          "/assets/avatar/AS_Andor_Stand_Idle.glb",
           AnimationState.idle,
           this.currentCharacter,
         );

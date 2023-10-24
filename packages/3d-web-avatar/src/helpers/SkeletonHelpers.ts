@@ -14,6 +14,7 @@ type DiffResult = {
 };
 
 export class SkeletonHelpers {
+  private debug: boolean = false;
   private hierarchies: BoneHierarchyMap[] = [];
   private modelNames: string[] = [];
 
@@ -116,7 +117,7 @@ export class SkeletonHelpers {
     );
 
     if (diff.identical) {
-      console.log("The skeletons are identical.");
+      if (this.debug) console.log("The skeletons are identical.");
     } else {
       diff.differences.forEach((difference) => console.log(difference));
     }
