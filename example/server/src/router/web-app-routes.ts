@@ -13,6 +13,8 @@ const FORK_PAGE_CONTENT = `
 `;
 
 const webClientBuildDir = path.join(dirname, "../../web-client/build/");
+const webAvatarBuildDir = path.join(dirname, "../../web-avatar-client/build/");
+
 export function addWebAppRoutes(app: enableWs.Application) {
   // Serve frontend statically in production
   const demoIndexContent = fs.readFileSync(path.join(webClientBuildDir, "index.html"), "utf8");
@@ -23,10 +25,13 @@ export function addWebAppRoutes(app: enableWs.Application) {
     }
     res.send(demoIndexContent);
   });
+
   app.use("/web-client/", express.static(webClientBuildDir));
+  app.use("/web-avatar-client/", express.static(webAvatarBuildDir));
 
   if (process.env.NODE_ENV !== "production") {
     const listeningClients = new Set<WebSocket>();
+    const avatarListeningClients = new Set<WebSocket>();
 
     chokidar.watch(webClientBuildDir).on("all", () => {
       for (const client of listeningClients) {
@@ -45,6 +50,26 @@ export function addWebAppRoutes(app: enableWs.Application) {
 
       ws.on("close", () => {
         listeningClients.delete(ws);
+      });
+    });
+
+    chokidar.watch(webAvatarBuildDir).on("all", () => {
+      for (const client of avatarListeningClients) {
+        client.send("change");
+      }
+    });
+
+    // Create an event-source that updates whenever the build folder gets modified
+    app.ws("/web-avatar-build", (ws: WebSocket) => {
+      const headers = {
+        "Content-Type": "text/event-stream",
+        Connection: "keep-alive",
+        "Cache-Control": "no-cache",
+      };
+      avatarListeningClients.add(ws);
+
+      ws.on("close", () => {
+        avatarListeningClients.delete(ws);
       });
     });
   }

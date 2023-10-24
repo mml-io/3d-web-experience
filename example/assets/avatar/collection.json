@@ -1,0 +1,94 @@
+{
+  "head": [
+    {
+      "dude1": {
+        "name": "Dude Head 1",
+        "asset": "/assets/avatar/parts/head_blue.glb",
+        "thumb": "/assets/avatar/thumbs/head_blue.jpg"
+      }
+    },
+    {
+      "dude2": {
+        "name": "Dude Head 2",
+        "asset": "/assets/avatar/parts/head_red.glb",
+        "thumb": "/assets/avatar/thumbs/head_red.jpg"
+      }
+    },
+    {
+      "dude3": {
+        "name": "Dude Head 3",
+        "asset": "/assets/avatar/parts/head_green.glb",
+        "thumb": "/assets/avatar/thumbs/head_green.jpg"
+      }
+    }
+  ],
+  "upperBody": [
+    {
+      "dude1": {
+        "name": "Dude Upper Body 1",
+        "asset": "/assets/avatar/parts/torso_blue.glb",
+        "thumb": "/assets/avatar/thumbs/torso_blue.jpg"
+      }
+    },
+    {
+      "dude2": {
+        "name": "Dude Upper Body 2",
+        "asset": "/assets/avatar/parts/torso_red.glb",
+        "thumb": "/assets/avatar/thumbs/torso_red.jpg"
+      }
+    },
+    {
+      "dude3": {
+        "name": "Dude Upper Body 3",
+        "asset": "/assets/avatar/parts/torso_green.glb",
+        "thumb": "/assets/avatar/thumbs/torso_green.jpg"
+      }
+    }
+  ],
+  "lowerBody": [
+    {
+      "dude1": {
+        "name": "Dude Lower Body 1",
+        "asset": "/assets/avatar/parts/legs_blue.glb",
+        "thumb": "/assets/avatar/thumbs/legs_blue.jpg"
+      }
+    },
+    {
+      "dude2": {
+        "name": "Dude Lower Body 2",
+        "asset": "/assets/avatar/parts/legs_red.glb",
+        "thumb": "/assets/avatar/thumbs/legs_red.jpg"
+      }
+    },
+    {
+      "dude3": {
+        "name": "Dude Lower Body 3",
+        "asset": "/assets/avatar/parts/legs_green.glb",
+        "thumb": "/assets/avatar/thumbs/legs_green.jpg"
+      }
+    }
+  ],
+  "feet": [
+    {
+      "dude1": {
+        "name": "Dude Feet 1",
+        "asset": "/assets/avatar/parts/feet_blue.glb",
+        "thumb": "/assets/avatar/thumbs/feet_blue.jpg"
+      }
+    },
+    {
+      "dude2": {
+        "name": "Dude Feet 2",
+        "asset": "/assets/avatar/parts/feet_red.glb",
+        "thumb": "/assets/avatar/thumbs/feet_red.jpg"
+      }
+    },
+    {
+      "dude3": {
+        "name": "Dude Feet 3",
+        "asset": "/assets/avatar/parts/feet_green.glb",
+        "thumb": "/assets/avatar/thumbs/feet_green.jpg"
+      }
+    }
+  ]
+}
