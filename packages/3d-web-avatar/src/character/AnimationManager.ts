@@ -1,17 +1,18 @@
 import { AnimationAction, AnimationClip, AnimationMixer, LoopRepeat, Object3D } from "three";
 
 import { AnimationState } from "./Character";
-import MODEL_LOADER, { ModelLoader } from "./ModelLoader";
-import { TimeManager } from "./TimeManager";
+import { ModelLoader } from "./ModelLoader";
+import { TimeManagerInterface } from "./types";
 
 export class AnimationManager {
-  private modelLoader: ModelLoader = MODEL_LOADER;
-
   private mixer: AnimationMixer | null = null;
   private animations: Map<number, AnimationAction> = new Map();
   private currentAnimationAction: AnimationState = AnimationState.idle;
 
-  constructor(private timeManager: TimeManager) {}
+  constructor(
+    private modelLoader: ModelLoader,
+    private timeManager: TimeManagerInterface,
+  ) {}
 
   public async setAnimationFromURL(
     url: string,

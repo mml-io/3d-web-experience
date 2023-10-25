@@ -1,3 +1,4 @@
+import { TimeManager } from "@mml-io/3d-web-client-core";
 import {
   Color,
   Fog,
@@ -17,13 +18,11 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Floor } from "./Floor";
 import { Lights } from "./Lights";
-import { TimeManager } from "./TimeManager";
 
 export class AvatarVisualizer {
   private readonly camOffset: Vector3 = new Vector3(0, 1.2, 0);
   private readonly floorSize: number = 50;
   private readonly fogDistance: number = this.floorSize - this.floorSize * 0.1;
-  private timeManager: TimeManager = new TimeManager();
 
   private canvasDiv: HTMLDivElement | null = null;
 
@@ -38,7 +37,7 @@ export class AvatarVisualizer {
 
   private orbitControls: OrbitControls;
 
-  constructor() {
+  constructor(private timeManager: TimeManager) {
     this.scene = new Scene();
     this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
     this.renderer = new WebGLRenderer({ antialias: true });

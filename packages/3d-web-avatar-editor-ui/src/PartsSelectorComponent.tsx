@@ -1,25 +1,22 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { BodyPartTypes, type CharacterComposition } from "../AvatarUI";
-import { type CollectionDataType } from "../hooks/useFetch";
+import { AssetDescription, BodyPartTypes, CharacterComposition, CollectionDataType } from "./types";
 
 type PartsSelectorComponentProps = {
   collectionData: CollectionDataType;
-  onGLBSelected: (glb: string) => void;
   composedCharacterPartsCB: (characterParts: CharacterComposition) => void;
 };
 
 export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
   collectionData,
-  onGLBSelected,
   composedCharacterPartsCB,
 }) => {
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes | null>(null);
   const [currentSelection, setCurrentSelection] = useState({
-    head: collectionData.head[0][Object.keys(collectionData.head[0])[0]],
-    upperBody: collectionData.upperBody[0][Object.keys(collectionData.upperBody[0])[0]],
-    lowerBody: collectionData.lowerBody[0][Object.keys(collectionData.lowerBody[0])[0]],
-    feet: collectionData.feet[0][Object.keys(collectionData.feet[0])[0]],
+    head: collectionData.head[0],
+    upperBody: collectionData.upperBody[0],
+    lowerBody: collectionData.lowerBody[0],
+    feet: collectionData.feet[0],
   });
 
   const createMMLDescription = useCallback(() => {
@@ -54,10 +51,9 @@ export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
     setSelectedPart(part);
   };
 
-  const handleModalThumbnailClick = (part: BodyPartTypes, item: any) => {
-    const selectedData = item[Object.keys(item)[0]];
+  const handleModalThumbnailClick = (part: BodyPartTypes, item: AssetDescription) => {
+    const selectedData = item;
     setCurrentSelection((prev) => ({ ...prev, [part]: selectedData }));
-    onGLBSelected(selectedData.asset);
     createMMLDescription();
     setSelectedPart(null);
   };
@@ -82,11 +78,11 @@ export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
 
     return (
       <div className="modal">
-        {collectionData[selectedPart].map((item) => (
+        {collectionData[selectedPart].map((item: AssetDescription) => (
           <img
-            key={Object.keys(item)[0]}
-            src={item[Object.keys(item)[0]].thumb}
-            alt={item[Object.keys(item)[0]].name}
+            key={item.asset}
+            src={item.thumb}
+            alt={item.name}
             onClick={() => handleModalThumbnailClick(selectedPart, item)}
           />
         ))}

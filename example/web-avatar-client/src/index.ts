@@ -1,22 +1,32 @@
+import { TimeManager } from "@mml-io/3d-web-client-core";
 import {
-  Character,
-  AvatarUI,
-  CharacterComposition,
-  AvatarVisualizer,
   AnimationState,
-} from "@mml-io/3d-web-avatar";
+  AvatarVisualizer,
+  Character,
+  CharacterComposition,
+  CollectionDataType,
+  ModelLoader,
+} from "@mml-io/3d-web-standalone-avatar-editor";
 import { Object3D } from "three";
+
+import { AvatarUI } from "./avatar-ui/AvatarUI";
+import collectionData from "./collection.json";
 
 export class App {
   private readonly avatarVisualizer: AvatarVisualizer;
   private character: Character;
   private avatarUI: AvatarUI | null = null;
   private currentCharacter: Object3D | null = null;
+  private timeManager = new TimeManager();
+  private modelLoader = new ModelLoader();
 
   constructor() {
-    this.avatarVisualizer = new AvatarVisualizer();
-    this.character = new Character(this.avatarVisualizer.avatarScene);
-    this.updateComposedCharacter = this.updateComposedCharacter.bind(this);
+    this.avatarVisualizer = new AvatarVisualizer(this.timeManager);
+    this.character = new Character(
+      this.avatarVisualizer.avatarScene,
+      this.modelLoader,
+      this.timeManager,
+    );
   }
 
   public updateComposedCharacter(character: CharacterComposition) {
@@ -43,13 +53,17 @@ export class App {
   }
 
   async init(): Promise<void> {
-    this.avatarUI = new AvatarUI(this.updateComposedCharacter);
+    this.avatarUI = new AvatarUI(
+      collectionData as CollectionDataType,
+      (character: CharacterComposition) => this.updateComposedCharacter(character),
+    );
+    console.log("this.avatarUI", this.avatarUI);
     this.avatarUI.render();
     this.update();
   }
 
   update(): void {
-    if (this.character.timeManager) {
+    if (this.timeManager) {
       this.avatarVisualizer.update();
     }
     this.character.update();

@@ -133,6 +133,3 @@ export class ModelLoader {
     }
   }
 }
-
-const MODEL_LOADER = ModelLoader.getInstance();
-export default MODEL_LOADER;

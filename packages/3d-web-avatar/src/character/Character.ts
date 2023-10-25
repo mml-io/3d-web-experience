@@ -5,8 +5,8 @@ import { GLTF } from "three/examples/jsm/loaders/GLTFLoader";
 import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
 
 import { AnimationManager } from "./AnimationManager";
-import MODEL_LOADER, { ModelLoader } from "./ModelLoader";
-import { TimeManager } from "./TimeManager";
+import { ModelLoader } from "./ModelLoader";
+import { TimeManagerInterface } from "./types";
 
 export enum AnimationState {
   "idle" = 0,
@@ -32,9 +32,6 @@ export type CharacterState = {
 };
 
 export class Character {
-  private modelLoader: ModelLoader = MODEL_LOADER;
-  public timeManager: TimeManager | null = null;
-
   public animationManager: AnimationManager | null = null;
   public animationState = AnimationState;
 
@@ -45,10 +42,11 @@ export class Character {
   private sharedSkeleton: Skeleton | null = null;
   private sharedMatrixWorld: Matrix4 | null = null;
 
-  constructor(public scene: Scene) {
-    this.timeManager = new TimeManager();
-    this.modelLoader = MODEL_LOADER;
-  }
+  constructor(
+    public scene: Scene,
+    private modelLoader: ModelLoader,
+    private timeManager: TimeManagerInterface,
+  ) {}
 
   public async mergeBodyParts(
     headURL: string,
@@ -127,11 +125,8 @@ export class Character {
       }
     });
 
-    if (this.timeManager === null) {
-      this.timeManager = new TimeManager();
-    }
     if (this.animationManager === null) {
-      this.animationManager = new AnimationManager(this.timeManager);
+      this.animationManager = new AnimationManager(this.modelLoader, this.timeManager);
     }
     callBack(fullBodyGLTF!.gltf.scene as Object3D);
   }
