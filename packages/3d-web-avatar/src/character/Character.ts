@@ -69,6 +69,8 @@ export class Character {
 
     const fullBodyModelGroup = fullBodyGLTF.gltf.scene;
 
+    this.skinnedMeshesParent = null;
+
     fullBodyModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
         (child as SkinnedMesh).castShadow = true;

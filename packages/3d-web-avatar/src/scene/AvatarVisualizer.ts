@@ -1,14 +1,19 @@
 import {
+  Color,
   Fog,
+  LinearSRGBColorSpace,
+  LoadingManager,
   Mesh,
   Object3D,
   PCFSoftShadowMap,
+  PMREMGenerator,
   PerspectiveCamera,
   Scene,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Floor } from "./Floor";
 import { Lights } from "./Lights";
@@ -16,7 +21,7 @@ import { TimeManager } from "./TimeManager";
 
 export class AvatarVisualizer {
   private readonly camOffset: Vector3 = new Vector3(0, 1.2, 0);
-  private readonly floorSize: number = 20;
+  private readonly floorSize: number = 50;
   private readonly fogDistance: number = this.floorSize - this.floorSize * 0.1;
   private timeManager: TimeManager = new TimeManager();
 
@@ -35,15 +40,17 @@ export class AvatarVisualizer {
 
   constructor() {
     this.scene = new Scene();
-    this.scene.fog = new Fog(0x000000, 1, this.fogDistance);
+    this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.renderer.shadowMap.enabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
+    this.useHDRI("/assets/hdr/industrial_sunset_2k.hdr");
+
     this.lookAt = new Vector3().copy(this.scene.position).add(this.camOffset);
 
-    this.camera = new PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.01, 400);
+    this.camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 400);
     this.camera.position.set(-1, 1.3, 3);
     this.camera.lookAt(this.lookAt);
     this.camera.updateProjectionMatrix();
@@ -75,6 +82,30 @@ export class AvatarVisualizer {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
+  }
+
+  public useHDRI(url: string): void {
+    if (!this.renderer) return;
+    const pmremGenerator = new PMREMGenerator(this.renderer);
+    new RGBELoader(new LoadingManager()).load(
+      url,
+      (texture) => {
+        const envMap = pmremGenerator!.fromEquirectangular(texture).texture;
+        if (envMap) {
+          envMap.colorSpace = LinearSRGBColorSpace;
+          envMap.needsUpdate = true;
+          this.scene.environment = envMap;
+          this.scene.background = envMap;
+          this.scene.backgroundIntensity = 0.5;
+          texture.dispose();
+          pmremGenerator!.dispose();
+        }
+      },
+      () => {},
+      (error: ErrorEvent) => {
+        console.error(`Can't load ${url}: ${JSON.stringify(error)}`);
+      },
+    );
   }
 
   public update(): void {

@@ -1,17 +1,9 @@
-import {
-  AmbientLight,
-  CameraHelper,
-  DirectionalLight,
-  OrthographicCamera,
-  Scene,
-  Vector3,
-} from "three";
+import { AmbientLight, DirectionalLight, OrthographicCamera, Vector3 } from "three";
 
 export class Lights {
-  public ambientLight = new AmbientLight(0xffffff, 0.1);
-  public mainLight = new DirectionalLight(0xffffff, 1.0);
+  public ambientLight: AmbientLight = new AmbientLight(0xffffff, 0.01);
+  public mainLight: DirectionalLight;
 
-  private shadowCamHelper: CameraHelper | null = null;
   private shadowResolution: number = 8192;
   private shadowCamFrustum: number = 10;
   private lookAt: Vector3;
@@ -26,8 +18,6 @@ export class Lights {
   );
 
   constructor(private cameraOffset: Vector3) {
-    this.shadowCamHelper = new CameraHelper(this.shadowCamera);
-
     this.lookAt = new Vector3().copy(new Vector3()).add(this.cameraOffset);
 
     this.mainLight = new DirectionalLight(0xffffff, 1.0);

@@ -45,6 +45,7 @@ export class AnimationManager {
 
   public update(): void {
     if (this.mixer) {
+      this.mixer.setTime(this.timeManager.time);
       this.mixer.update(this.timeManager.smoothDeltaTime);
     }
   }

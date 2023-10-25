@@ -19,7 +19,7 @@ export class CheckerTexture {
     private repeatY: number,
   ) {
     for (let i = 0; i <= 12; i += 4) {
-      const c = i === 4 || i === 8 ? 100 : 255;
+      const c = i === 4 || i === 8 ? 80 : 240;
       this.fillData(i, c, c, c, 255);
     }
     this.texture = new DataTexture(this.data, this.width, this.height, RGBAFormat);

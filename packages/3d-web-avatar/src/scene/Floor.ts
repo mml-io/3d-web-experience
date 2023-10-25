@@ -11,10 +11,10 @@ export class Floor {
   constructor(private size: number) {
     this.floorGeometry = new CircleGeometry(this.size, this.size * 5);
     this.floorMaterial = new MeshStandardMaterial({
-      color: 0xffffff,
+      color: 0x9999aa,
       side: FrontSide,
-      metalness: 0.1,
-      roughness: 0.5,
+      metalness: 0.3,
+      roughness: 0.2,
     });
     this.floorTexture = new CheckerTexture(this.size / 1.5, this.size / 1.5).texture;
     this.floorMaterial.map = this.floorTexture;

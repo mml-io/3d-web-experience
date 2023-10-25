@@ -24,7 +24,6 @@ export class App {
     if (this.currentCharacter !== null) {
       this.avatarVisualizer.avatarScene.remove(this.currentCharacter);
     }
-    this.character = new Character(this.avatarVisualizer.avatarScene);
 
     this.character.mergeBodyParts(
       head.asset,
