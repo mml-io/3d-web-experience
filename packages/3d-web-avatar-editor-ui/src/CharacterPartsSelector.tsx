@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { AssetDescription, BodyPartTypes, CharacterComposition, CollectionDataType } from "./types";
 
-type PartsSelectorComponentProps = {
+type CharacterPartsSelectorProps = {
   collectionData: CollectionDataType;
-  composedCharacterPartsCB: (characterParts: CharacterComposition) => void;
+  onComposedCharacter: (characterParts: CharacterComposition) => void;
 };
 
-export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
+export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
   collectionData,
-  composedCharacterPartsCB,
+  onComposedCharacter,
 }) => {
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes | null>(null);
   const [currentSelection, setCurrentSelection] = useState({
@@ -31,7 +31,7 @@ export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
   }, [currentSelection]);
 
   useEffect(() => {
-    composedCharacterPartsCB({
+    onComposedCharacter({
       head: currentSelection.head,
       upperBody: currentSelection.upperBody,
       lowerBody: currentSelection.lowerBody,
@@ -39,7 +39,7 @@ export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
     });
     createMMLDescription();
   }, [
-    composedCharacterPartsCB,
+    onComposedCharacter,
     currentSelection.head,
     currentSelection.upperBody,
     currentSelection.lowerBody,
@@ -99,4 +99,4 @@ export const PartsSelectorComponent: React.FC<PartsSelectorComponentProps> = ({
   );
 };
 
-export default PartsSelectorComponent;
+export default CharacterPartsSelector;

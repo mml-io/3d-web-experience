@@ -1,20 +1,21 @@
-import { AvatarVisualizer } from "@mml-io/3d-web-standalone-avatar-editor";
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { Object3D } from "three";
 
-type AvatarVisualizerType = {
-  character: Object3D;
+import { AvatarRenderer } from "./AvatarRenderer";
+
+type AvatarVisualizerProps = {
+  characterMesh: Object3D;
 };
 
-export const AvatarVisualizerWrapper: React.FC<AvatarVisualizerType> = ({ character }) => {
+export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({ characterMesh }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const visualizerRef = useRef<AvatarVisualizer | null>(null);
+  const visualizerRef = useRef<AvatarRenderer | null>(null);
   const currentCharacterRef = useRef<Object3D | null>(null);
   const requestRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!visualizerRef.current) {
-      visualizerRef.current = new AvatarVisualizer();
+      visualizerRef.current = new AvatarRenderer();
       const canvasContainer = containerRef.current;
       if (canvasContainer && visualizerRef.current.renderer) {
         canvasContainer.appendChild(visualizerRef.current.renderer.domElement);
@@ -24,16 +25,16 @@ export const AvatarVisualizerWrapper: React.FC<AvatarVisualizerType> = ({ charac
 
   useEffect(() => {
     const visualizer = visualizerRef.current;
-    if (!character) return;
+    if (!characterMesh) return;
     if (visualizer) {
-      visualizer.animateCharacter(character);
+      visualizer.animateCharacter(characterMesh);
       const scene = visualizer.scene;
-      scene.add(character);
+      scene.add(characterMesh);
       if (currentCharacterRef.current) scene.remove(currentCharacterRef.current);
-      currentCharacterRef.current = character;
+      currentCharacterRef.current = characterMesh;
       visualizer.update();
     }
-  }, [character]);
+  }, [characterMesh]);
 
   const animationLoop = useCallback(() => {
     if (visualizerRef.current) {

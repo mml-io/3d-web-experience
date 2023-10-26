@@ -20,10 +20,10 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-import { Floor } from "./Floor";
-import { Lights } from "./Lights";
+import { Floor } from "./scene/Floor";
+import { Lights } from "./scene/Lights";
 
-export class AvatarVisualizer {
+export class AvatarRenderer {
   private readonly camOffset: Vector3 = new Vector3(0, 1.2, 0);
   private readonly floorSize: number = 50;
   private readonly fogDistance: number = this.floorSize - this.floorSize * 0.1;

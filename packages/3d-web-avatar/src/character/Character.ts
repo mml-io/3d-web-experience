@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-loop-func */
 import { Group, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader";
 
 import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
 
 import { ModelLoader } from "./ModelLoader";
-import { TimeManagerInterface } from "./types";
 
 export class Character {
   private skeletonHelpers: SkeletonHelpers = new SkeletonHelpers();
@@ -20,8 +18,7 @@ export class Character {
     upperBodyURL: string,
     lowerBodyURL: string,
     feetURL: string,
-    callBack: (bodyMesh: Object3D) => void,
-  ): Promise<void> {
+  ): Promise<Object3D> {
     const fullBodyAsset = await this.modelLoader.load("/assets/avatar/SK_Outfit_Body_Male.glb");
     const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
 
@@ -91,6 +88,6 @@ export class Character {
       }
     });
 
-    callBack(fullBodyGLTF!.gltf.scene as Object3D);
+    return fullBodyGLTF!.gltf.scene as Object3D;
   }
 }

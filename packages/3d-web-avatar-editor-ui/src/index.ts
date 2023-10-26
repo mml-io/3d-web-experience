@@ -1,4 +1,4 @@
-export { PartsSelectorComponent } from "./PartsSelectorComponent";
+export { CharacterPartsSelector } from "./CharacterPartsSelector";
 export type {
   AssetDescription,
   CollectionDataType,
