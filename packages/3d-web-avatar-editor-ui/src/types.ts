@@ -1,4 +1,4 @@
-export type BodyPartTypes = "head" | "upperBody" | "lowerBody" | "feet";
+export type BodyPartTypes = "fullBody" | "head" | "upperBody" | "lowerBody" | "feet";
 
 export type AssetDescription = {
   name: string;
@@ -6,16 +6,6 @@ export type AssetDescription = {
   thumb: string;
 };
 
-export type CollectionDataType = {
-  head: AssetDescription[];
-  upperBody: AssetDescription[];
-  lowerBody: AssetDescription[];
-  feet: AssetDescription[];
-};
+export type CollectionDataType = Record<BodyPartTypes, Array<AssetDescription>>;
 
-export type CharacterComposition = {
-  head: AssetDescription;
-  upperBody: AssetDescription;
-  lowerBody: AssetDescription;
-  feet: AssetDescription;
-};
+export type CharacterComposition = Record<BodyPartTypes, AssetDescription>;

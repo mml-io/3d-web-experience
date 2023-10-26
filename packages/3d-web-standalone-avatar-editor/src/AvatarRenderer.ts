@@ -45,7 +45,10 @@ export class AvatarRenderer {
   private floor: Mesh | null = null;
   private orbitControls: OrbitControls;
 
-  constructor() {
+  constructor(
+    private hdrURL: string,
+    private idleAnimationURL: string,
+  ) {
     this.scene = new Scene();
     this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
     this.renderer = new WebGLRenderer({ antialias: true });
@@ -53,7 +56,7 @@ export class AvatarRenderer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    this.useHDRI("/assets/hdr/industrial_sunset_2k.hdr");
+    this.useHDRI(hdrURL);
 
     this.lookAt = new Vector3().copy(this.scene.position).add(this.camOffset);
 
@@ -118,7 +121,7 @@ export class AvatarRenderer {
   public async animateCharacter(model: Object3D) {
     this.mixer = new AnimationMixer(model);
     if (this.animationAsset === null) {
-      this.animationAsset = await this.modelLoader.load("/assets/avatar/AS_Andor_Stand_Idle.glb");
+      this.animationAsset = await this.modelLoader.load(this.idleAnimationURL);
     }
     if (this.animationAsset && this.animationAsset.animations) {
       const animationClip = this.animationAsset.animations[0];

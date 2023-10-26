@@ -13,6 +13,7 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
 }) => {
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes | null>(null);
   const [currentSelection, setCurrentSelection] = useState({
+    fullBody: collectionData.fullBody[0],
     head: collectionData.head[0],
     upperBody: collectionData.upperBody[0],
     lowerBody: collectionData.lowerBody[0],
@@ -20,7 +21,7 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
   });
 
   const createMMLDescription = useCallback(() => {
-    const description = `<m-character src="/assets/avatar/cylinderman.glb">
+    const description = `<m-character src="${currentSelection.fullBody.asset}">
   <m-model src="${currentSelection.head.asset}"></m-model>
   <m-model src="${currentSelection.upperBody.asset}"></m-model>
   <m-model src="${currentSelection.lowerBody.asset}"></m-model>
@@ -32,6 +33,7 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
 
   useEffect(() => {
     onComposedCharacter({
+      fullBody: currentSelection.fullBody,
       head: currentSelection.head,
       upperBody: currentSelection.upperBody,
       lowerBody: currentSelection.lowerBody,
@@ -40,6 +42,7 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
     createMMLDescription();
   }, [
     onComposedCharacter,
+    currentSelection.fullBody,
     currentSelection.head,
     currentSelection.upperBody,
     currentSelection.lowerBody,
@@ -61,7 +64,7 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
   const renderThumbnails = () => {
     return (
       <div className="left-thumbnails">
-        {["head", "upperBody", "lowerBody", "feet"].map((part) => (
+        {["fullBody", "head", "upperBody", "lowerBody", "feet"].map((part) => (
           <img
             key={part}
             src={currentSelection[part as BodyPartTypes].thumb}

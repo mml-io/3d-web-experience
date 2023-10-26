@@ -29,6 +29,8 @@ const buildOptions: esbuild.BuildOptions = {
     ".svg": "file",
     ".png": "file",
     ".jpg": "file",
+    ".glb": "file",
+    ".hdr": "file",
   },
   plugins: [
     copy({

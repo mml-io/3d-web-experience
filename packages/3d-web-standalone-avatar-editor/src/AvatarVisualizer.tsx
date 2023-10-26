@@ -5,9 +5,15 @@ import { AvatarRenderer } from "./AvatarRenderer";
 
 type AvatarVisualizerProps = {
   characterMesh: Object3D;
+  hdrURL: string;
+  idleAnimationURL: string;
 };
 
-export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({ characterMesh }) => {
+export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
+  characterMesh,
+  hdrURL,
+  idleAnimationURL,
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizerRef = useRef<AvatarRenderer | null>(null);
   const currentCharacterRef = useRef<Object3D | null>(null);
@@ -15,7 +21,7 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({ characterMes
 
   useEffect(() => {
     if (!visualizerRef.current) {
-      visualizerRef.current = new AvatarRenderer();
+      visualizerRef.current = new AvatarRenderer(hdrURL, idleAnimationURL);
       const canvasContainer = containerRef.current;
       if (canvasContainer && visualizerRef.current.renderer) {
         canvasContainer.appendChild(visualizerRef.current.renderer.domElement);

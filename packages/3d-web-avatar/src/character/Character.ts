@@ -14,12 +14,13 @@ export class Character {
   constructor(private modelLoader: ModelLoader) {}
 
   public async mergeBodyParts(
+    fullBodyURL: string,
     headURL: string,
     upperBodyURL: string,
     lowerBodyURL: string,
     feetURL: string,
   ): Promise<Object3D> {
-    const fullBodyAsset = await this.modelLoader.load("/assets/avatar/SK_Outfit_Body_Male.glb");
+    const fullBodyAsset = await this.modelLoader.load(fullBodyURL);
     const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
 
     const headAsset = await this.modelLoader.load(headURL);

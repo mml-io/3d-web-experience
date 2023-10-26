@@ -1,4 +1,11 @@
 {
+  "fullBody": [
+    {
+      "name": "Full Body 1",
+      "asset": "/assets/avatar/parts/SK_Outfit_Body_Male.glb",
+      "thumb": "/assets/avatar/thumbs/SK_Outfit_Body_Male.jpg"
+    }
+  ],
   "head": [
     {
       "name": "Dude Head 1",
