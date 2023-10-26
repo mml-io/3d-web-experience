@@ -27,7 +27,7 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
         canvasContainer.appendChild(visualizerRef.current.renderer.domElement);
       }
     }
-  }, []);
+  }, [hdrURL, idleAnimationURL]);
 
   useEffect(() => {
     const visualizer = visualizerRef.current;
