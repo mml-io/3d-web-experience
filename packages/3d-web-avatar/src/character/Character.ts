@@ -1,52 +1,19 @@
 /* eslint-disable @typescript-eslint/no-loop-func */
-import { Group, Matrix4, Object3D, Scene, Skeleton, SkeletonHelper, SkinnedMesh } from "three";
+import { Group, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader";
 
 import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
 
-import { AnimationManager } from "./AnimationManager";
 import { ModelLoader } from "./ModelLoader";
 import { TimeManagerInterface } from "./types";
 
-export enum AnimationState {
-  "idle" = 0,
-  "walking" = 1,
-  "running" = 2,
-  "jumpToAir" = 3,
-  "air" = 4,
-  "airToGround" = 5,
-}
-
-export type CharacterState = {
-  id: number;
-  position: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  rotation: {
-    quaternionY: number;
-    quaternionW: number;
-  };
-  state: AnimationState;
-};
-
 export class Character {
-  public animationManager: AnimationManager | null = null;
-  public animationState = AnimationState;
-
   private skeletonHelpers: SkeletonHelpers = new SkeletonHelpers();
-
-  private skeletonHelper: SkeletonHelper | null = null;
   private skinnedMeshesParent: Group | null = null;
   private sharedSkeleton: Skeleton | null = null;
   private sharedMatrixWorld: Matrix4 | null = null;
 
-  constructor(
-    public scene: Scene,
-    private modelLoader: ModelLoader,
-    private timeManager: TimeManagerInterface,
-  ) {}
+  constructor(private modelLoader: ModelLoader) {}
 
   public async mergeBodyParts(
     headURL: string,
@@ -77,7 +44,6 @@ export class Character {
         }
       }
     });
-    this.skeletonHelper = new SkeletonHelper(fullBodyModelGroup);
     this.sharedSkeleton = fullBodyGLTF.sharedSkeleton;
     this.sharedMatrixWorld = fullBodyGLTF.matrixWorld;
 
@@ -125,30 +91,6 @@ export class Character {
       }
     });
 
-    if (this.animationManager === null) {
-      this.animationManager = new AnimationManager(this.modelLoader, this.timeManager);
-    }
     callBack(fullBodyGLTF!.gltf.scene as Object3D);
-  }
-
-  public viewSkeleton(): void {
-    if (this.skeletonHelper) {
-      this.scene.add(this.skeletonHelper);
-    } else {
-      console.error("Character.viewSkeleton Error: skeletonHelper is null or undefined");
-    }
-  }
-
-  public hideSkeleton(): void {
-    if (this.skeletonHelper) {
-      this.scene.remove(this.skeletonHelper);
-    } else {
-      console.error("Character.hideSkeleton Error: skeletonHelper is null or undefined");
-    }
-  }
-
-  public update(): void {
-    if (this.timeManager) this.timeManager.update();
-    if (this.animationManager) this.animationManager.update();
   }
 }

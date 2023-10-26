@@ -1,4 +1,3 @@
-export { Character, AnimationState } from "./character/Character";
-export { AnimationManager } from "./character/AnimationManager";
+export { Character } from "./character/Character";
 export { TimeManagerInterface } from "./character/types";
 export { ModelLoader } from "./character/ModelLoader";

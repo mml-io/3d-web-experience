@@ -43,18 +43,6 @@ h1 {
   text-align: center;
 }
 
-/* canvas {
-  position: fixed;
-  width: calc(80vw - 210px) !important;
-  height: calc(80vh - 120px) !important;
-  left: calc(10vw + 210px) !important;
-  top: calc(10vh + 20px) !important;
-  border-radius: 12px;
-  box-shadow: 12px 12px 12px rgba(0, 0, 0, 0.8);
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  z-index: 10;
-} */
-
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -91,7 +79,7 @@ h1 {
   position: absolute;
   left: 12px;
   top: 12px;
-  width: 180px;
+  width: 170px;
   height: calc(80vh - 100px);
   display: flex;
   flex-direction: column;
@@ -137,7 +125,7 @@ img {
 
 canvas {
   position: relative;
-  width: calc(100% - 210px) !important;
+  width: calc(100% - 260px) !important;
   height: calc(100% - 120px) !important;
   left: 210px;
   top: 21px;

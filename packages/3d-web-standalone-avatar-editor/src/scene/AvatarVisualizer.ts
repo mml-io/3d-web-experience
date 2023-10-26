@@ -1,9 +1,12 @@
+import { ModelLoader } from "@mml-io/3d-web-avatar";
 import { TimeManager } from "@mml-io/3d-web-client-core";
 import {
+  AnimationMixer,
   Color,
   Fog,
   LinearSRGBColorSpace,
   LoadingManager,
+  LoopRepeat,
   Mesh,
   Object3D,
   PCFSoftShadowMap,
@@ -14,6 +17,7 @@ import {
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Floor } from "./Floor";
@@ -26,18 +30,22 @@ export class AvatarVisualizer {
 
   private canvasDiv: HTMLDivElement | null = null;
 
-  private scene: Scene;
-  private renderer: WebGLRenderer | null = null;
+  private timeManager: TimeManager = new TimeManager();
+  private modelLoader: ModelLoader = new ModelLoader();
+
+  public renderer: WebGLRenderer | null = null;
+  public scene: Scene;
+
   private camera: PerspectiveCamera | null = null;
+  private mixer: AnimationMixer | null = null;
+  private animationAsset: GLTF | null | undefined = null;
+
   private lights: Lights;
-
   private lookAt: Vector3;
-
   private floor: Mesh | null = null;
-
   private orbitControls: OrbitControls;
 
-  constructor(private timeManager: TimeManager) {
+  constructor() {
     this.scene = new Scene();
     this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
     this.renderer = new WebGLRenderer({ antialias: true });
@@ -76,7 +84,7 @@ export class AvatarVisualizer {
     window.addEventListener("resize", this.updateProjection.bind(this));
   }
 
-  private updateProjection(): void {
+  public updateProjection(): void {
     if (!this.camera || !this.renderer) return;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -107,6 +115,19 @@ export class AvatarVisualizer {
     );
   }
 
+  public async animateCharacter(model: Object3D) {
+    this.mixer = new AnimationMixer(model);
+    if (this.animationAsset === null) {
+      this.animationAsset = await this.modelLoader.load("/assets/avatar/AS_Andor_Stand_Idle.glb");
+    }
+    if (this.animationAsset && this.animationAsset.animations) {
+      const animationClip = this.animationAsset.animations[0];
+      const animationAction = this.mixer.clipAction(animationClip);
+      animationAction.setLoop(LoopRepeat, Infinity);
+      animationAction.play();
+    }
+  }
+
   public update(): void {
     if (!this.scene || !this.camera || !this.renderer) return;
     this.timeManager.update();
@@ -120,14 +141,10 @@ export class AvatarVisualizer {
     this.renderer.render(this.scene, this.camera);
     this.orbitControls.target = this.lookAt;
     this.orbitControls.update();
-  }
-
-  public addToScene(object: Object3D): void {
-    this.scene.add(object);
-  }
-
-  public get avatarScene(): Scene {
-    return this.scene;
+    if (this.mixer) {
+      this.mixer.setTime(this.timeManager.time);
+      this.mixer.update(this.timeManager.smoothDeltaTime);
+    }
   }
 
   public dispose(): void {
