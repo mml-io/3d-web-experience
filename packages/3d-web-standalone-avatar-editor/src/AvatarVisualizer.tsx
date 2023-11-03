@@ -1,3 +1,4 @@
+import { BodyPartTypes } from "@mml-io/3d-web-avatar-editor-ui";
 import React, { useCallback, useEffect, useRef } from "react";
 import { Object3D } from "three";
 
@@ -7,12 +8,14 @@ type AvatarVisualizerProps = {
   characterMesh: Object3D;
   hdrURL: string;
   idleAnimationURL: string;
+  selectedPart: BodyPartTypes;
 };
 
 export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
   characterMesh,
   hdrURL,
   idleAnimationURL,
+  selectedPart,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizerRef = useRef<AvatarRenderer | null>(null);
@@ -28,6 +31,14 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
       }
     }
   }, [hdrURL, idleAnimationURL]);
+
+  useEffect(() => {
+    if (visualizerRef.current) {
+      if (visualizerRef.current.selectedPart !== selectedPart) {
+        visualizerRef.current.setSelectedPart(selectedPart);
+      }
+    }
+  }, [selectedPart]);
 
   useEffect(() => {
     const visualizer = visualizerRef.current;

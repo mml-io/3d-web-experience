@@ -1,5 +1,6 @@
 import { ModelLoader } from "@mml-io/3d-web-avatar";
-import { TimeManager } from "@mml-io/3d-web-client-core";
+import { BodyPartTypes } from "@mml-io/3d-web-avatar-editor-ui";
+import { TimeManager, CameraManager, CollisionsManager } from "@mml-io/3d-web-client-core";
 import {
   AnimationMixer,
   Color,
@@ -11,12 +12,10 @@ import {
   Object3D,
   PCFSoftShadowMap,
   PMREMGenerator,
-  PerspectiveCamera,
   Scene,
   Vector3,
   WebGLRenderer,
 } from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
@@ -29,6 +28,7 @@ export class AvatarRenderer {
   private readonly fogDistance: number = this.floorSize - this.floorSize * 0.1;
 
   private canvasDiv: HTMLDivElement | null = null;
+  private cameraManager: CameraManager | null = null;
 
   private timeManager: TimeManager = new TimeManager();
   private modelLoader: ModelLoader = new ModelLoader();
@@ -36,14 +36,15 @@ export class AvatarRenderer {
   public renderer: WebGLRenderer | null = null;
   public scene: Scene;
 
-  private camera: PerspectiveCamera | null = null;
   private mixer: AnimationMixer | null = null;
   private animationAsset: GLTF | null | undefined = null;
 
   private lights: Lights;
   private lookAt: Vector3;
   private floor: Mesh | null = null;
-  private orbitControls: OrbitControls;
+
+  public selectedPart: BodyPartTypes = "fullBody";
+  private cameraFocusMap: Map<string, Vector3> = new Map();
 
   constructor(
     private hdrURL: string,
@@ -56,22 +57,9 @@ export class AvatarRenderer {
     this.renderer.shadowMap.enabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
-    this.useHDRI(hdrURL);
+    this.useHDRI(this.hdrURL);
 
     this.lookAt = new Vector3().copy(this.scene.position).add(this.camOffset);
-
-    this.camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 400);
-    this.camera.position.set(-1, 1.3, 3);
-    this.camera.lookAt(this.lookAt);
-    this.camera.updateProjectionMatrix();
-
-    this.orbitControls = new OrbitControls(this.camera, this.renderer.domElement);
-    this.orbitControls.domElement = this.renderer.domElement;
-    this.orbitControls.enableDamping = true;
-    this.orbitControls.dampingFactor = 0.07;
-    this.orbitControls.minDistance = 0.0001;
-    this.orbitControls.maxDistance = 200;
-    this.orbitControls.update();
 
     // Floor
     this.floor = new Floor(this.floorSize).mesh;
@@ -88,10 +76,11 @@ export class AvatarRenderer {
   }
 
   public updateProjection(): void {
-    if (!this.camera || !this.renderer) return;
+    if (!this.renderer) return;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
+    if (this.cameraManager) {
+      this.cameraManager.updateAspect(window.innerWidth / window.innerHeight);
+    }
   }
 
   public useHDRI(url: string): void {
@@ -118,7 +107,63 @@ export class AvatarRenderer {
     );
   }
 
+  public setSelectedPart(part: BodyPartTypes) {
+    if (!this.cameraManager) return;
+    this.selectedPart = part;
+    if (this.cameraFocusMap.has(part)) {
+      this.cameraManager.setLerpedTarget(this.cameraFocusMap.get(part)!);
+      switch (part) {
+        case "fullBody": {
+          this.cameraManager.targetDistance = 2.5;
+          break;
+        }
+        case "head": {
+          this.cameraManager.targetDistance = 0.8;
+          break;
+        }
+        case "upperBody": {
+          this.cameraManager.targetDistance = 1.2;
+          break;
+        }
+        case "lowerBody": {
+          this.cameraManager.targetDistance = 1.3;
+          break;
+        }
+        case "feet": {
+          this.cameraManager.targetDistance = 0.9;
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+    }
+  }
+
   public async animateCharacter(model: Object3D) {
+    model.traverse((child) => {
+      if (child.type === "Bone") {
+        if (child.name === "head") {
+          this.cameraFocusMap.set("head", child.getWorldPosition(new Vector3()));
+        }
+        if (child.name === "spine_01") {
+          this.cameraFocusMap.set("fullBody", child.getWorldPosition(new Vector3()));
+        }
+        if (child.name === "spine_03") {
+          this.cameraFocusMap.set("upperBody", child.getWorldPosition(new Vector3()));
+        }
+        if (child.name === "pelvis") {
+          this.cameraFocusMap.set(
+            "lowerBody",
+            child.getWorldPosition(new Vector3()).sub(new Vector3(0.0, 0.35, 0.0)),
+          );
+          this.cameraFocusMap.set(
+            "feet",
+            child.getWorldPosition(new Vector3()).sub(new Vector3(0.0, 0.8, 0.0)),
+          );
+        }
+      }
+    });
     this.mixer = new AnimationMixer(model);
     if (this.animationAsset === null) {
       this.animationAsset = await this.modelLoader.load(this.idleAnimationURL);
@@ -132,7 +177,7 @@ export class AvatarRenderer {
   }
 
   public update(): void {
-    if (!this.scene || !this.camera || !this.renderer) return;
+    if (!this.scene || !this.renderer) return;
     this.timeManager.update();
     if (!this.canvasDiv) {
       const canvasDiv = document.getElementById("avatar-canvas-container");
@@ -140,10 +185,20 @@ export class AvatarRenderer {
         this.canvasDiv = canvasDiv as HTMLDivElement;
         this.canvasDiv.appendChild(this.renderer.domElement);
       }
+    } else if (this.cameraManager === null) {
+      this.cameraManager = new CameraManager(
+        this.canvasDiv,
+        new CollisionsManager(this.scene),
+        Math.PI / 2.3,
+        Math.PI / 2,
+      );
+      this.cameraManager.setLerpedTarget(new Vector3(0, 0.9, 0));
+      this.cameraManager.targetDistance = 2.1;
     }
-    this.renderer.render(this.scene, this.camera);
-    this.orbitControls.target = this.lookAt;
-    this.orbitControls.update();
+    if (this.cameraManager?.camera) {
+      this.cameraManager.update();
+      this.renderer.render(this.scene, this.cameraManager.camera);
+    }
     if (this.mixer) {
       this.mixer.setTime(this.timeManager.time);
       this.mixer.update(this.timeManager.smoothDeltaTime);

@@ -80,7 +80,7 @@ h1 {
   left: 12px;
   top: 12px;
   width: 170px;
-  height: calc(80vh - 100px);
+  height: calc(95vh - 100px);
   display: flex;
   flex-direction: column;
   justify-content: space-around;
@@ -89,19 +89,22 @@ h1 {
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.1);
   border-radius: 12px;
   overflow: hidden;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .modal {
   position: fixed;
   top: 50%;
-  left: 50%;
+  left: 300px;
   transform: translate(-50%, -50%);
   background-color: rgba(0, 0, 0, 0.8);
   padding: 20px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
   border-radius: 10px;
   z-index: 1000;
-  display: flex;
+  display: grid;
   flex-wrap: wrap;
   gap: 12px;
 }

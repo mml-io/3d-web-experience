@@ -1,9 +1,29 @@
 import { PerspectiveCamera, Raycaster, Vector3 } from "three";
 
-import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease, remap, clamp } from "../helpers/math-helpers";
-import { EventHandlerCollection } from "../input/EventHandlerCollection";
-import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
+export const round = (n: number, digits: number): number => {
+  return Number(n.toFixed(digits));
+};
+
+export const ease = (target: number, n: number, factor: number): number => {
+  return round((target - n) * factor, 5);
+};
+
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+export const remap = (
+  value: number,
+  minValue: number,
+  maxValue: number,
+  minScaledValue: number,
+  maxScaledValue: number,
+): number => {
+  return (
+    minScaledValue +
+    ((maxScaledValue - minScaledValue) * (value - minValue)) / (maxValue - minValue)
+  );
+};
 
 export class CameraManager {
   public readonly camera: PerspectiveCamera;
@@ -26,7 +46,6 @@ export class CameraManager {
 
   public targetDistance: number = this.initialDistance;
   private distance: number = this.initialDistance;
-  private desiredDistance: number = this.initialDistance;
 
   private targetPhi: number | null;
   private phi: number | null;
@@ -35,38 +54,19 @@ export class CameraManager {
   public dragging: boolean = false;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
+
   private hadTarget: boolean = false;
 
-  private rayCaster: Raycaster;
-
-  private eventHandlerCollection: EventHandlerCollection;
-
-  private isLerping: boolean = false;
-  private finalTarget: Vector3 = new Vector3();
-  private lerpTarget: Vector3 = new Vector3();
-
-  private lerpFactor: number = 0;
-  private lerpDuration: number = 2.1;
-
-  constructor(
-    targetElement: HTMLElement,
-    private collisionsManager: CollisionsManager,
-    initialPhi = Math.PI / 2,
-    initialTheta = -Math.PI / 2,
-  ) {
+  constructor(initialPhi = Math.PI / 2, initialTheta = -Math.PI / 2) {
     this.phi = initialPhi;
     this.targetPhi = initialPhi;
     this.theta = initialTheta;
     this.targetTheta = initialTheta;
     this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
-    this.rayCaster = new Raycaster();
-    this.eventHandlerCollection = EventHandlerCollection.create([
-      [targetElement, "mousedown", this.onMouseDown.bind(this)],
-      [document, "mouseup", this.onMouseUp.bind(this)],
-      [document, "mousemove", this.onMouseMove.bind(this)],
-      [targetElement, "wheel", this.onMouseWheel.bind(this)],
-    ]);
+    window.addEventListener("mousedown", this.onMouseDown.bind(this));
+    window.addEventListener("mouseup", this.onMouseUp.bind(this));
+    window.addEventListener("mousemove", this.onMouseMove.bind(this));
   }
 
   private onMouseDown(): void {
@@ -78,7 +78,7 @@ export class CameraManager {
   }
 
   private onMouseMove(event: MouseEvent): void {
-    if (!this.dragging || getTweakpaneActive()) return;
+    if (!this.dragging) return;
     if (this.targetTheta === null || this.targetPhi === null) return;
     this.targetTheta += event.movementX * 0.01;
     this.targetPhi -= event.movementY * 0.01;
@@ -93,28 +93,15 @@ export class CameraManager {
       this.minDistance,
       Math.min(this.maxDistance, this.targetDistance),
     );
-    this.desiredDistance = this.targetDistance;
     event.preventDefault();
   }
 
   public setTarget(target: Vector3): void {
-    if (!this.isLerping) {
-      this.target.copy(target);
-    } else {
-      this.finalTarget.copy(target);
-      this.lerpTarget.copy(this.target);
-      this.lerpFactor = 0;
-    }
-
+    this.target.copy(target);
     if (!this.hadTarget) {
       this.hadTarget = true;
       this.reverseUpdateFromPositions();
     }
-  }
-
-  public setLerpedTarget(target: Vector3): void {
-    this.isLerping = true;
-    this.setTarget(target);
   }
 
   private reverseUpdateFromPositions(): void {
@@ -130,41 +117,8 @@ export class CameraManager {
     this.distance = this.targetDistance;
   }
 
-  public adjustCameraPosition(): void {
-    this.rayCaster.set(
-      this.camera.position,
-      this.target.clone().sub(this.camera.position).normalize(),
-    );
-    const minimumDistance = this.collisionsManager.raycastFirstDistance(this.rayCaster.ray);
-    const cameraToPlayerDistance = this.camera.position.distanceTo(this.target);
-
-    if (minimumDistance !== null && minimumDistance <= cameraToPlayerDistance) {
-      this.targetDistance = cameraToPlayerDistance - minimumDistance;
-      this.distance = this.targetDistance;
-    } else {
-      this.targetDistance += (this.desiredDistance - this.targetDistance) * this.dampingFactor * 4;
-    }
-  }
-
-  public dispose() {
-    this.eventHandlerCollection.clear();
-  }
-
-  private easeOutExpo(x: number): number {
-    return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
-  }
-
-  public updateAspect(aspect: number): void {
-    this.camera.aspect = aspect;
-  }
-
   public update(): void {
-    if (this.isLerping && this.lerpFactor < 1) {
-      this.lerpFactor += 0.01 / this.lerpDuration;
-      this.lerpFactor = Math.min(1, this.lerpFactor);
-      this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor));
-    }
-
+    if (this.target === null) return;
     if (
       this.phi !== null &&
       this.targetPhi !== null &&
@@ -186,16 +140,14 @@ export class CameraManager {
         this.minFOV,
         this.maxFOV,
       );
-      this.fov += (this.targetFOV - this.fov) * this.dampingFactor;
+
+      this.fov += ease(this.targetFOV, this.fov, 0.07);
       this.camera.fov = this.fov;
       this.camera.updateProjectionMatrix();
+      this.camera.updateMatrixWorld();
 
-      this.camera.position.set(x, y, z);
+      this.camera.position.set(x, clamp(y, 0.1, Infinity), z);
       this.camera.lookAt(this.target);
-
-      if (this.isLerping && this.lerpFactor >= 1) {
-        this.isLerping = false;
-      }
     }
   }
 }
