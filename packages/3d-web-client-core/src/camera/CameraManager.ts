@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Raycaster, Vector3 } from "three";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease, remap, clamp } from "../helpers/math-helpers";
+import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
