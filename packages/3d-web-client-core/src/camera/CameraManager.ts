@@ -196,6 +196,7 @@ export class CameraManager {
       if (this.isLerping && this.lerpFactor >= 1) {
         this.isLerping = false;
       }
+      this.adjustCameraPosition();
     }
   }
 }
