@@ -163,6 +163,8 @@ export class CameraManager {
       this.lerpFactor += 0.01 / this.lerpDuration;
       this.lerpFactor = Math.min(1, this.lerpFactor);
       this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor));
+    } else {
+      this.adjustCameraPosition();
     }
 
     if (
@@ -196,7 +198,6 @@ export class CameraManager {
       if (this.isLerping && this.lerpFactor >= 1) {
         this.isLerping = false;
       }
-      this.adjustCameraPosition();
     }
   }
 }
