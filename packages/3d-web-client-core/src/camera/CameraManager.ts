@@ -47,6 +47,7 @@ export class CameraManager {
 
   private lerpFactor: number = 0;
   private lerpDuration: number = 2.1;
+  private fixedOnTarget: boolean = false;
 
   constructor(
     targetElement: HTMLElement,
@@ -79,6 +80,7 @@ export class CameraManager {
 
   private onMouseMove(event: MouseEvent): void {
     if (!this.dragging || getTweakpaneActive()) return;
+    this.fixedOnTarget = false;
     if (this.targetTheta === null || this.targetPhi === null) return;
     this.targetTheta += event.movementX * 0.01;
     this.targetPhi -= event.movementY * 0.01;
@@ -87,6 +89,7 @@ export class CameraManager {
   }
 
   private onMouseWheel(event: WheelEvent): void {
+    this.fixedOnTarget = false;
     const scrollAmount = event.deltaY * 0.001;
     this.targetDistance += scrollAmount;
     this.targetDistance = Math.max(
@@ -114,6 +117,7 @@ export class CameraManager {
 
   public setLerpedTarget(target: Vector3): void {
     this.isLerping = true;
+    this.fixedOnTarget = true;
     this.setTarget(target);
   }
 
@@ -163,7 +167,7 @@ export class CameraManager {
       this.lerpFactor += 0.01 / this.lerpDuration;
       this.lerpFactor = Math.min(1, this.lerpFactor);
       this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor));
-    } else {
+    } else if (!this.fixedOnTarget) {
       this.adjustCameraPosition();
     }
 
