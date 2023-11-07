@@ -20,7 +20,7 @@
   "dependencies": {
     "@tweakpane/core": "2.0.0",
     "@tweakpane/plugin-essentials": "0.2.0",
-    "mml-web": "0.9.0",
+    "mml-web": "0.10.0",
     "n8ao": "^1.6.8",
     "postprocessing": "6.33.0",
     "three-mesh-bvh": "0.6.4",

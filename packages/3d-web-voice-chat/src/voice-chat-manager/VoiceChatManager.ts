@@ -1,6 +1,6 @@
 import { CharacterState } from "@mml-io/3d-web-client-core/src";
 import VoxeetSDK from "@voxeet/voxeet-web-sdk";
-import Conference from "@voxeet/voxeet-web-sdk/types/models/Conference";
+import type Conference from "@voxeet/voxeet-web-sdk/types/models/Conference";
 import type { SpatialAudioStyle } from "@voxeet/voxeet-web-sdk/types/models/SpatialAudio";
 
 import { VoiceChatUI } from "../chat-ui/components/voice-chat-ui";
