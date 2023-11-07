@@ -8,6 +8,7 @@ import {
   PositionAndRotation,
   PromptManager,
   PromptProps,
+  ChatProbe,
 } from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
@@ -20,6 +21,7 @@ export class MMLCompositionScene {
   private readonly promptManager: PromptManager;
   private readonly interactionManager: InteractionManager;
   private readonly interactionListener: InteractionListener;
+  private readonly chatProbes = new Set<ChatProbe>();
   private readonly clickTrigger: MMLClickTrigger;
 
   constructor(
@@ -67,12 +69,27 @@ export class MMLCompositionScene {
       removeInteraction: (interaction: Interaction) => {
         this.interactionListener.removeInteraction(interaction);
       },
+      addChatProbe: (chatProbe: ChatProbe) => {
+        this.chatProbes.add(chatProbe);
+      },
+      updateChatProbe: () => {
+        // no-op
+      },
+      removeChatProbe: (chatProbe: ChatProbe) => {
+        this.chatProbes.delete(chatProbe);
+      },
       prompt: (promptProps: PromptProps, callback: (message: string | null) => void) => {
         this.promptManager.prompt(promptProps, callback);
       },
     };
 
     this.clickTrigger = MMLClickTrigger.init(targetElement, this.mmlScene as IMMLScene);
+  }
+
+  onChatMessage(message: string) {
+    for (const chatProbe of this.chatProbes) {
+      chatProbe.trigger(message);
+    }
   }
 
   dispose() {

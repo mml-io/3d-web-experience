@@ -55,6 +55,7 @@ export class App {
   private readonly characterManager: CharacterManager;
   private readonly cameraManager: CameraManager;
   private readonly collisionsManager = new CollisionsManager(this.scene);
+  private readonly mmlCompositionScene: MMLCompositionScene;
   private readonly networkClient: UserNetworkingClient;
   private readonly remoteUserStates = new Map<number, CharacterState>();
 
@@ -149,7 +150,7 @@ export class App {
     );
     this.scene.add(this.characterManager.group);
 
-    const mmlCompositionScene = new MMLCompositionScene(
+    this.mmlCompositionScene = new MMLCompositionScene(
       composerHolderElement,
       this.composer.renderer,
       this.scene,
@@ -160,8 +161,8 @@ export class App {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
     );
-    this.scene.add(mmlCompositionScene.group);
-    setGlobalMMLScene(mmlCompositionScene.mmlScene as IMMLScene);
+    this.scene.add(this.mmlCompositionScene.group);
+    setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
 
     const documentAddresses = [`${protocol}//${host}/mml-documents/example-mml.html`];
     for (const address of documentAddresses) {
@@ -176,6 +177,7 @@ export class App {
   }
 
   private sendMessageToServer(message: string): void {
+    this.mmlCompositionScene.onChatMessage(message);
     if (this.clientId === null || this.networkChat === null) return;
     const chatMessage: FromClientChatMessage = {
       type: "chat",
