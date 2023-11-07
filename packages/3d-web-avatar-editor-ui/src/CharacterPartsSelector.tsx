@@ -4,11 +4,13 @@ import { AssetDescription, BodyPartTypes, CharacterComposition, CollectionDataTy
 
 type CharacterPartsSelectorProps = {
   collectionData: CollectionDataType;
+  onSelectingPart: (part: BodyPartTypes) => void;
   onComposedCharacter: (characterParts: CharacterComposition) => void;
 };
 
 export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
   collectionData,
+  onSelectingPart,
   onComposedCharacter,
 }) => {
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes | null>(null);
@@ -51,6 +53,7 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
   ]);
 
   const handleThumbnailClick = (part: BodyPartTypes) => {
+    onSelectingPart(part);
     setSelectedPart(part);
   };
 

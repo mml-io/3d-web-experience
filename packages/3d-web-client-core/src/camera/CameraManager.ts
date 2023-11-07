@@ -1,7 +1,7 @@
 import { PerspectiveCamera, Raycaster, Vector3 } from "three";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease, remap, clamp } from "../helpers/math-helpers";
+import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
@@ -35,12 +35,19 @@ export class CameraManager {
   public dragging: boolean = false;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
-
   private hadTarget: boolean = false;
 
   private rayCaster: Raycaster;
 
   private eventHandlerCollection: EventHandlerCollection;
+
+  private isLerping: boolean = false;
+  private finalTarget: Vector3 = new Vector3();
+  private lerpTarget: Vector3 = new Vector3();
+
+  private lerpFactor: number = 0;
+  private lerpDuration: number = 2.1;
+  private fixedOnTarget: boolean = false;
 
   constructor(
     targetElement: HTMLElement,
@@ -54,9 +61,7 @@ export class CameraManager {
     this.targetTheta = initialTheta;
     this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
-
     this.rayCaster = new Raycaster();
-
     this.eventHandlerCollection = EventHandlerCollection.create([
       [targetElement, "mousedown", this.onMouseDown.bind(this)],
       [document, "mouseup", this.onMouseUp.bind(this)],
@@ -75,6 +80,7 @@ export class CameraManager {
 
   private onMouseMove(event: MouseEvent): void {
     if (!this.dragging || getTweakpaneActive()) return;
+    this.fixedOnTarget = false;
     if (this.targetTheta === null || this.targetPhi === null) return;
     this.targetTheta += event.movementX * 0.01;
     this.targetPhi -= event.movementY * 0.01;
@@ -83,6 +89,7 @@ export class CameraManager {
   }
 
   private onMouseWheel(event: WheelEvent): void {
+    this.fixedOnTarget = false;
     const scrollAmount = event.deltaY * 0.001;
     this.targetDistance += scrollAmount;
     this.targetDistance = Math.max(
@@ -94,11 +101,24 @@ export class CameraManager {
   }
 
   public setTarget(target: Vector3): void {
-    this.target.copy(target);
+    if (!this.isLerping) {
+      this.target.copy(target);
+    } else {
+      this.finalTarget.copy(target);
+      this.lerpTarget.copy(this.target);
+      this.lerpFactor = 0;
+    }
+
     if (!this.hadTarget) {
       this.hadTarget = true;
       this.reverseUpdateFromPositions();
     }
+  }
+
+  public setLerpedTarget(target: Vector3): void {
+    this.isLerping = true;
+    this.fixedOnTarget = true;
+    this.setTarget(target);
   }
 
   private reverseUpdateFromPositions(): void {
@@ -134,8 +154,23 @@ export class CameraManager {
     this.eventHandlerCollection.clear();
   }
 
+  private easeOutExpo(x: number): number {
+    return x === 1 ? 1 : 1 - Math.pow(2, -10 * x);
+  }
+
+  public updateAspect(aspect: number): void {
+    this.camera.aspect = aspect;
+  }
+
   public update(): void {
-    if (this.target === null) return;
+    if (this.isLerping && this.lerpFactor < 1) {
+      this.lerpFactor += 0.01 / this.lerpDuration;
+      this.lerpFactor = Math.min(1, this.lerpFactor);
+      this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor));
+    } else if (!this.fixedOnTarget) {
+      this.adjustCameraPosition();
+    }
+
     if (
       this.phi !== null &&
       this.targetPhi !== null &&
@@ -157,17 +192,16 @@ export class CameraManager {
         this.minFOV,
         this.maxFOV,
       );
-
-      this.fov += ease(this.targetFOV, this.fov, 0.07);
+      this.fov += (this.targetFOV - this.fov) * this.dampingFactor;
       this.camera.fov = this.fov;
       this.camera.updateProjectionMatrix();
-      this.camera.updateMatrixWorld();
 
-      this.camera.position.set(x, clamp(y, 0.1, Infinity), z);
-
-      this.adjustCameraPosition();
-
+      this.camera.position.set(x, y, z);
       this.camera.lookAt(this.target);
+
+      if (this.isLerping && this.lerpFactor >= 1) {
+        this.isLerping = false;
+      }
     }
   }
 }
