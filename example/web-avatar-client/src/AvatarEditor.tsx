@@ -14,15 +14,6 @@ import hdrURL from "../../assets/hdr/industrial_sunset_2k.hdr";
 
 type BodyPartTypes = "fullBody" | "head" | "upperBody" | "lowerBody" | "feet";
 
-export type MMLCharacterDescriptionPart = {
-  url: string;
-};
-
-export type MMLCharacterDescription = {
-  base: MMLCharacterDescriptionPart;
-  parts: MMLCharacterDescriptionPart[];
-};
-
 const partToCameraOffset = new Map<
   BodyPartTypes,
   {
