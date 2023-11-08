@@ -24,12 +24,8 @@ class CachedGLTFLoader extends ThreeGLTFLoader {
     onError?: ((event: ErrorEvent) => void) | undefined,
   ): void {
     const blobUrl = this.getBlobUrl(url);
-    if (blobUrl) {
-      console.log(`Loading cached ${url.split("/").pop()}`);
-      super.load(blobUrl, onLoad, onProgress, onError);
-    } else {
-      super.load(url, onLoad, onProgress, onError);
-    }
+    const effectiveUrl = blobUrl || url;
+    super.load(effectiveUrl, onLoad, onProgress, onError);
   }
 }
 
@@ -62,7 +58,6 @@ class LRUCache<K, V> {
 
 interface CachedModel {
   blob: Blob;
-  originalExtension: string;
 }
 
 export class ModelLoader {
@@ -90,9 +85,10 @@ export class ModelLoader {
     const cachedModel = this.modelCache.get(fileUrl);
 
     if (cachedModel) {
+      console.log(`Loading ${fileUrl.split("/").pop()} from cache`);
       const blobURL = URL.createObjectURL(cachedModel.blob);
       this.gltfLoader.setBlobUrl(fileUrl, blobURL);
-      return this.loadFromUrl(fileUrl, cachedModel.originalExtension);
+      return this.loadFromUrl(blobURL);
     } else {
       console.log(`Loading ${fileUrl} from server`);
       const ongoingLoad = this.ongoingLoads.get(fileUrl);
@@ -101,11 +97,10 @@ export class ModelLoader {
       const loadPromise = fetch(fileUrl)
         .then((response) => response.blob())
         .then((blob) => {
-          const originalExtension = fileUrl.split(".").pop() || "";
-          this.modelCache.set(fileUrl, { blob, originalExtension });
+          this.modelCache.set(fileUrl, { blob });
           const blobURL = URL.createObjectURL(blob);
           this.ongoingLoads.delete(fileUrl);
-          return this.loadFromUrl(blobURL, originalExtension);
+          return this.loadFromUrl(blobURL);
         });
 
       this.ongoingLoads.set(fileUrl, loadPromise);
@@ -113,23 +108,19 @@ export class ModelLoader {
     }
   }
 
-  private async loadFromUrl(url: string, extension: string): Promise<GLTF | undefined> {
-    if (["gltf", "glb"].includes(extension)) {
-      return new Promise((resolve, reject) => {
-        this.gltfLoader.load(
-          url,
-          (object: GLTF) => {
-            resolve(object);
-          },
-          undefined,
-          (error) => {
-            console.error(`Error loading GL(B|TF) from ${url}: ${error}`);
-            reject(error);
-          },
-        );
-      });
-    } else {
-      console.error(`Error: can't recognize ${url} extension: ${extension}`);
-    }
+  private async loadFromUrl(url: string): Promise<GLTF | undefined> {
+    return new Promise((resolve, reject) => {
+      this.gltfLoader.load(
+        url,
+        (object: GLTF) => {
+          resolve(object);
+        },
+        undefined,
+        (error) => {
+          console.error(`Error loading model from ${url}: ${error}`);
+          reject(error);
+        },
+      );
+    });
   }
 }
