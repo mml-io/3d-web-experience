@@ -1,5 +1,4 @@
 import { ModelLoader } from "@mml-io/3d-web-avatar";
-import { BodyPartTypes } from "@mml-io/3d-web-avatar-editor-ui";
 import { TimeManager, CameraManager, CollisionsManager } from "@mml-io/3d-web-client-core";
 import {
   AnimationMixer,
@@ -40,11 +39,10 @@ export class AvatarRenderer {
   private animationAsset: GLTF | null | undefined = null;
 
   private lights: Lights;
-  private lookAt: Vector3;
   private floor: Mesh | null = null;
 
-  public selectedPart: BodyPartTypes = "fullBody";
-  private cameraFocusMap: Map<string, Vector3> = new Map();
+  public cameraTargetOffset: { x?: number; y?: number; z?: number } = {};
+  public cameraTargetDistance: number = 0;
 
   constructor(
     private hdrURL: string,
@@ -58,8 +56,6 @@ export class AvatarRenderer {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
 
     this.useHDRI(this.hdrURL);
-
-    this.lookAt = new Vector3().copy(this.scene.position).add(this.camOffset);
 
     // Floor
     this.floor = new Floor(this.floorSize).mesh;
@@ -107,63 +103,20 @@ export class AvatarRenderer {
     );
   }
 
-  public setSelectedPart(part: BodyPartTypes) {
+  public setDistanceAndOffset(
+    cameraTargetOffset: { x?: number; y?: number; z?: number },
+    cameraTargetDistance: number,
+  ) {
     if (!this.cameraManager) return;
-    this.selectedPart = part;
-    if (this.cameraFocusMap.has(part)) {
-      this.cameraManager.setLerpedTarget(this.cameraFocusMap.get(part)!);
-      switch (part) {
-        case "fullBody": {
-          this.cameraManager.targetDistance = 2.5;
-          break;
-        }
-        case "head": {
-          this.cameraManager.targetDistance = 0.8;
-          break;
-        }
-        case "upperBody": {
-          this.cameraManager.targetDistance = 1.2;
-          break;
-        }
-        case "lowerBody": {
-          this.cameraManager.targetDistance = 1.3;
-          break;
-        }
-        case "feet": {
-          this.cameraManager.targetDistance = 0.9;
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-    }
+    this.cameraTargetOffset = cameraTargetOffset;
+    this.cameraTargetDistance = cameraTargetDistance;
+    this.cameraManager.setLerpedTarget(
+      new Vector3(this.cameraTargetOffset.x, this.cameraTargetOffset.y, this.cameraTargetOffset.z),
+      this.cameraTargetDistance,
+    );
   }
 
   public async animateCharacter(model: Object3D) {
-    model.traverse((child) => {
-      if (child.type === "Bone") {
-        if (child.name === "head") {
-          this.cameraFocusMap.set("head", child.getWorldPosition(new Vector3()));
-        }
-        if (child.name === "spine_01") {
-          this.cameraFocusMap.set("fullBody", child.getWorldPosition(new Vector3()));
-        }
-        if (child.name === "spine_03") {
-          this.cameraFocusMap.set("upperBody", child.getWorldPosition(new Vector3()));
-        }
-        if (child.name === "pelvis") {
-          this.cameraFocusMap.set(
-            "lowerBody",
-            child.getWorldPosition(new Vector3()).sub(new Vector3(0.0, 0.35, 0.0)),
-          );
-          this.cameraFocusMap.set(
-            "feet",
-            child.getWorldPosition(new Vector3()).sub(new Vector3(0.0, 0.8, 0.0)),
-          );
-        }
-      }
-    });
     this.mixer = new AnimationMixer(model);
     if (this.animationAsset === null) {
       this.animationAsset = await this.modelLoader.load(this.idleAnimationURL);
@@ -192,8 +145,7 @@ export class AvatarRenderer {
         Math.PI / 2.3,
         Math.PI / 2,
       );
-      this.cameraManager.setLerpedTarget(new Vector3(0, 0.9, 0));
-      this.cameraManager.targetDistance = 2.1;
+      this.cameraManager.setLerpedTarget(new Vector3(0, 0.9, 0), 2.1);
     }
     if (this.cameraManager?.camera) {
       this.cameraManager.update();

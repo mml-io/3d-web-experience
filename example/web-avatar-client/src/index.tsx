@@ -7,7 +7,6 @@ import collectionData from "./collection.json";
 
 class App {
   root: Root;
-
   constructor() {
     this.init();
   }
