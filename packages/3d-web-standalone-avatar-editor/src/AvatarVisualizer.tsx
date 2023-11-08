@@ -1,4 +1,3 @@
-import { BodyPartTypes } from "@mml-io/3d-web-avatar-editor-ui";
 import React, { useCallback, useEffect, useRef } from "react";
 import { Object3D } from "three";
 
@@ -8,14 +7,26 @@ type AvatarVisualizerProps = {
   characterMesh: Object3D;
   hdrURL: string;
   idleAnimationURL: string;
-  selectedPart: BodyPartTypes;
+  cameraTargetOffset: {
+    x?: number;
+    y?: number;
+    z?: number;
+  };
+  cameraTargetDistance: number;
 };
+
+export type XYZ = { x?: number; y?: number; z?: number };
+
+function isXYZEqual(a: XYZ, b: XYZ) {
+  return a.x === b.x && a.y === b.y && a.z === b.z;
+}
 
 export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
   characterMesh,
   hdrURL,
   idleAnimationURL,
-  selectedPart,
+  cameraTargetOffset,
+  cameraTargetDistance,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizerRef = useRef<AvatarRenderer | null>(null);
@@ -34,11 +45,14 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
 
   useEffect(() => {
     if (visualizerRef.current) {
-      if (visualizerRef.current.selectedPart !== selectedPart) {
-        visualizerRef.current.setSelectedPart(selectedPart);
+      if (
+        isXYZEqual(visualizerRef.current.cameraTargetOffset, cameraTargetOffset) ||
+        visualizerRef.current.cameraTargetDistance !== cameraTargetDistance
+      ) {
+        visualizerRef.current.setDistanceAndOffset(cameraTargetOffset, cameraTargetDistance);
       }
     }
-  }, [selectedPart]);
+  }, [cameraTargetOffset, cameraTargetDistance]);
 
   useEffect(() => {
     const visualizer = visualizerRef.current;

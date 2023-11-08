@@ -1,63 +1,66 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import { AssetDescription, BodyPartTypes, CharacterComposition, CollectionDataType } from "./types";
+import { AssetDescription, CharacterComposition, CollectionDataType } from "./types";
 
-type CharacterPartsSelectorProps = {
-  collectionData: CollectionDataType;
-  onSelectingPart: (part: BodyPartTypes) => void;
-  onComposedCharacter: (characterParts: CharacterComposition) => void;
+type CharacterPartsSelectorProps<C extends CollectionDataType> = {
+  collectionData: C;
+  fullBodyKey: keyof C;
+  onSelectingPart: (part: keyof C) => void;
+  onComposedCharacter: (characterComposition: CharacterComposition<C>) => void;
 };
 
-export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
+export function CharacterPartsSelector<C extends CollectionDataType>({
   collectionData,
+  fullBodyKey,
   onSelectingPart,
   onComposedCharacter,
-}) => {
-  const [selectedPart, setSelectedPart] = useState<BodyPartTypes | null>(null);
-  const [currentSelection, setCurrentSelection] = useState({
-    fullBody: collectionData.fullBody[0],
-    head: collectionData.head[0],
-    upperBody: collectionData.upperBody[0],
-    lowerBody: collectionData.lowerBody[0],
-    feet: collectionData.feet[0],
-  });
+}: CharacterPartsSelectorProps<C>) {
+  const [selectedPart, setSelectedPart] = useState<string | null>(null);
+  const [currentSelection, setCurrentSelection] = useState<Record<keyof C, AssetDescription>>(() =>
+    Object.entries(collectionData).reduce<Record<keyof C, AssetDescription>>(
+      (
+        acc: Record<keyof C, AssetDescription>,
+        [key, asset]: [keyof C, Array<AssetDescription>],
+      ) => {
+        acc[key] = asset[0];
+        return acc;
+      },
+      {} as Record<keyof C, AssetDescription>,
+    ),
+  );
 
   const createMMLDescription = useCallback(() => {
-    const description = `<m-character src="${currentSelection.fullBody.asset}">
-  <m-model src="${currentSelection.head.asset}"></m-model>
-  <m-model src="${currentSelection.upperBody.asset}"></m-model>
-  <m-model src="${currentSelection.lowerBody.asset}"></m-model>
-  <m-model src="${currentSelection.feet.asset}"></m-model>
+    const fullBody = currentSelection[fullBodyKey];
+    const remainingParts = Object.entries(currentSelection).filter(([key]) => key !== fullBodyKey);
+    const description = `<m-character src="${fullBody}">
+${remainingParts.map(([key, asset]) => `<m-model src="${asset.asset}"></m-model>`).join("\n")}
 </m-character>
     `;
     console.log(description);
-  }, [currentSelection]);
+  }, [currentSelection, fullBodyKey]);
 
   useEffect(() => {
+    const fullBody = currentSelection[fullBodyKey];
+    const remainingParts = Object.entries(currentSelection).filter(([key]) => key !== fullBodyKey);
     onComposedCharacter({
-      fullBody: currentSelection.fullBody,
-      head: currentSelection.head,
-      upperBody: currentSelection.upperBody,
-      lowerBody: currentSelection.lowerBody,
-      feet: currentSelection.feet,
+      fullBody: { url: fullBody.asset },
+      parts: remainingParts.reduce(
+        (accParts: Record<keyof C, { url: string }>, [key, asset]: [keyof C, AssetDescription]) => {
+          accParts[key] = { url: asset.asset };
+          return accParts;
+        },
+        {} as Record<keyof C, { url: string }>,
+      ),
     });
     createMMLDescription();
-  }, [
-    onComposedCharacter,
-    currentSelection.fullBody,
-    currentSelection.head,
-    currentSelection.upperBody,
-    currentSelection.lowerBody,
-    currentSelection.feet,
-    createMMLDescription,
-  ]);
+  }, [onComposedCharacter, fullBodyKey, currentSelection, createMMLDescription]);
 
-  const handleThumbnailClick = (part: BodyPartTypes) => {
+  const handleThumbnailClick = (part: string) => {
     onSelectingPart(part);
     setSelectedPart(part);
   };
 
-  const handleModalThumbnailClick = (part: BodyPartTypes, item: AssetDescription) => {
+  const handleModalThumbnailClick = (part: string, item: AssetDescription) => {
     const selectedData = item;
     setCurrentSelection((prev) => ({ ...prev, [part]: selectedData }));
     createMMLDescription();
@@ -67,12 +70,12 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
   const renderThumbnails = () => {
     return (
       <div className="left-thumbnails">
-        {["fullBody", "head", "upperBody", "lowerBody", "feet"].map((part) => (
+        {Object.keys(collectionData).map((part) => (
           <img
             key={part}
-            src={currentSelection[part as BodyPartTypes].thumb}
+            src={currentSelection[part].thumb}
             alt={part}
-            onClick={() => handleThumbnailClick(part as BodyPartTypes)}
+            onClick={() => handleThumbnailClick(part as string)}
           />
         ))}
       </div>
@@ -103,6 +106,6 @@ export const CharacterPartsSelector: React.FC<CharacterPartsSelectorProps> = ({
       {renderModal()}
     </div>
   );
-};
+}
 
 export default CharacterPartsSelector;
