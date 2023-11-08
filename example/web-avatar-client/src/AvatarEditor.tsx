@@ -14,6 +14,15 @@ import hdrURL from "../../assets/hdr/industrial_sunset_2k.hdr";
 
 type BodyPartTypes = "fullBody" | "head" | "upperBody" | "lowerBody" | "feet";
 
+export type MMLCharacterDescriptionPart = {
+  url: string;
+};
+
+export type MMLCharacterDescription = {
+  base: MMLCharacterDescriptionPart;
+  parts: MMLCharacterDescriptionPart[];
+};
+
 const partToCameraOffset = new Map<
   BodyPartTypes,
   {
@@ -28,10 +37,19 @@ const partToCameraOffset = new Map<
   ["upperBody", { offset: { x: 0, y: 1.199837285184325, z: 0 }, targetDistance: 1.2 }],
 ]);
 
-export function AvatarEditor<C extends CollectionDataType>(props: { collectionData: C }) {
+export function AvatarEditor<C extends CollectionDataType>(props: {
+  collectionData: C;
+  currentCharacter: MMLCharacterDescription | null;
+}) {
   const [characterMesh, setCharacterMesh] = React.useState<Object3D | null>(null);
   const [character] = React.useState(new Character(new ModelLoader()));
   const [selectedPart, setSelectedPart] = React.useState<BodyPartTypes>("fullBody");
+  const hasCurrentCharacter = props.currentCharacter !== null;
+
+  if (hasCurrentCharacter) {
+    console.log("Editor has a current character description");
+    console.dir(props.currentCharacter);
+  }
 
   const onComposedCharacter = React.useCallback(
     async (characterParts: CharacterComposition<C>) => {
