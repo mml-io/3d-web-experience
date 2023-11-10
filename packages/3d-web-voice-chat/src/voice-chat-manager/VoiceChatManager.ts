@@ -1,4 +1,4 @@
-import { CharacterState } from "@mml-io/3d-web-client-core/src";
+import { CharacterState } from "@mml-io/3d-web-client-core";
 import VoxeetSDK from "@voxeet/voxeet-web-sdk";
 import type Conference from "@voxeet/voxeet-web-sdk/types/models/Conference";
 import type { SpatialAudioStyle } from "@voxeet/voxeet-web-sdk/types/models/SpatialAudio";
