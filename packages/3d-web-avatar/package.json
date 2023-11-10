@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-avatar",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "publishConfig": {
     "access": "public"
   },
@@ -24,10 +24,10 @@
     "three": "0.153.0"
   },
   "devDependencies": {
-    "esbuild-css-modules-plugin": "3.0.1",
+    "@types/node": "^20.5.9",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
-    "@types/node": "^20.5.9",
-    "@types/three": "0.153.0"
+    "@types/three": "0.153.0",
+    "esbuild-css-modules-plugin": "3.0.1"
   }
 }
