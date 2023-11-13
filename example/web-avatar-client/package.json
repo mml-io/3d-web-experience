@@ -11,7 +11,8 @@
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
-    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "jest"
   },
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.9.0",

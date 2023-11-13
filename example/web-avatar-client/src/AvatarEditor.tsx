@@ -6,11 +6,14 @@ import {
   ModelLoader,
   CharacterComposition,
 } from "@mml-io/3d-web-standalone-avatar-editor";
-import React from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Object3D } from "three";
 
 import idleAnimationURL from "../../assets/avatar/anims/AS_Andor_Stand_Idle.glb";
 import hdrURL from "../../assets/hdr/industrial_sunset_2k.hdr";
+
+import { findAssetsInCollection } from "./findAssetsInCollection";
+import { LoadingErrors } from "./parseMMLDescription";
 
 type BodyPartTypes = "fullBody" | "head" | "upperBody" | "lowerBody" | "feet";
 
@@ -40,18 +43,36 @@ const partToCameraOffset = new Map<
 export function AvatarEditor<C extends CollectionDataType>(props: {
   collectionData: C;
   currentCharacter: MMLCharacterDescription | null;
+  loadingErrors: LoadingErrors | null;
 }) {
-  const [characterMesh, setCharacterMesh] = React.useState<Object3D | null>(null);
-  const [character] = React.useState(new Character(new ModelLoader()));
-  const [selectedPart, setSelectedPart] = React.useState<BodyPartTypes>("fullBody");
+  const [characterMesh, setCharacterMesh] = useState<Object3D | null>(null);
+  const [character] = useState(new Character(new ModelLoader()));
+  const [selectedPart, setSelectedPart] = useState<BodyPartTypes>("fullBody");
+  const [errors, setErrors] = useState(props.loadingErrors);
+
+  const [showErrors, setShowErrors] = useState<boolean>(true);
   const hasCurrentCharacter = props.currentCharacter !== null;
 
-  if (hasCurrentCharacter) {
-    console.log("Editor has a current character description");
-    console.dir(props.currentCharacter);
-  }
+  const handleCloseErrors = () => setShowErrors(false);
 
-  const onComposedCharacter = React.useCallback(
+  const checkAgainstCollection = useCallback(
+    (collectionData: C, currentCharacter: MMLCharacterDescription) => {
+      const { hasBase, hasParts, accumulatedErrors } = findAssetsInCollection(
+        collectionData,
+        currentCharacter,
+        errors,
+      );
+      // Set the errors state once with all accumulated errors
+      if (accumulatedErrors.length > (errors || []).length) {
+        setErrors(accumulatedErrors);
+      }
+
+      return hasBase && hasParts;
+    },
+    [errors],
+  );
+
+  const onComposedCharacter = useCallback(
     async (characterParts: CharacterComposition<C>) => {
       const { fullBody, parts } = characterParts;
 
@@ -72,7 +93,42 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
     }
   };
 
+  useEffect(() => {
+    if (hasCurrentCharacter && props.currentCharacter) {
+      const assetsExist = checkAgainstCollection(props.collectionData, props.currentCharacter);
+      if (assetsExist) {
+        console.log("here! we have a current character!");
+
+        const characterComposition: CharacterComposition<C> = {
+          fullBody: props.currentCharacter.base,
+          parts: props.currentCharacter.parts.reduce(
+            (acc, part) => {
+              const partKey = Object.keys(props.collectionData).find((key) =>
+                props.collectionData[key].some((asset) => asset.asset === part.url),
+              );
+              if (partKey) {
+                acc[partKey as keyof C] = { url: part.url };
+              }
+              return acc;
+            },
+            {} as Record<keyof C, { url: string }>,
+          ),
+        };
+
+        onComposedCharacter(characterComposition);
+      }
+    }
+  }, [
+    props.collectionData,
+    props.currentCharacter,
+    hasCurrentCharacter,
+    onComposedCharacter,
+    checkAgainstCollection,
+  ]);
+
   const partEntry = partToCameraOffset.get(selectedPart)!;
+
+  const hasErrorsToShow = errors && errors.length > 0 && showErrors;
 
   return (
     <>
@@ -90,6 +146,18 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
           cameraTargetDistance={partEntry.targetDistance}
           cameraTargetOffset={partEntry.offset}
         />
+      )}
+      {hasErrorsToShow && (
+        <div id="loading_errors" className="avatar-loading-errors">
+          <button onClick={handleCloseErrors} className="close-errors">
+            X
+          </button>
+          <ul>
+            {errors.map((error, idx) => (
+              <li key={idx}>{error}</li>
+            ))}
+          </ul>
+        </div>
       )}
     </>
   );

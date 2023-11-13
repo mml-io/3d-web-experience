@@ -1,11 +1,22 @@
 import { MMLCharacterDescription, MMLCharacterDescriptionPart } from "./AvatarEditor";
 
-export const parseMMLDescription = (mmlDescription: string): MMLCharacterDescription => {
+export type LoadingErrors = string[];
+
+export const parseMMLDescription = (
+  mmlDescription: string,
+): [MMLCharacterDescription, LoadingErrors] => {
   const parser: DOMParser = new DOMParser();
   const doc = parser.parseFromString(mmlDescription, "text/html");
 
   const tag = (count: number) => {
     return count > 1 ? "tags" : "tag";
+  };
+
+  const errors: string[] = [];
+
+  const warn = (errorMessage: string) => {
+    errors.push(errorMessage);
+    console.warn(errorMessage);
   };
 
   const characters = Array.from(doc.body.children).filter(
@@ -15,7 +26,7 @@ export const parseMMLDescription = (mmlDescription: string): MMLCharacterDescrip
 
   if (characters.length > 0) {
     const tagStr = tag(characters.length);
-    console.warn(
+    warn(
       `ignoring ${characters.length} extra <m-character> ${tagStr} found in the root of the document (only the first one is valid).`,
     );
   }
@@ -23,7 +34,7 @@ export const parseMMLDescription = (mmlDescription: string): MMLCharacterDescrip
   const nestedCharacters = doc.querySelectorAll("body * m-character");
   if (nestedCharacters.length > 0) {
     const tagStr = tag(nestedCharacters.length);
-    console.warn(
+    warn(
       `ignoring ${nestedCharacters.length} nested <m-character> ${tagStr} found within other tags. A valid <m-character> tag must be at the root of the document.`,
     );
   }
@@ -33,7 +44,7 @@ export const parseMMLDescription = (mmlDescription: string): MMLCharacterDescrip
   );
   if (rootModels.length > 0) {
     const tagStr = tag(rootModels.length);
-    console.warn(
+    warn(
       `ignoring ${rootModels.length} <m-model> ${tagStr} were found at the root of the document (<m-model> tags must be children of a valid <m-character> tag).`,
     );
   }
@@ -58,12 +69,12 @@ export const parseMMLDescription = (mmlDescription: string): MMLCharacterDescrip
     );
     if (wrappedModelTags.length > 0) {
       const tagStr = tag(wrappedModelTags.length);
-      console.warn(
+      warn(
         `ignoring ${wrappedModelTags.length} <m-model> ${tagStr} that were found wrapped inside tags other than a valid <m-character> tag.`,
       );
     }
   } else {
-    console.warn(`No valid <m-character> tag was found in the provided document.`);
+    warn(`No valid <m-character> tag was found in the provided document.`);
   }
 
   const characterDescription: MMLCharacterDescription = {
@@ -71,5 +82,5 @@ export const parseMMLDescription = (mmlDescription: string): MMLCharacterDescrip
     parts: parts,
   };
 
-  return characterDescription;
+  return [characterDescription, errors];
 };

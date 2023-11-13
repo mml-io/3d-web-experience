@@ -162,3 +162,41 @@ canvas {
   position: fixed;
   z-index: 2;
 }
+
+.avatar-loading-errors {
+  position: fixed;
+  font-size: 13px;
+  z-index: 100;
+  left: 210px;
+  bottom: 10px;
+  background-color: rgba(0, 0, 0, 0.9);
+  color: yellow;
+  border-radius: 7px;
+  border: 1px solid red;
+  box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.9);
+
+  padding: 10px 30px 10px 0px;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.5s forwards;
+}
+
+.close-errors {
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  background: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border: none;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

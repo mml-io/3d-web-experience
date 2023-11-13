@@ -5,16 +5,17 @@ import { createRoot, Root } from "react-dom/client";
 import { AvatarEditor, MMLCharacterDescription } from "./AvatarEditor";
 import collectionData from "./collection.json";
 import { mmlCharacterDescription } from "./mmlCharacterDescription";
-import { parseMMLDescription } from "./parseMMLDescription";
+import { LoadingErrors, parseMMLDescription } from "./parseMMLDescription";
 
 class App {
   root: Root;
   private currentCharacter: MMLCharacterDescription | null = null;
+  private loadingErrors: LoadingErrors | null = null;
 
   constructor() {
     // this is where we'll retrieve the current character's MML description
     if (typeof mmlCharacterDescription === "string") {
-      this.currentCharacter = parseMMLDescription(mmlCharacterDescription);
+      [this.currentCharacter, this.loadingErrors] = parseMMLDescription(mmlCharacterDescription);
     }
     this.init();
   }
@@ -28,7 +29,11 @@ class App {
   renderComponents() {
     flushSync(() => {
       this.root.render(
-        <AvatarEditor collectionData={collectionData} currentCharacter={this.currentCharacter} />,
+        <AvatarEditor
+          collectionData={collectionData}
+          currentCharacter={this.currentCharacter}
+          loadingErrors={this.loadingErrors}
+        />,
       );
     });
   }
