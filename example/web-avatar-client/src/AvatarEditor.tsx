@@ -44,6 +44,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   collectionData: C;
   currentCharacter: MMLCharacterDescription | null;
   loadingErrors: LoadingErrors | null;
+  showMirror: boolean;
 }) {
   const [characterMesh, setCharacterMesh] = useState<Object3D | null>(null);
   const [character] = useState(new Character(new ModelLoader()));
@@ -145,6 +146,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
           idleAnimationURL={idleAnimationURL}
           cameraTargetDistance={partEntry.targetDistance}
           cameraTargetOffset={partEntry.offset}
+          showMirror={props.showMirror}
         />
       )}
       {hasErrorsToShow && (

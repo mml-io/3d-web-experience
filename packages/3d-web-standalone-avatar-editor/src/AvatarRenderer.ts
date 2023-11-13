@@ -20,6 +20,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Floor } from "./scene/Floor";
 import { Lights } from "./scene/Lights";
+import { Mirror } from "./scene/Mirror";
 
 export class AvatarRenderer {
   private readonly camOffset: Vector3 = new Vector3(0, 1.2, 0);
@@ -40,6 +41,7 @@ export class AvatarRenderer {
 
   private lights: Lights;
   private floor: Mesh | null = null;
+  private mirror: Mirror | null = null;
 
   public cameraTargetOffset: { x?: number; y?: number; z?: number } = {};
   public cameraTargetDistance: number = 0;
@@ -47,6 +49,7 @@ export class AvatarRenderer {
   constructor(
     private hdrURL: string,
     private idleAnimationURL: string,
+    private showMirror: boolean,
   ) {
     this.scene = new Scene();
     this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
@@ -65,6 +68,12 @@ export class AvatarRenderer {
     this.lights = new Lights(this.camOffset);
     this.scene.add(this.lights.ambientLight);
     this.scene.add(this.lights.mainLight);
+
+    // Mirror
+    if (this.showMirror) {
+      this.mirror = new Mirror();
+      this.scene.add(this.mirror.mesh);
+    }
 
     // Events
     this.update = this.update.bind(this);

@@ -13,6 +13,7 @@ type AvatarVisualizerProps = {
     z?: number;
   };
   cameraTargetDistance: number;
+  showMirror: boolean;
 };
 
 export type XYZ = { x?: number; y?: number; z?: number };
@@ -27,6 +28,7 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
   idleAnimationURL,
   cameraTargetOffset,
   cameraTargetDistance,
+  showMirror,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizerRef = useRef<AvatarRenderer | null>(null);
@@ -35,13 +37,13 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
 
   useEffect(() => {
     if (!visualizerRef.current) {
-      visualizerRef.current = new AvatarRenderer(hdrURL, idleAnimationURL);
+      visualizerRef.current = new AvatarRenderer(hdrURL, idleAnimationURL, showMirror);
       const canvasContainer = containerRef.current;
       if (canvasContainer && visualizerRef.current.renderer) {
         canvasContainer.appendChild(visualizerRef.current.renderer.domElement);
       }
     }
-  }, [hdrURL, idleAnimationURL]);
+  }, [hdrURL, idleAnimationURL, showMirror]);
 
   useEffect(() => {
     if (visualizerRef.current) {
