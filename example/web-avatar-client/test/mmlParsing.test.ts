@@ -2,8 +2,8 @@
  * @jest-environment jsdom
  */
 
-import { findAssetsInCollection } from "@mml-io/3d-web-avatar/src/helpers/findAssetsInCollection";
 import { parseMMLDescription } from "@mml-io/3d-web-avatar/src/helpers/parseMMLDescription";
+import { findAssetsInCollection } from "@mml-io/3d-web-avatar-editor-ui/src/findAssetsInCollection";
 
 import collectionData from "../src/collection.json";
 
