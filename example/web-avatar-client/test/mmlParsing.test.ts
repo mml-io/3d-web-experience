@@ -8,6 +8,7 @@ import { parseMMLDescription } from "@mml-io/3d-web-avatar/src/helpers/parseMMLD
 import collectionData from "../src/collection.json";
 
 import {
+  semanticallyInvalidString,
   threeNestedMCharacters,
   threeNestedMCharactersExpectedData,
   threeRogueMModels,
@@ -20,6 +21,10 @@ import {
   twoRedundantMCharacterswithThreeMModelsEachExpectedData,
   validMCharacter,
   validMCharacterWithOneInvalidMModel,
+  validMCharacterWithRedundantMCharacterClosingTag,
+  validMCharacterWithRedundantMCharacterClosingTagExpectedData,
+  validMCharacterWithRedundantMModelClosingTag,
+  validMCharacterWithRedundantMModelClosingTagExpectedData,
   validMCharacterWithTwoInvalidMModels,
 } from "./test-data";
 import { extractNumberFromErrorMessage } from "./test-utils";
@@ -95,6 +100,30 @@ describe("WebAvatarClient MML Parsing", () => {
     expect(parsedData).toStrictEqual(
       twoInvalidlyWrappedMModelOnInvalidMCharacterWith2ValidMModelsExpectedData,
     );
+  });
+
+  test("valid <m-character> but with redundant <m-model> closing tag", async () => {
+    const [parsedData, errors] = parseMMLDescription(validMCharacterWithRedundantMModelClosingTag);
+    expect(errors).toHaveLength(0);
+    expect(parsedData).toStrictEqual(validMCharacterWithRedundantMModelClosingTagExpectedData);
+  });
+
+  test("valid <m-character> but with redundant <m-character> closing tag", async () => {
+    const [parsedData, errors] = parseMMLDescription(
+      validMCharacterWithRedundantMCharacterClosingTag,
+    );
+    expect(errors).toHaveLength(0);
+    expect(parsedData).toStrictEqual(validMCharacterWithRedundantMCharacterClosingTagExpectedData);
+  });
+
+  test("semantically invalid string should return one 'no valid tag found' error", async () => {
+    const [parsedData, errors] = parseMMLDescription(semanticallyInvalidString);
+    const expectedData = { base: { url: "" }, parts: [] };
+    expect(errors).toHaveLength(1);
+    expect(
+      errors[0].includes("No valid <m-character> tag was found in the provided document."),
+    ).toBe(true);
+    expect(parsedData).toStrictEqual(expectedData);
   });
 });
 
