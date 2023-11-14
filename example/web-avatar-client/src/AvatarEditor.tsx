@@ -1,10 +1,10 @@
 import { type LoadingErrors, type MMLCharacterDescription } from "@mml-io/3d-web-avatar";
-import { findAssetsInCollection } from "@mml-io/3d-web-avatar-editor-ui";
 import {
   AvatarVisualizer,
   CharacterPartsSelector,
   CollectionDataType,
   Character,
+  findAssetsInCollection,
   ModelLoader,
   CharacterComposition,
 } from "@mml-io/3d-web-standalone-avatar-editor";
