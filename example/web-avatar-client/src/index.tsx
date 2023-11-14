@@ -1,11 +1,11 @@
+import { LoadingErrors, MMLCharacterDescription, parseMMLDescription } from "@mml-io/3d-web-avatar";
 import React from "react";
 import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
 
-import { AvatarEditor, MMLCharacterDescription } from "./AvatarEditor";
+import { AvatarEditor } from "./AvatarEditor";
 import collectionData from "./collection.json";
 import { mmlCharacterDescription } from "./mmlCharacterDescription";
-import { LoadingErrors, parseMMLDescription } from "./parseMMLDescription";
 
 class App {
   root: Root;

@@ -2,9 +2,10 @@
  * @jest-environment jsdom
  */
 
+import { findAssetsInCollection } from "@mml-io/3d-web-avatar/src/helpers/findAssetsInCollection";
+import { parseMMLDescription } from "@mml-io/3d-web-avatar/src/helpers/parseMMLDescription";
+
 import collectionData from "../src/collection.json";
-import { findAssetsInCollection } from "../src/findAssetsInCollection";
-import { parseMMLDescription } from "../src/parseMMLDescription";
 
 import {
   threeNestedMCharacters,

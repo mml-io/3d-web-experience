@@ -1,4 +1,9 @@
 import {
+  findAssetsInCollection,
+  type LoadingErrors,
+  type MMLCharacterDescription,
+} from "@mml-io/3d-web-avatar";
+import {
   AvatarVisualizer,
   CharacterPartsSelector,
   CollectionDataType,
@@ -12,19 +17,7 @@ import { Object3D } from "three";
 import idleAnimationURL from "../../assets/avatar/anims/AS_Andor_Stand_Idle.glb";
 import hdrURL from "../../assets/hdr/industrial_sunset_2k.hdr";
 
-import { findAssetsInCollection } from "./findAssetsInCollection";
-import { LoadingErrors } from "./parseMMLDescription";
-
 type BodyPartTypes = "fullBody" | "head" | "upperBody" | "lowerBody" | "feet";
-
-export type MMLCharacterDescriptionPart = {
-  url: string;
-};
-
-export type MMLCharacterDescription = {
-  base: MMLCharacterDescriptionPart;
-  parts: MMLCharacterDescriptionPart[];
-};
 
 const partToCameraOffset = new Map<
   BodyPartTypes,
@@ -98,8 +91,6 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
     if (hasCurrentCharacter && props.currentCharacter) {
       const assetsExist = checkAgainstCollection(props.collectionData, props.currentCharacter);
       if (assetsExist) {
-        console.log("here! we have a current character!");
-
         const characterComposition: CharacterComposition<C> = {
           fullBody: props.currentCharacter.base,
           parts: props.currentCharacter.parts.reduce(

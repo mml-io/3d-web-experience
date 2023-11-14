@@ -1,4 +1,11 @@
-import { MMLCharacterDescription, MMLCharacterDescriptionPart } from "./AvatarEditor";
+export type MMLCharacterDescriptionPart = {
+  url: string;
+};
+
+export type MMLCharacterDescription = {
+  base: MMLCharacterDescriptionPart;
+  parts: MMLCharacterDescriptionPart[];
+};
 
 export type LoadingErrors = string[];
 

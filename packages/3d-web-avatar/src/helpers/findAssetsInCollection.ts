@@ -1,7 +1,6 @@
-import { CollectionDataType } from "@mml-io/3d-web-standalone-avatar-editor";
+import { CollectionDataType } from "@mml-io/3d-web-avatar-editor-ui";
 
-import { MMLCharacterDescription } from "./AvatarEditor";
-import { LoadingErrors } from "./parseMMLDescription";
+import type { LoadingErrors, MMLCharacterDescription } from "./parseMMLDescription";
 
 export function findAssetsInCollection(
   collectionData: CollectionDataType,
