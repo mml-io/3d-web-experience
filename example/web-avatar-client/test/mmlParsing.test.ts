@@ -9,10 +9,15 @@ import collectionData from "../src/collection.json";
 
 import {
   threeNestedMCharacters,
+  threeNestedMCharactersExpectedData,
   threeRogueMModels,
+  threeRogueMModelsExpectedData,
   twoInvalidlyWrappedMModel,
+  twoInvalidlyWrappedMModelExpectedData,
   twoInvalidlyWrappedMModelOnInvalidMCharacterWith2ValidMModels,
+  twoInvalidlyWrappedMModelOnInvalidMCharacterWith2ValidMModelsExpectedData,
   twoRedundantMCharacterswithThreeMModelsEach,
+  twoRedundantMCharacterswithThreeMModelsEachExpectedData,
   validMCharacter,
   validMCharacterWithOneInvalidMModel,
   validMCharacterWithTwoInvalidMModels,
@@ -35,46 +40,61 @@ describe("WebAvatarClient MML Parsing", () => {
     const [, errors] = parseMMLDescription(validMCharacter);
     expect(errors).toHaveLength(0);
   });
+
   test("empty MML document should return one 'no valid tag found' error", async () => {
     const emptyDocument = "";
-    const [, errors] = parseMMLDescription(emptyDocument);
+    const expectedData = { base: { url: "" }, parts: [] };
+    const [parsedData, errors] = parseMMLDescription(emptyDocument);
     expect(errors).toHaveLength(1);
     expect(
       errors[0].includes("No valid <m-character> tag was found in the provided document."),
     ).toBe(true);
+    expect(parsedData).toStrictEqual(expectedData);
   });
+
   test("2 redundant <m-character> tags with 3 <m-model> tags each", async () => {
-    const [, errors] = parseMMLDescription(twoRedundantMCharacterswithThreeMModelsEach);
+    const [parsedData, errors] = parseMMLDescription(twoRedundantMCharacterswithThreeMModelsEach);
     expect(errors).toHaveLength(2);
     expect(extractNumberFromErrorMessage(errors[0])).toBe(2);
     expect(extractNumberFromErrorMessage(errors[1])).toBe(6);
+    expect(parsedData).toStrictEqual(twoRedundantMCharacterswithThreeMModelsEachExpectedData);
   });
+
   test("3 nested <m-character> tags with 2 <m-model> tags each", async () => {
-    const [, errors] = parseMMLDescription(threeNestedMCharacters);
+    const [parsedData, errors] = parseMMLDescription(threeNestedMCharacters);
     expect(errors).toHaveLength(2);
     expect(extractNumberFromErrorMessage(errors[0])).toBe(3);
     expect(extractNumberFromErrorMessage(errors[1])).toBe(6);
+    expect(parsedData).toStrictEqual(threeNestedMCharactersExpectedData);
   });
+
   test("3 rogue <m-model> tags", async () => {
-    const [, errors] = parseMMLDescription(threeRogueMModels);
+    const [parsedData, errors] = parseMMLDescription(threeRogueMModels);
     expect(errors).toHaveLength(1);
     expect(errors[0].includes("<m-model> tags must be children of a valid <m-character> tag")).toBe(
       true,
     );
     expect(extractNumberFromErrorMessage(errors[0])).toBe(3);
+    expect(parsedData).toStrictEqual(threeRogueMModelsExpectedData);
   });
+
   test("2 invalidly wrapped <m-model> tags in a valid <m-character> tag", async () => {
-    const [, errors] = parseMMLDescription(twoInvalidlyWrappedMModel);
+    const [parsedData, errors] = parseMMLDescription(twoInvalidlyWrappedMModel);
     expect(errors).toHaveLength(1);
     expect(extractNumberFromErrorMessage(errors[0])).toBe(2);
+    expect(parsedData).toStrictEqual(twoInvalidlyWrappedMModelExpectedData);
   });
+
   test("2 invalidly wrapped <m-model> tags in an invalid <m-character> tag", async () => {
-    const [, errors] = parseMMLDescription(
+    const [parsedData, errors] = parseMMLDescription(
       twoInvalidlyWrappedMModelOnInvalidMCharacterWith2ValidMModels,
     );
     expect(errors).toHaveLength(2);
     expect(errors[0].includes("only the first one is valid")).toBe(true);
     expect(extractNumberFromErrorMessage(errors[1])).toBe(4);
+    expect(parsedData).toStrictEqual(
+      twoInvalidlyWrappedMModelOnInvalidMCharacterWith2ValidMModelsExpectedData,
+    );
   });
 });
 
@@ -91,6 +111,7 @@ describe("Check <m-character> against collection", () => {
     );
     expect(checkCollection.accumulatedErrors).toHaveLength(1);
   });
+
   test("valid <m-character> tag with 2 invalid <m-model> asset", async () => {
     const [characterDescription, parsingErrors] = parseMMLDescription(
       validMCharacterWithTwoInvalidMModels,
