@@ -122,31 +122,27 @@ export class CharacterModelLoader {
     fileType: "model" | "animation",
     extension: string,
   ): Promise<Object3D | AnimationClip | undefined> {
-    if (["gltf", "glb"].includes(extension)) {
-      return new Promise((resolve, reject) => {
-        this.gltfLoader.load(
-          url,
-          (object: GLTF) => {
-            if (fileType === "model") {
-              resolve(object.scene as Object3D);
-            } else if (fileType === "animation") {
-              resolve(object.animations[0] as AnimationClip);
-            } else {
-              const error = `Trying to load unknown ${fileType} type of element from file ${url}`;
-              console.error(error);
-              reject(error);
-            }
-          },
-          undefined,
-          (error) => {
-            console.error(`Error loading GL(B|TF) from ${url}: ${error}`);
+    return new Promise((resolve, reject) => {
+      this.gltfLoader.load(
+        url,
+        (object: GLTF) => {
+          if (fileType === "model") {
+            resolve(object.scene as Object3D);
+          } else if (fileType === "animation") {
+            resolve(object.animations[0] as AnimationClip);
+          } else {
+            const error = `Trying to load unknown ${fileType} type of element from file ${url}`;
+            console.error(error);
             reject(error);
-          },
-        );
-      });
-    } else {
-      console.error(`Error: can't recognize ${url} extension: ${extension}`);
-    }
+          }
+        },
+        undefined,
+        (error) => {
+          console.error(`Error loading GL(B|TF) from ${url}: ${error}`);
+          reject(error);
+        },
+      );
+    });
   }
 }
 
