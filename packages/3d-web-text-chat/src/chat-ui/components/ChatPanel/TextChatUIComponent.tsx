@@ -113,8 +113,8 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
       isSticky
         ? styles.stickyButtonEnabled
         : isOpenHovered
-        ? styles.stickyButton
-        : styles.stickyButtonFadeOut,
+          ? styles.stickyButton
+          : styles.stickyButtonFadeOut,
     );
     if (chatPanelRef.current && chatPanelRef.current.style.zIndex !== "100") {
       // we just want to change the z-index after the browser has the chance

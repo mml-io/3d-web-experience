@@ -1,6 +1,8 @@
 export { CameraManager } from "./camera/CameraManager";
 export { CharacterDescription } from "./character/Character";
 export { CharacterManager } from "./character/CharacterManager";
+export * from "./character/url-position";
+export * from "./helpers/math-helpers";
 export { CharacterModelLoader } from "./character/CharacterModelLoader";
 export { CharacterState, AnimationState } from "./character/CharacterState";
 export { KeyInputManager } from "./input/KeyInputManager";

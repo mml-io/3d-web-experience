@@ -18,7 +18,7 @@
     "@mml-io/3d-web-text-chat": "^0.10.1",
     "@mml-io/3d-web-user-networking": "^0.10.1",
     "@mml-io/3d-web-voice-chat": "^0.10.1",
-    "mml-web-runner": "0.10.0",
+    "mml-web-runner": "0.11.2",
     "three": "0.153.0"
   },
   "devDependencies": {

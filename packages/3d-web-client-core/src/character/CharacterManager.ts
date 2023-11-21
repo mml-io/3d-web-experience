@@ -1,9 +1,9 @@
 import { PositionAndRotation } from "mml-web";
-import { Camera, Euler, Group, Object3D, PerspectiveCamera, Quaternion, Vector3 } from "three";
+import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease, getSpawnPositionInsideCircle, toArray } from "../helpers/math-helpers";
+import { ease } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
 import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
@@ -11,42 +11,23 @@ import { TimeManager } from "../time/TimeManager";
 import { Character, CharacterDescription } from "./Character";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
+import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
-
-function encodeCharacterAndCamera(character: Object3D, camera: PerspectiveCamera): string {
-  return [
-    ...toArray(character.position),
-    ...toArray(character.quaternion),
-    ...toArray(camera.position),
-    ...toArray(camera.quaternion),
-  ].join(",");
-}
-
-function decodeCharacterAndCamera(hash: string, character: Object3D, camera: Camera) {
-  const values = hash.split(",").map(Number);
-  character.position.fromArray(values.slice(0, 3));
-  character.quaternion.fromArray(values.slice(3, 7));
-  camera.position.fromArray(values.slice(7, 10));
-  camera.quaternion.fromArray(values.slice(10, 14));
-}
+import { encodeCharacterAndCamera } from "./url-position";
 
 export class CharacterManager {
-  /*
-   TODO - re-enable updating location hash when there is a solution that waits for models to load (currently if the 
-    character was standing on a model and the page is reloaded the character falls into the model before it loads and 
-    can be trapped).
-  */
-  private updateLocationHash = false;
+  private updateLocationHash = true;
+
+  public readonly headTargetOffset = new Vector3(0, 1.3, 0);
 
   private id: number = 0;
-
-  public loadingCharacters: Map<number, Promise<Character>> = new Map();
 
   public remoteCharacters: Map<number, Character> = new Map();
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
 
   private characterDescription: CharacterDescription | null = null;
-  public character: Character | null = null;
+  public localCharacter: Character | null = null;
+  private localController: LocalController;
 
   private cameraOffsetTarget: number = 0;
   private cameraOffset: number = 0;
@@ -61,19 +42,13 @@ export class CharacterManager {
     private readonly collisionsManager: CollisionsManager,
     private readonly cameraManager: CameraManager,
     private readonly timeManager: TimeManager,
-    private readonly inputManager: KeyInputManager,
+    private readonly keyInputManager: KeyInputManager,
     private readonly clientStates: Map<number, CharacterState>,
     private readonly sendUpdate: (update: CharacterState) => void,
   ) {
     this.group = new Group();
   }
 
-  /* TODO: 
-    1) Separate this method into spawnLocalCharacter and spawnRemoteCharacter
-    2) Make this synchronous to avoid having loadingCharacters and instead manage
-      the mesh loading async (would allow us to show a nameplate where a remote
-      user is before the asset loads).
-  */
   public spawnCharacter(
     characterDescription: CharacterDescription,
     id: number,
@@ -82,95 +57,60 @@ export class CharacterManager {
     spawnRotation: Euler = new Euler(),
   ) {
     this.characterDescription = characterDescription;
-    const characterLoadingPromise = new Promise<Character>((resolve) => {
-      const character = new Character(
-        characterDescription,
-        this.characterModelLoader,
-        id,
-        isLocal,
-        () => {
-          if (window.location.hash && window.location.hash.length > 1) {
-            decodeCharacterAndCamera(
-              window.location.hash.substring(1),
-              character.model!.mesh!,
-              this.cameraManager.camera,
-            );
-          } else {
-            spawnPosition = spawnPosition || getSpawnPositionInsideCircle(3, 30, id, 0.4);
-            character.model!.mesh!.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            character.model!.mesh!.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
-            character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            character.model!.mesh!.updateMatrixWorld();
-            const quaternion = new Quaternion().setFromEuler(character.model!.mesh!.rotation);
-            this.sendUpdate({
-              id: id,
-              position: {
-                x: spawnPosition.x,
-                y: spawnPosition.y,
-                z: spawnPosition.z,
-              },
-              rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
-              state: AnimationState.idle,
-            });
-          }
-          character.model!.hideMaterialByMeshName("SK_Mannequin_2");
-          if (!isLocal) {
-            character.model?.mesh?.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-            character.model?.mesh?.updateMatrixWorld();
-            character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-          }
-          this.group.add(character.model!.mesh!);
+    const character = new Character(
+      characterDescription,
+      this.characterModelLoader,
+      id,
+      () => {
+        // character loaded callback
+      },
+      this.cameraManager,
+      this.composer,
+    );
 
-          if (isLocal) {
-            this.id = id;
-            this.character = character;
-            this.character.tooltip?.setText(`${id}`);
-          } else {
-            this.remoteCharacters.set(id, character);
-            const remoteController = new RemoteController(character, this.characterModelLoader, id);
-            remoteController.setAnimationFromFile(
-              AnimationState.idle,
-              characterDescription.idleAnimationFileUrl,
-            );
-            remoteController.setAnimationFromFile(
-              AnimationState.walking,
-              characterDescription.jogAnimationFileUrl,
-            );
-            remoteController.setAnimationFromFile(
-              AnimationState.running,
-              characterDescription.sprintAnimationFileUrl,
-            );
-            remoteController.setAnimationFromFile(
-              AnimationState.air,
-              characterDescription.airAnimationFileUrl,
-            );
-            remoteController.characterModel?.position.set(
-              spawnPosition.x,
-              spawnPosition.y,
-              spawnPosition.z,
-            );
-            this.remoteCharacterControllers.set(id, remoteController);
-            character.tooltip?.setText(`${id}`);
-          }
-          resolve(character);
+    if (isLocal) {
+      const quaternion = new Quaternion().setFromEuler(character.rotation);
+      this.sendUpdate({
+        id: id,
+        position: {
+          x: spawnPosition.x,
+          y: spawnPosition.y,
+          z: spawnPosition.z,
         },
+        rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
+        state: AnimationState.idle,
+      });
+    }
+
+    if (isLocal) {
+      this.id = id;
+      this.localCharacter = character;
+      this.localController = new LocalController(
+        this.localCharacter,
+        this.id,
         this.collisionsManager,
-        this.inputManager,
+        this.keyInputManager,
         this.cameraManager,
         this.timeManager,
-        this.composer,
       );
-    });
-
-    this.loadingCharacters.set(id, characterLoadingPromise);
-    return characterLoadingPromise;
+      this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+      this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+    } else {
+      this.remoteCharacters.set(id, character);
+      const remoteController = new RemoteController(character, id);
+      remoteController.character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+      remoteController.character.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+      this.remoteCharacterControllers.set(id, remoteController);
+    }
+    character.tooltip?.setText(`${id}`);
+    this.group.add(character);
   }
 
   public getLocalCharacterPositionAndRotation(): PositionAndRotation {
-    if (this.character && this.character.model && this.character.model.mesh) {
+    if (this.localCharacter && this.localCharacter && this.localCharacter) {
       return {
-        position: this.character.model.mesh.position,
-        rotation: this.character.model.mesh.rotation,
+        position: this.localCharacter.position,
+        rotation: this.localCharacter.rotation,
       };
     }
     return {
@@ -181,15 +121,14 @@ export class CharacterManager {
 
   public clear() {
     for (const [id, character] of this.remoteCharacters) {
-      this.group.remove(character.model!.mesh!);
+      this.group.remove(character);
       this.remoteCharacters.delete(id);
       this.remoteCharacterControllers.delete(id);
     }
-    if (this.character) {
-      this.group.remove(this.character.model!.mesh!);
-      this.character = null;
+    if (this.localCharacter) {
+      this.group.remove(this.localCharacter);
+      this.localCharacter = null;
     }
-    this.loadingCharacters.clear();
   }
 
   public setSpeakingCharacter(id: number, value: boolean) {
@@ -197,25 +136,22 @@ export class CharacterManager {
   }
 
   public update() {
-    if (this.character) {
-      this.character.update(this.timeManager.time);
+    if (this.localCharacter) {
+      this.localCharacter.update(this.timeManager.time, this.timeManager.deltaTime);
       if (this.speakingCharacters.has(this.id)) {
-        this.character.speakingIndicator?.setSpeaking(this.speakingCharacters.get(this.id)!);
+        this.localCharacter.speakingIndicator?.setSpeaking(this.speakingCharacters.get(this.id)!);
       }
 
-      if (this.character.model?.mesh) {
-        this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.13 : 0;
-        this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
-        const targetOffset = new Vector3(0, 1.3, this.cameraOffset);
-        targetOffset.applyQuaternion(this.character.model.mesh.quaternion);
-        this.cameraManager.setTarget(this.character.position.add(targetOffset));
-      }
+      this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.13 : 0;
+      this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
+      const targetOffset = new Vector3(0, 0, this.cameraOffset);
+      targetOffset.add(this.headTargetOffset);
+      targetOffset.applyQuaternion(this.localCharacter.quaternion);
+      this.cameraManager.setTarget(targetOffset.add(this.localCharacter.position));
 
-      if (this.character.controller) {
-        this.character.controller.update();
-        if (this.timeManager.frame % 2 === 0) {
-          this.sendUpdate(this.character.controller.networkState);
-        }
+      this.localController.update();
+      if (this.timeManager.frame % 2 === 0) {
+        this.sendUpdate(this.localController.networkState);
       }
 
       for (const [id, update] of this.clientStates) {
@@ -224,15 +160,13 @@ export class CharacterManager {
           character?.speakingIndicator?.setSpeaking(this.speakingCharacters.get(id)!);
         }
         const { position } = update;
-        if (!this.remoteCharacters.has(id) && !this.loadingCharacters.has(id)) {
+        if (!this.remoteCharacters.has(id)) {
           this.spawnCharacter(
             this.characterDescription!,
             id,
             false,
             new Vector3(position.x, position.y, position.z),
-          ).then((_character) => {
-            this.loadingCharacters.delete(id);
-          });
+          );
         }
 
         const characterController = this.remoteCharacterControllers.get(id);
@@ -244,7 +178,7 @@ export class CharacterManager {
       for (const [id, character] of this.remoteCharacters) {
         if (!this.clientStates.has(id)) {
           character.speakingIndicator?.dispose();
-          this.group.remove(character.model!.mesh!);
+          this.group.remove(character);
           this.remoteCharacters.delete(id);
           this.remoteCharacterControllers.delete(id);
         }
@@ -252,7 +186,7 @@ export class CharacterManager {
 
       if (this.updateLocationHash && this.timeManager.frame % 60 === 0) {
         window.location.hash = encodeCharacterAndCamera(
-          this.character.model!.mesh!,
+          this.localCharacter,
           this.cameraManager.camera,
         );
       }

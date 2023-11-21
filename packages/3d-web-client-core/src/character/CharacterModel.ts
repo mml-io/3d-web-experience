@@ -5,7 +5,6 @@ import {
   Bone,
   LoopRepeat,
   Mesh,
-  MeshStandardMaterial,
   Object3D,
 } from "three";
 
@@ -49,54 +48,19 @@ export class CharacterModel {
     this.applyMaterialToAllSkinnedMeshes(this.material);
   }
 
-  public updateAnimation(targetAnimation: AnimationState, deltaTime: number) {
+  public updateAnimation(targetAnimation: AnimationState) {
     if (this.currentAnimation !== targetAnimation) {
       this.transitionToAnimation(targetAnimation);
     }
-    this.animationMixer?.update(deltaTime);
   }
 
-  public hideMaterialByMeshName(meshName: any): void {
-    if (!this.mesh) return;
-    this.mesh.traverse((child: Object3D) => {
-      if (child.type === "Bone" && child.name === "mixamorigHeadTop_End") {
-        this.headBone = child as Bone;
-      }
-      if (child.type === "SkinnedMesh" && child.name === meshName) {
-        (child as Mesh).material = new MeshStandardMaterial({
-          color: 0xff0000,
-          transparent: true,
-          opacity: 0,
-        });
-      }
-    });
-  }
-
-  private setShadows(
-    mesh: Object3D,
-    castShadow: boolean = true,
-    receiveShadow: boolean = true,
-  ): void {
-    mesh.traverse((child: Object3D) => {
-      if (child.type === "SkinnedMesh") {
-        child.castShadow = castShadow;
-        child.receiveShadow = receiveShadow;
-      }
-    });
-  }
-
-  private applyMaterialToAllSkinnedMeshes(material: any): void {
+  private applyMaterialToAllSkinnedMeshes(material: CharacterMaterial): void {
     if (!this.mesh) return;
     this.mesh.traverse((child: Object3D) => {
       if (child.type === "SkinnedMesh") {
         (child as Mesh).material = material;
       }
     });
-  }
-
-  private initAnimationMixer() {
-    if (this.animationMixer !== null || this.mesh === null) return;
-    this.animationMixer = new AnimationMixer(this.mesh);
   }
 
   private async loadMainMesh(): Promise<void> {
@@ -112,7 +76,13 @@ export class CharacterModel {
       this.mesh.add(model);
       this.mesh.name = name;
       this.mesh.scale.set(scale, scale, scale);
-      this.setShadows(this.mesh);
+      this.mesh.traverse((child: Object3D) => {
+        if (child.type === "SkinnedMesh") {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.animationMixer = new AnimationMixer(this.mesh);
     }
   }
 
@@ -121,7 +91,6 @@ export class CharacterModel {
     animationType: AnimationState,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      this.initAnimationMixer();
       const animation = await this.characterModelLoader.load(animationFileUrl, "animation");
       if (typeof animation !== "undefined" && animation instanceof AnimationClip) {
         this.animations[animationType] = this.animationMixer!.clipAction(animation);
@@ -140,9 +109,10 @@ export class CharacterModel {
     targetAnimation: AnimationState,
     transitionDuration: number = 0.15,
   ): void {
-    if (!this.mesh || this.currentAnimation === null) return;
+    if (!this.mesh) return;
 
     const currentAction = this.animations[this.currentAnimation];
+    this.currentAnimation = targetAnimation;
     const targetAction = this.animations[targetAnimation];
 
     if (!targetAction) return;
@@ -157,7 +127,11 @@ export class CharacterModel {
     targetAction.setLoop(LoopRepeat, Infinity);
     targetAction.enabled = true;
     targetAction.fadeIn(transitionDuration);
+  }
 
-    this.currentAnimation = targetAnimation;
+  update(time: number) {
+    if (this.animationMixer) {
+      this.animationMixer.update(time);
+    }
   }
 }

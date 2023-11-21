@@ -101,8 +101,8 @@ const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
           status === SessionStatus.Unavailable
             ? styles.unavailable
             : speaking
-            ? styles.speaking
-            : styles.connected
+              ? styles.speaking
+              : styles.connected
         }
         onClick={handleMicClick}
         onMouseEnter={() => setMicHovered(true)}
