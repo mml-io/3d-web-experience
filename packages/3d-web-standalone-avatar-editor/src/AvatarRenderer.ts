@@ -50,6 +50,7 @@ export class AvatarRenderer {
     private hdrURL: string,
     private idleAnimationURL: string,
     private showMirror: boolean,
+    private scaleWithWindowSize: boolean,
   ) {
     this.scene = new Scene();
     this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
@@ -77,7 +78,9 @@ export class AvatarRenderer {
 
     // Events
     this.update = this.update.bind(this);
-    window.addEventListener("resize", this.updateProjection.bind(this));
+    if (this.scaleWithWindowSize) {
+      window.addEventListener("resize", this.updateProjection.bind(this));
+    }
   }
 
   public updateProjection(): void {
