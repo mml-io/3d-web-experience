@@ -66,25 +66,15 @@ interface CachedModel {
 }
 
 export class CharacterModelLoader {
-  private static instance: CharacterModelLoader | null = null;
-
   private readonly loadingManager: LoadingManager;
   private readonly gltfLoader: CachedGLTFLoader;
   private modelCache: LRUCache<string, CachedModel>;
-  private ongoingLoads: Map<string, Promise<Object3D | AnimationClip | undefined>> = new Map();
+  private ongoingLoads: Map<string, Promise<CachedModel>> = new Map();
 
   constructor(maxCacheSize: number = 100) {
     this.loadingManager = new LoadingManager();
     this.gltfLoader = new CachedGLTFLoader(this.loadingManager);
     this.modelCache = new LRUCache(maxCacheSize);
-  }
-
-  /* TODO: decide between below lazy initialization or eager on this file's bottom export */
-  static getInstance(): CharacterModelLoader {
-    if (!CharacterModelLoader.instance) {
-      CharacterModelLoader.instance = new CharacterModelLoader();
-    }
-    return CharacterModelLoader.instance;
   }
 
   async load(
@@ -100,20 +90,27 @@ export class CharacterModelLoader {
     } else {
       console.log(`Loading ${fileUrl} from server`);
       const ongoingLoad = this.ongoingLoads.get(fileUrl);
-      if (ongoingLoad) return ongoingLoad;
+      if (ongoingLoad)
+        return ongoingLoad.then((loadedModel) => {
+          const blobURL = URL.createObjectURL(loadedModel.blob);
+          return this.loadFromUrl(blobURL, fileType, loadedModel.originalExtension);
+        });
 
-      const loadPromise = fetch(fileUrl)
+      const loadPromise: Promise<CachedModel> = fetch(fileUrl)
         .then((response) => response.blob())
         .then((blob) => {
           const originalExtension = fileUrl.split(".").pop() || "";
-          this.modelCache.set(fileUrl, { blob, originalExtension });
-          const blobURL = URL.createObjectURL(blob);
+          const cached = { blob, originalExtension };
+          this.modelCache.set(fileUrl, cached);
           this.ongoingLoads.delete(fileUrl);
-          return this.loadFromUrl(blobURL, fileType, originalExtension);
+          return cached;
         });
 
       this.ongoingLoads.set(fileUrl, loadPromise);
-      return loadPromise;
+      return loadPromise.then((loadedModel) => {
+        const blobURL = URL.createObjectURL(loadedModel.blob);
+        return this.loadFromUrl(blobURL, fileType, loadedModel.originalExtension);
+      });
     }
   }
 
@@ -149,7 +146,3 @@ export class CharacterModelLoader {
     }
   }
 }
-
-/* TODO: decide between below eager initialization or static getInstance() lazy one */
-const MODEL_LOADER = CharacterModelLoader.getInstance();
-export default MODEL_LOADER;

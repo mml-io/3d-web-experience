@@ -9,6 +9,7 @@ import {
   PromptManager,
   PromptProps,
   ChatProbe,
+  LoadingProgressManager,
 } from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
@@ -23,6 +24,7 @@ export class MMLCompositionScene {
   private readonly interactionListener: InteractionListener;
   private readonly chatProbes = new Set<ChatProbe>();
   private readonly clickTrigger: MMLClickTrigger;
+  private readonly loadingProgressManager: LoadingProgressManager;
 
   constructor(
     targetElement: HTMLElement,
@@ -43,6 +45,7 @@ export class MMLCompositionScene {
     );
     this.interactionManager = interactionManager;
     this.interactionListener = interactionListener;
+    this.loadingProgressManager = new LoadingProgressManager();
 
     this.mmlScene = {
       getAudioListener: () => this.audioListener,
@@ -80,6 +83,9 @@ export class MMLCompositionScene {
       },
       prompt: (promptProps: PromptProps, callback: (message: string | null) => void) => {
         this.promptManager.prompt(promptProps, callback);
+      },
+      getLoadingProgressManager: () => {
+        return this.loadingProgressManager;
       },
     };
 

@@ -161,7 +161,7 @@ export class LocalAvatarClient {
     this.timeManager.update();
     this.characterManager.update();
     this.cameraManager.update();
-    this.composer.sun?.updateCharacterPosition(this.characterManager.character?.position);
+    this.composer.sun?.updateCharacterPosition(this.characterManager.localCharacter?.position);
     this.composer.render(this.timeManager);
     this.animationFrameRequest = requestAnimationFrame(() => {
       this.update();

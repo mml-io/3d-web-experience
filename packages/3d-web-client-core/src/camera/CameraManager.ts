@@ -29,9 +29,9 @@ export class CameraManager {
   private desiredDistance: number = this.initialDistance;
 
   private targetPhi: number | null;
-  private phi: number | null;
+  private phi: number = Math.PI / 2;
   private targetTheta: number | null;
-  private theta: number | null;
+  private theta: number = Math.PI / 2;
   public dragging: boolean = false;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
@@ -119,17 +119,25 @@ export class CameraManager {
     this.setTarget(target);
   }
 
-  private reverseUpdateFromPositions(): void {
-    if (this.phi === null || this.theta == null) return;
+  public reverseUpdateFromPositions(): void {
     const dx = this.camera.position.x - this.target.x;
     const dy = this.camera.position.y - this.target.y;
     const dz = this.camera.position.z - this.target.z;
     this.targetDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    this.targetTheta = (this.theta + 2 * Math.PI) % (2 * Math.PI);
-    this.targetPhi = Math.max(0, Math.min(Math.PI, this.phi));
+    this.targetTheta = Math.atan2(dz, dx);
+    this.targetPhi = Math.acos(dy / this.targetDistance);
     this.phi = this.targetPhi;
     this.theta = this.targetTheta;
     this.distance = this.targetDistance;
+    this.desiredDistance = this.targetDistance;
+    this.targetFOV = remap(
+      this.targetDistance,
+      this.minDistance,
+      this.maxDistance,
+      this.minFOV,
+      this.maxFOV,
+    );
+    this.fov = this.targetFOV;
   }
 
   public adjustCameraPosition(): void {
