@@ -27,6 +27,9 @@ export class AvatarRenderer {
   private readonly floorSize: number = 50;
   private readonly fogDistance: number = this.floorSize - this.floorSize * 0.1;
 
+  private width: number = 1;
+  private height: number = 1;
+
   private canvasDiv: HTMLDivElement | null = null;
   private cameraManager: CameraManager | null = null;
 
@@ -82,9 +85,20 @@ export class AvatarRenderer {
 
   public updateProjection(): void {
     if (!this.renderer) return;
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    const parentElement = this.renderer.domElement.parentNode as HTMLElement;
+    if (!parentElement) {
+      return;
+    } else {
+      console.log(parentElement);
+    }
+    this.width = parentElement.clientWidth;
+    this.height = parentElement.clientHeight;
+    const aspect = this.width / this.height;
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setSize(this.width, this.height);
     if (this.cameraManager) {
-      this.cameraManager.updateAspect(window.innerWidth / window.innerHeight);
+      this.cameraManager.camera.aspect = aspect;
+      this.cameraManager.camera.updateProjectionMatrix();
     }
   }
 
@@ -145,16 +159,16 @@ export class AvatarRenderer {
       const canvasDiv = document.getElementById("avatar-canvas-container");
       if (canvasDiv !== null) {
         this.canvasDiv = canvasDiv as HTMLDivElement;
-        this.canvasDiv.appendChild(this.renderer.domElement);
+        this.updateProjection();
       }
-    } else if (this.cameraManager === null) {
+    }
+    if (this.cameraManager === null && this.canvasDiv) {
       this.cameraManager = new CameraManager(
         this.canvasDiv,
         new CollisionsManager(this.scene),
         Math.PI / 2.3,
         Math.PI / 2,
       );
-      this.cameraManager.setLerpedTarget(new Vector3(0, 0.9, 0), 2.1);
     }
     if (this.cameraManager?.camera) {
       this.cameraManager.update();
