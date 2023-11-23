@@ -85,5 +85,7 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
     };
   }, [animationLoop]);
 
-  return <div ref={containerRef} id="avatar-canvas-container"></div>;
+  return (
+    <div ref={containerRef} id="avatar-canvas-container" className="avatar-canvas-container"></div>
+  );
 };

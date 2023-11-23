@@ -101,7 +101,6 @@ ${remainingParts.map(([key, asset]) => `<m-model src="${asset.asset}"></m-model>
 
   return (
     <div className="parts-selector-component">
-      <div id="avatar-canvas-container" className="avatar-canvas-container"></div>
       {renderThumbnails()}
       {renderModal()}
     </div>
