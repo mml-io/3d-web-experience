@@ -59,7 +59,7 @@ export class AvatarRenderer {
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(this.width, this.height);
 
     this.useHDRI(this.hdrURL);
 
@@ -80,7 +80,9 @@ export class AvatarRenderer {
 
     // Events
     this.update = this.update.bind(this);
-    window.addEventListener("resize", this.updateProjection.bind(this));
+    this.updateProjection = this.updateProjection.bind(this);
+    window.addEventListener("resize", this.updateProjection);
+    this.updateProjection();
   }
 
   public updateProjection(): void {
@@ -88,8 +90,6 @@ export class AvatarRenderer {
     const parentElement = this.renderer.domElement.parentNode as HTMLElement;
     if (!parentElement) {
       return;
-    } else {
-      console.log(parentElement);
     }
     this.width = parentElement.clientWidth;
     this.height = parentElement.clientHeight;
@@ -159,6 +159,9 @@ export class AvatarRenderer {
       const canvasDiv = document.getElementById("avatar-canvas-container");
       if (canvasDiv !== null) {
         this.canvasDiv = canvasDiv as HTMLDivElement;
+        new ResizeObserver(this.updateProjection).observe(
+          this.renderer.domElement.parentNode as Element,
+        );
         this.updateProjection();
       }
     }
