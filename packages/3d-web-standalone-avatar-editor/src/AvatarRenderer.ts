@@ -162,7 +162,6 @@ export class AvatarRenderer {
         new ResizeObserver(this.updateProjection).observe(
           this.renderer.domElement.parentNode as Element,
         );
-        this.renderer.domElement.parentNode?.addEventListener("resize", this.updateProjection);
         this.updateProjection();
       }
     }
