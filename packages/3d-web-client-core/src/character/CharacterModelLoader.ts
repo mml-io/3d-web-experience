@@ -4,7 +4,10 @@ import { GLTF, GLTFLoader as ThreeGLTFLoader } from "three/examples/jsm/loaders/
 class CachedGLTFLoader extends ThreeGLTFLoader {
   private blobCache: Map<string, string>;
 
-  constructor(manager?: LoadingManager) {
+  constructor(
+    manager?: LoadingManager,
+    private debug: boolean = false,
+  ) {
     super(manager);
     this.blobCache = new Map();
   }
@@ -25,7 +28,9 @@ class CachedGLTFLoader extends ThreeGLTFLoader {
   ): void {
     const blobUrl = this.getBlobUrl(url);
     if (blobUrl) {
-      console.log(`Loading cached ${url.split("/").pop()}`);
+      if (this.debug === true) {
+        console.log(`Loading cached ${url.split("/").pop()}`);
+      }
       super.load(blobUrl, onLoad, onProgress, onError);
     } else {
       super.load(url, onLoad, onProgress, onError);
@@ -71,9 +76,12 @@ export class CharacterModelLoader {
   private modelCache: LRUCache<string, CachedModel>;
   private ongoingLoads: Map<string, Promise<CachedModel>> = new Map();
 
-  constructor(maxCacheSize: number = 100) {
+  constructor(
+    maxCacheSize: number = 100,
+    private debug: boolean = false,
+  ) {
     this.loadingManager = new LoadingManager();
-    this.gltfLoader = new CachedGLTFLoader(this.loadingManager);
+    this.gltfLoader = new CachedGLTFLoader(this.loadingManager, this.debug);
     this.modelCache = new LRUCache(maxCacheSize);
   }
 
@@ -88,7 +96,9 @@ export class CharacterModelLoader {
       this.gltfLoader.setBlobUrl(fileUrl, blobURL);
       return this.loadFromUrl(fileUrl, fileType, cachedModel.originalExtension);
     } else {
-      console.log(`Loading ${fileUrl} from server`);
+      if (this.debug === true) {
+        console.log(`Loading ${fileUrl} from server`);
+      }
       const ongoingLoad = this.ongoingLoads.get(fileUrl);
       if (ongoingLoad)
         return ongoingLoad.then((loadedModel) => {

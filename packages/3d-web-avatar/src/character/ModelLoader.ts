@@ -68,7 +68,10 @@ export class ModelLoader {
   private modelCache: LRUCache<string, CachedModel>;
   private ongoingLoads: Map<string, Promise<GLTF | undefined>> = new Map();
 
-  constructor(maxCacheSize: number = 100) {
+  constructor(
+    maxCacheSize: number = 100,
+    private debug: boolean = false,
+  ) {
     this.loadingManager = new LoadingManager();
     this.gltfLoader = new CachedGLTFLoader(this.loadingManager);
     this.modelCache = new LRUCache(maxCacheSize);
@@ -85,12 +88,16 @@ export class ModelLoader {
     const cachedModel = this.modelCache.get(fileUrl);
 
     if (cachedModel) {
-      console.log(`Loading ${fileUrl.split("/").pop()} from cache`);
+      if (this.debug === true) {
+        console.log(`Loading ${fileUrl.split("/").pop()} from cache`);
+      }
       const blobURL = URL.createObjectURL(cachedModel.blob);
       this.gltfLoader.setBlobUrl(fileUrl, blobURL);
       return this.loadFromUrl(blobURL);
     } else {
-      console.log(`Loading ${fileUrl} from server`);
+      if (this.debug === true) {
+        console.log(`Loading ${fileUrl} from server`);
+      }
       const ongoingLoad = this.ongoingLoads.get(fileUrl);
       if (ongoingLoad) return ongoingLoad;
 
