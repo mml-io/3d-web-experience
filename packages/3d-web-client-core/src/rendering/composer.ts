@@ -1,5 +1,3 @@
-/* @ts-ignore */
-import { N8AOPostPass } from "n8ao";
 import {
   EffectComposer,
   RenderPass,
@@ -46,6 +44,7 @@ import { TweakPane } from "../tweakpane/TweakPane";
 
 import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat";
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
+import { N8SSAOPass } from "./post-effects/n8-ssao/N8SSAOPass";
 
 export class Composer {
   private width: number = 1;
@@ -68,7 +67,7 @@ export class Composer {
   private readonly normalTextureEffect: TextureEffect;
   private readonly ppssaoEffect: SSAOEffect;
   private readonly ppssaoPass: EffectPass;
-  private readonly n8aopass: N8AOPostPass;
+  private readonly n8aopass: N8SSAOPass;
 
   private readonly fxaaEffect: FXAAEffect;
   private readonly fxaaPass: EffectPass;
@@ -150,7 +149,7 @@ export class Composer {
       intensity: extrasValues.bloom,
     });
 
-    this.n8aopass = new N8AOPostPass(this.scene, this.camera, this.width, this.height);
+    this.n8aopass = new N8SSAOPass(this.scene, this.camera, this.width, this.height);
     this.n8aopass.configuration.aoRadius = n8ssaoValues.aoRadius;
     this.n8aopass.configuration.distanceFalloff = n8ssaoValues.distanceFalloff;
     this.n8aopass.configuration.intensity = n8ssaoValues.intensity;

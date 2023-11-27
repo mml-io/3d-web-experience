@@ -51,14 +51,14 @@ export const n8ssaoValues = {
   viewMode: "Combined",
 };
 
-const n8ssaoOptions = {
+export const n8ssaoOptions = {
   radius: { min: 0.1, max: 6, step: 0.1 },
   distanceFalloff: { min: 1, max: 6, step: 0.1 },
   intensity: { min: 0.1, max: 5, step: 0.1 },
   aoSamples: [2, 4, 8, 16, 32, 64],
   denoiseSamples: [2, 4, 8, 16, 32, 64],
   denoiseRadius: [3, 6, 12],
-  viewMode: ["Combined", "AO", "Split", "No AO"],
+  viewMode: ["Combined", "AO", "No AO", "Split", "Split AO", "No AO"],
 };
 
 const ssaoMaterialParams = [
@@ -175,10 +175,10 @@ export class SSAOFolder {
       this.aoDisplay = this.n8ssao.addBinding(n8ssaoValues, "viewMode", {
         view: "radiogrid",
         groupName: "viewMode",
-        size: [2, 2],
+        size: [3, 2],
         cells: (x: number, y: number) => ({
-          title: `${n8ssaoOptions.viewMode[y * 2 + x]}`,
-          value: `${n8ssaoOptions.viewMode[y * 2 + x]}`,
+          title: `${n8ssaoOptions.viewMode[y * 3 + x]}`,
+          value: `${n8ssaoOptions.viewMode[y * 3 + x]}`,
         }),
         label: "viewMode",
       });
