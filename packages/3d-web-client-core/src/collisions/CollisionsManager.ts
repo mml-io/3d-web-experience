@@ -77,13 +77,13 @@ export class CollisionsManager {
     group.updateWorldMatrix(true, false);
     const invertedRootMatrix = this.tempMatrix.copy(group.matrixWorld).invert();
     group.traverse((child: Object3D) => {
-      if (child.type === "Mesh") {
-        const mesh = child as Mesh;
-        const clonedGeometry = mesh.geometry.clone();
+      const asMesh = child as Mesh;
+      if (asMesh.isMesh) {
+        const clonedGeometry = asMesh.geometry.clone();
         if (child !== group) {
-          mesh.updateWorldMatrix(true, false);
+          asMesh.updateWorldMatrix(true, false);
           clonedGeometry.applyMatrix4(
-            this.tempMatrix2.multiplyMatrices(invertedRootMatrix, mesh.matrixWorld),
+            this.tempMatrix2.multiplyMatrices(invertedRootMatrix, asMesh.matrixWorld),
           );
         }
 
