@@ -1,3 +1,4 @@
+import { createMMLCharacterString } from "@mml-io/3d-web-avatar";
 import { useCallback, useEffect, useState } from "react";
 
 import { AssetDescription, CharacterComposition, CollectionDataType } from "./types";
@@ -32,10 +33,13 @@ export function CharacterPartsSelector<C extends CollectionDataType>({
   const createMMLDescription = useCallback(() => {
     const fullBody = currentSelection[fullBodyKey];
     const remainingParts = Object.entries(currentSelection).filter(([key]) => key !== fullBodyKey);
-    const description = `<m-character src="${fullBody}">
-${remainingParts.map(([key, asset]) => `<m-model src="${asset.asset}"></m-model>`).join("\n")}
-</m-character>
-    `;
+
+    const description = createMMLCharacterString({
+      base: { url: fullBody.asset },
+      parts: remainingParts.map(([, assetDescription]) => {
+        return { url: assetDescription.asset };
+      }),
+    });
     console.log(description);
   }, [currentSelection, fullBodyKey]);
 

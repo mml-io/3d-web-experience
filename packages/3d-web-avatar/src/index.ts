@@ -7,3 +7,4 @@ export {
   type MMLCharacterDescription,
   parseMMLDescription,
 } from "./helpers/parseMMLDescription";
+export { createMMLCharacterString } from "./helpers/createMMLCharacterString";
