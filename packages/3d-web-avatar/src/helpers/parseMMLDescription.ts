@@ -1,5 +1,6 @@
 export type MMLCharacterDescriptionPart = {
   url: string;
+  type?: string;
 };
 
 export type MMLCharacterDescription = {
