@@ -1,5 +1,52 @@
 <m-group id="stairs" z="10" y="0.1"></m-group>
 
+<m-cube z="19.65" y="2.95" height="0.5" depth="5" width="3"></m-cube>
+
+<m-cube color="pink" z="-30" x="-10" height="0.1" width="50" depth="50" rx="-30"></m-cube>
+
+<m-cube color="blue" z="7" height="0.1" width="5" depth="5">
+  <m-attr-anim attr="ry" start="0" end="360" duration="10000"></m-attr-anim>
+</m-cube>
+
+<m-cube color="green" height="0.1" width="5" depth="5" x="8">
+  <m-attr-anim attr="y" start="0" start-time="2000" end="5" ping-pong="true" duration="2500" easing="easeInOutCubic"></m-attr-anim>
+  <m-attr-anim attr="ry" start="0" end="360" duration="10000"></m-attr-anim>
+</m-cube>
+
+
+<m-cube color="green" height="0.1" width="5" z="10" depth="5" x="8">
+  <m-attr-anim attr="y" start="0" start-time="2000" end="20" ping-pong="true" duration="2500" easing="easeInOutCubic"></m-attr-anim>
+  <m-attr-anim attr="ry" start="0" end="360" duration="10000"></m-attr-anim>
+</m-cube>
+
+<m-cube z="30" y="1" width="5" height="0.1" depth="10">
+  <m-attr-anim attr="z" start="30" end="70" ping-pong="true" ping-pong-delay="1000" duration="10000" easing=""></m-attr-anim>
+</m-cube>
+<m-cube z="30" y="1" width="5" x="5" height="0.1" depth="10">
+  <m-attr-anim attr="z" start="20" end="80" ping-pong="true" ping-pong-delay="1000" duration="10000" easing=""></m-attr-anim>
+</m-cube>
+
+<m-model x="40" y="2" src="https://mmlstorage.com/6ec6a3f8d475c763819636c19ba1854e9fac59d6cc59fd4dc84d7aeb3ba7cf9e">
+  <m-attr-anim attr="ry" start="0" end="360" ping-pong="true" duration="10000" easing="easeInOutCubic"></m-attr-anim>
+  <m-attr-anim attr="rx" start="-10" end="10" ping-pong="true"  duration="10000" easing="easeInOutCubic"></m-attr-anim>
+  <m-attr-anim attr="z" start="0" start-time="2000" end="20" ping-pong="true" duration="2500" easing="easeInOutCubic"></m-attr-anim>
+</m-model>
+
+<m-cube color="orange" height="0.1" y="5" width="5" depth="5" x="16">
+  <m-attr-anim attr="ry" start="0" end="360" duration="10000"></m-attr-anim>
+  <m-attr-anim attr="rx" start="0" end="360" duration="10000"></m-attr-anim>
+  <m-attr-anim attr="rz" start="0" end="360" duration="10000"></m-attr-anim>
+</m-cube>
+
+<m-group>
+  <m-cube color="brown" height="0.1" y="0.25" width="5" depth="5" x="20"></m-cube>
+  <m-attr-anim attr="ry" start="0" end="360" duration="10000"></m-attr-anim>
+</m-group>
+
+<m-cube color="yellow" height="0.1" y="1" width="5" depth="5" x="-20">
+  <m-attr-anim attr="z" start="0" end="300" ping-pong="true" easing="easeInOutCubic" duration="10000"></m-attr-anim>
+</m-cube>
+
 <script>
   const stairs = document.getElementById("stairs");
 
@@ -18,13 +65,16 @@
     return hex;
   }
 
-  for (let i = 0; i < 15; i++) {
+  const stairsDuration = 4000;
+  const numOfSteps = 16;
+  const stepDepth = 0.5;
+  const stepHeight = 0.2;
+
+  for (let i = 0; i < numOfSteps; i++) {
     const stair = document.createElement("m-cube");
-    stair.setAttribute("z", i * 0.5);
-    stair.setAttribute("y", i * 0.2);
     stair.setAttribute("width", 2);
-    stair.setAttribute("height", 0.2);
-    stair.setAttribute("depth", 0.5);
+    stair.setAttribute("height", stepHeight);
+    stair.setAttribute("depth", stepDepth);
     stair.setAttribute("color", "blue");
     stair.setAttribute("collision-interval","1000");
     stair.addEventListener("collisionstart", () => {
@@ -34,5 +84,23 @@
       stair.setAttribute("color", getHexForCurrentTime(0.5));
     });
     stairs.append(stair);
+
+    const yAnimation = document.createElement("m-attr-anim");
+    yAnimation.setAttribute("attr", "y");
+    yAnimation.setAttribute("start-time", -i*(stairsDuration/numOfSteps));
+    // yAnimation.setAttribute("pause-time", 0);
+    yAnimation.setAttribute("start", -stepHeight);
+    yAnimation.setAttribute("end", (numOfSteps-1)*stepHeight);
+    yAnimation.setAttribute("duration", stairsDuration);
+    stair.append(yAnimation);
+
+    const zAnimation =document.createElement("m-attr-anim");
+    zAnimation.setAttribute("attr", "z");
+    zAnimation.setAttribute("start-time", -i*(stairsDuration/numOfSteps));
+    // zAnimation.setAttribute("pause-time", 0);
+    zAnimation.setAttribute("start", -stepDepth);
+    zAnimation.setAttribute("end", (numOfSteps-1)*stepDepth);
+    zAnimation.setAttribute("duration", stairsDuration);
+    stair.append(zAnimation);
   }
 </script>

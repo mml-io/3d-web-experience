@@ -1,13 +1,15 @@
-import { Line3, Matrix4, Quaternion, Raycaster, Vector3 } from "three";
+import { Euler, Line3, Matrix4, Quaternion, Ray, Raycaster, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
-import { CollisionsManager } from "../collisions/CollisionsManager";
+import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsManager";
 import { ease } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
 import { TimeManager } from "../time/TimeManager";
 
 import { Character } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
+
+const downVector = new Vector3(0, -1, 0);
 
 export class LocalController {
   private collisionDetectionSteps = 15;
@@ -17,10 +19,8 @@ export class LocalController {
     segment: new Line3(new Vector3(), new Vector3(0, 1.05, 0)),
   };
 
-  private maxWalkSpeed = 6;
-  private maxRunSpeed = 8.5;
   private gravity: number = -42;
-  private jumpForce: number = 16;
+  private jumpForce: number = 20;
   private coyoteTimeThreshold: number = 70;
 
   private coyoteTime: boolean = false;
@@ -39,6 +39,8 @@ export class LocalController {
 
   private tempMatrix: Matrix4 = new Matrix4();
   private tempSegment: Line3 = new Line3();
+  private tempQuaternion: Quaternion = new Quaternion();
+  private tempEuler: Euler = new Euler();
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
   private rayCaster: Raycaster = new Raycaster();
@@ -52,8 +54,8 @@ export class LocalController {
   private anyDirection: boolean;
   private conflictingDirections: boolean;
 
-  private speed: number = 0;
-  private targetSpeed: number = 0;
+  // private speed: number = 0;
+  // private targetSpeed: number = 0;
 
   public networkState: CharacterState;
 
@@ -86,9 +88,6 @@ export class LocalController {
     this.anyDirection = anyDirection;
     this.conflictingDirections = conflictingDirection;
 
-    this.targetSpeed = this.run ? this.maxRunSpeed : this.maxWalkSpeed;
-    this.speed += ease(this.targetSpeed, this.speed, 0.07);
-
     this.rayCaster.set(this.character.position, this.vectorDown);
     const minimumDistance = this.collisionsManager.raycastFirstDistance(this.rayCaster.ray);
     if (minimumDistance !== null) {
@@ -102,13 +101,21 @@ export class LocalController {
       this.character.updateAnimation(AnimationState.idle);
     }
 
-    if (this.anyDirection) this.updateRotation();
-
-    for (let i = 0; i < this.collisionDetectionSteps; i++) {
-      this.updatePosition(this.timeManager.deltaTime / this.collisionDetectionSteps, i);
+    if (this.anyDirection) {
+      this.updateRotation();
     }
 
-    if (this.character.position.y < 0) this.resetPosition();
+    for (let i = 0; i < this.collisionDetectionSteps; i++) {
+      this.updatePosition(
+        this.timeManager.deltaTime,
+        this.timeManager.deltaTime / this.collisionDetectionSteps,
+        i,
+      );
+    }
+
+    if (this.character.position.y < 0) {
+      this.resetPosition();
+    }
     this.updateNetworkState();
   }
 
@@ -150,9 +157,9 @@ export class LocalController {
     );
     const isCameraFirstPerson = camToModelDistance < 2;
     if (isCameraFirstPerson) {
-      const cameraForward = new Vector3(0, 0, 1).applyQuaternion(
-        this.cameraManager.camera.quaternion,
-      );
+      const cameraForward = this.tempVector
+        .set(0, 0, 1)
+        .applyQuaternion(this.cameraManager.camera.quaternion);
       this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);
     } else {
       this.azimuthalAngle = Math.atan2(
@@ -169,8 +176,10 @@ export class LocalController {
   private updateRotation(): void {
     this.updateRotationOffset();
     this.updateAzimuthalAngle();
-    const rotationQuaternion = new Quaternion();
-    rotationQuaternion.setFromAxisAngle(this.vectorUp, this.azimuthalAngle + this.rotationOffset);
+    const rotationQuaternion = this.tempQuaternion.setFromAxisAngle(
+      this.vectorUp,
+      this.azimuthalAngle + this.rotationOffset,
+    );
     const angularDifference = this.computeAngularDifference(rotationQuaternion);
     const desiredTime = 0.07;
     const angularSpeed = angularDifference / desiredTime;
@@ -178,77 +187,116 @@ export class LocalController {
     this.character.quaternion.rotateTowards(rotationQuaternion, frameRotation);
   }
 
-  private addScaledVectorToCharacter(deltaTime: number) {
-    this.character.position.addScaledVector(this.tempVector, this.speed * deltaTime);
-  }
+  private applyControls(deltaTime: number) {
+    const airResistance = 0.5;
+    const groundResistance = 0.99999999;
+    const resistance = this.characterOnGround ? groundResistance : airResistance;
 
-  private updatePosition(deltaTime: number, _iter: number): void {
+    // Dampen the velocity
+    const speedFactor = Math.pow(1 - resistance, deltaTime);
+    this.characterVelocity.multiplyScalar(speedFactor);
+
+    const acceleration = this.tempVector.set(0, 0, 0);
+
     if (this.characterOnGround) {
-      if (!this.jump) this.canJump = true;
+      if (!this.jump) {
+        this.canJump = true;
+      }
 
       if (this.jump && this.canJump) {
-        this.characterVelocity.y += this.jumpForce;
+        acceleration.y += this.jumpForce / deltaTime; // ACCOUNT FOR DELTATIME (JUMP SHOULD NOT BE DEPENDENT ON DELTATIME)
         this.canJump = false;
       } else {
-        this.characterVelocity.y = deltaTime * this.gravity;
+        acceleration.y += this.gravity;
       }
     } else if (this.jump && this.coyoteTime) {
-      this.characterVelocity.y = this.jumpForce;
+      acceleration.y += this.jumpForce / deltaTime; // ACCOUNT FOR DELTATIME (JUMP SHOULD NOT BE DEPENDENT ON DELTATIME)
       this.canJump = false;
     } else {
-      this.characterVelocity.y += deltaTime * this.gravity;
+      acceleration.y += this.gravity;
       this.canJump = false;
     }
 
-    this.character.position.addScaledVector(this.characterVelocity, deltaTime);
-
-    this.tempVector.set(0, 0, 0);
+    const airControlModifier = 0.05;
+    const groundWalkControl = 0.75;
+    const groundRunControl = 1.0;
+    const baseControl = 200;
+    const control =
+      (this.characterOnGround
+        ? this.run
+          ? groundRunControl
+          : groundWalkControl
+        : airControlModifier) * baseControl;
 
     if (this.forward) {
-      const forward = new Vector3(0, 0, -1).applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-      this.tempVector.add(forward);
+      const forward = this.tempVector2
+        .set(0, 0, -control)
+        .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
+      acceleration.add(forward);
     }
 
     if (this.backward) {
-      const backward = new Vector3(0, 0, 1).applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-      this.tempVector.add(backward);
+      const backward = this.tempVector2
+        .set(0, 0, control)
+        .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
+      acceleration.add(backward);
     }
 
     if (this.left) {
-      const left = new Vector3(-1, 0, 0).applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-      this.tempVector.add(left);
+      const left = this.tempVector2
+        .set(-control, 0, 0)
+        .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
+      acceleration.add(left);
     }
 
     if (this.right) {
-      const right = new Vector3(1, 0, 0).applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-      this.tempVector.add(right);
+      const right = this.tempVector2
+        .set(control, 0, 0)
+        .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
+      acceleration.add(right);
     }
+    this.characterVelocity.addScaledVector(acceleration, deltaTime);
 
-    if (this.tempVector.length() > 0) {
-      this.tempVector.normalize();
-      this.addScaledVectorToCharacter(deltaTime);
+    this.character.position.addScaledVector(this.characterVelocity, deltaTime);
+
+    console.log(
+      "pos",
+      this.character.position.toArray().map((n) => n.toFixed(2)),
+      "vel",
+      this.characterVelocity.toArray().map((n) => n.toFixed(2)),
+      this.characterOnGround ? "ground" : "air",
+    );
+  }
+
+  private updatePosition(deltaTime: number, stepDeltaTime: number, iter: number): void {
+    this.applyControls(stepDeltaTime);
+
+    if (iter === 0) {
+      const lastMovement = this.getMovementFromSurfaces(this.character.position, deltaTime);
+      if (lastMovement) {
+        this.character.position.add(lastMovement.position);
+        const asQuaternion = this.tempQuaternion.setFromEuler(this.character.rotation);
+        const lastMovementEuler = this.tempEuler.setFromQuaternion(lastMovement.rotation);
+        lastMovementEuler.x = 0;
+        lastMovementEuler.z = 0;
+        lastMovement.rotation.setFromEuler(lastMovementEuler);
+        asQuaternion.multiply(lastMovement.rotation);
+        this.character.rotation.setFromQuaternion(asQuaternion);
+      }
     }
-
     this.character.updateMatrixWorld();
 
-    this.tempSegment.copy(this.capsuleInfo.segment!);
-    this.tempSegment.start.applyMatrix4(this.character.matrixWorld).applyMatrix4(this.tempMatrix);
-    this.tempSegment.end.applyMatrix4(this.character.matrixWorld).applyMatrix4(this.tempMatrix);
+    const avatarSegment = this.tempSegment;
+    avatarSegment.copy(this.capsuleInfo.segment!);
+    avatarSegment.start.applyMatrix4(this.character.matrixWorld).applyMatrix4(this.tempMatrix);
+    avatarSegment.end.applyMatrix4(this.character.matrixWorld).applyMatrix4(this.tempMatrix);
 
-    this.collisionsManager.applyColliders(this.tempSegment, this.capsuleInfo.radius!);
+    const positionBeforeCollisions = this.tempVector.copy(avatarSegment.start);
+    this.collisionsManager.applyColliders(avatarSegment, this.capsuleInfo.radius!);
+    this.character.position.copy(avatarSegment.start);
+    const deltaCollisionPosition = avatarSegment.start.sub(positionBeforeCollisions);
 
-    const newPosition = this.tempVector;
-    newPosition.copy(this.tempSegment.start);
-
-    const deltaVector = this.tempVector2;
-    deltaVector.subVectors(newPosition, this.character.position);
-
-    const offset = Math.max(0.0, deltaVector.length() - 1e-5);
-    deltaVector.normalize().multiplyScalar(offset);
-
-    this.character.position.add(deltaVector);
-
-    this.characterOnGround = deltaVector.y > Math.abs(deltaTime * this.characterVelocity.y * 0.25);
+    this.characterOnGround = deltaCollisionPosition.y > 0;
 
     if (this.characterWasOnGround && !this.characterOnGround) {
       this.characterAirborneSince = Date.now();
@@ -260,25 +308,127 @@ export class LocalController {
       Date.now() - this.characterAirborneSince < this.coyoteTimeThreshold;
 
     this.characterWasOnGround = this.characterOnGround;
+  }
 
-    if (this.characterOnGround) {
-      this.characterVelocity.set(0, 0, 0);
-    } else {
-      deltaVector.normalize();
-      this.characterVelocity.addScaledVector(deltaVector, -deltaVector.dot(this.characterVelocity));
+  private lastFrameSurfaceState:
+    | [
+        CollisionMeshState,
+        {
+          lastMatrix: Matrix4;
+        },
+      ]
+    | null = null;
+
+  private surfaceTempQuaternion = new Quaternion();
+  private surfaceTempQuaternion2 = new Quaternion();
+  private surfaceTempVector1 = new Vector3();
+  private surfaceTempVector2 = new Vector3();
+  private surfaceTempVector3 = new Vector3();
+  private surfaceTempVector4 = new Vector3();
+  private surfaceTempVector5 = new Vector3();
+  private surfaceTempRay = new Ray();
+
+  public getMovementFromSurfaces(userPosition: Vector3, deltaTime: number) {
+    let lastMovement: { rotation: Quaternion; position: Vector3 } | null = null;
+
+    // If we have a last frame state, we can calculate the movement of the mesh
+    if (this.lastFrameSurfaceState !== null) {
+      const meshState = this.lastFrameSurfaceState[0];
+      const currentFrameMatrix = meshState.matrix;
+      const lastFrameMatrix = this.lastFrameSurfaceState[1].lastMatrix;
+
+      if (lastFrameMatrix.equals(currentFrameMatrix)) {
+        // No movement from this mesh - do nothing
+      } else {
+        // The mesh has moved since the last frame - calculate the movement
+
+        // Get the position of the mesh in the last frame
+        const lastMeshPosition = this.surfaceTempVector1;
+        const lastMeshRotation = this.surfaceTempQuaternion;
+        lastFrameMatrix.decompose(lastMeshPosition, lastMeshRotation, this.surfaceTempVector3);
+
+        // Get the position of the mesh in the current frame
+        const currentMeshPosition = this.surfaceTempVector2;
+        const currentMeshRotation = this.surfaceTempQuaternion2;
+        currentFrameMatrix.decompose(
+          currentMeshPosition,
+          currentMeshRotation,
+          this.surfaceTempVector3,
+        );
+
+        // Calculate the difference between the new position and the old position to determine the movement due to translation of position
+        const meshTranslationDelta = this.surfaceTempVector5
+          .copy(currentMeshPosition)
+          .sub(lastMeshPosition);
+
+        // Calculate the relative position of the user to the mesh in the last frame
+        const lastFrameRelativeUserPosition = this.surfaceTempVector3
+          .copy(userPosition)
+          .sub(lastMeshPosition);
+
+        // Calculate the relative quaternion of the mesh in the last frame to the mesh in the current frame
+        const meshRotationDelta = lastMeshRotation.invert().multiply(currentMeshRotation);
+
+        // Apply the relative quaternion to the relative user position to determine the new position of the user given just the rotation
+        const translationDueToRotation = this.surfaceTempVector4
+          .copy(lastFrameRelativeUserPosition)
+          .applyQuaternion(meshRotationDelta)
+          .sub(lastFrameRelativeUserPosition);
+
+        // Combine the mesh translation delta and the rotation translation delta to determine the total movement of the user
+        const translationAndRotationPositionDelta = this.surfaceTempVector1
+          .copy(meshTranslationDelta)
+          .add(translationDueToRotation);
+
+        lastMovement = {
+          position: translationAndRotationPositionDelta,
+          rotation: meshRotationDelta,
+        };
+        lastFrameMatrix.copy(currentFrameMatrix);
+      }
     }
+
+    const newPosition = this.surfaceTempVector3.copy(userPosition);
+    if (lastMovement) {
+      newPosition.add(lastMovement.position);
+    }
+    newPosition.setY(newPosition.y + 0.05);
+
+    // Raycast down from the new position to see if there is a surface below the user which will be tracked in the next frame
+    const ray = this.surfaceTempRay.set(newPosition, downVector);
+    const hit = this.collisionsManager.raycastFirst(ray);
+    if (hit && hit[0] < 0.8) {
+      // There is a surface below the user
+      const currentCollisionMeshState = hit[1];
+      this.lastFrameSurfaceState = [
+        currentCollisionMeshState,
+        { lastMatrix: currentCollisionMeshState.matrix.clone() },
+      ];
+    } else {
+      if (this.lastFrameSurfaceState !== null && lastMovement) {
+        // Apply the last movement to the user's velocity
+        this.characterVelocity.add(
+          lastMovement.position.clone().divideScalar(deltaTime), // The position delta is the result of one tick which is deltaTime seconds, so we need to divide by deltaTime to get the velocity per second
+        );
+        console.log(
+          "imparting velocity",
+          lastMovement.position.toArray().map((n) => n.toFixed(2)),
+        );
+      }
+      this.lastFrameSurfaceState = null;
+    }
+    return lastMovement;
   }
 
   private updateNetworkState(): void {
-    const characterQuaternion = this.character.getWorldQuaternion(new Quaternion());
-    const positionUpdate = new Vector3(
-      this.character.position.x,
-      this.character.position.y,
-      this.character.position.z,
-    );
+    const characterQuaternion = this.character.getWorldQuaternion(this.tempQuaternion);
     this.networkState = {
       id: this.id,
-      position: positionUpdate,
+      position: {
+        x: this.character.position.x,
+        y: this.character.position.y,
+        z: this.character.position.z,
+      },
       rotation: { quaternionY: characterQuaternion.y, quaternionW: characterQuaternion.w },
       state: this.character.getCurrentAnimation(),
     };

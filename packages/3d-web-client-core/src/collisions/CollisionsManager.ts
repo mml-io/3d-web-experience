@@ -16,6 +16,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   Object3D,
+  Quaternion,
   Ray,
   Scene,
   Vector3,
@@ -24,7 +25,7 @@ import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHel
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MeshBVH, MeshBVHVisualizer } from "three-mesh-bvh";
 
-type CollisionMeshState = {
+export type CollisionMeshState = {
   matrix: Matrix4;
   source: Group;
   meshBVH: MeshBVH;
@@ -54,22 +55,35 @@ export class CollisionsManager {
     this.collisionTrigger = MMLCollisionTrigger.init();
   }
 
-  public raycastFirstDistance(ray: Ray): number | null {
+  public raycastFirst(ray: Ray): [number, CollisionMeshState] | null {
     let minimumDistance: number | null = null;
-    for (const [, value] of this.collisionMeshState) {
-      this.tempRay.copy(ray).applyMatrix4(this.tempMatrix.copy(value.matrix).invert());
-      const hit = value.meshBVH.raycastFirst(this.tempRay, DoubleSide);
+    let minimumHit: CollisionMeshState | null = null;
+    for (const [, collisionMeshState] of this.collisionMeshState) {
+      this.tempRay.copy(ray).applyMatrix4(this.tempMatrix.copy(collisionMeshState.matrix).invert());
+      const hit = collisionMeshState.meshBVH.raycastFirst(this.tempRay, DoubleSide);
       if (hit) {
         this.tempSegment.start.copy(this.tempRay.origin);
         this.tempSegment.end.copy(hit.point);
-        this.tempSegment.applyMatrix4(value.matrix);
+        this.tempSegment.applyMatrix4(collisionMeshState.matrix);
         const dist = this.tempSegment.distance();
         if (minimumDistance === null || dist < minimumDistance) {
           minimumDistance = dist;
+          minimumHit = collisionMeshState;
         }
       }
     }
-    return minimumDistance;
+    if (minimumDistance === null || minimumHit === null) {
+      return null;
+    }
+    return [minimumDistance, minimumHit];
+  }
+
+  public raycastFirstDistance(ray: Ray): number | null {
+    const hit = this.raycastFirst(ray);
+    if (hit === null) {
+      return null;
+    }
+    return hit[0];
   }
 
   private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
@@ -273,8 +287,10 @@ export class CollisionsManager {
         position: { x: number; y: number; z: number };
       }
     > | null = null;
+
     for (const meshState of this.collisionMeshState.values()) {
       const collisionPosition = this.applyCollider(tempSegment, radius, meshState);
+
       if (collisionPosition && meshState.trackCollisions) {
         if (collidedElements === null) {
           collidedElements = new Map();
