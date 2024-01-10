@@ -1,4 +1,5 @@
 import { type LoadingErrors, type MMLCharacterDescription } from "@mml-io/3d-web-avatar";
+import { ModelScreenshot } from "@mml-io/3d-web-model-screenshot";
 import {
   AvatarVisualizer,
   CharacterPartsSelector,
@@ -45,6 +46,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   const hasCurrentCharacter = props.currentCharacter !== null;
 
   const handleCloseErrors = () => setShowErrors(false);
+  const screenshotTool = new ModelScreenshot();
 
   const checkAgainstCollection = useCallback(
     (collectionData: C, currentCharacter: MMLCharacterDescription) => {
@@ -72,9 +74,24 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
         fullBody.url,
         Object.values(parts).map((part) => part.url),
       );
+
+      const screenshotData = await screenshotTool.screenshot(
+        obj3d,
+        idleAnimationURL,
+        1000,
+        1000,
+        30,
+        2,
+      );
+
+      const windowName = "screenshotWindow";
+      const newTab = window.open("", windowName);
+      newTab!.document.body.style.backgroundColor = "black";
+      newTab!.document.body.innerHTML = `<img src="${screenshotData}" alt="Screenshot" style="max-width: 100%; max-height: 100%;">`;
       setCharacterMesh(obj3d);
       setSelectedPart("fullBody");
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [character],
   );
 
