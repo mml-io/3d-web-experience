@@ -35,6 +35,7 @@ export class Character {
     fullBodyModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
         (child as SkinnedMesh).castShadow = true;
+        (child as SkinnedMesh).receiveShadow = true;
         if (this.skinnedMeshesParent === null) {
           this.skinnedMeshesParent = child.parent as Group;
         }
@@ -49,6 +50,7 @@ export class Character {
       modelGroup.traverse((child) => {
         if (child.type === "SkinnedMesh") {
           (child as SkinnedMesh).castShadow = true;
+          (child as SkinnedMesh).receiveShadow = true;
           (child as SkinnedMesh).bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
           this.skinnedMeshesParent?.children.splice(3, 0, child as SkinnedMesh);
         }
