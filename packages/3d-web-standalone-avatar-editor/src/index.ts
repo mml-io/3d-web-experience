@@ -11,4 +11,4 @@ export {
   createMMLCharacterString,
 } from "@mml-io/3d-web-avatar";
 export { AvatarRenderer } from "./AvatarRenderer";
-export { AvatarVisualizer, type AvatarVisualizerMethods } from "./AvatarVisualizer";
+export { AvatarVisualizer } from "./AvatarVisualizer";
