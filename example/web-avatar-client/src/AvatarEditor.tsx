@@ -1,4 +1,8 @@
-import { type LoadingErrors, type MMLCharacterDescription } from "@mml-io/3d-web-avatar";
+import {
+  type LoadingErrors,
+  type MMLCharacterDescription,
+  cloneModel,
+} from "@mml-io/3d-web-avatar";
 import { ModelScreenshot } from "@mml-io/3d-web-model-screenshot";
 import {
   AvatarVisualizer,
@@ -10,7 +14,7 @@ import {
   CharacterComposition,
 } from "@mml-io/3d-web-standalone-avatar-editor";
 import React, { useState, useCallback, useEffect } from "react";
-import { Object3D } from "three";
+import { Group, Object3D } from "three";
 
 import idleAnimationURL from "../../assets/avatar/anims/AS_Andor_Stand_Idle.glb";
 import hdrURL from "../../assets/hdr/industrial_sunset_2k.hdr";
@@ -38,6 +42,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   showMirror: boolean;
 }) {
   const [characterMesh, setCharacterMesh] = useState<Object3D | null>(null);
+  const [characterClone, setCharacterClone] = useState<Object3D | null>(null);
   const [character] = useState(new Character(new ModelLoader()));
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes>("fullBody");
   const [errors, setErrors] = useState(props.loadingErrors);
@@ -74,20 +79,8 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
         fullBody.url,
         Object.values(parts).map((part) => part.url),
       );
-
-      const screenshotData = await screenshotTool.screenshot(
-        obj3d,
-        idleAnimationURL,
-        1000,
-        1000,
-        30,
-        2,
-      );
-
-      const windowName = "screenshotWindow";
-      const newTab = window.open("", windowName);
-      newTab!.document.body.style.backgroundColor = "black";
-      newTab!.document.body.innerHTML = `<img src="${screenshotData}" alt="Screenshot" style="max-width: 100%; max-height: 100%;">`;
+      const clone = cloneModel(obj3d as Group);
+      setCharacterClone(clone);
       setCharacterMesh(obj3d);
       setSelectedPart("fullBody");
     },
@@ -98,6 +91,25 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   const onSelectingPart = (part: BodyPartTypes) => {
     if (selectedPart !== part) {
       setSelectedPart(part);
+    }
+  };
+
+  const takeScreenShot = async () => {
+    if (characterClone) {
+      const screenshotData = await screenshotTool.screenshot(
+        characterClone,
+        idleAnimationURL,
+        1000, // width
+        1000, // height
+        30, // padding
+        2, // super-sampling anti-aliasing
+      );
+      // setTakingScreenshot(false);
+
+      const windowName = "screenshotWindow";
+      const newTab = window.open("", windowName);
+      newTab!.document.body.style.backgroundColor = "black";
+      newTab!.document.body.innerHTML = `<img src="${screenshotData}" alt="Screenshot" style="max-width: 100%; max-height: 100%;">`;
     }
   };
 
@@ -154,6 +166,9 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
           showMirror={props.showMirror}
         />
       )}
+      <div className="screenshot-button-wrapper">
+        <button onClick={takeScreenShot}>screenshot</button>
+      </div>
       {hasErrorsToShow && (
         <div id="loading_errors" className="avatar-loading-errors">
           <button onClick={handleCloseErrors} className="close-errors">

@@ -183,3 +183,9 @@ canvas {
     transform: translateY(0);
   }
 }
+
+.screenshot-button-wrapper {
+  position: fixed;
+  right: 12px;
+  top: 12px;
+}

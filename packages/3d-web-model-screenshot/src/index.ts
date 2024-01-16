@@ -105,9 +105,7 @@ export class ModelScreenshot {
   ): WebGLRenderTarget {
     // Create a new WebGLRenderTarget
     const renderTarget = new WebGLRenderTarget(width * ssaa, height * ssaa);
-    const currentPosition = new Vector3();
-    currentPosition.copy(this.model!.position);
-    this.model.position.set(0, 0, 0);
+    this.model.updateMatrixWorld();
     this.animationAction.play();
     this.mixer.setTime(0.4);
     this.mixer.update(0);
