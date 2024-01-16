@@ -1,19 +1,19 @@
 import {
+  cloneModel,
   type LoadingErrors,
   type MMLCharacterDescription,
-  cloneModel,
 } from "@mml-io/3d-web-avatar";
-import { ModelScreenshot } from "@mml-io/3d-web-model-screenshot";
 import {
   AvatarVisualizer,
+  Character,
+  CharacterComposition,
   CharacterPartsSelector,
   CollectionDataType,
-  Character,
   findAssetsInCollection,
   ModelLoader,
-  CharacterComposition,
+  ModelScreenshotter,
 } from "@mml-io/3d-web-standalone-avatar-editor";
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Group, Object3D } from "three";
 
 import idleAnimationURL from "../../assets/avatar/anims/AS_Andor_Stand_Idle.glb";
@@ -51,7 +51,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   const hasCurrentCharacter = props.currentCharacter !== null;
 
   const handleCloseErrors = () => setShowErrors(false);
-  const screenshotTool = new ModelScreenshot();
+  const screenshotTool = new ModelScreenshotter();
 
   const checkAgainstCollection = useCallback(
     (collectionData: C, currentCharacter: MMLCharacterDescription) => {
@@ -99,12 +99,12 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
       const screenshotData = await screenshotTool.screenshot(
         characterClone,
         idleAnimationURL,
+        0.4, // animation time (seconds)
         1000, // width
         1000, // height
         30, // padding
         2, // super-sampling anti-aliasing
       );
-      // setTakingScreenshot(false);
 
       const windowName = "screenshotWindow";
       const newTab = window.open("", windowName);

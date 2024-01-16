@@ -57,9 +57,7 @@ export class AvatarRenderer {
 
     // Lights
     this.lights = new Lights(this.camOffset);
-    this.scene.add(this.lights.ambientLight);
-    this.scene.add(this.lights.backLight);
-    this.scene.add(this.lights.frontLight);
+    this.scene.add(this.lights);
 
     // Mirror
     if (this.showMirror) {
