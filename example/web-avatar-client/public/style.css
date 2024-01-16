@@ -4,6 +4,7 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  background: transparent;
 }
 
 .root-wrapper {
@@ -181,4 +182,10 @@ canvas {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.screenshot-button-wrapper {
+  position: fixed;
+  right: 12px;
+  top: 12px;
 }

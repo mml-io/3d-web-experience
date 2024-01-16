@@ -12,3 +12,4 @@ export {
 } from "@mml-io/3d-web-avatar";
 export { AvatarRenderer } from "./AvatarRenderer";
 export { AvatarVisualizer } from "./AvatarVisualizer";
+export { ModelScreenshotter } from "./screenshot/ModelScreenshotter";

@@ -11,7 +11,7 @@ class App {
   root: Root;
   private currentCharacter: MMLCharacterDescription | null = null;
   private loadingErrors: LoadingErrors | null = null;
-  private showMirror: boolean = true;
+  private showMirror: boolean = false;
 
   constructor() {
     // this is where we'll retrieve the current character's MML description

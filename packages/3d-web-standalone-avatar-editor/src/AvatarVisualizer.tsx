@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { Object3D } from "three";
 
 import { AvatarRenderer } from "./AvatarRenderer";
@@ -16,20 +16,14 @@ type AvatarVisualizerProps = {
   showMirror: boolean;
 };
 
-export type XYZ = { x?: number; y?: number; z?: number };
-
-function isXYZEqual(a: XYZ, b: XYZ) {
-  return a.x === b.x && a.y === b.y && a.z === b.z;
-}
-
-export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
+export const AvatarVisualizer = ({
   characterMesh,
   hdrURL,
   idleAnimationURL,
   cameraTargetOffset,
   cameraTargetDistance,
   showMirror,
-}) => {
+}: AvatarVisualizerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const visualizerRef = useRef<AvatarRenderer | null>(null);
   const currentCharacterRef = useRef<Object3D | null>(null);
@@ -47,12 +41,7 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
 
   useEffect(() => {
     if (visualizerRef.current) {
-      if (
-        isXYZEqual(visualizerRef.current.cameraTargetOffset, cameraTargetOffset) ||
-        visualizerRef.current.cameraTargetDistance !== cameraTargetDistance
-      ) {
-        visualizerRef.current.setDistanceAndOffset(cameraTargetOffset, cameraTargetDistance);
-      }
+      visualizerRef.current.setDistanceAndOffset(cameraTargetOffset, cameraTargetDistance);
     }
   }, [cameraTargetOffset, cameraTargetDistance]);
 
@@ -60,12 +49,13 @@ export const AvatarVisualizer: React.FC<AvatarVisualizerProps> = ({
     const visualizer = visualizerRef.current;
     if (!characterMesh) return;
     if (visualizer) {
-      visualizer.animateCharacter(characterMesh);
+      const thingie = visualizer.animateCharacter(characterMesh);
       const scene = visualizer.scene;
       scene.add(characterMesh);
       if (currentCharacterRef.current) scene.remove(currentCharacterRef.current);
       currentCharacterRef.current = characterMesh;
       visualizer.update();
+      thingie.then(() => {});
     }
   }, [characterMesh]);
 

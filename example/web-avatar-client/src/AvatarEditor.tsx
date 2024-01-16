@@ -1,15 +1,20 @@
-import { type LoadingErrors, type MMLCharacterDescription } from "@mml-io/3d-web-avatar";
+import {
+  cloneModel,
+  type LoadingErrors,
+  type MMLCharacterDescription,
+} from "@mml-io/3d-web-avatar";
 import {
   AvatarVisualizer,
+  Character,
+  CharacterComposition,
   CharacterPartsSelector,
   CollectionDataType,
-  Character,
   findAssetsInCollection,
   ModelLoader,
-  CharacterComposition,
+  ModelScreenshotter,
 } from "@mml-io/3d-web-standalone-avatar-editor";
-import React, { useState, useCallback, useEffect } from "react";
-import { Object3D } from "three";
+import React, { useCallback, useEffect, useState } from "react";
+import { Group, Object3D } from "three";
 
 import idleAnimationURL from "../../assets/avatar/anims/AS_Andor_Stand_Idle.glb";
 import hdrURL from "../../assets/hdr/industrial_sunset_2k.hdr";
@@ -45,6 +50,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   const hasCurrentCharacter = props.currentCharacter !== null;
 
   const handleCloseErrors = () => setShowErrors(false);
+  const [screenshotTool] = useState(new ModelScreenshotter());
 
   const checkAgainstCollection = useCallback(
     (collectionData: C, currentCharacter: MMLCharacterDescription) => {
@@ -75,6 +81,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
       setCharacterMesh(obj3d);
       setSelectedPart("fullBody");
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [character],
   );
 
@@ -83,6 +90,24 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
       setSelectedPart(part);
     }
   };
+
+  const takeScreenShot = useCallback(async () => {
+    const characterClone = cloneModel(characterMesh as Group);
+    const screenshotData = await screenshotTool.screenshot(
+      characterClone,
+      idleAnimationURL,
+      0.4, // animation time (seconds)
+      1000, // width
+      1000, // height
+      30, // padding
+      2, // super-sampling anti-aliasing
+    );
+
+    const windowName = "screenshotWindow";
+    const newTab = window.open("", windowName);
+    newTab!.document.body.style.backgroundColor = "black";
+    newTab!.document.body.innerHTML = `<img src="${screenshotData}" alt="Screenshot" style="max-width: 100%; max-height: 100%;">`;
+  }, [characterMesh, screenshotTool]);
 
   useEffect(() => {
     if (hasCurrentCharacter && props.currentCharacter) {
@@ -137,6 +162,9 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
           showMirror={props.showMirror}
         />
       )}
+      <div className="screenshot-button-wrapper">
+        <button onClick={takeScreenShot}>screenshot</button>
+      </div>
       {hasErrorsToShow && (
         <div id="loading_errors" className="avatar-loading-errors">
           <button onClick={handleCloseErrors} className="close-errors">

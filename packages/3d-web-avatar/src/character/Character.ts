@@ -1,9 +1,15 @@
 import { Group, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
-import { GLTF } from "three/examples/jsm/loaders/GLTFLoader";
+import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
 
 import { ModelLoader } from "./ModelLoader";
+
+export function cloneModel(model: Group) {
+  const clone = SkeletonUtils.clone(model);
+  return clone;
+}
 
 export class Character {
   private skeletonHelpers: SkeletonHelpers = new SkeletonHelpers();
@@ -35,6 +41,7 @@ export class Character {
     fullBodyModelGroup.traverse((child) => {
       if (child.type === "SkinnedMesh") {
         (child as SkinnedMesh).castShadow = true;
+        (child as SkinnedMesh).receiveShadow = true;
         if (this.skinnedMeshesParent === null) {
           this.skinnedMeshesParent = child.parent as Group;
         }
@@ -49,6 +56,7 @@ export class Character {
       modelGroup.traverse((child) => {
         if (child.type === "SkinnedMesh") {
           (child as SkinnedMesh).castShadow = true;
+          (child as SkinnedMesh).receiveShadow = true;
           (child as SkinnedMesh).bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
           this.skinnedMeshesParent?.children.splice(3, 0, child as SkinnedMesh);
         }

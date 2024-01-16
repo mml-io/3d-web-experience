@@ -2,23 +2,19 @@ import { ModelLoader } from "@mml-io/3d-web-avatar";
 import { TimeManager, CameraManager, CollisionsManager } from "@mml-io/3d-web-client-core";
 import {
   AnimationMixer,
-  Color,
-  Fog,
   LinearSRGBColorSpace,
   LoadingManager,
   LoopRepeat,
-  Mesh,
   Object3D,
-  PCFSoftShadowMap,
   PMREMGenerator,
   Scene,
+  VSMShadowMap,
   Vector3,
   WebGLRenderer,
 } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-import { Floor } from "./scene/Floor";
 import { Lights } from "./scene/Lights";
 import { Mirror } from "./scene/Mirror";
 
@@ -43,7 +39,6 @@ export class AvatarRenderer {
   private animationAsset: GLTF | null | undefined = null;
 
   private lights: Lights;
-  private floor: Mesh | null = null;
   private mirror: Mirror | null = null;
 
   public cameraTargetOffset: { x?: number; y?: number; z?: number } = {};
@@ -55,22 +50,14 @@ export class AvatarRenderer {
     private showMirror: boolean,
   ) {
     this.scene = new Scene();
-    this.scene.fog = new Fog(new Color().setRGB(0.42, 0.48, 0.6), 1, this.fogDistance);
-    this.renderer = new WebGLRenderer({ antialias: true });
-    this.renderer.shadowMap.type = PCFSoftShadowMap;
+    this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
+    this.renderer.shadowMap.type = VSMShadowMap;
     this.renderer.shadowMap.enabled = true;
     this.renderer.setSize(this.width, this.height);
 
-    this.useHDRI(this.hdrURL);
-
-    // Floor
-    this.floor = new Floor(this.floorSize).mesh;
-    this.scene.add(this.floor);
-
     // Lights
     this.lights = new Lights(this.camOffset);
-    this.scene.add(this.lights.ambientLight);
-    this.scene.add(this.lights.mainLight);
+    this.scene.add(this.lights);
 
     // Mirror
     if (this.showMirror) {
