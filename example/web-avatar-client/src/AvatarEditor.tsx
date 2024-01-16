@@ -50,7 +50,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   const hasCurrentCharacter = props.currentCharacter !== null;
 
   const handleCloseErrors = () => setShowErrors(false);
-  const screenshotTool = new ModelScreenshotter();
+  const [screenshotTool] = useState(new ModelScreenshotter());
 
   const checkAgainstCollection = useCallback(
     (collectionData: C, currentCharacter: MMLCharacterDescription) => {
