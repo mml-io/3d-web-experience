@@ -42,7 +42,6 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   showMirror: boolean;
 }) {
   const [characterMesh, setCharacterMesh] = useState<Object3D | null>(null);
-  const [characterClone, setCharacterClone] = useState<Object3D | null>(null);
   const [character] = useState(new Character(new ModelLoader()));
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes>("fullBody");
   const [errors, setErrors] = useState(props.loadingErrors);
@@ -79,8 +78,6 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
         fullBody.url,
         Object.values(parts).map((part) => part.url),
       );
-      const clone = cloneModel(obj3d as Group);
-      setCharacterClone(clone);
       setCharacterMesh(obj3d);
       setSelectedPart("fullBody");
     },
@@ -94,24 +91,23 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
     }
   };
 
-  const takeScreenShot = async () => {
-    if (characterClone) {
-      const screenshotData = await screenshotTool.screenshot(
-        characterClone,
-        idleAnimationURL,
-        0.4, // animation time (seconds)
-        1000, // width
-        1000, // height
-        30, // padding
-        2, // super-sampling anti-aliasing
-      );
+  const takeScreenShot = useCallback(async () => {
+    const characterClone = cloneModel(characterMesh as Group);
+    const screenshotData = await screenshotTool.screenshot(
+      characterClone,
+      idleAnimationURL,
+      0.4, // animation time (seconds)
+      1000, // width
+      1000, // height
+      30, // padding
+      2, // super-sampling anti-aliasing
+    );
 
-      const windowName = "screenshotWindow";
-      const newTab = window.open("", windowName);
-      newTab!.document.body.style.backgroundColor = "black";
-      newTab!.document.body.innerHTML = `<img src="${screenshotData}" alt="Screenshot" style="max-width: 100%; max-height: 100%;">`;
-    }
-  };
+    const windowName = "screenshotWindow";
+    const newTab = window.open("", windowName);
+    newTab!.document.body.style.backgroundColor = "black";
+    newTab!.document.body.innerHTML = `<img src="${screenshotData}" alt="Screenshot" style="max-width: 100%; max-height: 100%;">`;
+  }, [characterMesh, screenshotTool]);
 
   useEffect(() => {
     if (hasCurrentCharacter && props.currentCharacter) {
