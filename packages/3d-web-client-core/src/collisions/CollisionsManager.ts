@@ -16,6 +16,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   Object3D,
+  Quaternion,
   Ray,
   Scene,
   Vector3,
@@ -24,7 +25,7 @@ import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHel
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { MeshBVH, MeshBVHVisualizer } from "three-mesh-bvh";
 
-type CollisionMeshState = {
+export type CollisionMeshState = {
   matrix: Matrix4;
   source: Group;
   meshBVH: MeshBVH;
@@ -38,6 +39,7 @@ export class CollisionsManager {
   private tempVector: Vector3 = new Vector3();
   private tempVector2: Vector3 = new Vector3();
   private tempVector3: Vector3 = new Vector3();
+  private tempQuaternion: Quaternion = new Quaternion();
   private tempRay: Ray = new Ray();
   private tempMatrix = new Matrix4();
   private tempMatrix2 = new Matrix4();
@@ -54,22 +56,32 @@ export class CollisionsManager {
     this.collisionTrigger = MMLCollisionTrigger.init();
   }
 
-  public raycastFirstDistance(ray: Ray): number | null {
+  public raycastFirst(ray: Ray): [number, Vector3, CollisionMeshState] | null {
     let minimumDistance: number | null = null;
-    for (const [, value] of this.collisionMeshState) {
-      this.tempRay.copy(ray).applyMatrix4(this.tempMatrix.copy(value.matrix).invert());
-      const hit = value.meshBVH.raycastFirst(this.tempRay, DoubleSide);
+    let minimumHit: CollisionMeshState | null = null;
+    let minimumNormal: Vector3 | null = new Vector3();
+    for (const [, collisionMeshState] of this.collisionMeshState) {
+      this.tempRay.copy(ray).applyMatrix4(this.tempMatrix.copy(collisionMeshState.matrix).invert());
+      const hit = collisionMeshState.meshBVH.raycastFirst(this.tempRay, DoubleSide);
       if (hit) {
         this.tempSegment.start.copy(this.tempRay.origin);
         this.tempSegment.end.copy(hit.point);
-        this.tempSegment.applyMatrix4(value.matrix);
+        this.tempSegment.applyMatrix4(collisionMeshState.matrix);
         const dist = this.tempSegment.distance();
         if (minimumDistance === null || dist < minimumDistance) {
           minimumDistance = dist;
+          minimumHit = collisionMeshState;
+          minimumNormal = (hit.normal ? minimumNormal.copy(hit.normal) : minimumNormal)
+            // Apply the rotation of the mesh to the normal
+            .applyQuaternion(this.tempQuaternion.setFromRotationMatrix(collisionMeshState.matrix))
+            .normalize();
         }
       }
     }
-    return minimumDistance;
+    if (minimumDistance === null || minimumNormal === null || minimumHit === null) {
+      return null;
+    }
+    return [minimumDistance, minimumNormal, minimumHit];
   }
 
   private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
