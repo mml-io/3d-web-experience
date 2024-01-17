@@ -145,11 +145,11 @@ export class CameraManager {
       this.camera.position,
       this.target.clone().sub(this.camera.position).normalize(),
     );
-    const minimumDistance = this.collisionsManager.raycastFirstDistance(this.rayCaster.ray);
+    const firstRaycastHit = this.collisionsManager.raycastFirst(this.rayCaster.ray);
     const cameraToPlayerDistance = this.camera.position.distanceTo(this.target);
 
-    if (minimumDistance !== null && minimumDistance <= cameraToPlayerDistance) {
-      this.targetDistance = cameraToPlayerDistance - minimumDistance;
+    if (firstRaycastHit !== null && firstRaycastHit[0] <= cameraToPlayerDistance) {
+      this.targetDistance = cameraToPlayerDistance - firstRaycastHit[0];
       this.distance = this.targetDistance;
     } else {
       this.targetDistance += (this.desiredDistance - this.targetDistance) * this.dampingFactor * 4;
