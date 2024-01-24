@@ -131,10 +131,9 @@ export class LocalAvatarClient {
     this.collisionsManager.addMeshesGroup(room);
     this.scene.add(room);
 
-    this.characterManager.spawnCharacter(
+    this.characterManager.spawnLocalCharacter(
       characterDescription!,
       localClientId,
-      true,
       spawnPosition,
       spawnRotation,
     );
