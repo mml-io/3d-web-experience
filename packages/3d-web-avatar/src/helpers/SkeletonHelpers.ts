@@ -155,7 +155,6 @@ export class SkeletonHelpers {
         if (hierarchyCheck === false) {
           hierarchyCheck = true;
           this.extractAndStoreBoneHierarchy(node, modelName);
-          // this.compareLatestHierarchies();
         }
         cloneBones[node.name] = node as Bone;
       }
