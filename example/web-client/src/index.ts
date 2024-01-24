@@ -29,11 +29,11 @@ import {
 import { AudioListener, Euler, Scene, Vector3 } from "three";
 
 import hdrUrl from "../../assets/hdr/industrial_sunset_2k.hdr";
-import airAnimationFileUrl from "../../assets/models/unreal-air.glb";
-import idleAnimationFileUrl from "../../assets/models/unreal-idle.glb";
-import jogAnimationFileUrl from "../../assets/models/unreal-jog.glb";
-import meshFileUrl from "../../assets/models/unreal-mesh.glb";
-import sprintAnimationFileUrl from "../../assets/models/unreal-run.glb";
+import meshFileUrl from "../../assets/models/andor.glb";
+import airAnimationFileUrl from "../../assets/models/anim_air.glb";
+import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
+import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
+import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
 
 import { LoadingScreen } from "./LoadingScreen";
 import { Room } from "./Room";
@@ -157,6 +157,7 @@ export class App {
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
+      "https://mmlstorage.com/gNs3gO/1706116016459.html",
     );
     this.scene.add(this.characterManager.group);
 
@@ -267,10 +268,9 @@ export class App {
       spawnRotation.setFromQuaternion(urlParams.character.quaternion);
       cameraPosition = urlParams.camera.position;
     }
-    this.characterManager.spawnCharacter(
+    this.characterManager.spawnLocalCharacter(
       characterDescription,
       this.clientId!,
-      true,
       spawnPosition,
       spawnRotation,
     );
