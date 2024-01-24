@@ -5,8 +5,8 @@ import { sunValues } from "../tweakpane/blades/environmentFolder";
 export class Sun extends Group {
   private readonly debug: boolean = false;
   private readonly sunOffset: Vector3 = new Vector3(
-    39 * (Math.PI / 180),
-    50 * (Math.PI / 180),
+    sunValues.sunPosition.sunAzimuthalAngle * (Math.PI / 180),
+    sunValues.sunPosition.sunPolarAngle * (Math.PI / 180),
     100,
   );
   private readonly shadowResolution: number = 8192;
@@ -32,6 +32,7 @@ export class Sun extends Group {
       this.camHelper = new CameraHelper(this.shadowCamera);
     }
     this.directionalLight = new DirectionalLight(0xffffff, 0.5);
+    this.directionalLight.intensity = sunValues.sunIntensity;
     this.directionalLight.shadow.normalBias = 0.05;
     this.directionalLight.shadow.radius = 1.5;
     this.directionalLight.shadow.camera = this.shadowCamera;

@@ -5,10 +5,10 @@ import { Sun } from "../../sun/Sun";
 
 export const sunValues = {
   sunPosition: {
-    sunAzimuthalAngle: 39,
-    sunPolarAngle: 50,
+    sunAzimuthalAngle: 215,
+    sunPolarAngle: -39,
   },
-  sunIntensity: 0.5,
+  sunIntensity: 1,
   sunColor: { r: 1.0, g: 0.74, b: 0.5 },
 };
 
@@ -17,12 +17,12 @@ const sunOptions = {
     sunAzimuthalAngle: { min: 0, max: 360, step: 1 },
     sunPolarAngle: { min: -90, max: 90, step: 1 },
   },
-  sunIntensity: { min: 0, max: 1, step: 0.05 },
+  sunIntensity: { min: 0, max: 3, step: 0.05 },
 };
 
 export const envValues = {
   ambientLight: {
-    ambientLightIntensity: 0.0,
+    ambientLightIntensity: 0.21,
     ambientLightColor: { r: 1, g: 1, b: 1 },
   },
   fog: {
