@@ -1,8 +1,10 @@
+import { cloneModel } from "@mml-io/3d-web-avatar";
 import {
   AnimationAction,
   AnimationClip,
   AnimationMixer,
   Bone,
+  Group,
   LoopRepeat,
   Mesh,
   Object3D,
@@ -25,10 +27,17 @@ export class CharacterModel {
   constructor(
     private readonly characterDescription: CharacterDescription,
     private characterModelLoader: CharacterModelLoader,
+    private isLocal: boolean,
   ) {}
 
   public async init(): Promise<void> {
-    await this.loadMainMesh();
+    if (this.characterDescription.meshModel) {
+      const mesh = cloneModel(this.characterDescription.meshModel as Group);
+      this.setMainMesh(mesh as Object3D, "MMLCharacter");
+      this.animationMixer = new AnimationMixer(this.mesh!);
+    } else {
+      await this.loadMainMesh();
+    }
     await this.setAnimationFromFile(
       this.characterDescription.idleAnimationFileUrl,
       AnimationState.idle,
@@ -45,7 +54,6 @@ export class CharacterModel {
       this.characterDescription.airAnimationFileUrl,
       AnimationState.air,
     );
-    this.applyMaterialToAllSkinnedMeshes(this.material);
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
@@ -63,26 +71,28 @@ export class CharacterModel {
     });
   }
 
+  private setMainMesh(mainMesh: Object3D, name: string): void {
+    this.mesh = mainMesh;
+    this.mesh.position.set(0, -0.4, 0);
+    this.mesh.name = name;
+    const scale = this.characterDescription.modelScale;
+    this.mesh.scale.set(scale, scale, scale);
+    this.mesh.traverse((child: Object3D) => {
+      if (child.type === "SkinnedMesh") {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    this.animationMixer = new AnimationMixer(this.mesh);
+  }
+
   private async loadMainMesh(): Promise<void> {
     const mainMeshUrl = this.characterDescription.meshFileUrl;
-    const scale = this.characterDescription.modelScale;
     const extension = mainMeshUrl.split(".").pop();
     const name = mainMeshUrl.split("/").pop()!.replace(`.${extension}`, "");
     const mainMesh = await this.characterModelLoader.load(mainMeshUrl, "model");
     if (typeof mainMesh !== "undefined") {
-      this.mesh = new Object3D();
-      const model = mainMesh as Object3D;
-      model.position.set(0, -0.4, 0);
-      this.mesh.add(model);
-      this.mesh.name = name;
-      this.mesh.scale.set(scale, scale, scale);
-      this.mesh.traverse((child: Object3D) => {
-        if (child.type === "SkinnedMesh") {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-      this.animationMixer = new AnimationMixer(this.mesh);
+      this.setMainMesh(mainMesh as Object3D, name);
     }
   }
 

@@ -1,4 +1,4 @@
-import { Color, Group, Vector3 } from "three";
+import { Color, Group, Object3D, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { Composer } from "../rendering/composer";
@@ -16,6 +16,7 @@ export type CharacterDescription = {
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
   modelScale: number;
+  meshModel?: Object3D;
 };
 
 export class Character extends Group {
@@ -31,6 +32,7 @@ export class Character extends Group {
     private readonly modelLoadedCallback: () => void,
     private readonly cameraManager: CameraManager,
     private readonly composer: Composer,
+    private readonly isLocal: boolean,
   ) {
     super();
     this.tooltip = new CharacterTooltip();
@@ -39,7 +41,11 @@ export class Character extends Group {
   }
 
   private async load(): Promise<void> {
-    this.model = new CharacterModel(this.characterDescription, this.characterModelLoader);
+    this.model = new CharacterModel(
+      this.characterDescription,
+      this.characterModelLoader,
+      this.isLocal,
+    );
     await this.model.init();
     this.add(this.model.mesh!);
     if (this.speakingIndicator === null) {
