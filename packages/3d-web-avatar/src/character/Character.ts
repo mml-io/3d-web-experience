@@ -82,14 +82,12 @@ export class Character {
     this.skinnedMeshesParent = null;
 
     fullBodyModelGroup.traverse((child) => {
-      if (child.type === "SkinnedMesh") {
-        (child as SkinnedMesh).castShadow = true;
-        (child as SkinnedMesh).receiveShadow = true;
-        const asSkinnedMesh = child as SkinnedMesh;
-        const asMeshStandardMaterial = asSkinnedMesh.material as MeshStandardMaterial;
-        // asMeshStandardMaterial.envMapIntensity = 2.0;
+      const asSkinnedMesh = child as SkinnedMesh;
+      if (asSkinnedMesh.isSkinnedMesh) {
+        asSkinnedMesh.castShadow = true;
+        asSkinnedMesh.receiveShadow = true;
         if (this.skinnedMeshesParent === null) {
-          this.skinnedMeshesParent = child.parent as Group;
+          this.skinnedMeshesParent = asSkinnedMesh.parent as Group;
         }
       }
     });
