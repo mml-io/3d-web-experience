@@ -96,14 +96,30 @@ export class CharacterModel {
     }
   }
 
+  private cleanAnimationClips(skeletalMesh: Object3D, animationClip: AnimationClip): AnimationClip {
+    const availableBones = new Set<string>();
+    skeletalMesh.traverse((child) => {
+      const asBone = child as Bone;
+      if (asBone.isBone) {
+        availableBones.add(child.name);
+      }
+    });
+    animationClip.tracks = animationClip.tracks.filter((track) => {
+      const trackName = track.name.split(".")[0];
+      return availableBones.has(trackName);
+    });
+    return animationClip;
+  }
+
   private async setAnimationFromFile(
     animationFileUrl: string,
     animationType: AnimationState,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       const animation = await this.characterModelLoader.load(animationFileUrl, "animation");
-      if (typeof animation !== "undefined" && animation instanceof AnimationClip) {
-        this.animations[animationType] = this.animationMixer!.clipAction(animation);
+      const cleanAnimation = this.cleanAnimationClips(this.mesh!, animation as AnimationClip);
+      if (typeof animation !== "undefined" && cleanAnimation instanceof AnimationClip) {
+        this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);
         this.animations[animationType].stop();
         if (animationType === AnimationState.idle) {
           this.animations[animationType].play();
