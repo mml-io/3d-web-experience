@@ -11,7 +11,7 @@ export const characterValues = {
   specularIntensity: 0.1,
   emissive: { r: 1.0, g: 1.0, b: 1.0 },
   emissiveIntensity: 0.1,
-  envMapIntensity: 0.8,
+  envMapIntensity: 0.9,
   sheenColor: { r: 1.0, g: 1.0, b: 1.0 },
   sheen: 0.5,
   clearcoat: 0.0,
