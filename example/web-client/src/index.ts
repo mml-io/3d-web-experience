@@ -157,7 +157,10 @@ export class App {
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
-      "https://mmlstorage.com/gNs3gO/1706116016459.html",
+      `
+      <m-character src="../../assets/models/andor.glb">
+      </m-character>
+      `,
     );
     this.scene.add(this.characterManager.group);
 
