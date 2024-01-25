@@ -105,7 +105,6 @@ export class Character {
           skinnedMeshClone.castShadow = true;
           skinnedMeshClone.receiveShadow = true;
           skinnedMeshClone.bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
-          this.skinnedMeshesParent?.children.splice(3, 0, skinnedMeshClone as SkinnedMesh);
           this.skinnedMeshesParent?.add(skinnedMeshClone);
         }
       });
