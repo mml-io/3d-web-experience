@@ -58,29 +58,33 @@ export class CharacterManager {
   }
 
   private async fetchDescription(
-    url: string,
-  ): Promise<Partial<MMLCharacterDescription> | undefined> {
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Fetch error! statis: ${response.status}`);
-      }
-      const characterMMLDescription = await response.text();
-      const parsedMMLDescription = parseMMLDescription(characterMMLDescription);
-      return parsedMMLDescription[0];
-      return;
-    } catch (error) {
-      console.error(`Fetch error: ${error}`);
-      return;
-    }
+    characterDescription: string,
+  ): Promise<Partial<MMLCharacterDescription>> {
+    let parsedDescrioption: Partial<MMLCharacterDescription> = {};
+    await fetch(characterDescription)
+      .then(async (response: Response) => {
+        const characterMMLDescriptionURL = await response.text();
+        const parsedMMLDescriptionURL = parseMMLDescription(characterMMLDescriptionURL);
+        parsedDescrioption = parsedMMLDescriptionURL[0];
+      })
+      .catch((_err) => {
+        const parsedMMLDescription = parseMMLDescription(characterDescription);
+        parsedDescrioption = parsedMMLDescription[0];
+      });
+    return parsedDescrioption;
   }
 
   private async composeMMLCharacter(descriptionURL: string): Promise<Object3D | undefined> {
-    const mmlCharacterDescription: Partial<MMLCharacterDescription> | undefined =
+    const mmlCharacterDescription: Partial<MMLCharacterDescription> =
       await this.fetchDescription(descriptionURL);
 
-    let mergedCharacter: Object3D | null = null;
+    if (mmlCharacterDescription.base?.url.length === 0) {
+      throw new Error(
+        "ERROR: An MML Character Description was provided but it's not a valid <m-character> string, or a valid URL",
+      );
+    }
 
+    let mergedCharacter: Object3D | null = null;
     if (mmlCharacterDescription) {
       const characterBase = mmlCharacterDescription.base?.url || null;
       const parts: string[] = [];
@@ -90,7 +94,6 @@ export class CharacterManager {
       });
 
       if (characterBase) {
-        console.log(`characterBase: ${characterBase}`);
         const mmlCharacter = new MMLCharacter(new ModelLoader());
         mergedCharacter = await mmlCharacter.mergeBodyParts(characterBase, parts);
         if (mergedCharacter) {
