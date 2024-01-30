@@ -24,6 +24,7 @@ import {
   LoadingManager,
   PMREMGenerator,
   PerspectiveCamera,
+  SRGBColorSpace,
   Scene,
   ShadowMapType,
   ToneMapping,
@@ -101,6 +102,7 @@ export class Composer {
       stencil: false,
       depth: false,
     });
+    this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.info.autoReset = false;
     this.renderer.setSize(this.width, this.height);
     this.renderer.shadowMap.enabled = true;

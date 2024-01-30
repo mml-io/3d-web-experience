@@ -1,5 +1,6 @@
-import { Bone, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
+import { Bone, Group, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 type ClonedGLTFParts = {
   gltf: GLTF;
@@ -12,6 +13,11 @@ type DiffResult = {
   identical: boolean;
   differences: string[];
 };
+
+export function cloneModel(model: Group) {
+  const clone = SkeletonUtils.clone(model);
+  return clone;
+}
 
 export class SkeletonHelpers {
   private debug: boolean = false;
@@ -126,7 +132,7 @@ export class SkeletonHelpers {
   public cloneGLTF(gltf: GLTF, modelName: string): ClonedGLTFParts {
     const clone: Partial<GLTF> = {
       animations: gltf.animations,
-      scene: gltf.scene.clone(true),
+      scene: cloneModel(gltf.scene) as Group,
     };
 
     let sharedSkeleton: Skeleton | null = null;
@@ -149,7 +155,6 @@ export class SkeletonHelpers {
         if (hierarchyCheck === false) {
           hierarchyCheck = true;
           this.extractAndStoreBoneHierarchy(node, modelName);
-          this.compareLatestHierarchies();
         }
         cloneBones[node.name] = node as Bone;
       }
