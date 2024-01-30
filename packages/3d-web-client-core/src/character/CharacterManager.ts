@@ -220,17 +220,17 @@ export class CharacterManager {
         this.localCharacter.speakingIndicator?.setSpeaking(this.speakingCharacters.get(this.id)!);
       }
 
+      this.localController.update();
+      if (this.timeManager.frame % 2 === 0) {
+        this.sendUpdate(this.localController.networkState);
+      }
+
       this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.13 : 0;
       this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
       const targetOffset = new Vector3(0, 0, this.cameraOffset);
       targetOffset.add(this.headTargetOffset);
       targetOffset.applyQuaternion(this.localCharacter.quaternion);
       this.cameraManager.setTarget(targetOffset.add(this.localCharacter.position));
-
-      this.localController.update();
-      if (this.timeManager.frame % 2 === 0) {
-        this.sendUpdate(this.localController.networkState);
-      }
 
       for (const [id, update] of this.clientStates) {
         if (this.remoteCharacters.has(id) && this.speakingCharacters.has(id)) {
