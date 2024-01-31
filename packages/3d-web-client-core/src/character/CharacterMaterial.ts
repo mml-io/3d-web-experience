@@ -14,9 +14,11 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
   public uniforms: Record<string, TUniform> = {};
   public colorsCube216: Color[] = [];
 
-  constructor() {
+  constructor(color?: Color) {
     super();
-    this.color = new Color(0xffffff);
+    if (color) {
+      this.color = color;
+    }
     this.transmission = characterValues.transmission;
     this.metalness = characterValues.metalness;
     this.roughness = characterValues.roughness;
@@ -124,8 +126,6 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
           vec3 grid = vec3(smoothstep(0.01, 0.0, a) * 1.15) * diffuseRandomColor;
           outgoingLight += grid;
           #endif
-
-          outgoingLight += smoothstep(0.1, 0.0, scanLines) * 0.1;
         `,
       );
     };
@@ -134,8 +134,8 @@ export class CharacterMaterial extends MeshPhysicalMaterial {
   }
 
   private generateColorCube() {
-    const saturation = 0.4;
-    const lightness = 0.7;
+    const saturation = 0.5;
+    const lightness = 0.9;
     const goldenRatioConjugate = 0.618033988749895;
     let hue = 0;
 
