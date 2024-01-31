@@ -21,6 +21,7 @@ const buildOptions: esbuild.BuildOptions = {
   },
   bundle: true,
   write: true,
+  metafile: true,
   sourcemap: true,
   outdir: "./build/",
   assetNames: "[dir]/[name]-[hash]",

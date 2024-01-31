@@ -18,6 +18,7 @@ const buildOptions: esbuild.BuildOptions = {
   entryPoints: ["src/index.ts"],
   outdir: "./build",
   bundle: true,
+  metafile: true,
   format: "esm",
   packages: "external",
   sourcemap: true,

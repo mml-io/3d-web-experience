@@ -26,6 +26,7 @@ export function handleLibraryBuild(
     },
     write: true,
     bundle: true,
+    metafile: true,
     format: "esm",
     outdir: "build",
     platform: "node",
