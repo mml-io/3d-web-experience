@@ -9,14 +9,17 @@ import { CharacterSpeakingIndicator } from "./CharacterSpeakingIndicator";
 import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
 
-export type CharacterDescription = {
-  meshFileUrl: string;
+export type AnimationConfig = {
   idleAnimationFileUrl: string;
   jogAnimationFileUrl: string;
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
-  modelScale: number;
-  meshModel?: Object3D;
+};
+
+export type CharacterDescription = {
+  meshFileUrl?: string;
+  mmlCharacterUrl?: string;
+  mmlCharacterString?: string;
 };
 
 export class Character extends Group {
@@ -27,6 +30,7 @@ export class Character extends Group {
 
   constructor(
     private readonly characterDescription: CharacterDescription,
+    private readonly animationConfig: AnimationConfig,
     private readonly characterModelLoader: CharacterModelLoader,
     private readonly characterId: number,
     private readonly modelLoadedCallback: () => void,
@@ -40,7 +44,11 @@ export class Character extends Group {
   }
 
   private async load(): Promise<void> {
-    this.model = new CharacterModel(this.characterDescription, this.characterModelLoader);
+    this.model = new CharacterModel(
+      this.characterDescription,
+      this.animationConfig,
+      this.characterModelLoader,
+    );
     await this.model.init();
     this.add(this.model.mesh!);
     if (this.speakingIndicator === null) {

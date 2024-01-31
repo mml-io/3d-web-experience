@@ -85,6 +85,8 @@ export class CharacterModelLoader {
     this.modelCache = new LRUCache(maxCacheSize);
   }
 
+  async load(fileUrl: string, fileType: "model"): Promise<Object3D | undefined>;
+  async load(fileUrl: string, fileType: "animation"): Promise<AnimationClip | undefined>;
   async load(
     fileUrl: string,
     fileType: "model" | "animation",
