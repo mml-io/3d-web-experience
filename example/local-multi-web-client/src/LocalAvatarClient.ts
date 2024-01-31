@@ -15,11 +15,11 @@ import { MMLWebRunnerClient } from "mml-web-runner";
 import { AudioListener, Euler, Scene, Vector3 } from "three";
 
 import hdrUrl from "../../assets/hdr/industrial_sunset_2k.hdr";
-import meshFileUrl from "../../assets/models/andor.glb";
 import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
+import meshFileUrl from "../../assets/models/bot.glb";
 
 import { LocalAvatarServer } from "./LocalAvatarServer";
 import { Room } from "./Room";
