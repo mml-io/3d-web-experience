@@ -29,11 +29,11 @@ import {
 import { AudioListener, Euler, Scene, Vector3 } from "three";
 
 import hdrUrl from "../../assets/hdr/industrial_sunset_2k.hdr";
-import meshFileUrl from "../../assets/models/andor.glb";
 import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
+import meshFileUrl from "../../assets/models/bot.glb";
 
 import { LoadingScreen } from "./LoadingScreen";
 import { Room } from "./Room";
@@ -157,10 +157,19 @@ export class App {
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
+      /*
+      If you want to use an MML Character in the experience, this is where you should
+      pass it as an argument.
+
+      MML Characters can be loaded by passing a URL that can be fetched and serve your
+      <m-character> tag, or just by passing your MML Character description in a string
+      like in the example below:
+      
       `
-      <m-character src="../../assets/models/andor.glb">
+      <m-character src="../../assets/models/bot.glb">
       </m-character>
       `,
+      */
     );
     this.scene.add(this.characterManager.group);
 

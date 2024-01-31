@@ -4,10 +4,13 @@ import {
   AnimationClip,
   AnimationMixer,
   Bone,
+  Color,
   Group,
   LoopRepeat,
   Mesh,
+  MeshStandardMaterial,
   Object3D,
+  SkinnedMesh,
 } from "three";
 
 import { CharacterDescription } from "./Character";
@@ -27,7 +30,6 @@ export class CharacterModel {
   constructor(
     private readonly characterDescription: CharacterDescription,
     private characterModelLoader: CharacterModelLoader,
-    private isLocal: boolean,
   ) {}
 
   public async init(): Promise<void> {
@@ -54,21 +56,31 @@ export class CharacterModel {
       this.characterDescription.airAnimationFileUrl,
       AnimationState.air,
     );
+    if (!this.characterDescription.meshModel) {
+      this.applyCustomMaterial(this.material);
+    }
+  }
+
+  private applyCustomMaterial(material: CharacterMaterial): void {
+    if (!this.mesh) return;
+    this.mesh.traverse((child: Object3D) => {
+      const asSkinnedMesh = child as SkinnedMesh;
+      if (asSkinnedMesh.isSkinnedMesh) {
+        const mat = asSkinnedMesh.material as MeshStandardMaterial;
+        if (!mat.name.includes("joints")) {
+          asSkinnedMesh.material = material;
+        } else {
+          const color = mat.color;
+          asSkinnedMesh.material = new CharacterMaterial(color);
+        }
+      }
+    });
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
     if (this.currentAnimation !== targetAnimation) {
       this.transitionToAnimation(targetAnimation);
     }
-  }
-
-  private applyMaterialToAllSkinnedMeshes(material: CharacterMaterial): void {
-    if (!this.mesh) return;
-    this.mesh.traverse((child: Object3D) => {
-      if (child.type === "SkinnedMesh") {
-        (child as Mesh).material = material;
-      }
-    });
   }
 
   private setMainMesh(mainMesh: Object3D, name: string): void {

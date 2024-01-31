@@ -127,7 +127,6 @@ export class CharacterManager {
       },
       this.cameraManager,
       this.composer,
-      true,
     );
     const quaternion = new Quaternion().setFromEuler(character.rotation);
     this.sendUpdate({
@@ -172,7 +171,6 @@ export class CharacterManager {
       },
       this.cameraManager,
       this.composer,
-      false,
     );
 
     this.remoteCharacters.set(id, character);

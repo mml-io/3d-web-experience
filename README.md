@@ -1,22 +1,30 @@
 # (MML) 3D Web Experience
 
-This repository contains packages used to run a web-based, multi-user 3D web experience that supports 
-[MML (Metaverse Markup Language)](https://mml.io/). This repository includes two published packages:
+This repository contains packages used to run a web-based, multi-user 3D web experience that
+supports [MML (Metaverse Markup Language)](https://mml.io/). This repository includes two published
+packages:
 
-* [`@mml-io/3d-web-client-core`](./packages/3d-web-client-core) - A package that implements the main components of a 3D web experience.
-* [`@mml-io/3d-web-user-networking`](./packages/3d-web-user-networking) - A package that contains WebSocket server and client implementations that synchronize user positions.
+- [`@mml-io/3d-web-client-core`](./packages/3d-web-client-core) - A package that implements the main
+  components of a 3D web experience.
+- [`@mml-io/3d-web-user-networking`](./packages/3d-web-user-networking) - A package that contains
+  WebSocket server and client implementations that synchronize user positions.
 
-There is an example implementation of a 3D web experience in the `examples` directory. This example contains:
+There is an example implementation of a 3D web experience in the `examples` directory. This example
+contains:
 
-* `web-client`
-  * A THREE.js 3D experience utilizing the `@mml-io/3d-web-client-core` and `@mml-io/3d-web-user-networking` packages to create a multi-user 3D web client that connects to the server.
-* `server`
-  * A server which serves the `web-client` and handles user networking WebSocket connections with `@mml-io/3d-web-user-networking` 
-  * Additionally, the server runs MML documents in the `mml-documents` directory which are then connected to by the `web-client`.
+- `web-client`
+  - A THREE.js 3D experience utilizing the `@mml-io/3d-web-client-core` and
+    `@mml-io/3d-web-user-networking` packages to create a multi-user 3D web client that connects to
+    the server.
+- `server`
+  - A server which serves the `web-client` and handles user networking WebSocket connections with
+    `@mml-io/3d-web-user-networking`
+  - Additionally, the server runs MML documents in the `mml-documents` directory which are then
+    connected to by the `web-client`.
 
 It can be easily deployed to environments that support Node.js and expose ports to the internet.
 
-<img src="./Playground.png">
+<img src="./playground.png">
 
 ## Main features
 
