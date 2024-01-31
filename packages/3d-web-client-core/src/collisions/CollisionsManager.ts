@@ -23,7 +23,7 @@ import {
 } from "three";
 import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper.js";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { MeshBVH, MeshBVHVisualizer } from "three-mesh-bvh";
+import { MeshBVH, MeshBVHHelper } from "three-mesh-bvh";
 
 export type CollisionMeshState = {
   matrix: Matrix4;
@@ -122,14 +122,14 @@ export class CollisionsManager {
       trackCollisions,
     };
     if (this.debug) {
-      // Have to cast to add the boundsTree property to the geometry so that the MeshBVHVisualizer can find it
+      // Have to cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
       (newBufferGeometry as any).boundsTree = meshBVH;
 
       const wireframeMesh = new Mesh(newBufferGeometry, new MeshBasicMaterial({ wireframe: true }));
 
       const normalsHelper = new VertexNormalsHelper(wireframeMesh, 0.25, 0x00ff00);
 
-      const visualizer = new MeshBVHVisualizer(wireframeMesh, 4);
+      const visualizer = new MeshBVHHelper(wireframeMesh, 4);
       (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
 
       const debugGroup = new Group();

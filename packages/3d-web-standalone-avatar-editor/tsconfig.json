@@ -15,7 +15,8 @@
     "resolveJsonModule": true,
     "downlevelIteration": true,
     "outDir": "./build",
-    "incremental": true
+    "incremental": true,
+    "skipLibCheck": true
   },
   "include": ["src/**/*", "test/**/*", "./build.ts"],
   "exclude": ["**/build/*", "types-src"]

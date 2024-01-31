@@ -6,7 +6,7 @@ handleLibraryBuild(
   [
     cssModulesPlugin({
       inject: true,
-      emitDeclarationFile: true
+      emitDeclarationFile: true,
     }),
   ],
   {
