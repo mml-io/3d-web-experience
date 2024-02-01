@@ -29,6 +29,8 @@ export class CharacterModel {
   public animationMixer: AnimationMixer | null = null;
   public currentAnimation: AnimationState = AnimationState.idle;
 
+  public mmlCharacterDescription: MMLCharacterDescription;
+
   constructor(
     private readonly characterDescription: CharacterDescription,
     private readonly animationConfig: AnimationConfig,
@@ -105,6 +107,7 @@ export class CharacterModel {
       });
 
       if (characterBase) {
+        this.mmlCharacterDescription = mmlCharacterDescription;
         const mmlCharacter = new MMLCharacter(new ModelLoader());
         mergedCharacter = await mmlCharacter.mergeBodyParts(characterBase, parts);
         if (mergedCharacter) {
