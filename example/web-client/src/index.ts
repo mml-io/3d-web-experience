@@ -53,7 +53,16 @@ const characterDescription: CharacterDescription = {
   // Option 2 - Use an MML Character from a URL
   // mmlCharacterUrl: "https://...",
   // Option 3 - Use an MML Character from a string
-  // mmlCharacterString: `<m-character src="https://..."></m-character>`,
+  // mmlCharacterString: `
+  // <m-character src="/assets/models/bot.glb">
+  //   <m-model src="/assets/models/ears.glb"
+  //     socket="head"
+  //     x="0.077" y="0" z="0.04"
+  //     sx="1.1" sy="1.1" sz="1.1"
+  //     rz="-90"
+  //   ></m-model>
+  // </m-character>
+  // `,
 };
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
