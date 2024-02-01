@@ -1,13 +1,4 @@
-import {
-  BoxHelper,
-  BufferAttribute,
-  Group,
-  Matrix4,
-  MeshStandardMaterial,
-  Object3D,
-  Skeleton,
-  SkinnedMesh,
-} from "three";
+import { BufferAttribute, Group, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
