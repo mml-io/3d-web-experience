@@ -12,6 +12,7 @@ import {
   MMLCompositionScene,
   TimeManager,
   TweakPane,
+  AnimationConfig,
 } from "@mml-io/3d-web-client-core";
 import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
 import {
@@ -33,18 +34,26 @@ import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
-import meshFileUrl from "../../assets/models/bot.glb";
+import defaultAvatarMeshFileUrl from "../../assets/models/bot.glb";
 
 import { LoadingScreen } from "./LoadingScreen";
 import { Room } from "./Room";
 
-const characterDescription: CharacterDescription = {
+const animationConfig: AnimationConfig = {
   airAnimationFileUrl,
   idleAnimationFileUrl,
   jogAnimationFileUrl,
-  meshFileUrl,
   sprintAnimationFileUrl,
-  modelScale: 1,
+};
+
+// Specify the avatar to use here:
+const characterDescription: CharacterDescription = {
+  // Option 1 (Default) - Use a GLB file directly
+  meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
+  // Option 2 - Use an MML Character from a URL
+  // mmlCharacterUrl: "https://...",
+  // Option 3 - Use an MML Character from a string
+  // mmlCharacterString: `<m-character src="https://..."></m-character>`,
 };
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -157,19 +166,8 @@ export class App {
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
-      /*
-      If you want to use an MML Character in the experience, this is where you should
-      pass it as an argument.
-
-      MML Characters can be loaded by passing a URL that can be fetched and serve your
-      <m-character> tag, or just by passing your MML Character description in a string
-      like in the example below:
-      
-      `
-      <m-character src="../../assets/models/bot.glb">
-      </m-character>
-      `,
-      */
+      animationConfig,
+      characterDescription,
     );
     this.scene.add(this.characterManager.group);
 

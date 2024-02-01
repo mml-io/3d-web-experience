@@ -1,11 +1,5 @@
-import {
-  ModelLoader,
-  Character as MMLCharacter,
-  parseMMLDescription,
-  type MMLCharacterDescription,
-} from "@mml-io/3d-web-avatar";
 import { PositionAndRotation } from "mml-web";
-import { Euler, Group, Object3D, Quaternion, Vector3 } from "three";
+import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -14,7 +8,7 @@ import { KeyInputManager } from "../input/KeyInputManager";
 import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
 
-import { Character, CharacterDescription } from "./Character";
+import { AnimationConfig, Character, CharacterDescription } from "./Character";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
 import { LocalController } from "./LocalController";
@@ -32,7 +26,6 @@ export class CharacterManager {
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
 
   private localCharacterSpawned: boolean = false;
-  private characterDescription: CharacterDescription | null = null;
   private localController: LocalController;
   public localCharacter: Character | null = null;
 
@@ -52,74 +45,21 @@ export class CharacterManager {
     private readonly keyInputManager: KeyInputManager,
     private readonly clientStates: Map<number, CharacterState>,
     private readonly sendUpdate: (update: CharacterState) => void,
-    private readonly mmlCharacterDescriptionURL?: string,
+    private readonly animationConfig: AnimationConfig,
+    private readonly characterDescription: CharacterDescription,
   ) {
     this.group = new Group();
   }
 
-  private async fetchDescription(
-    characterDescription: string,
-  ): Promise<Partial<MMLCharacterDescription>> {
-    let parsedDescrioption: Partial<MMLCharacterDescription> = {};
-    await fetch(characterDescription)
-      .then(async (response: Response) => {
-        const characterMMLDescriptionURL = await response.text();
-        const parsedMMLDescriptionURL = parseMMLDescription(characterMMLDescriptionURL);
-        parsedDescrioption = parsedMMLDescriptionURL[0];
-      })
-      .catch((_err) => {
-        const parsedMMLDescription = parseMMLDescription(characterDescription);
-        parsedDescrioption = parsedMMLDescription[0];
-      });
-    return parsedDescrioption;
-  }
-
-  private async composeMMLCharacter(descriptionURL: string): Promise<Object3D | undefined> {
-    const mmlCharacterDescription: Partial<MMLCharacterDescription> =
-      await this.fetchDescription(descriptionURL);
-
-    if (mmlCharacterDescription.base?.url.length === 0) {
-      throw new Error(
-        "ERROR: An MML Character Description was provided but it's not a valid <m-character> string, or a valid URL",
-      );
-    }
-
-    let mergedCharacter: Object3D | null = null;
-    if (mmlCharacterDescription) {
-      const characterBase = mmlCharacterDescription.base?.url || null;
-      const parts: string[] = [];
-
-      mmlCharacterDescription.parts?.forEach((part) => {
-        if (part.url) parts.push(part.url);
-      });
-
-      if (characterBase) {
-        const mmlCharacter = new MMLCharacter(new ModelLoader());
-        mergedCharacter = await mmlCharacter.mergeBodyParts(characterBase, parts);
-        if (mergedCharacter) {
-          return mergedCharacter.children[0].children[0];
-        }
-      }
-    }
-  }
-
-  public async spawnLocalCharacter(
+  public spawnLocalCharacter(
     characterDescription: CharacterDescription,
     id: number,
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
-  ): Promise<void> {
-    if (this.mmlCharacterDescriptionURL) {
-      const mmlCharacterBody = await this.composeMMLCharacter(this.mmlCharacterDescriptionURL);
-      if (mmlCharacterBody && mmlCharacterBody instanceof Object3D) {
-        characterDescription.meshModel = mmlCharacterBody;
-      }
-    }
-
-    this.characterDescription = characterDescription;
-
+  ) {
     const character = new Character(
       characterDescription,
+      this.animationConfig,
       this.characterModelLoader,
       id,
       () => {
@@ -164,6 +104,7 @@ export class CharacterManager {
   ) {
     const character = new Character(
       characterDescription,
+      this.animationConfig,
       this.characterModelLoader,
       id,
       () => {

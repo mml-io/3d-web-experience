@@ -1,4 +1,5 @@
 import {
+  AnimationConfig,
   CameraManager,
   CharacterDescription,
   CharacterManager,
@@ -19,18 +20,26 @@ import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
-import meshFileUrl from "../../assets/models/bot.glb";
+import defaultAvatarMeshFileUrl from "../../assets/models/bot.glb";
 
 import { LocalAvatarServer } from "./LocalAvatarServer";
 import { Room } from "./Room";
 
-const characterDescription: CharacterDescription = {
+const animationConfig: AnimationConfig = {
   airAnimationFileUrl,
   idleAnimationFileUrl,
   jogAnimationFileUrl,
-  meshFileUrl,
   sprintAnimationFileUrl,
-  modelScale: 1,
+};
+
+// Specify the avatar to use here:
+const characterDescription: CharacterDescription = {
+  // Option 1 (Default) - Use a GLB file directly
+  meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
+  // Option 2 - Use an MML Character from a URL
+  // mmlCharacterUrl: "https://...",
+  // Option 3 - Use an MML Character from a string
+  // mmlCharacterString: `<m-character src="https://..."></m-character>`,
 };
 
 export class LocalAvatarClient {
@@ -111,6 +120,8 @@ export class LocalAvatarClient {
       (characterState: CharacterState) => {
         localAvatarServer.send(localClientId, characterState);
       },
+      animationConfig,
+      characterDescription,
     );
     this.scene.add(this.characterManager.group);
 
@@ -132,7 +143,7 @@ export class LocalAvatarClient {
     this.scene.add(room);
 
     this.characterManager.spawnLocalCharacter(
-      characterDescription!,
+      characterDescription,
       localClientId,
       spawnPosition,
       spawnRotation,

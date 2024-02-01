@@ -1,19 +1,21 @@
-import { cloneModel } from "@mml-io/3d-web-avatar";
+import {
+  Character as MMLCharacter,
+  type MMLCharacterDescription,
+  ModelLoader,
+  parseMMLDescription,
+} from "@mml-io/3d-web-avatar";
 import {
   AnimationAction,
   AnimationClip,
   AnimationMixer,
   Bone,
-  Color,
-  Group,
   LoopRepeat,
-  Mesh,
   MeshStandardMaterial,
   Object3D,
   SkinnedMesh,
 } from "three";
 
-import { CharacterDescription } from "./Character";
+import { AnimationConfig, CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
@@ -29,34 +31,23 @@ export class CharacterModel {
 
   constructor(
     private readonly characterDescription: CharacterDescription,
+    private readonly animationConfig: AnimationConfig,
     private characterModelLoader: CharacterModelLoader,
   ) {}
 
   public async init(): Promise<void> {
-    if (this.characterDescription.meshModel) {
-      const mesh = cloneModel(this.characterDescription.meshModel as Group);
-      this.setMainMesh(mesh as Object3D, "MMLCharacter");
-      this.animationMixer = new AnimationMixer(this.mesh!);
-    } else {
-      await this.loadMainMesh();
-    }
+    await this.loadMainMesh();
+    await this.setAnimationFromFile(this.animationConfig.idleAnimationFileUrl, AnimationState.idle);
     await this.setAnimationFromFile(
-      this.characterDescription.idleAnimationFileUrl,
-      AnimationState.idle,
-    );
-    await this.setAnimationFromFile(
-      this.characterDescription.jogAnimationFileUrl,
+      this.animationConfig.jogAnimationFileUrl,
       AnimationState.walking,
     );
     await this.setAnimationFromFile(
-      this.characterDescription.sprintAnimationFileUrl,
+      this.animationConfig.sprintAnimationFileUrl,
       AnimationState.running,
     );
-    await this.setAnimationFromFile(
-      this.characterDescription.airAnimationFileUrl,
-      AnimationState.air,
-    );
-    if (!this.characterDescription.meshModel) {
+    await this.setAnimationFromFile(this.animationConfig.airAnimationFileUrl, AnimationState.air);
+    if (this.characterDescription.meshFileUrl) {
       this.applyCustomMaterial(this.material);
     }
   }
@@ -83,12 +74,9 @@ export class CharacterModel {
     }
   }
 
-  private setMainMesh(mainMesh: Object3D, name: string): void {
+  private setMainMesh(mainMesh: Object3D): void {
     this.mesh = mainMesh;
     this.mesh.position.set(0, -0.4, 0);
-    this.mesh.name = name;
-    const scale = this.characterDescription.modelScale;
-    this.mesh.scale.set(scale, scale, scale);
     this.mesh.traverse((child: Object3D) => {
       if (child.type === "SkinnedMesh") {
         child.castShadow = true;
@@ -98,13 +86,72 @@ export class CharacterModel {
     this.animationMixer = new AnimationMixer(this.mesh);
   }
 
+  private async composeMMLCharacter(
+    mmlCharacterDescription: MMLCharacterDescription,
+  ): Promise<Object3D | undefined> {
+    if (mmlCharacterDescription.base?.url.length === 0) {
+      throw new Error(
+        "ERROR: An MML Character Description was provided but it's not a valid <m-character> string, or a valid URL",
+      );
+    }
+
+    let mergedCharacter: Object3D | null = null;
+    if (mmlCharacterDescription) {
+      const characterBase = mmlCharacterDescription.base?.url || null;
+      const parts: string[] = [];
+
+      mmlCharacterDescription.parts?.forEach((part) => {
+        if (part.url) parts.push(part.url);
+      });
+
+      if (characterBase) {
+        const mmlCharacter = new MMLCharacter(new ModelLoader());
+        mergedCharacter = await mmlCharacter.mergeBodyParts(characterBase, parts);
+        if (mergedCharacter) {
+          return mergedCharacter.children[0].children[0];
+        }
+      }
+    }
+  }
+
+  private async loadCharacterFromDescription(): Promise<Object3D | null> {
+    if (this.characterDescription.meshFileUrl) {
+      return (
+        (await this.characterModelLoader.load(this.characterDescription.meshFileUrl, "model")) ||
+        null
+      );
+    }
+
+    let mmlCharacterSource: string;
+    if (this.characterDescription.mmlCharacterUrl) {
+      const res = await fetch(this.characterDescription.mmlCharacterUrl);
+      mmlCharacterSource = await res.text();
+    } else if (this.characterDescription.mmlCharacterString) {
+      mmlCharacterSource = this.characterDescription.mmlCharacterString;
+    } else {
+      throw new Error(
+        "ERROR: No Character Description was provided. Specify one of meshFileUrl, mmlCharacterUrl or mmlCharacterString",
+      );
+    }
+
+    const parsedMMLDescription = parseMMLDescription(mmlCharacterSource);
+    const mmlCharacterDescription = parsedMMLDescription[0];
+    if (parsedMMLDescription[1].length > 0) {
+      console.warn("Errors parsing MML Character Description: ", parsedMMLDescription[1]);
+    }
+    const mmlCharacterBody = await this.composeMMLCharacter(mmlCharacterDescription);
+    if (mmlCharacterBody) {
+      return mmlCharacterBody;
+    }
+    return null;
+  }
+
   private async loadMainMesh(): Promise<void> {
-    const mainMeshUrl = this.characterDescription.meshFileUrl;
-    const extension = mainMeshUrl.split(".").pop();
-    const name = mainMeshUrl.split("/").pop()!.replace(`.${extension}`, "");
-    const mainMesh = await this.characterModelLoader.load(mainMeshUrl, "model");
+    const mainMesh = await this.loadCharacterFromDescription();
     if (typeof mainMesh !== "undefined") {
-      this.setMainMesh(mainMesh as Object3D, name);
+      this.setMainMesh(mainMesh as Object3D);
+    } else {
+      throw new Error("ERROR: No Character Model was loaded");
     }
   }
 
