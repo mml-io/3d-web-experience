@@ -16,7 +16,8 @@
     "start": "NODE_ENV=production node build/index.js 2>error.log",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
-    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "jest"
   },
   "dependencies": {
     "react": "^18.2.0",

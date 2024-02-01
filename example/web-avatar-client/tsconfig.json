@@ -19,8 +19,8 @@
     "noEmit": true,
     "baseUrl": ".",
     "incremental": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
   },
-  "include": ["src/**/*", "test/**/*", "./build.ts"],
-  "exclude": ["**/build/*", "types-src"]
+  "include": ["src/**/*", "./build.ts"],
+  "exclude": ["**/build/*", "types-src"],
 }

@@ -5,8 +5,7 @@
 import { parseMMLDescription } from "@mml-io/3d-web-avatar/src/helpers/parseMMLDescription";
 import { findAssetsInCollection } from "@mml-io/3d-web-avatar-editor-ui/src/findAssetsInCollection";
 
-import collectionData from "../src/collection.json";
-
+import collectionData from "./collection.json";
 import {
   semanticallyInvalidString,
   threeNestedMCharacters,
@@ -20,12 +19,20 @@ import {
   twoRedundantMCharacterswithThreeMModelsEach,
   twoRedundantMCharacterswithThreeMModelsEachExpectedData,
   validMCharacter,
+  validMCharacterWithSocketAttributes,
+  validMCharacterWithSocketAttributesExpectedData,
   validMCharacterWithOneInvalidMModel,
   validMCharacterWithRedundantMCharacterClosingTag,
   validMCharacterWithRedundantMCharacterClosingTagExpectedData,
   validMCharacterWithRedundantMModelClosingTag,
   validMCharacterWithRedundantMModelClosingTagExpectedData,
   validMCharacterWithTwoInvalidMModels,
+  validMCharacterWithSocketAndPosition,
+  validMCharacterWithSocketAndPositionExpectedData,
+  validMCharacterWithSocketAndRotationInOneAxis,
+  validMCharacterWithSocketAndRotationInOneAxisExpectedData,
+  validMCharacterWithNoSocket,
+  validMCharacterWithNoSocketExpectedData,
 } from "./test-data";
 import { extractNumberFromErrorMessage } from "./test-utils";
 
@@ -152,5 +159,30 @@ describe("Check <m-character> against collection", () => {
       parsingErrors,
     );
     expect(checkCollection.accumulatedErrors).toHaveLength(2);
+  });
+});
+
+describe("Check <m-character> with socketed <m-model> objects", () => {
+  test("valid <m-character> tag with <m-model> socket attributes", async () => {
+    const [parsedData, errors] = parseMMLDescription(validMCharacterWithSocketAttributes);
+    expect(errors).toHaveLength(0);
+    expect(parsedData).toStrictEqual(validMCharacterWithSocketAttributesExpectedData);
+  });
+  test("valid <m-character> with only position attributes", async () => {
+    const [parsedData, errors] = parseMMLDescription(validMCharacterWithSocketAndPosition);
+    expect(errors).toHaveLength(0);
+    expect(parsedData).toStrictEqual(validMCharacterWithSocketAndPositionExpectedData);
+  });
+
+  test("valid <m-character> with rotation in only one axis", async () => {
+    const [parsedData, errors] = parseMMLDescription(validMCharacterWithSocketAndRotationInOneAxis);
+    expect(errors).toHaveLength(0);
+    expect(parsedData).toStrictEqual(validMCharacterWithSocketAndRotationInOneAxisExpectedData);
+  });
+
+  test("valid <m-character> with no socket attribute", async () => {
+    const [parsedData, errors] = parseMMLDescription(validMCharacterWithNoSocket);
+    expect(errors).toHaveLength(0);
+    expect(parsedData).toStrictEqual(validMCharacterWithNoSocketExpectedData);
   });
 });
