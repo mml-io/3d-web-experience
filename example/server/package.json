@@ -25,7 +25,7 @@
     "express": "4.18.2",
     "express-ws": "5.0.2",
     "http-proxy": "^1.18.1",
-    "networked-dom-server": "0.11.3",
+    "networked-dom-server": "0.11.4",
     "ws": "8.16.0"
   },
   "devDependencies": {
