@@ -35,20 +35,15 @@ export class RendererStatsFolder {
 
   constructor(parentFolder: FolderApi, expanded: boolean = true) {
     this.folder = parentFolder.addFolder({ title: "renderStats", expanded: expanded });
-    this.performance = this.folder.addFolder({ title: "performance", expanded: true });
-    this.defails = this.folder.addFolder({ title: "pipeline details", expanded: false });
-    this.folder.addBlade({ view: "separator" });
-
-    this.performance.addBinding(this.statsData, "FPS", { readonly: true });
-    this.performance.addBinding(this.statsData, "deltaTime", { readonly: true });
-    this.performance.addBinding(this.statsData, "rawDeltaTime", { readonly: true });
-
-    this.defails.addBinding(this.statsData, "triangles", { readonly: true });
-    this.defails.addBinding(this.statsData, "geometries", { readonly: true });
-    this.defails.addBinding(this.statsData, "textures", { readonly: true });
-    this.defails.addBinding(this.statsData, "shaders", { readonly: true });
-    this.defails.addBinding(this.statsData, "postPasses", { readonly: true });
-    this.defails.addBinding(this.statsData, "drawCalls", { readonly: true });
+    this.folder.addBinding(this.statsData, "FPS", { readonly: true });
+    this.folder.addBinding(this.statsData, "deltaTime", { readonly: true });
+    this.folder.addBinding(this.statsData, "rawDeltaTime", { readonly: true });
+    this.folder.addBinding(this.statsData, "triangles", { readonly: true });
+    this.folder.addBinding(this.statsData, "geometries", { readonly: true });
+    this.folder.addBinding(this.statsData, "textures", { readonly: true });
+    this.folder.addBinding(this.statsData, "shaders", { readonly: true });
+    this.folder.addBinding(this.statsData, "postPasses", { readonly: true });
+    this.folder.addBinding(this.statsData, "drawCalls", { readonly: true });
   }
 
   public update(renderer: WebGLRenderer, composer: EffectComposer, timeManager: TimeManager): void {
