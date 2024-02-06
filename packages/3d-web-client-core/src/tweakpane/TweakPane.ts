@@ -27,7 +27,7 @@ import { setTweakpaneActive } from "./tweakPaneActivity";
 import { tweakPaneStyle } from "./tweakPaneStyle";
 
 export class TweakPane {
-  private gui: Pane = new Pane();
+  private gui: Pane;
 
   private renderStatsFolder: RendererStatsFolder;
   private rendererFolder: RendererFolder;
@@ -49,6 +49,12 @@ export class TweakPane {
     private scene: Scene,
     private composer: EffectComposer,
   ) {
+    const appWrapper = document.getElementById("app")!;
+    const tweakPaneWrapper = document.createElement("div");
+    tweakPaneWrapper.id = "tweakpane-panel";
+    appWrapper.appendChild(tweakPaneWrapper);
+
+    this.gui = new Pane({ container: tweakPaneWrapper! });
     this.gui.registerPlugin(EssentialsPlugin);
 
     if (this.saveVisibilityInLocalStorage) {
@@ -81,22 +87,22 @@ export class TweakPane {
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
     window.addEventListener("keydown", this.processKey.bind(this));
-
-    this.setupGUIListeners.bind(this)();
     this.setupRenderPane = this.setupRenderPane.bind(this);
-  }
-
-  private processKey(e: KeyboardEvent): void {
-    if (e.key === "p") this.toggleGUI();
+    this.setupGUIListeners.bind(this)();
   }
 
   private setupGUIListeners(): void {
     const gui = this.gui as any;
     const paneElement: HTMLElement = gui.containerElem_;
-    paneElement.style.display = this.guiVisible ? "unset" : "none";
+    paneElement.style.right = this.guiVisible ? "0px" : "-450px";
+    this.gui.element.addEventListener("mouseenter", () => setTweakpaneActive(true));
     this.gui.element.addEventListener("mousedown", () => setTweakpaneActive(true));
     this.gui.element.addEventListener("mouseup", () => setTweakpaneActive(false));
     this.gui.element.addEventListener("mouseleave", () => setTweakpaneActive(false));
+  }
+
+  private processKey(e: KeyboardEvent): void {
+    if (e.key === "p") this.toggleGUI();
   }
 
   public setupRenderPane(
@@ -192,10 +198,10 @@ export class TweakPane {
   }
 
   private toggleGUI(): void {
+    this.guiVisible = !this.guiVisible;
     const gui = this.gui as any;
     const paneElement: HTMLElement = gui.containerElem_;
-    paneElement.style.display = this.guiVisible ? "none" : "unset";
-    this.guiVisible = !this.guiVisible;
+    paneElement.style.right = this.guiVisible ? "0px" : "-450px";
     if (this.saveVisibilityInLocalStorage) {
       localStorage.setItem("guiVisible", this.guiVisible === true ? "true" : "false");
     }
