@@ -128,7 +128,8 @@ const VoiceChatUIComponent = (props: VoiceChatUIComponentProps) => {
 
 export class VoiceChatUI {
   private root: Root;
-  private container = document.getElementById("voice-chat-ui")!;
+  private wrapper = document.createElement("div");
+  private container = document.getElementById("app")!;
 
   private activeSpeakers: number = 0;
   private speaking: boolean = false;
@@ -139,7 +140,8 @@ export class VoiceChatUI {
     private handleClickMic: () => void,
     private handlePassword: (password: string) => void,
   ) {
-    this.root = createRoot(this.container);
+    this.container.appendChild(this.wrapper);
+    this.root = createRoot(this.wrapper);
   }
 
   public setActiveSpeakers(activeSpeakers: number): void {
