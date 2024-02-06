@@ -15,11 +15,11 @@ export class CameraManager {
 
   private initialFOV: number = 60;
   private fov: number = this.initialFOV;
-  private minFOV: number = 50;
-  private maxFOV: number = 70;
+  private minFOV: number = 85;
+  private maxFOV: number = 60;
   private targetFOV: number = this.initialFOV;
 
-  private minPolarAngle: number = Math.PI * 0.25;
+  public minPolarAngle: number = Math.PI * 0.25;
   private maxPolarAngle: number = Math.PI * 0.95;
 
   private dampingFactor: number = 0.091;
@@ -141,10 +141,20 @@ export class CameraManager {
   }
 
   public adjustCameraPosition(): void {
-    this.rayCaster.set(
-      this.camera.position,
-      this.target.clone().sub(this.camera.position).normalize(),
-    );
+    /*
+    The purpose for the offsetDistance is to set the rayCaster further from the player
+    than the camera is on the z relative axis, so we can avoid having a camera collider
+    and expensive checks to prevent seeing clipped wals or floors or objects when we
+    readjust the camera. 50cm (the current offset) should get a good balance for most
+    indoor environments
+    */
+    const offsetDistance = 0.5;
+    const offset = new Vector3(0, 0, offsetDistance);
+    offset.applyEuler(this.camera.rotation);
+    const rayOrigin = this.camera.position.clone().add(offset);
+    const rayDirection = this.target.clone().sub(rayOrigin).normalize();
+
+    this.rayCaster.set(rayOrigin, rayDirection);
     const firstRaycastHit = this.collisionsManager.raycastFirst(this.rayCaster.ray);
     const cameraToPlayerDistance = this.camera.position.distanceTo(this.target);
 
