@@ -28,11 +28,19 @@ export class CharacterSockets {
 
   private async setAttachments(parts: MMLCharacterDescriptionPart[]): Promise<void> {
     parts.forEach(async (part) => {
-      if (part.socket?.socket && this.availableBones.has(part.socket.socket)) {
+      if (part.socket?.socket) {
+        const socketName = part.socket.socket;
         const partGLTF = await this.modelLoader.load(part.url);
         if (partGLTF && partGLTF.scene) {
           const model = partGLTF.scene as Object3D;
-          const bone = this.availableBones.get(part.socket.socket);
+          let bone = this.availableBones.get("root");
+          if (this.availableBones.has(socketName)) {
+            bone = this.availableBones.get(socketName);
+          } else {
+            console.warn(
+              `WARNING: no bone found for [${socketName}] socket. Attatching to Root bone`,
+            );
+          }
           if (bone) {
             model.position.set(0, 0, 0);
             model.rotation.set(0, 0, 0);
@@ -60,6 +68,7 @@ export class CharacterSockets {
             this.attachments.set(part.socket.socket, model);
           }
         }
+      } else if (part.socket?.socket) {
       }
     });
   }
