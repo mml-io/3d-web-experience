@@ -18,13 +18,15 @@ export class TextChatUI {
     if (this.appRef.current) this.appRef.current.addMessage(username, message);
   }
 
-  private container = document.getElementById("text-chat-ui")!;
+  private wrapper = document.createElement("div");
+  private container = document.getElementById("app")!;
 
   constructor(
     private clientname: string,
     private sendMessageToServerMethod: (message: string) => void,
   ) {
-    this.root = createRoot(this.container);
+    this.container.appendChild(this.wrapper);
+    this.root = createRoot(this.wrapper);
     this.sendMessageToServerMethod = sendMessageToServerMethod;
   }
 
