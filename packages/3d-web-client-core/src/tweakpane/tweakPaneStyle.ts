@@ -1,6 +1,6 @@
 export const tweakPaneStyle = `
 :root {
-  --tp-base-background-color: rgba(0, 0, 0, 0.6);
+  --tp-base-background-color: rgba(12, 12, 12, 0.6);
   --tp-base-shadow-color: hsla(0, 0%, 0%, 0.2);
   --tp-button-background-color: hsla(0, 0%, 80%, 1);
   --tp-button-background-color-active: hsla(0, 0%, 100%, 1);
@@ -21,6 +21,9 @@ export const tweakPaneStyle = `
   --tp-label-foreground-color: hsla(0, 0%, 100%, 0.6);
   --tp-monitor-background-color: hsla(0, 0%, 0%, 0.3);
   --tp-monitor-foreground-color: hsla(0, 0%, 100%, 0.3);
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 
 .tp-brkv {
@@ -30,28 +33,40 @@ export const tweakPaneStyle = `
 }
 
 .tp-dfwv {
+  z-index: 100;
   color: white;
-  backdrop-filter: blur(12px);
-  width: 360px !important;
+  width: 600px !important;
   display: none;
   -webkit-user-select: none;
   -ms-user-select: none;
   user-select: none;
 }
 
+.tp-fldv {
+  margin: 1px 0px 0px 0px !important;
+}
+
+.tp-fldv_b {
+  overflow: visible !important;
+}
+
 .tp-fldv_t {
-  font-size: 11px;
-  background-color: rgba(0, 0, 0, 0.1);
+  font-size: 13px;
+  font-weight: 900;
+  color: #ffffff;
+  background-color: rgba(70, 70, 70, 0.3);
+  border-top: 1px solid rgba(210, 210, 210, 0.1);
+  border-radius: 3px;
 }
 
 .tp-lblv_l {
-  font-size: 11px;
+  font-size: 12px;
   padding-left: 0px !important;
   padding-right: 0px !important;
 }
 
 .tp-lblv_v {
-  width: 180px;
+  width: 150px;
 }
 
 .tp-sldtxtv_t {
@@ -59,7 +74,11 @@ export const tweakPaneStyle = `
 }
 
 .tp-sglv_i {
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
+}
+
+.tp-ckbv_w {
+  border: 1px solid rgba(200, 200, 250, 0.2);
 }
 `;
