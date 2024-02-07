@@ -1,5 +1,5 @@
 import {
-  Character as MMLCharacter,
+  MMLCharacter,
   type MMLCharacterDescription,
   ModelLoader,
   parseMMLDescription,
@@ -100,16 +100,13 @@ export class CharacterModel {
     let mergedCharacter: Object3D | null = null;
     if (mmlCharacterDescription) {
       const characterBase = mmlCharacterDescription.base?.url || null;
-      const parts: string[] = [];
-
-      mmlCharacterDescription.parts?.forEach((part) => {
-        if (part.url) parts.push(part.url);
-      });
-
       if (characterBase) {
         this.mmlCharacterDescription = mmlCharacterDescription;
         const mmlCharacter = new MMLCharacter(new ModelLoader());
-        mergedCharacter = await mmlCharacter.mergeBodyParts(characterBase, parts);
+        mergedCharacter = await mmlCharacter.mergeBodyParts(
+          characterBase,
+          mmlCharacterDescription.parts,
+        );
         if (mergedCharacter) {
           return mergedCharacter.children[0].children[0];
         }

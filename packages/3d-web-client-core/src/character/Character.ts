@@ -5,7 +5,6 @@ import { Composer } from "../rendering/composer";
 
 import { CharacterModel } from "./CharacterModel";
 import { CharacterModelLoader } from "./CharacterModelLoader";
-import { CharacterSockets } from "./CharacterSockets";
 import { CharacterSpeakingIndicator } from "./CharacterSpeakingIndicator";
 import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
@@ -28,7 +27,6 @@ export class Character extends Group {
   public color: Color = new Color();
   public tooltip: CharacterTooltip | null = null;
   public speakingIndicator: CharacterSpeakingIndicator | null = null;
-  public sockets: CharacterSockets | null = null;
 
   constructor(
     private readonly characterDescription: CharacterDescription,
@@ -57,9 +55,6 @@ export class Character extends Group {
       this.speakingIndicator = new CharacterSpeakingIndicator(this.composer.postPostScene);
     }
     this.color = this.model.material.colorsCube216[this.characterId];
-    if (this.sockets === null) {
-      this.sockets = new CharacterSockets(this.model.mesh!, this.model.mmlCharacterDescription);
-    }
     this.modelLoadedCallback();
   }
 

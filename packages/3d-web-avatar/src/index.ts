@@ -1,4 +1,4 @@
-export { Character } from "./character/Character";
+export { MMLCharacter } from "./character/MMLCharacter";
 export { cloneModel } from "./helpers/SkeletonHelpers";
 export { TimeManagerInterface } from "./character/types";
 export { ModelLoader } from "./character/ModelLoader";
