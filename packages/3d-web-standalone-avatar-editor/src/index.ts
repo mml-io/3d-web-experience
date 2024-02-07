@@ -5,7 +5,7 @@ export type {
 } from "@mml-io/3d-web-avatar-editor-ui";
 export { CharacterPartsSelector, findAssetsInCollection } from "@mml-io/3d-web-avatar-editor-ui";
 export {
-  Character,
+  MMLCharacter,
   ModelLoader,
   parseMMLDescription,
   createMMLCharacterString,

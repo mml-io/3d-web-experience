@@ -5,7 +5,7 @@ import {
 } from "@mml-io/3d-web-avatar";
 import {
   AvatarVisualizer,
-  Character,
+  MMLCharacter,
   CharacterComposition,
   CharacterPartsSelector,
   CollectionDataType,
@@ -42,7 +42,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   showMirror: boolean;
 }) {
   const [characterMesh, setCharacterMesh] = useState<Object3D | null>(null);
-  const [character] = useState(new Character(new ModelLoader()));
+  const [character] = useState(new MMLCharacter(new ModelLoader()));
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes>("fullBody");
   const [errors, setErrors] = useState(props.loadingErrors);
 
@@ -76,7 +76,9 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
       // The character parts picker provides the full body separately from the parts that are then layered onto it
       const obj3d = await character.mergeBodyParts(
         fullBody.url,
-        Object.values(parts).map((part) => part.url),
+        Object.values(parts).map((part) => ({
+          url: part.url,
+        })),
       );
       setCharacterMesh(obj3d);
       setSelectedPart("fullBody");
