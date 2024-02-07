@@ -91,6 +91,8 @@ export class App {
   private loadingProgressManager = new LoadingProgressManager();
   private loadingScreen: LoadingScreen;
 
+  private appWrapper = document.getElementById("app");
+
   constructor() {
     document.addEventListener("mousedown", () => {
       if (this.audioListener.context.state === "suspended") {
@@ -102,7 +104,11 @@ export class App {
     this.element.style.position = "absolute";
     this.element.style.width = "100%";
     this.element.style.height = "100%";
-    document.body.appendChild(this.element);
+    if (this.appWrapper) {
+      this.appWrapper.appendChild(this.element);
+    } else {
+      document.body.appendChild(this.element);
+    }
 
     this.cameraManager = new CameraManager(this.element, this.collisionsManager);
     this.cameraManager.camera.add(this.audioListener);
