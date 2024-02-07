@@ -1,6 +1,12 @@
 export type MMLCharacterDescriptionPart = {
   url: string;
   type?: string;
+  socket?: {
+    socket: string;
+    position: { x: number; y: number; z: number };
+    scale: { x: number; y: number; z: number };
+    rotation: { x: number; y: number; z: number };
+  };
 };
 
 export type MMLCharacterDescription = {
@@ -69,7 +75,27 @@ export const parseMMLDescription = (
     );
     parts = directModelChildren.map((model) => {
       const partSrc = model.getAttribute("src") ?? "";
-      return { url: partSrc };
+
+      const socketAttr = model.getAttribute("socket");
+      const position = {
+        x: parseFloat(model.getAttribute("x") ?? "0") || 0,
+        y: parseFloat(model.getAttribute("y") ?? "0") || 0,
+        z: parseFloat(model.getAttribute("z") ?? "0") || 0,
+      };
+      const scale = {
+        x: parseFloat(model.getAttribute("sx") ?? "1") || 1,
+        y: parseFloat(model.getAttribute("sy") ?? "1") || 1,
+        z: parseFloat(model.getAttribute("sz") ?? "1") || 1,
+      };
+      const rotation = {
+        x: parseFloat(model.getAttribute("rx") ?? "0") || 0,
+        y: parseFloat(model.getAttribute("ry") ?? "0") || 0,
+        z: parseFloat(model.getAttribute("rz") ?? "0") || 0,
+      };
+
+      const socketObj = socketAttr ? { socket: socketAttr, position, scale, rotation } : undefined;
+
+      return { url: partSrc, socket: socketObj };
     });
 
     const wrappedModelTags = Array.from(doc.querySelectorAll("m-character m-model")).filter(

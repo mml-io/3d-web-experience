@@ -1,20 +1,24 @@
 import {
-  BoxHelper,
+  Bone,
   BufferAttribute,
+  Euler,
   Group,
+  MathUtils,
   Matrix4,
-  MeshStandardMaterial,
+  Mesh,
   Object3D,
   Skeleton,
   SkinnedMesh,
+  Vector3,
 } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
+import { MMLCharacterDescriptionPart } from "../helpers/parseMMLDescription";
 import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
 
 import { ModelLoader } from "./ModelLoader";
 
-export class Character {
+export class MMLCharacter {
   private skeletonHelpers: SkeletonHelpers = new SkeletonHelpers();
   private skinnedMeshesParent: Group | null = null;
   private sharedSkeleton: Skeleton | null = null;
@@ -62,26 +66,34 @@ export class Character {
     );
   }
 
-  public async mergeBodyParts(fullBodyURL: string, bodyParts: Array<string>): Promise<Object3D> {
+  public async mergeBodyParts(
+    fullBodyURL: string,
+    bodyParts: Array<MMLCharacterDescriptionPart>,
+  ): Promise<Object3D> {
     const fullBodyAsset = await this.modelLoader.load(fullBodyURL);
     const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
 
-    const assetPromises: Array<Promise<{ asset: GLTF; partUrl: string }>> = bodyParts.map(
-      (partUrl) => {
+    const assetPromises: Array<Promise<{ asset: GLTF; part: MMLCharacterDescriptionPart }>> =
+      bodyParts.map((part) => {
         return new Promise((resolve) => {
-          this.modelLoader.load(partUrl).then((asset) => {
-            resolve({ asset: asset!, partUrl });
+          this.modelLoader.load(part.url).then((asset) => {
+            resolve({ asset: asset!, part });
           });
         });
-      },
-    );
+      });
     const assets = await Promise.all(assetPromises);
 
     const fullBodyModelGroup = fullBodyGLTF.gltf.scene;
 
     this.skinnedMeshesParent = null;
 
+    const availableBones = new Map<string, Bone>();
     fullBodyModelGroup.traverse((child) => {
+      const asBone = child as Bone;
+      if (asBone.isBone) {
+        availableBones.set(child.name, asBone);
+      }
+
       const asSkinnedMesh = child as SkinnedMesh;
       if (asSkinnedMesh.isSkinnedMesh) {
         asSkinnedMesh.castShadow = true;
@@ -95,19 +107,57 @@ export class Character {
     this.sharedMatrixWorld = fullBodyGLTF.matrixWorld;
 
     for (const loadingAsset of assets) {
-      const gltf = this.skeletonHelpers.cloneGLTF(loadingAsset.asset, loadingAsset.partUrl);
+      const part = loadingAsset.part;
+      const gltf = this.skeletonHelpers.cloneGLTF(loadingAsset.asset, part.url);
       const modelGroup = gltf.gltf.scene;
-      modelGroup.traverse((child) => {
-        const asSkinnedMesh = child as SkinnedMesh;
-        if (asSkinnedMesh.type === "SkinnedMesh") {
-          const skinnedMeshClone = child.clone(true) as SkinnedMesh;
-          this.remapBoneIndices(skinnedMeshClone);
-          skinnedMeshClone.castShadow = true;
-          skinnedMeshClone.receiveShadow = true;
-          skinnedMeshClone.bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
-          this.skinnedMeshesParent?.add(skinnedMeshClone);
+      if (part.socket) {
+        const socketName = part.socket.socket;
+        let bone = availableBones.get("root");
+        if (availableBones.has(socketName)) {
+          bone = availableBones.get(socketName);
+        } else {
+          console.warn(
+            `WARNING: no bone found for [${socketName}] socket. Attatching to Root bone`,
+          );
         }
-      });
+        if (bone) {
+          modelGroup.position.set(0, 0, 0);
+          modelGroup.rotation.set(0, 0, 0);
+          modelGroup.scale.set(1, 1, 1);
+
+          bone.add(modelGroup);
+
+          modelGroup.rotateZ(-Math.PI / 2);
+
+          const offsetPosition = new Vector3(
+            part.socket.position.x,
+            part.socket.position.y,
+            part.socket.position.z,
+          );
+          modelGroup.position.copy(offsetPosition);
+
+          const offsetRotation = new Euler(
+            MathUtils.degToRad(part.socket.rotation.x),
+            MathUtils.degToRad(part.socket.rotation.y),
+            MathUtils.degToRad(part.socket.rotation.z),
+          );
+          modelGroup.setRotationFromEuler(offsetRotation);
+
+          modelGroup.scale.set(part.socket.scale.x, part.socket.scale.y, part.socket.scale.z);
+        }
+      } else {
+        modelGroup.traverse((child) => {
+          const asSkinnedMesh = child as SkinnedMesh;
+          if (asSkinnedMesh.isSkinnedMesh) {
+            const skinnedMeshClone = child.clone(true) as SkinnedMesh;
+            this.remapBoneIndices(skinnedMeshClone);
+            skinnedMeshClone.castShadow = true;
+            skinnedMeshClone.receiveShadow = true;
+            skinnedMeshClone.bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
+            this.skinnedMeshesParent?.add(skinnedMeshClone);
+          }
+        });
+      }
     }
     return fullBodyGLTF!.gltf.scene as Object3D;
   }

@@ -1,4 +1,4 @@
-import { Color, Group, MeshStandardMaterial, Object3D, SkinnedMesh, Vector3 } from "three";
+import { Color, Group, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { Composer } from "../rendering/composer";
