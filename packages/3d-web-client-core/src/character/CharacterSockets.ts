@@ -68,7 +68,6 @@ export class CharacterSockets {
             this.attachments.set(part.socket.socket, model);
           }
         }
-      } else if (part.socket?.socket) {
       }
     });
   }
