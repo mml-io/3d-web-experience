@@ -51,7 +51,7 @@ const characterDescription: CharacterDescription = {
   // Option 1 (Default) - Use a GLB file directly
   meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
   // Option 2 - Use an MML Character from a URL
-  // mmlCharacterString: `<m-character src="https://..."></m-character>`,
+  // mmlCharacterUrl: "https://...",
   // Option 3 - Use an MML Character from a string
   // mmlCharacterString: `
   // <m-character src="/assets/models/bot.glb">
