@@ -305,7 +305,6 @@ export class Composer {
         if (envMap) {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
-          this.scene.environment = envMap;
           this.scene.background = envMap;
           this.scene.backgroundIntensity = rendererValues.bgIntensity;
           this.isEnvHDRI = true;

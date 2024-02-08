@@ -1,4 +1,4 @@
-import { Bone, Group, Matrix4, Object3D, Skeleton, SkinnedMesh } from "three";
+import { Bone, Group, Matrix4, Mesh, Object3D, Skeleton, SkinnedMesh } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
@@ -151,6 +151,10 @@ export class SkeletonHelpers {
 
     let hierarchyCheck = false;
     clone.scene!.traverse((node) => {
+      if ((node as Mesh).isMesh || (node as SkinnedMesh).isSkinnedMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
       if (node.type === "Bone") {
         if (hierarchyCheck === false) {
           hierarchyCheck = true;

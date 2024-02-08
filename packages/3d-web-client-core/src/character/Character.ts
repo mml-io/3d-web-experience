@@ -36,6 +36,7 @@ export class Character extends Group {
     private readonly modelLoadedCallback: () => void,
     private readonly cameraManager: CameraManager,
     private readonly composer: Composer,
+    private readonly isLocal: boolean,
   ) {
     super();
     this.tooltip = new CharacterTooltip();
@@ -48,13 +49,15 @@ export class Character extends Group {
       this.characterDescription,
       this.animationConfig,
       this.characterModelLoader,
+      this.cameraManager,
+      this.characterId,
+      this.isLocal,
     );
     await this.model.init();
     this.add(this.model.mesh!);
     if (this.speakingIndicator === null) {
       this.speakingIndicator = new CharacterSpeakingIndicator(this.composer.postPostScene);
     }
-    this.color = this.model.material.colorsCube216[this.characterId];
     this.modelLoadedCallback();
   }
 
@@ -75,11 +78,6 @@ export class Character extends Group {
           this.cameraManager.camera,
         );
       }
-    }
-    if (typeof this.model.material.uniforms.time !== "undefined") {
-      this.model.material.uniforms.time.value = time;
-      this.model.material.uniforms.diffuseRandomColor.value = this.color;
-      this.model.material.update();
     }
     this.model.update(deltaTime);
   }

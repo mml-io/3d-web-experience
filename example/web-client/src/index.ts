@@ -29,7 +29,7 @@ import {
 } from "mml-web";
 import { AudioListener, Euler, Scene, Vector3 } from "three";
 
-import hdrUrl from "../../assets/hdr/industrial_sunset_2k.hdr";
+import hdrUrl from "../../assets/hdr/puresky_2k.hdr";
 import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
@@ -55,10 +55,10 @@ const characterDescription: CharacterDescription = {
   // Option 3 - Use an MML Character from a string
   // mmlCharacterString: `
   // <m-character src="/assets/models/bot.glb">
-  //   <m-model src="/assets/models/ears.glb"
+  //   <m-model src="/assets/models/hat.glb"
   //     socket="head"
-  //     x="0.077" y="0" z="0.04"
-  //     sx="1.1" sy="1.1" sz="1.1"
+  //     x="0.03" y="0" z="0.0"
+  //     sx="1.03" sy="1.03" sz="1.03"
   //     rz="-90"
   //   ></m-model>
   // </m-character>
