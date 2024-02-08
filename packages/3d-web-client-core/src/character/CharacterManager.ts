@@ -29,9 +29,6 @@ export class CharacterManager {
   private localController: LocalController;
   public localCharacter: Character | null = null;
 
-  private cameraOffsetTarget: number = 0;
-  private cameraOffset: number = 0;
-
   private speakingCharacters: Map<number, boolean> = new Map();
 
   public readonly group: Group;
@@ -67,6 +64,7 @@ export class CharacterManager {
       },
       this.cameraManager,
       this.composer,
+      true,
     );
     const quaternion = new Quaternion().setFromEuler(character.rotation);
     this.sendUpdate({
@@ -112,6 +110,7 @@ export class CharacterManager {
       },
       this.cameraManager,
       this.composer,
+      false,
     );
 
     this.remoteCharacters.set(id, character);
@@ -164,12 +163,12 @@ export class CharacterManager {
         this.sendUpdate(this.localController.networkState);
       }
 
-      this.cameraOffsetTarget = this.cameraManager.targetDistance <= 0.4 ? 0.13 : 0;
-      this.cameraOffset += ease(this.cameraOffsetTarget, this.cameraOffset, 0.1);
-      const targetOffset = new Vector3(0, 0, this.cameraOffset);
-      targetOffset.add(this.headTargetOffset);
-      targetOffset.applyQuaternion(this.localCharacter.quaternion);
-      this.cameraManager.setTarget(targetOffset.add(this.localCharacter.position));
+      const targetOffset = new Vector3();
+      targetOffset
+        .add(this.headTargetOffset)
+        .applyQuaternion(this.localCharacter.quaternion)
+        .add(this.localCharacter.position);
+      this.cameraManager.setTarget(targetOffset);
 
       for (const [id, update] of this.clientStates) {
         if (this.remoteCharacters.has(id) && this.speakingCharacters.has(id)) {
