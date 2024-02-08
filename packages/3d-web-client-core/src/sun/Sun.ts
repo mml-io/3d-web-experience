@@ -33,8 +33,8 @@ export class Sun extends Group {
     }
     this.directionalLight = new DirectionalLight(0xffffff, 0.5);
     this.directionalLight.intensity = sunValues.sunIntensity;
-    this.directionalLight.shadow.normalBias = 0.05;
-    this.directionalLight.shadow.radius = 1.5;
+    this.directionalLight.shadow.normalBias = 0.01;
+    this.directionalLight.shadow.radius = 0.02;
     this.directionalLight.shadow.camera = this.shadowCamera;
     this.directionalLight.shadow.mapSize.set(this.shadowResolution, this.shadowResolution);
     this.directionalLight.castShadow = true;

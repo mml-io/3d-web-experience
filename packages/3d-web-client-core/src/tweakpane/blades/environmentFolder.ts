@@ -5,8 +5,8 @@ import { Sun } from "../../sun/Sun";
 
 export const sunValues = {
   sunPosition: {
-    sunAzimuthalAngle: 215,
-    sunPolarAngle: -39,
+    sunAzimuthalAngle: 214.5,
+    sunPolarAngle: -41.5,
   },
   sunIntensity: 1,
   sunColor: { r: 1.0, g: 1.0, b: 1.0 },

@@ -7,7 +7,7 @@ export const rendererValues = {
   shadowMap: 2,
   toneMapping: 5,
   exposure: 1,
-  bgIntensity: 0.45,
+  bgIntensity: 1,
   bgBlurriness: 0.0,
 };
 
