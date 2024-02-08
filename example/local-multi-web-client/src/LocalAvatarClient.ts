@@ -15,7 +15,7 @@ import { EditableNetworkedDOM, NetworkedDOM } from "@mml-io/networked-dom-docume
 import { MMLWebRunnerClient } from "mml-web-runner";
 import { AudioListener, Euler, Scene, Vector3 } from "three";
 
-import hdrUrl from "../../assets/hdr/industrial_sunset_2k.hdr";
+import hdrUrl from "../../assets/hdr/puresky_2k.hdr";
 import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
