@@ -10,10 +10,13 @@ import {
   AnimationMixer,
   Bone,
   LoopRepeat,
+  Mesh,
   MeshStandardMaterial,
   Object3D,
   SkinnedMesh,
 } from "three";
+
+import { CameraManager } from "../camera/CameraManager";
 
 import { AnimationConfig, CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
@@ -22,8 +25,9 @@ import { AnimationState } from "./CharacterState";
 
 export class CharacterModel {
   public mesh: Object3D | null = null;
-  public material: CharacterMaterial = new CharacterMaterial();
   public headBone: Bone | null = null;
+
+  private materials: Map<string, CharacterMaterial> = new Map();
 
   public animations: Record<string, AnimationAction> = {};
   public animationMixer: AnimationMixer | null = null;
@@ -35,6 +39,9 @@ export class CharacterModel {
     private readonly characterDescription: CharacterDescription,
     private readonly animationConfig: AnimationConfig,
     private characterModelLoader: CharacterModelLoader,
+    private readonly cameraManager: CameraManager,
+    private readonly characterId: number,
+    private readonly isLocal: boolean,
   ) {}
 
   public async init(): Promise<void> {
@@ -49,22 +56,35 @@ export class CharacterModel {
       AnimationState.running,
     );
     await this.setAnimationFromFile(this.animationConfig.airAnimationFileUrl, AnimationState.air);
-    if (this.characterDescription.meshFileUrl) {
-      this.applyCustomMaterial(this.material);
-    }
+    this.applyCustomMaterials();
   }
 
-  private applyCustomMaterial(material: CharacterMaterial): void {
+  private applyCustomMaterials(): void {
     if (!this.mesh) return;
     this.mesh.traverse((child: Object3D) => {
-      const asSkinnedMesh = child as SkinnedMesh;
-      if (asSkinnedMesh.isSkinnedMesh) {
-        const mat = asSkinnedMesh.material as MeshStandardMaterial;
-        if (!mat.name.includes("joints")) {
-          asSkinnedMesh.material = material;
+      if ((child as Mesh).isMesh || (child as SkinnedMesh).isSkinnedMesh) {
+        const asMesh = child as Mesh;
+        const originalMaterial = asMesh.material as MeshStandardMaterial;
+        if (this.materials.has(originalMaterial.name)) {
+          asMesh.material = this.materials.get(originalMaterial.name)!;
         } else {
-          const color = mat.color;
-          asSkinnedMesh.material = new CharacterMaterial(color);
+          const material =
+            originalMaterial.name === "body_replaceable_color"
+              ? new CharacterMaterial(
+                  this.isLocal,
+                  this.cameraManager,
+                  this.characterId,
+                  originalMaterial,
+                )
+              : new CharacterMaterial(
+                  this.isLocal,
+                  this.cameraManager,
+                  this.characterId,
+                  originalMaterial,
+                  originalMaterial.color,
+                );
+          this.materials.set(originalMaterial.name, material);
+          asMesh.material = material;
         }
       }
     });
@@ -217,6 +237,7 @@ export class CharacterModel {
   update(time: number) {
     if (this.animationMixer) {
       this.animationMixer.update(time);
+      this.materials.forEach((material) => material.update());
     }
   }
 }
