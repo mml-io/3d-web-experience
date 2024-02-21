@@ -21,7 +21,7 @@
     "@mml-io/3d-web-avatar": "^0.12.1",
     "@tweakpane/core": "2.0.3",
     "@tweakpane/plugin-essentials": "0.2.1",
-    "mml-web": "0.11.4",
+    "mml-web": "0.12.0",
     "postprocessing": "6.34.1",
     "three-mesh-bvh": "0.7.1",
     "tweakpane": "4.0.3"
