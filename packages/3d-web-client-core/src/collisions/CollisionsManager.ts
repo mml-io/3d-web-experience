@@ -50,6 +50,10 @@ export class CollisionsManager {
 
   public collisionMeshState: Map<Group, CollisionMeshState> = new Map();
   private collisionTrigger: MMLCollisionTrigger;
+  private previouslyCollidingElements: null | Map<
+    Object3D,
+    { position: { x: number; y: number; z: number } }
+  >;
 
   constructor(scene: Scene) {
     this.scene = scene;
@@ -279,24 +283,21 @@ export class CollisionsManager {
   }
 
   public applyColliders(tempSegment: Line3, radius: number) {
-    let collidedElements: Map<
+    const collidedElements = new Map<
       Object3D,
       {
         position: { x: number; y: number; z: number };
       }
-    > | null = null;
+    >();
     for (const meshState of this.collisionMeshState.values()) {
       const collisionPosition = this.applyCollider(tempSegment, radius, meshState);
       if (collisionPosition && meshState.trackCollisions) {
-        if (collidedElements === null) {
-          collidedElements = new Map();
-        }
         const relativePosition = getRelativePositionAndRotationRelativeToObject(
           {
             position: collisionPosition,
             rotation: this.tempEuler.set(0, 0, 0),
           },
-          meshState.source as Object3D,
+          meshState.source,
         );
         collidedElements.set(meshState.source, {
           position: relativePosition.position,
@@ -304,6 +305,26 @@ export class CollisionsManager {
       }
     }
 
-    this.collisionTrigger.setCurrentCollisions(collidedElements);
+    /*
+     The reported collisions include elements that were reported in the previous tick to ensure that the case of an
+     avatar rising to a negligible distance above the surface and immediately back down onto it does not result in a
+     discontinuity in the collision lifecycle. If the element is not colliding in the next frame then it will be
+     dropped.
+
+     This results in a single tick delay of reporting leave events, but this is a reasonable trade-off to avoid
+     flickering collisions.
+    */
+    const reportedCollidingElements = new Map(collidedElements);
+    if (this.previouslyCollidingElements) {
+      for (const [element, position] of this.previouslyCollidingElements) {
+        if (!reportedCollidingElements.has(element)) {
+          reportedCollidingElements.set(element, position);
+        }
+      }
+    }
+
+    // Store the elements that were genuinely collided with this tick for the next tick to preserve if they are missed
+    this.previouslyCollidingElements = collidedElements;
+    this.collisionTrigger.setCurrentCollisions(reportedCollidingElements);
   }
 }
