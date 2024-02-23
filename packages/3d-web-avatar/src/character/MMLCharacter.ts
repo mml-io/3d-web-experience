@@ -5,6 +5,7 @@ import {
   Group,
   MathUtils,
   Matrix4,
+  MeshStandardMaterial,
   Object3D,
   Skeleton,
   SkinnedMesh,
@@ -158,6 +159,7 @@ export class MMLCharacter {
             skinnedMeshClone.castShadow = true;
             skinnedMeshClone.receiveShadow = true;
             skinnedMeshClone.bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
+            skinnedMeshClone.children = [];
             this.skinnedMeshesParent?.add(skinnedMeshClone);
           }
         });
