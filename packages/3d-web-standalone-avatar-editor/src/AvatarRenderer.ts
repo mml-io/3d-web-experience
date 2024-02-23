@@ -1,7 +1,9 @@
 import { ModelLoader } from "@mml-io/3d-web-avatar";
 import { TimeManager, CameraManager, CollisionsManager } from "@mml-io/3d-web-client-core";
 import {
+  AnimationClip,
   AnimationMixer,
+  Bone,
   LinearSRGBColorSpace,
   LoadingManager,
   LoopRepeat,
@@ -20,8 +22,6 @@ import { Mirror } from "./scene/Mirror";
 
 export class AvatarRenderer {
   private readonly camOffset: Vector3 = new Vector3(0, 1.2, 0);
-  private readonly floorSize: number = 50;
-  private readonly fogDistance: number = this.floorSize - this.floorSize * 0.1;
 
   private width: number = 1;
   private height: number = 1;
@@ -43,6 +43,8 @@ export class AvatarRenderer {
 
   public cameraTargetOffset: { x?: number; y?: number; z?: number } = {};
   public cameraTargetDistance: number = 0;
+
+  private cleanupNonRotationAnimTracks: boolean = true;
 
   constructor(
     private hdrURL: string,
@@ -126,13 +128,33 @@ export class AvatarRenderer {
     );
   }
 
+  private cleanAnimationClips(skeletalMesh: Object3D, animationClip: AnimationClip): AnimationClip {
+    const availableBones = new Set<string>();
+    skeletalMesh.traverse((child) => {
+      const asBone = child as Bone;
+      if (asBone.isBone) {
+        availableBones.add(child.name);
+      }
+    });
+    animationClip.tracks = animationClip.tracks.filter((track) => {
+      const [trackName, trackProperty] = track.name.split(".");
+      const shouldAnimate =
+        availableBones.has(trackName) && trackProperty !== "position" && trackProperty !== "scale";
+      return shouldAnimate;
+    });
+    return animationClip;
+  }
+
   public async animateCharacter(model: Object3D) {
     this.mixer = new AnimationMixer(model);
     if (this.animationAsset === null) {
       this.animationAsset = await this.modelLoader.load(this.idleAnimationURL);
     }
     if (this.animationAsset && this.animationAsset.animations) {
-      const animationClip = this.animationAsset.animations[0];
+      const animationClip = this.cleanupNonRotationAnimTracks
+        ? this.cleanAnimationClips(this.animationAsset.scene, this.animationAsset.animations[0])
+        : this.animationAsset.animations[0];
+
       const animationAction = this.mixer.clipAction(animationClip);
       animationAction.setLoop(LoopRepeat, Infinity);
       animationAction.play();
