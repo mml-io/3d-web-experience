@@ -3,6 +3,7 @@ import { PerspectiveCamera, Raycaster, Vector3 } from "three";
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
+import { VirtualJoystick } from "../input/VirtualJoystick";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
 export class CameraManager {
@@ -48,6 +49,10 @@ export class CameraManager {
   private lerpFactor: number = 0;
   private lerpDuration: number = 2.1;
 
+  private hasTouchControl: boolean = false;
+  private lastTouchX: number = 0;
+  private lastTouchY: number = 0;
+
   constructor(
     targetElement: HTMLElement,
     private collisionsManager: CollisionsManager,
@@ -61,12 +66,69 @@ export class CameraManager {
     this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
     this.rayCaster = new Raycaster();
+
+    this.hasTouchControl = VirtualJoystick.checkForTouch();
+
     this.eventHandlerCollection = EventHandlerCollection.create([
       [targetElement, "mousedown", this.onMouseDown.bind(this)],
       [document, "mouseup", this.onMouseUp.bind(this)],
       [document, "mousemove", this.onMouseMove.bind(this)],
       [targetElement, "wheel", this.onMouseWheel.bind(this)],
     ]);
+
+    if (this.hasTouchControl) {
+      this.eventHandlerCollection.add(targetElement, "touchstart", this.onTouchStart.bind(this), {
+        passive: false,
+      });
+      this.eventHandlerCollection.add(document, "touchmove", this.onTouchMove.bind(this), {
+        passive: false,
+      });
+      this.eventHandlerCollection.add(document, "touchend", this.onTouchEnd.bind(this), {
+        passive: false,
+      });
+    }
+  }
+
+  private onTouchStart(evt: TouchEvent): void {
+    Array.from(evt.touches).forEach((touch) => {
+      if (!VirtualJoystick.isTouchOnJoystick(touch)) {
+        this.dragging = true;
+        this.lastTouchX = touch.clientX;
+        this.lastTouchY = touch.clientY;
+      }
+    });
+  }
+
+  private onTouchMove(evt: TouchEvent): void {
+    if (!this.dragging || getTweakpaneActive()) {
+      return;
+    }
+    evt.preventDefault();
+
+    const touch = Array.from(evt.touches).find((t) => !VirtualJoystick.isTouchOnJoystick(t));
+    if (touch) {
+      const dx = touch.clientX - this.lastTouchX;
+      const dy = touch.clientY - this.lastTouchY;
+      this.lastTouchX = touch.clientX;
+      this.lastTouchY = touch.clientY;
+
+      if (this.targetTheta !== null && this.targetPhi !== null) {
+        this.targetTheta += dx * 0.01;
+        this.targetPhi -= dy * 0.01;
+        this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
+      }
+    }
+  }
+
+  private onTouchEnd(evt: TouchEvent): void {
+    if (this.dragging) {
+      const touchEnded = Array.from(evt.changedTouches).some(
+        (t) => !VirtualJoystick.isTouchOnJoystick(t),
+      );
+      if (touchEnded) {
+        this.dragging = false;
+      }
+    }
   }
 
   private onMouseDown(): void {
