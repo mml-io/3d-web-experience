@@ -16,7 +16,7 @@ import {
 import React, { useCallback, useEffect, useState } from "react";
 import { Group, Object3D } from "three";
 
-import idleAnimationURL from "../../assets/avatar/anims/AS_Andor_Stand_Idle.glb";
+import idleAnimationURL from "../../assets/avatar/anims/idle.glb";
 import hdrURL from "../../assets/hdr/puresky_2k.hdr";
 
 type BodyPartTypes = "fullBody" | "head" | "upperBody" | "lowerBody" | "feet";
