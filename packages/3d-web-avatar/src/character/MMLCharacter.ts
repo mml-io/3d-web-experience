@@ -5,7 +5,7 @@ import {
   Group,
   MathUtils,
   Matrix4,
-  Mesh,
+  MeshStandardMaterial,
   Object3D,
   Skeleton,
   SkinnedMesh,
@@ -72,7 +72,6 @@ export class MMLCharacter {
   ): Promise<Object3D> {
     const fullBodyAsset = await this.modelLoader.load(fullBodyURL);
     const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
-
     const assetPromises: Array<Promise<{ asset: GLTF; part: MMLCharacterDescriptionPart }>> =
       bodyParts.map((part) => {
         return new Promise((resolve) => {
@@ -154,6 +153,7 @@ export class MMLCharacter {
             skinnedMeshClone.castShadow = true;
             skinnedMeshClone.receiveShadow = true;
             skinnedMeshClone.bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
+            skinnedMeshClone.children = [];
             this.skinnedMeshesParent?.add(skinnedMeshClone);
           }
         });

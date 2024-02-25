@@ -47,8 +47,6 @@ export class ModelScreenshotter {
     const size = new Vector3();
     boundingBox.getSize(size);
 
-    console.log("boundingBox", boundingBox);
-
     const camera = new PerspectiveCamera(50, width / height, 0.1, 1000);
     positionCameraToFitBoundingBox(camera, boundingBox, size, padding, [0, 15, 30]);
 

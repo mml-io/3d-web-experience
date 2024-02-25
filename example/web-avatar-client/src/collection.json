@@ -2,7 +2,7 @@
   "fullBody": [
     {
       "name": "Full Body 1",
-      "asset": "/assets/avatar/parts/SK_Outfit_Body_Male.glb",
+      "asset": "/assets/avatar/parts/FemaleBody.glb",
       "thumb": "/assets/avatar/thumbs/SK_Outfit_Body_Male.jpg"
     }
   ],
@@ -36,7 +36,7 @@
     },
     {
       "name": "Dude Upper Body 3",
-      "asset": "/assets/avatar/parts/SK_Outfit_Three_Flanel_Shirt_01.glb",
+      "asset": "/assets/avatar/parts/BaseballJersey_PlainBlack_01.glb",
       "thumb": "/assets/avatar/thumbs/SK_Outfit_Three_Flanel_Shirt_01.jpg"
     }
   ],
