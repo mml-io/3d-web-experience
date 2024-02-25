@@ -69,15 +69,9 @@ export class MMLCharacter {
   public async mergeBodyParts(
     fullBodyURL: string,
     bodyParts: Array<MMLCharacterDescriptionPart>,
-    mainBodyTest: boolean = false,
   ): Promise<Object3D> {
     const fullBodyAsset = await this.modelLoader.load(fullBodyURL);
     const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
-
-    if (mainBodyTest && fullBodyAsset) {
-      return fullBodyAsset.scene;
-    }
-
     const assetPromises: Array<Promise<{ asset: GLTF; part: MMLCharacterDescriptionPart }>> =
       bodyParts.map((part) => {
         return new Promise((resolve) => {
