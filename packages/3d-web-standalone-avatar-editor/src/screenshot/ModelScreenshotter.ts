@@ -26,7 +26,7 @@ export class ModelScreenshotter {
   private readonly scene: Scene;
   private readonly lights: Lights;
 
-  constructor(private hdrURL: string) {
+  constructor(private hdrURL?: string) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.shadowMap.type = VSMShadowMap;
     this.renderer.shadowMap.enabled = true;
@@ -85,7 +85,7 @@ export class ModelScreenshotter {
     if (this.hdrURL) {
       await new Promise<void>((resolve, reject) => {
         new RGBELoader(new LoadingManager()).load(
-          this.hdrURL,
+          this.hdrURL!,
           (texture) => {
             const pmremGenerator = new PMREMGenerator(this.renderer);
             const envMap = pmremGenerator.fromEquirectangular(texture).texture;
