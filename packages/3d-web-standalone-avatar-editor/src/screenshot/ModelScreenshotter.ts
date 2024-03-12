@@ -2,8 +2,11 @@ import { ModelLoader } from "@mml-io/3d-web-avatar";
 import {
   AnimationMixer,
   Box3,
+  LinearSRGBColorSpace,
+  LoadingManager,
   Object3D,
   PerspectiveCamera,
+  PMREMGenerator,
   Scene,
   Vector3,
   VSMShadowMap,
@@ -11,6 +14,7 @@ import {
   WebGLRenderTarget,
 } from "three";
 import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { getDataUrlFromRenderTarget } from "./getDataUrlFromRenderTarget";
 import { Lights } from "./Lights";
@@ -22,7 +26,7 @@ export class ModelScreenshotter {
   private readonly scene: Scene;
   private readonly lights: Lights;
 
-  constructor() {
+  constructor(private hdrURL: string) {
     this.renderer = new WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.shadowMap.type = VSMShadowMap;
     this.renderer.shadowMap.enabled = true;
@@ -77,6 +81,29 @@ export class ModelScreenshotter {
       loadedModel = gltf.scene;
     }
     const mixer = new AnimationMixer(loadedModel);
+
+    if (this.hdrURL) {
+      await new Promise<void>((resolve, reject) => {
+        new RGBELoader(new LoadingManager()).load(
+          this.hdrURL,
+          (texture) => {
+            const pmremGenerator = new PMREMGenerator(this.renderer);
+            const envMap = pmremGenerator.fromEquirectangular(texture).texture;
+            envMap.colorSpace = LinearSRGBColorSpace;
+            envMap.needsUpdate = true;
+            this.scene.environment = envMap;
+            texture.dispose();
+            pmremGenerator.dispose();
+            resolve();
+          },
+          undefined,
+          (err) => {
+            console.error(`Error loading HDR: ${err}`);
+            reject(err);
+          },
+        );
+      });
+    }
 
     const animationAsset = await this.modelLoader.load(animationURL);
     if (animationAsset && animationAsset.animations) {
