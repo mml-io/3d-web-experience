@@ -67,6 +67,10 @@ export class AvatarRenderer {
       this.scene.add(this.mirror.mesh);
     }
 
+    if (this.hdrURL) {
+      this.useHDRI(this.hdrURL);
+    }
+
     // Events
     this.update = this.update.bind(this);
     this.updateProjection = this.updateProjection.bind(this);
@@ -102,8 +106,6 @@ export class AvatarRenderer {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
           this.scene.environment = envMap;
-          this.scene.background = envMap;
-          this.scene.backgroundIntensity = 0.5;
           texture.dispose();
           pmremGenerator!.dispose();
         }
