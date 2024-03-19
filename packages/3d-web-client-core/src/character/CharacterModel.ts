@@ -98,7 +98,7 @@ export class CharacterModel {
 
   private setMainMesh(mainMesh: Object3D): void {
     this.mesh = mainMesh;
-    this.mesh.position.set(0, -0.4, 0);
+    this.mesh.position.set(0, -0.44, 0);
     this.mesh.traverse((child: Object3D) => {
       if (child.type === "SkinnedMesh") {
         child.castShadow = true;
@@ -184,8 +184,10 @@ export class CharacterModel {
       }
     });
     animationClip.tracks = animationClip.tracks.filter((track) => {
-      const trackName = track.name.split(".")[0];
-      return availableBones.has(trackName);
+      const [trackName, trackProperty] = track.name.split(".");
+      const shouldAnimate =
+        availableBones.has(trackName) && trackProperty !== "position" && trackProperty !== "scale";
+      return shouldAnimate;
     });
     return animationClip;
   }
