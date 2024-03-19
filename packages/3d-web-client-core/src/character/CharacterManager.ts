@@ -89,7 +89,7 @@ export class CharacterManager {
     );
     this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
-    character.tooltip?.setText(`${id}`);
+    character.tooltip?.setText(`${id}`, true);
     this.group.add(character);
     this.localCharacterSpawned = true;
   }
