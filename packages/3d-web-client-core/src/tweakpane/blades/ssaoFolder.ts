@@ -40,7 +40,7 @@ const ppssaoOptions = {
 
 export const n8ssaoValues = {
   enabled: true,
-  halfRes: false,
+  halfRes: true,
   aoRadius: 5,
   distanceFalloff: 3.0,
   intensity: 1.0,
