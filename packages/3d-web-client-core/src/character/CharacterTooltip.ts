@@ -21,10 +21,10 @@ const fontScale = 5;
 const defaultLabelColor = new Color(0x000000);
 const defaultFontColor = new Color(0xffffff);
 const defaultLabelAlignment = LabelAlignment.center;
-const defaultLabelFontSize = 9;
+const defaultLabelFontSize = 8;
 const defaultLabelPadding = 0;
 const defaultLabelWidth = 0.25;
-const defaultLabelHeight = 0.125;
+const defaultLabelHeight = 0.1;
 const defaultLabelCastShadows = true;
 
 const tooltipGeometry = new PlaneGeometry(1, 1, 1, 1);
@@ -34,7 +34,7 @@ export class CharacterTooltip extends Mesh {
   private visibleOpacity: number = 0.85;
   private targetOpacity: number = 0;
   private fadingSpeed: number = 0.02;
-  private secondsToFadeOut: number = 15;
+  private secondsToFadeOut: number = 10;
 
   private props = {
     content: "",
@@ -98,7 +98,7 @@ export class CharacterTooltip extends Mesh {
 
     this.scale.x = width / (100 * fontScale);
     this.scale.y = height / (100 * fontScale);
-    this.position.y = 1.6;
+    this.position.y = 1.4;
   }
 
   setText(text: string, temporary: boolean = false) {
