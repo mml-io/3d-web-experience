@@ -21,10 +21,14 @@ contains:
     `@mml-io/3d-web-user-networking`
   - Additionally, the server runs MML documents in the `mml-documents` directory which are then
     connected to by the `web-client`.
+  - A simple, server-configureable multi-user mechanic, where multiple characters can be defined in `CharacterRepository` and a simple and extendable `UserRepository` to allow user login and character assignment. 
+    - For illustration, two characters (with and without hat) are available. 
+    - Each connection with an even `id` spawns with a character wearing a hat.
+    - Each connections with odd `id` spawns a character without a hat.
 
 It can be easily deployed to environments that support Node.js and expose ports to the internet.
 
-<img src="./playground.png">
+<img src="./playground.jpg">
 
 ## Main features
 

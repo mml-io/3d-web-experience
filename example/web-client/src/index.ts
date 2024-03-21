@@ -18,6 +18,7 @@ import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io
 import {
   UserNetworkingClient,
   UserNetworkingClientUpdate,
+  UserUpdateMessage,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
 import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
@@ -47,7 +48,7 @@ const animationConfig: AnimationConfig = {
 };
 
 // Specify the avatar to use here:
-const characterDescription: CharacterDescription = {
+const defaultCharacterDescription: CharacterDescription = {
   // Option 1 (Default) - Use a GLB file directly
   meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
   // Option 2 - Use an MML Character from a URL
@@ -86,6 +87,9 @@ export class App {
   private networkClient: UserNetworkingClient;
   private remoteUserStates = new Map<number, CharacterState>();
 
+  // different playable characters
+  private characters = new Map<number, CharacterDescription>();
+
   private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
 
@@ -95,6 +99,7 @@ export class App {
     characterState: null as null | CharacterState,
   };
   private clientId: number | null = null;
+  private characterId: number | null = null;
 
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
@@ -138,6 +143,10 @@ export class App {
     });
     resizeObserver.observe(this.element);
 
+    // Add a default character, which is used if the server-side character system
+    // is not implemented or faulty. Better have a generic avatar than none at all
+    this.characters.set(0, defaultCharacterDescription);
+
     const initialNetworkLoadRef = {};
     this.loadingProgressManager.addLoadingAsset(initialNetworkLoadRef, "network", "network");
     this.networkClient = new UserNetworkingClient(
@@ -155,10 +164,22 @@ export class App {
         this.clientId = clientId;
         if (this.initialLoadCompleted) {
           // Already loaded - respawn the character
-          this.spawnCharacter();
+          // this.spawnCharacter();
         } else {
           this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
         }
+      },
+      (userData: object ) => {
+        if (this.initialLoadCompleted) {
+          // Already loaded - respawn the character
+          this.userDataCallback(userData as UserUpdateMessage)
+        } else {
+          this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
+        }
+      },
+      (characterId: number, characterDescription: object) => {
+        console.log(`Received new characterId ${characterId}`);
+        this.characters.set(characterId, characterDescription);
       },
       (remoteClientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
         if (userNetworkingClientUpdate === null) {
@@ -182,7 +203,7 @@ export class App {
         this.networkClient.sendUpdate(characterState);
       },
       animationConfig,
-      characterDescription,
+      this.characters,
     );
     this.scene.add(this.characterManager.group);
 
@@ -205,10 +226,16 @@ export class App {
         */
         this.connectToVoiceChat();
         this.connectToTextChat();
-        this.spawnCharacter();
+        //this.spawnCharacter();
       }
     });
     this.loadingProgressManager.setInitialLoad(true);
+  }
+
+  private userDataCallback(userData: UserUpdateMessage): void {
+    console.log(`Received userData, set characterId=${userData.characterId}`);
+    this.characterId = userData.characterId;
+    this.spawnCharacter();
   }
 
   private sendChatMessageToServer(message: string): void {
@@ -284,6 +311,11 @@ export class App {
     if (this.clientId === null) {
       throw new Error("Client ID not set");
     }
+
+    if (this.characterId === null) {
+      throw new Error("Character ID not set");
+    }
+
     const spawnPosition = getSpawnPositionInsideCircle(3, 30, this.clientId!, 0.4);
     const spawnRotation = new Euler(0, 0, 0);
     let cameraPosition: Vector3 | null = null;
@@ -294,7 +326,7 @@ export class App {
       cameraPosition = urlParams.camera.position;
     }
     this.characterManager.spawnLocalCharacter(
-      characterDescription,
+      this.characterId!,
       this.clientId!,
       spawnPosition,
       spawnRotation,

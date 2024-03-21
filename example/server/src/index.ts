@@ -15,6 +15,8 @@ import { authMiddleware } from "./auth";
 import { addLocalMultiWebAppRoutes } from "./router/local-multi-web-client-app-routes";
 import { MMLDocumentsServer } from "./router/MMLDocumentsServer";
 import { addWebAppRoutes } from "./router/web-app-routes";
+import { UserRepository } from "./UserRepository";
+import { CharacterRepository } from "./CharacterRepository";
 
 dotenv.config();
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -109,6 +111,9 @@ app.ws(`/mml-documents/:filename`, (ws: WebSocket, req: express.Request) => {
 app.use("/assets/", cors(), express.static(path.resolve(dirname, "../../assets/")));
 
 const userNetworkingServer = new UserNetworkingServer();
+const characterRepository = new CharacterRepository(userNetworkingServer);
+const userRepository = new UserRepository(userNetworkingServer, characterRepository);
+
 app.ws("/network", (ws) => {
   userNetworkingServer.connectClient(ws);
 });

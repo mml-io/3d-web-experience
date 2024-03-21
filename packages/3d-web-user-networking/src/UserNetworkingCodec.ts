@@ -3,11 +3,12 @@ export type UserNetworkingClientUpdate = {
   position: { x: number; y: number; z: number };
   rotation: { quaternionY: number; quaternionW: number };
   state: number;
+  characterId: number;
 };
 
 export class UserNetworkingCodec {
   static encodeUpdate(update: UserNetworkingClientUpdate): Uint8Array {
-    const buffer = new ArrayBuffer(19);
+    const buffer = new ArrayBuffer(21);
     const dataView = new DataView(buffer);
     dataView.setUint16(0, update.id); // id
     dataView.setFloat32(2, update.position.x); // position.x
@@ -16,6 +17,7 @@ export class UserNetworkingCodec {
     dataView.setInt16(14, update.rotation.quaternionY * 32767); // quaternion.y
     dataView.setInt16(16, update.rotation.quaternionW * 32767); // quaternion.w
     dataView.setUint8(18, update.state); // animationState
+    dataView.setUint16(19, update.characterId); // currently used character
     return new Uint8Array(buffer);
   }
 
@@ -28,8 +30,9 @@ export class UserNetworkingCodec {
     const quaternionY = dataView.getInt16(14) / 32767; // quaternion.y
     const quaternionW = dataView.getInt16(16) / 32767; // quaternion.w
     const state = dataView.getUint8(18); // animationState
+    const characterId = dataView.getUint16(19); // currently used charcter
     const position = { x, y, z };
     const rotation = { quaternionY, quaternionW };
-    return { id, position, rotation, state };
+    return { id, position, rotation, state, characterId };
   }
 }

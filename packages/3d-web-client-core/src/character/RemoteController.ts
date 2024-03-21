@@ -17,6 +17,7 @@ export class RemoteController {
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: this.currentAnimation as AnimationState,
+      characterId: this.character.getCharacterId(),
     };
   }
 

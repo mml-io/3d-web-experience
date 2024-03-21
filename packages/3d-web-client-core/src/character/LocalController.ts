@@ -94,6 +94,7 @@ export class LocalController {
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: AnimationState.idle,
+      characterId: character.getCharacterId() 
     };
   }
 
@@ -434,6 +435,7 @@ export class LocalController {
       },
       rotation: { quaternionY: characterQuaternion.y, quaternionW: characterQuaternion.w },
       state: this.character.getCurrentAnimation(),
+      characterId: this.character.getCharacterId(),
     };
   }
 

@@ -28,6 +28,10 @@ export class Character extends Group {
   public tooltip: CharacterTooltip | null = null;
   public speakingIndicator: CharacterSpeakingIndicator | null = null;
 
+  public getCharacterId(): number {
+    return this.characterId;
+  }
+  
   constructor(
     private readonly characterDescription: CharacterDescription,
     private readonly animationConfig: AnimationConfig,
