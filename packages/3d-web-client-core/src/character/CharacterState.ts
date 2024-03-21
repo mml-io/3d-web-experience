@@ -19,4 +19,5 @@ export type CharacterState = {
     quaternionW: number;
   };
   state: AnimationState;
+  characterId: number;
 };

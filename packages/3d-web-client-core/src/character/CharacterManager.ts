@@ -43,22 +43,32 @@ export class CharacterManager {
     private readonly clientStates: Map<number, CharacterState>,
     private readonly sendUpdate: (update: CharacterState) => void,
     private readonly animationConfig: AnimationConfig,
-    private readonly characterDescription: CharacterDescription,
+    private readonly characters: Map<number, CharacterDescription>,
   ) {
     this.group = new Group();
   }
 
+  private getCharacterById(characterId: number): CharacterDescription {
+    if(!characterId) {
+      console.warn("Character id not set, use default character!");
+      characterId = 0; // use the default
+    }
+
+    return this.characters.get(characterId) as CharacterDescription;
+  }
+
   public spawnLocalCharacter(
-    characterDescription: CharacterDescription,
+    characterId: number,
     id: number,
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
   ) {
+    console.log(`Spawn local character id=${id} with character ${characterId}`)
     const character = new Character(
-      characterDescription,
+      this.getCharacterById(characterId),
       this.animationConfig,
       this.characterModelLoader,
-      id,
+      characterId,
       () => {
         // character loaded callback
       },
@@ -76,6 +86,7 @@ export class CharacterManager {
       },
       rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
       state: AnimationState.idle,
+      characterId: characterId
     });
     this.id = id;
     this.localCharacter = character;
@@ -95,16 +106,17 @@ export class CharacterManager {
   }
 
   public spawnRemoteCharacter(
-    characterDescription: CharacterDescription,
+    characterId: number,
     id: number,
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
   ) {
+    console.log(`Spawn remote character id=${id} with character ${characterId}`)
     const character = new Character(
-      characterDescription,
+      this.getCharacterById(characterId),
       this.animationConfig,
       this.characterModelLoader,
-      id,
+      characterId,
       () => {
         // character loaded callback
       },
@@ -175,13 +187,32 @@ export class CharacterManager {
           const character = this.remoteCharacters.get(id);
           character?.speakingIndicator?.setSpeaking(this.speakingCharacters.get(id)!);
         }
-        const { position } = update;
+        const { position, characterId } = update;
+
         if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
           this.spawnRemoteCharacter(
-            this.characterDescription!,
+            characterId,
             id,
             new Vector3(position.x, position.y, position.z),
           );
+        }
+
+        // FIXME this is probably not the most efficient way to change a rendered character
+        if(this.remoteCharacters.has(id)) {
+          const character = this.remoteCharacters.get(id)!;
+          if (character.getCharacterId() != update.characterId) {
+            console.log("Respawn remote character due to characterId change")
+            this.group.remove(character);
+            this.remoteCharacters.delete(id);
+            this.remoteCharacterControllers.delete(id);
+
+            this.spawnRemoteCharacter(
+              characterId,
+              id,
+              new Vector3(position.x, position.y, position.z),
+            );
+          }
+
         }
 
         const characterController = this.remoteCharacterControllers.get(id);
