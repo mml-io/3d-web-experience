@@ -14,7 +14,7 @@ export class UserNetworkingClient extends ReconnectingWebSocket {
     url: string,
     websocketFactory: WebsocketFactory,
     statusUpdateCallback: (status: WebsocketStatus) => void,
-    private setIdentityCallback: (id: number) => void,
+    private messageHandler: (message: FromServerMessage, networkClient: UserNetworkingClient) => void,
     private clientUpdate: (id: number, update: null | UserNetworkingClientUpdate) => void,
   ) {
     super(url, websocketFactory, statusUpdateCallback);
@@ -25,14 +25,19 @@ export class UserNetworkingClient extends ReconnectingWebSocket {
     this.send(encodedUpdate);
   }
 
+  public sendMessage(message: FromClientMessage): void {
+    this.send(message);
+  }
+
+  protected handleStatusUpdateInternally(status: WebsocketStatus) {
+    console.log("Handle internal connected")
+
+  }
+
   protected handleIncomingWebsocketMessage(message: MessageEvent) {
     if (typeof message.data === "string") {
       const parsed = JSON.parse(message.data) as FromServerMessage;
       switch (parsed.type) {
-        case IDENTITY_MESSAGE_TYPE:
-          console.log(`Assigned ID: ${parsed.id}`);
-          this.setIdentityCallback(parsed.id);
-          break;
         case CONNECTED_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} joined`);
           break;
@@ -45,7 +50,7 @@ export class UserNetworkingClient extends ReconnectingWebSocket {
           break;
         }
         default:
-          console.warn("unknown message type received", parsed);
+          this.messageHandler(parsed, this);
       }
     } else if (message.data instanceof ArrayBuffer) {
       const userNetworkingClientUpdate = UserNetworkingCodec.decodeUpdate(message.data);

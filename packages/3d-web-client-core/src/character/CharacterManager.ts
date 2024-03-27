@@ -43,7 +43,7 @@ export class CharacterManager {
     private readonly clientStates: Map<number, CharacterState>,
     private readonly sendUpdate: (update: CharacterState) => void,
     private readonly animationConfig: AnimationConfig,
-    private readonly characterDescription: CharacterDescription,
+    private readonly characterResolve: (characterId: number) => CharacterDescription
   ) {
     this.group = new Group();
   }
@@ -151,6 +151,34 @@ export class CharacterManager {
     this.speakingCharacters.set(id, value);
   }
 
+  public respawn(id: number) {
+    console.log(`respawning logic for id ${id}`);
+
+    if(this.id == id) {
+      console.log("RESPAWN THE LOCAL CHARACTER");
+      const pos = this.localCharacter?.position;
+      const rot = this.localCharacter?.rotation;
+      this.group.remove(this.localCharacter!);
+      this.localCharacter = null;
+
+      this.spawnLocalCharacter(this.characterResolve(id), id, pos, rot);
+    }
+
+    if(this.remoteCharacters.has(id)){
+      const remoteCharacter = this.remoteCharacters.get(id)!;
+      console.log(`RESPAWN Remote: ${id}!!!`);
+
+      const pos = remoteCharacter.position;
+      const rot = remoteCharacter.rotation;
+
+      this.group.remove(remoteCharacter);
+      this.remoteCharacters.delete(id);
+      this.remoteCharacterControllers.delete(id);
+
+      this.spawnRemoteCharacter(this.characterResolve(id), id, pos, rot);
+    }
+  }
+
   public update() {
     if (this.localCharacter) {
       this.localCharacter.update(this.timeManager.time, this.timeManager.deltaTime);
@@ -176,9 +204,10 @@ export class CharacterManager {
           character?.speakingIndicator?.setSpeaking(this.speakingCharacters.get(id)!);
         }
         const { position } = update;
+        
         if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
           this.spawnRemoteCharacter(
-            this.characterDescription!,
+            this.characterResolve(id)!,
             id,
             new Vector3(position.x, position.y, position.z),
           );

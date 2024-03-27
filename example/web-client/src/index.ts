@@ -15,9 +15,15 @@ import {
   AnimationConfig,
 } from "@mml-io/3d-web-client-core";
 import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
+
 import {
+  FromServerMessage,
+  IDENTITY_MESSAGE_TYPE,
+  IdentityMessage,
+  USER_PROFILE_MESSAGE_TYPE,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
+  UserProfileMessage,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
 import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
@@ -34,10 +40,11 @@ import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
-import defaultAvatarMeshFileUrl from "../../assets/models/bot.glb";
+import {UserData} from "@mml-io/3d-web-user-networking"
 
 import { LoadingScreen } from "./LoadingScreen";
 import { Room } from "./Room";
+import { CharacterRepository } from "./CharacterRepository";
 
 const animationConfig: AnimationConfig = {
   airAnimationFileUrl,
@@ -46,24 +53,6 @@ const animationConfig: AnimationConfig = {
   sprintAnimationFileUrl,
 };
 
-// Specify the avatar to use here:
-const characterDescription: CharacterDescription = {
-  // Option 1 (Default) - Use a GLB file directly
-  meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
-  // Option 2 - Use an MML Character from a URL
-  // mmlCharacterUrl: "https://...",
-  // Option 3 - Use an MML Character from a string
-  // mmlCharacterString: `
-  // <m-character src="/assets/models/bot.glb">
-  //   <m-model src="/assets/models/hat.glb"
-  //     socket="head"
-  //     x="0.03" y="0" z="0.0"
-  //     sx="1.03" sy="1.03" sz="1.03"
-  //     rz="-90"
-  //   ></m-model>
-  // </m-character>
-  // `,
-};
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
@@ -74,6 +63,7 @@ export class App {
   private composer: Composer;
   private tweakPane: TweakPane;
 
+  private characterRepo = new CharacterRepository();
   private scene = new Scene();
   private audioListener = new AudioListener();
   private characterModelLoader = new CharacterModelLoader();
@@ -85,6 +75,8 @@ export class App {
   private mmlCompositionScene: MMLCompositionScene;
   private networkClient: UserNetworkingClient;
   private remoteUserStates = new Map<number, CharacterState>();
+  // A dictionary holding information about my own user and all remote users
+  private userProfiles = new Map<number, UserData>(); 
 
   private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
@@ -101,6 +93,7 @@ export class App {
   private loadingScreen: LoadingScreen;
 
   private appWrapper = document.getElementById("app");
+  private initialNetworkLoadRef = {};
 
   constructor() {
     document.addEventListener("mousedown", () => {
@@ -138,8 +131,7 @@ export class App {
     });
     resizeObserver.observe(this.element);
 
-    const initialNetworkLoadRef = {};
-    this.loadingProgressManager.addLoadingAsset(initialNetworkLoadRef, "network", "network");
+    this.loadingProgressManager.addLoadingAsset(this.initialNetworkLoadRef, "network", "network");
     this.networkClient = new UserNetworkingClient(
       userNetworkAddress,
       (url: string) => new WebSocket(url),
@@ -149,16 +141,12 @@ export class App {
           this.characterManager.clear();
           this.remoteUserStates.clear();
           this.clientId = null;
+        } else if (status === WebsocketStatus.Connected) {
+          this.sendInitialUserUpdateToServer();
         }
       },
-      (clientId: number) => {
-        this.clientId = clientId;
-        if (this.initialLoadCompleted) {
-          // Already loaded - respawn the character
-          this.spawnCharacter();
-        } else {
-          this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
-        }
+      (message: FromServerMessage, client: UserNetworkingClient) => {
+        this.handleServerMessage(message, client);
       },
       (remoteClientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
         if (userNetworkingClientUpdate === null) {
@@ -182,7 +170,9 @@ export class App {
         this.networkClient.sendUpdate(characterState);
       },
       animationConfig,
-      characterDescription,
+      (characterId: number) => {
+        return this.resolveCharacterData(characterId);
+      }
     );
     this.scene.add(this.characterManager.group);
 
@@ -209,6 +199,105 @@ export class App {
       }
     });
     this.loadingProgressManager.setInitialLoad(true);
+  }
+
+  private resolveCharacterData(connectionId: number): CharacterDescription {
+    console.log(`get userdata for id=${connectionId}`)
+    const user = this.userProfiles.get(connectionId)!;
+    var characterDescription = user?.characterDescription;
+
+    if(!characterDescription) {
+      console.error(`Failed to resolve user for connectionId=${connectionId}, use default avatar.`);
+      characterDescription = this.characterRepo.getDefault(); 
+    }
+
+    return characterDescription;
+  }
+
+  private updateUserProfile(userData: UserData) {
+    console.log(`Update user_profile for id=${userData.id} (username=${userData.userName})`)
+
+    var needRespawn: boolean = false;
+    // verify whether we need to re-render
+    const oldProfile = this.userProfiles.get(userData.id!);
+
+    if(oldProfile) {
+      if(userData.userName != oldProfile.userName) {
+        console.log(`NEED TO UPDATE USERNAME (id=${userData.id}): ${oldProfile.userName} -> ${userData.userName}`);
+        // needRespawn = true; // As soon as username is displayed, respawning may make sense
+      }
+
+      if(userData.characterDescription != oldProfile.characterDescription) {
+        console.log(`NEED TO UPDATE CHARACTER (id=${userData.id}): ${oldProfile.characterDescription} -> ${userData.characterDescription}`)
+        needRespawn = true;
+      }
+    }
+
+    this.userProfiles.set(userData.id!, userData);
+
+    if(needRespawn) {
+      // TODO: Respawning makes the character briefly disappear - this is especially annoying for the user's own local character
+      this.characterManager.respawn(userData.id!);
+    }
+  }
+
+  private handleServerMessage(message: FromServerMessage, networkClient: UserNetworkingClient) {
+    switch (message.type) {
+      case IDENTITY_MESSAGE_TYPE:
+          const msg = message as IdentityMessage;
+          console.log(`Assigned ID: ${msg.id}`);
+          this.clientId = msg.id;
+          if (this.initialLoadCompleted) {
+            // Already loaded - respawn the character
+            this.spawnCharacter();
+          } else {
+            this.loadingProgressManager.completedLoadingAsset(this.initialNetworkLoadRef);
+          }
+        break;
+      case USER_PROFILE_MESSAGE_TYPE:
+        const remoteIdMessage = message as UserProfileMessage;
+        const userData = new UserData(
+          {/* No credentials in a public profile */}, 
+          remoteIdMessage.userName, 
+          remoteIdMessage.characterDescription, 
+          remoteIdMessage.id
+        );
+        this.updateUserProfile(userData);
+        break;
+
+      default:
+        console.error(`Unhandled message.type '${message.type}'`);
+    }
+  }
+
+  private sendInitialUserUpdateToServer(): void {
+    // Ad user credential logic here
+    // Very simpel and for demo, read everything from GET-Parameters
+    // Note that here we can simply pass back 
+    // window.MY_AUTHORIZATION_BEFORE_DOWNLOADING_CLIENTS
+    const queryString = window.location.search;
+    const urlParams = new URLSearchParams(queryString);
+
+    var characterDescriptionToUse = this.characterRepo.getDefault();
+
+    // A demo-character assignment, where a GET-Parameter "alternateCharacter" is quereid.
+    // if set to some value, a character with a hat is spawned.
+    // You would add character-customization logic here or look up a character for the user-credentials.
+    const characterName = urlParams.get('character');
+    if(characterName) {
+      characterDescriptionToUse = this.characterRepo.getCharacterDescription(characterName!);
+    }
+
+    var userName = urlParams.get('username');
+    
+
+    const user = new UserData(
+      {USER_AUTH_TOKEN: window.USER_AUTH_TOKEN}, // Pass back the token, generated when creating this client. Additional information may be added here.
+      userName,
+      characterDescriptionToUse
+    )
+
+    this.networkClient.sendMessage(user.toUserUpdateMessage());
   }
 
   private sendChatMessageToServer(message: string): void {
@@ -294,7 +383,7 @@ export class App {
       cameraPosition = urlParams.camera.position;
     }
     this.characterManager.spawnLocalCharacter(
-      characterDescription,
+      this.resolveCharacterData(this.clientId!),
       this.clientId!,
       spawnPosition,
       spawnRotation,
