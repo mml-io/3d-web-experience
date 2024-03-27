@@ -8,7 +8,7 @@ export const sunValues = {
     sunAzimuthalAngle: 214.5,
     sunPolarAngle: -41.5,
   },
-  sunIntensity: 1,
+  sunIntensity: 2,
   sunColor: { r: 1.0, g: 1.0, b: 1.0 },
 };
 
@@ -22,7 +22,7 @@ const sunOptions = {
 
 export const envValues = {
   ambientLight: {
-    ambientLightIntensity: 0.05,
+    ambientLightIntensity: 0.1,
     ambientLightColor: { r: 1, g: 1, b: 1 },
   },
   fog: {

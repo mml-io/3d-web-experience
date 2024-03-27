@@ -1,3 +1,4 @@
+import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
   EffectComposer,
   RenderPass,
@@ -30,6 +31,7 @@ import {
   ToneMapping,
   Vector2,
   WebGLRenderer,
+  EquirectangularReflectionMapping,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
@@ -293,6 +295,29 @@ export class Composer {
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.effectComposer.render();
     this.renderer.render(this.postPostScene, this.camera);
+  }
+
+  public useHDRJPG(url: string, fromFile: boolean = false): void {
+    const pmremGenerator = new PMREMGenerator(this.renderer);
+    const hdrJpg = new HDRJPGLoader(this.renderer).load(url, () => {
+      const hdrJpgEquirectangularMap = hdrJpg.renderTarget.texture;
+
+      hdrJpgEquirectangularMap.mapping = EquirectangularReflectionMapping;
+      hdrJpgEquirectangularMap.needsUpdate = true;
+
+      const envMap = pmremGenerator!.fromEquirectangular(hdrJpgEquirectangularMap).texture;
+      if (envMap) {
+        envMap.colorSpace = LinearSRGBColorSpace;
+        envMap.needsUpdate = true;
+        this.scene.background = envMap;
+        this.scene.backgroundIntensity = rendererValues.bgIntensity;
+        this.isEnvHDRI = true;
+        hdrJpgEquirectangularMap.dispose();
+        pmremGenerator!.dispose();
+      }
+
+      hdrJpg.dispose();
+    });
   }
 
   public useHDRI(url: string, fromFile: boolean = false): void {

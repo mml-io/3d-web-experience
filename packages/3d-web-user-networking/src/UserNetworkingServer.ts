@@ -32,14 +32,17 @@ export type UserNetworkingServerOptions = {
     clientId: number,
     sessionToken: string,
     userIdentity?: UserIdentity,
-  ) => UserData | null;
-  onClientUserIdentityUpdate: (clientId: number, userIdentity: UserIdentity) => UserData | null;
+  ) => Promise<UserData | null> | UserData | null;
+  onClientUserIdentityUpdate: (
+    clientId: number,
+    userIdentity: UserIdentity,
+  ) => Promise<UserData | null> | UserData | null;
   onClientDisconnect: (clientId: number) => void;
 };
 
 export class UserNetworkingServer {
   private allClients = new Set<Client>();
-  private clientsById: Map<number, Client> = new Map();
+  private authenticatedClientsById: Map<number, Client> = new Map();
 
   constructor(private options: UserNetworkingServerOptions) {
     setInterval(this.sendUpdates.bind(this), packetsUpdateRate);
@@ -58,7 +61,7 @@ export class UserNetworkingServer {
   }
 
   private pingClients() {
-    this.clientsById.forEach((client) => {
+    this.authenticatedClientsById.forEach((client) => {
       if (client.socket.readyState === WebSocketOpenStatus) {
         client.socket.send(JSON.stringify({ type: "ping" } as FromServerMessage));
       }
@@ -67,7 +70,7 @@ export class UserNetworkingServer {
 
   private getId(): number {
     let id = 1;
-    while (this.clientsById.has(id)) {
+    while (this.authenticatedClientsById.has(id)) {
       id++;
     }
     return id;
@@ -91,7 +94,6 @@ export class UserNetworkingServer {
       },
     };
     this.allClients.add(client);
-    this.clientsById.set(id, client);
 
     socket.on("message", (message: WebSocket.Data, _isBinary: boolean) => {
       if (message instanceof Buffer) {
@@ -109,10 +111,14 @@ export class UserNetworkingServer {
         }
         if (!client.authenticatedUser) {
           if (parsed.type === USER_AUTHENTICATE_MESSAGE_TYPE) {
-            if (!this.handleUserAuth(id, parsed)) {
-              // If the user is not authorized, disconnect the client
-              socket.close();
-            }
+            this.handleUserAuth(client, parsed).then((authResult) => {
+              if (!authResult) {
+                // If the user is not authorized, disconnect the client
+                socket.close();
+              } else {
+                this.authenticatedClientsById.set(id, client);
+              }
+            });
           } else {
             console.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
             socket.close();
@@ -144,56 +150,56 @@ export class UserNetworkingServer {
     if (!this.allClients.has(client)) {
       return;
     }
+    this.allClients.delete(client);
     if (client.authenticatedUser !== null) {
       // Only report disconnections of clients that were authenticated
       this.options.onClientDisconnect(client.id);
-    }
-    this.clientsById.delete(client.id);
-    this.allClients.delete(client);
-    const disconnectMessage = JSON.stringify({
-      id: client.id,
-      type: DISCONNECTED_MESSAGE_TYPE,
-    } as FromServerMessage);
-    for (const otherClient of this.allClients) {
-      if (
-        otherClient.authenticatedUser !== null &&
-        otherClient.socket.readyState === WebSocketOpenStatus
-      ) {
-        otherClient.socket.send(disconnectMessage);
+      this.authenticatedClientsById.delete(client.id);
+      const disconnectMessage = JSON.stringify({
+        id: client.id,
+        type: DISCONNECTED_MESSAGE_TYPE,
+      } as FromServerMessage);
+      for (const [, otherClient] of this.authenticatedClientsById) {
+        if (otherClient.socket.readyState === WebSocketOpenStatus) {
+          otherClient.socket.send(disconnectMessage);
+        }
       }
     }
   }
 
-  private handleUserAuth(clientId: number, credentials: UserAuthenticateMessage): boolean {
+  private async handleUserAuth(
+    client: Client,
+    credentials: UserAuthenticateMessage,
+  ): Promise<boolean> {
     const userData = this.options.onClientConnect(
-      clientId,
+      client.id,
       credentials.sessionToken,
       credentials.userIdentity,
     );
-    if (!userData) {
-      console.error(`Client-id ${clientId} user_auth unauthorized and ignored`);
+    let resolvedUserData;
+    if (userData instanceof Promise) {
+      resolvedUserData = await userData;
+    } else {
+      resolvedUserData = userData;
+    }
+    if (resolvedUserData === null) {
+      console.error(`Client-id ${client.id} user_auth unauthorized and ignored`);
       return false;
     }
 
-    const client = this.clientsById.get(clientId);
-    if (!client) {
-      console.error(`Client-id ${clientId}, client not found`);
-      return false;
-    }
-
-    console.log("Client authenticated", clientId, userData);
-    client.authenticatedUser = userData;
+    console.log("Client authenticated", client.id, resolvedUserData);
+    client.authenticatedUser = resolvedUserData;
 
     const identityMessage = JSON.stringify({
-      id: clientId,
+      id: client.id,
       type: IDENTITY_MESSAGE_TYPE,
     } as FromServerMessage);
 
     const userProfileMessage = JSON.stringify({
-      id: clientId,
+      id: client.id,
       type: USER_PROFILE_MESSAGE_TYPE,
-      username: userData.username,
-      characterDescription: userData.characterDescription,
+      username: resolvedUserData.username,
+      characterDescription: resolvedUserData.characterDescription,
     } as FromServerMessage);
 
     client.socket.send(userProfileMessage);
@@ -202,12 +208,8 @@ export class UserNetworkingServer {
     const userUpdateMessage = UserNetworkingCodec.encodeUpdate(client.update);
 
     // Send information about all other clients to the freshly connected client and vice versa
-    for (const otherClient of this.clientsById.values()) {
-      if (
-        otherClient.socket.readyState !== WebSocketOpenStatus ||
-        otherClient.authenticatedUser == null ||
-        otherClient === client
-      ) {
+    for (const [, otherClient] of this.authenticatedClientsById) {
+      if (otherClient.socket.readyState !== WebSocketOpenStatus || otherClient === client) {
         // Do not send updates for any clients which have not yet authenticated or not yet connected
         continue;
       }
@@ -226,7 +228,7 @@ export class UserNetworkingServer {
       otherClient.socket.send(userUpdateMessage);
     }
 
-    console.log("Client authenticated", clientId);
+    console.log("Client authenticated", client.id);
 
     return true;
   }
@@ -237,10 +239,10 @@ export class UserNetworkingServer {
 
   private internalUpdateUser(clientId: number, userData: UserData) {
     // This function assumes authorization has already been done
-    const client = this.clientsById.get(clientId)!;
+    const client = this.authenticatedClientsById.get(clientId)!;
 
     client.authenticatedUser = userData;
-    this.clientsById.set(clientId, client);
+    this.authenticatedClientsById.set(clientId, client);
 
     const newUserData = JSON.stringify({
       id: clientId,
@@ -252,19 +254,15 @@ export class UserNetworkingServer {
     // Broadcast the new userdata to all sockets, INCLUDING the user of the calling socket
     // Clients will always render based on the public userProfile.
     // This makes it intuitive, as it is "what you see is what other's see" from a user's perspective.
-    for (const [otherClientId, otherClient] of this.clientsById) {
-      if (!otherClient.authenticatedUser) {
-        // Do not send updates for any clients which have no user yet
-        continue;
-      }
+    for (const [otherClientId, otherClient] of this.authenticatedClientsById) {
       if (otherClient.socket.readyState === WebSocketOpenStatus) {
         otherClient.socket.send(newUserData);
       }
     }
   }
 
-  private handleUserUpdate(clientId: number, message: UserUpdateMessage): void {
-    const client = this.clientsById.get(clientId);
+  private async handleUserUpdate(clientId: number, message: UserUpdateMessage): Promise<void> {
+    const client = this.authenticatedClientsById.get(clientId);
     if (!client) {
       console.error(`Client-id ${clientId} user_update ignored, client not found`);
       return;
@@ -275,30 +273,28 @@ export class UserNetworkingServer {
       clientId,
       message.userIdentity,
     );
-    if (!authorizedUserData) {
+    let resolvedAuthorizedUserData;
+    if (authorizedUserData instanceof Promise) {
+      resolvedAuthorizedUserData = await authorizedUserData;
+    } else {
+      resolvedAuthorizedUserData = authorizedUserData;
+    }
+    if (!resolvedAuthorizedUserData) {
       // TODO - inform the client about the unauthorized update
       console.warn(`Client-id ${clientId} user_update unauthorized and ignored`);
       return;
     }
 
-    this.internalUpdateUser(clientId, authorizedUserData);
+    this.internalUpdateUser(clientId, resolvedAuthorizedUserData);
   }
 
   private sendUpdates(): void {
-    for (const [clientId, client] of this.clientsById) {
-      if (!client.authenticatedUser) {
-        // Do not send updates about unauthenticated clients
-        continue;
-      }
+    for (const [clientId, client] of this.authenticatedClientsById) {
       const update = client.update;
       const encodedUpdate = UserNetworkingCodec.encodeUpdate(update);
 
-      for (const [otherClientId, otherClient] of this.clientsById) {
-        if (
-          otherClient.authenticatedUser !== null &&
-          otherClientId !== clientId &&
-          otherClient.socket.readyState === WebSocketOpenStatus
-        ) {
+      for (const [otherClientId, otherClient] of this.authenticatedClientsById) {
+        if (otherClientId !== clientId && otherClient.socket.readyState === WebSocketOpenStatus) {
           otherClient.socket.send(encodedUpdate);
         }
       }

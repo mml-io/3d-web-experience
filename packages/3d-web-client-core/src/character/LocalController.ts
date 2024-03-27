@@ -3,6 +3,7 @@ import { Euler, Line3, Matrix4, Quaternion, Ray, Raycaster, Vector3 } from "thre
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsManager";
 import { KeyInputManager } from "../input/KeyInputManager";
+import { VirtualJoystick } from "../input/VirtualJoystick";
 import { TimeManager } from "../time/TimeManager";
 
 import { Character } from "./Character";
@@ -18,6 +19,16 @@ const groundRunControl = 1.0;
 const baseControl = 200;
 const collisionDetectionSteps = 15;
 const minimumSurfaceAngle = 0.9;
+
+export type LocalControllerConfig = {
+  id: number;
+  character: Character;
+  collisionsManager: CollisionsManager;
+  keyInputManager: KeyInputManager;
+  virtualJoystick?: VirtualJoystick;
+  cameraManager: CameraManager;
+  timeManager: TimeManager;
+};
 
 export class LocalController {
   public capsuleInfo = {
@@ -81,16 +92,9 @@ export class LocalController {
 
   public networkState: CharacterState;
 
-  constructor(
-    private readonly character: Character,
-    private readonly id: number,
-    private readonly collisionsManager: CollisionsManager,
-    private readonly keyInputManager: KeyInputManager,
-    private readonly cameraManager: CameraManager,
-    private readonly timeManager: TimeManager,
-  ) {
+  constructor(private config: LocalControllerConfig) {
     this.networkState = {
-      id: this.id,
+      id: this.config.id,
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: AnimationState.idle,
@@ -98,21 +102,25 @@ export class LocalController {
   }
 
   private updateControllerState(): void {
-    this.forward = this.keyInputManager.forward;
-    this.backward = this.keyInputManager.backward;
-    this.left = this.keyInputManager.left;
-    this.right = this.keyInputManager.right;
-    this.run = this.keyInputManager.run;
-    this.jump = this.keyInputManager.jump;
-    this.anyDirection = this.keyInputManager.anyDirection;
-    this.conflictingDirections = this.keyInputManager.conflictingDirection;
+    this.forward = this.config.keyInputManager.forward || this.config.virtualJoystick?.up || false;
+    this.backward =
+      this.config.keyInputManager.backward || this.config.virtualJoystick?.down || false;
+    this.left = this.config.keyInputManager.left || this.config.virtualJoystick?.left || false;
+    this.right = this.config.keyInputManager.right || this.config.virtualJoystick?.right || false;
+    this.run = this.config.keyInputManager.run;
+    this.jump = this.config.keyInputManager.jump;
+    this.anyDirection =
+      this.config.keyInputManager.anyDirection ||
+      this.config.virtualJoystick?.hasDirection ||
+      false;
+    this.conflictingDirections = this.config.keyInputManager.conflictingDirection;
   }
 
   public update(): void {
     this.updateControllerState();
 
-    this.rayCaster.set(this.character.position, this.vectorDown);
-    const firstRaycastHit = this.collisionsManager.raycastFirst(this.rayCaster.ray);
+    this.rayCaster.set(this.config.character.position, this.vectorDown);
+    const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.rayCaster.ray);
     if (firstRaycastHit !== null) {
       this.currentHeight = firstRaycastHit[0];
       this.currentSurfaceAngle.copy(firstRaycastHit[1]);
@@ -120,9 +128,9 @@ export class LocalController {
 
     if (this.anyDirection || !this.characterOnGround) {
       const targetAnimation = this.getTargetAnimation();
-      this.character.updateAnimation(targetAnimation);
+      this.config.character.updateAnimation(targetAnimation);
     } else {
-      this.character.updateAnimation(AnimationState.idle);
+      this.config.character.updateAnimation(AnimationState.idle);
     }
 
     if (this.anyDirection) {
@@ -131,20 +139,20 @@ export class LocalController {
 
     for (let i = 0; i < collisionDetectionSteps; i++) {
       this.updatePosition(
-        this.timeManager.deltaTime,
-        this.timeManager.deltaTime / collisionDetectionSteps,
+        this.config.timeManager.deltaTime,
+        this.config.timeManager.deltaTime / collisionDetectionSteps,
         i,
       );
     }
 
-    if (this.character.position.y < 0) {
+    if (this.config.character.position.y < 0) {
       this.resetPosition();
     }
     this.updateNetworkState();
   }
 
   private getTargetAnimation(): AnimationState {
-    if (!this.character) return AnimationState.idle;
+    if (!this.config.character) return AnimationState.idle;
 
     const jumpHeight = this.characterVelocity.y > 0 ? 0.2 : 1.8;
     if (this.currentHeight > jumpHeight && !this.characterOnGround) {
@@ -178,25 +186,25 @@ export class LocalController {
   }
 
   private updateAzimuthalAngle(): void {
-    const camToModelDistance = this.cameraManager.camera.position.distanceTo(
-      this.character.position,
+    const camToModelDistance = this.config.cameraManager.camera.position.distanceTo(
+      this.config.character.position,
     );
     const isCameraFirstPerson = camToModelDistance < 2;
     if (isCameraFirstPerson) {
       const cameraForward = this.tempVector
         .set(0, 0, 1)
-        .applyQuaternion(this.cameraManager.camera.quaternion);
+        .applyQuaternion(this.config.cameraManager.camera.quaternion);
       this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);
     } else {
       this.azimuthalAngle = Math.atan2(
-        this.cameraManager.camera.position.x - this.character.position.x,
-        this.cameraManager.camera.position.z - this.character.position.z,
+        this.config.cameraManager.camera.position.x - this.config.character.position.x,
+        this.config.cameraManager.camera.position.z - this.config.character.position.z,
       );
     }
   }
 
   private computeAngularDifference(rotationQuaternion: Quaternion): number {
-    return 2 * Math.acos(Math.abs(this.character.quaternion.dot(rotationQuaternion)));
+    return 2 * Math.acos(Math.abs(this.config.character.quaternion.dot(rotationQuaternion)));
   }
 
   private updateRotation(): void {
@@ -209,8 +217,8 @@ export class LocalController {
     const angularDifference = this.computeAngularDifference(rotationQuaternion);
     const desiredTime = 0.07;
     const angularSpeed = angularDifference / desiredTime;
-    const frameRotation = angularSpeed * this.timeManager.deltaTime;
-    this.character.quaternion.rotateTowards(rotationQuaternion, frameRotation);
+    const frameRotation = angularSpeed * this.config.timeManager.deltaTime;
+    this.config.character.quaternion.rotateTowards(rotationQuaternion, frameRotation);
   }
 
   private applyControls(deltaTime: number) {
@@ -288,35 +296,37 @@ export class LocalController {
     acceleration.add(controlAcceleration);
     this.characterVelocity.addScaledVector(acceleration, deltaTime);
 
-    this.character.position.addScaledVector(this.characterVelocity, deltaTime);
+    this.config.character.position.addScaledVector(this.characterVelocity, deltaTime);
   }
 
   private updatePosition(deltaTime: number, stepDeltaTime: number, iter: number): void {
     this.applyControls(stepDeltaTime);
 
     if (iter === 0) {
-      const lastMovement = this.getMovementFromSurfaces(this.character.position, deltaTime);
+      const lastMovement = this.getMovementFromSurfaces(this.config.character.position, deltaTime);
       if (lastMovement) {
-        this.character.position.add(lastMovement.position);
-        const asQuaternion = this.tempQuaternion.setFromEuler(this.character.rotation);
+        this.config.character.position.add(lastMovement.position);
+        const asQuaternion = this.tempQuaternion.setFromEuler(this.config.character.rotation);
         const lastMovementEuler = this.tempEuler.setFromQuaternion(lastMovement.rotation);
         lastMovementEuler.x = 0;
         lastMovementEuler.z = 0;
         lastMovement.rotation.setFromEuler(lastMovementEuler);
         asQuaternion.multiply(lastMovement.rotation);
-        this.character.rotation.setFromQuaternion(asQuaternion);
+        this.config.character.rotation.setFromQuaternion(asQuaternion);
       }
     }
-    this.character.updateMatrixWorld();
+    this.config.character.updateMatrixWorld();
 
     const avatarSegment = this.tempSegment;
     avatarSegment.copy(this.capsuleInfo.segment!);
-    avatarSegment.start.applyMatrix4(this.character.matrixWorld).applyMatrix4(this.tempMatrix);
-    avatarSegment.end.applyMatrix4(this.character.matrixWorld).applyMatrix4(this.tempMatrix);
+    avatarSegment.start
+      .applyMatrix4(this.config.character.matrixWorld)
+      .applyMatrix4(this.tempMatrix);
+    avatarSegment.end.applyMatrix4(this.config.character.matrixWorld).applyMatrix4(this.tempMatrix);
 
     const positionBeforeCollisions = this.tempVector.copy(avatarSegment.start);
-    this.collisionsManager.applyColliders(avatarSegment, this.capsuleInfo.radius!);
-    this.character.position.copy(avatarSegment.start);
+    this.config.collisionsManager.applyColliders(avatarSegment, this.capsuleInfo.radius!);
+    this.config.character.position.copy(avatarSegment.start);
     const deltaCollisionPosition = avatarSegment.start.sub(positionBeforeCollisions);
 
     this.characterOnGround = deltaCollisionPosition.y > 0;
@@ -403,7 +413,7 @@ export class LocalController {
 
     // Raycast down from the new position to see if there is a surface below the user which will be tracked in the next frame
     const ray = this.surfaceTempRay.set(newPosition, downVector);
-    const hit = this.collisionsManager.raycastFirst(ray);
+    const hit = this.config.collisionsManager.raycastFirst(ray);
     if (hit && hit[0] < 0.8) {
       // There is a surface below the user
       const currentCollisionMeshState = hit[2];
@@ -424,22 +434,22 @@ export class LocalController {
   }
 
   private updateNetworkState(): void {
-    const characterQuaternion = this.character.getWorldQuaternion(this.tempQuaternion);
+    const characterQuaternion = this.config.character.getWorldQuaternion(this.tempQuaternion);
     this.networkState = {
-      id: this.id,
+      id: this.config.id,
       position: {
-        x: this.character.position.x,
-        y: this.character.position.y,
-        z: this.character.position.z,
+        x: this.config.character.position.x,
+        y: this.config.character.position.y,
+        z: this.config.character.position.z,
       },
       rotation: { quaternionY: characterQuaternion.y, quaternionW: characterQuaternion.w },
-      state: this.character.getCurrentAnimation(),
+      state: this.config.character.getCurrentAnimation(),
     };
   }
 
   private resetPosition(): void {
     this.characterVelocity.y = 0;
-    this.character.position.y = 3;
+    this.config.character.position.y = 3;
     this.characterOnGround = false;
   }
 }

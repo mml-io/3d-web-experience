@@ -1,30 +1,14 @@
-import {
-  Bone,
-  BufferAttribute,
-  Euler,
-  Group,
-  MathUtils,
-  Matrix4,
-  MeshStandardMaterial,
-  Object3D,
-  Skeleton,
-  SkinnedMesh,
-  Vector3,
-} from "three";
-import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { ModelLoadResult } from "@mml-io/model-loader";
+import { Bone, BufferAttribute, Group, MathUtils, Object3D, Skeleton, SkinnedMesh } from "three";
 
 import { MMLCharacterDescriptionPart } from "../helpers/parseMMLDescription";
-import { SkeletonHelpers } from "../helpers/SkeletonHelpers";
 
-import { ModelLoader } from "./ModelLoader";
+type MMLCharacterModelLoader = {
+  load: (url: string) => Promise<ModelLoadResult>;
+};
 
 export class MMLCharacter {
-  private skeletonHelpers: SkeletonHelpers = new SkeletonHelpers();
-  private skinnedMeshesParent: Group | null = null;
-  private sharedSkeleton: Skeleton | null = null;
-  private sharedMatrixWorld: Matrix4 | null = null;
-
-  constructor(private modelLoader: ModelLoader) {}
+  constructor(private modelLoader: MMLCharacterModelLoader) {}
 
   private createBoneIndexMap(
     originSkeleton: Skeleton,
@@ -42,8 +26,7 @@ export class MMLCharacter {
     return boneIndexMap;
   }
 
-  private remapBoneIndices(skinnedMesh: SkinnedMesh): void {
-    const targetSkeleton = this.sharedSkeleton!;
+  private remapBoneIndices(skinnedMesh: SkinnedMesh, targetSkeleton: Skeleton): void {
     const originSkeleton = skinnedMesh.skeleton;
     const originGeometry = skinnedMesh.geometry;
 
@@ -70,24 +53,26 @@ export class MMLCharacter {
     fullBodyURL: string,
     bodyParts: Array<MMLCharacterDescriptionPart>,
   ): Promise<Object3D> {
-    const fullBodyAsset = await this.modelLoader.load(fullBodyURL);
-    const fullBodyGLTF = this.skeletonHelpers.cloneGLTF(fullBodyAsset as GLTF, "fullBody");
-    const assetPromises: Array<Promise<{ asset: GLTF; part: MMLCharacterDescriptionPart }>> =
-      bodyParts.map((part) => {
-        return new Promise((resolve) => {
-          this.modelLoader.load(part.url).then((asset) => {
-            resolve({ asset: asset!, part });
-          });
+    const group = new Group();
+
+    const fullBodyAssetPromise = this.modelLoader.load(fullBodyURL);
+
+    const assetPromises: Array<
+      Promise<{ asset: ModelLoadResult; part: MMLCharacterDescriptionPart }>
+    > = bodyParts.map((part) => {
+      return new Promise((resolve) => {
+        this.modelLoader.load(part.url).then((asset) => {
+          resolve({ asset, part });
         });
       });
+    });
+
+    const fullBodyAsset = await fullBodyAssetPromise;
     const assets = await Promise.all(assetPromises);
 
-    const fullBodyModelGroup = fullBodyGLTF.gltf.scene;
-
-    this.skinnedMeshesParent = null;
-
+    const rawBodyGltf = fullBodyAsset.group;
     const availableBones = new Map<string, Bone>();
-    fullBodyModelGroup.traverse((child) => {
+    rawBodyGltf.traverse((child) => {
       const asBone = child as Bone;
       if (asBone.isBone) {
         availableBones.set(child.name, asBone);
@@ -97,18 +82,35 @@ export class MMLCharacter {
       if (asSkinnedMesh.isSkinnedMesh) {
         asSkinnedMesh.castShadow = true;
         asSkinnedMesh.receiveShadow = true;
-        if (this.skinnedMeshesParent === null) {
-          this.skinnedMeshesParent = asSkinnedMesh.parent as Group;
-        }
       }
     });
-    this.sharedSkeleton = fullBodyGLTF.sharedSkeleton;
-    this.sharedMatrixWorld = fullBodyGLTF.matrixWorld;
+    const foundSkinnedMeshes: Array<SkinnedMesh> = [];
+    rawBodyGltf.traverse((child) => {
+      const asSkinnedMesh = child as SkinnedMesh;
+      if (asSkinnedMesh.isSkinnedMesh) {
+        foundSkinnedMeshes.push(asSkinnedMesh);
+      }
+    });
+
+    if (foundSkinnedMeshes.length === 0) {
+      throw new Error("No skinned mesh in base model file");
+    }
+    if (foundSkinnedMeshes.length > 1) {
+      console.warn(
+        "Multiple skinned meshes in base model file. Expected 1. Using first for skeleton.",
+      );
+    }
+    const skinnedMesh = foundSkinnedMeshes[0];
+    group.add(...foundSkinnedMeshes);
+    const sharedSkeleton = skinnedMesh.skeleton;
+    group.add(skinnedMesh.skeleton.bones[0]);
+    const sharedMatrixWorld = skinnedMesh.matrixWorld;
 
     for (const loadingAsset of assets) {
       const part = loadingAsset.part;
-      const gltf = this.skeletonHelpers.cloneGLTF(loadingAsset.asset, part.url);
-      const modelGroup = gltf.gltf.scene;
+      const rawGltf = loadingAsset.asset;
+
+      const modelGroup = rawGltf.group;
       if (part.socket) {
         const socketName = part.socket.socket;
         let bone = availableBones.get("root");
@@ -120,45 +122,40 @@ export class MMLCharacter {
           );
         }
         if (bone) {
-          modelGroup.position.set(0, 0, 0);
-          modelGroup.rotation.set(0, 0, 0);
-          modelGroup.scale.set(1, 1, 1);
-
           bone.add(modelGroup);
 
-          modelGroup.rotateZ(-Math.PI / 2);
-
-          const offsetPosition = new Vector3(
+          modelGroup.position.set(
             part.socket.position.x,
             part.socket.position.y,
             part.socket.position.z,
           );
-          modelGroup.position.copy(offsetPosition);
 
-          const offsetRotation = new Euler(
+          modelGroup.rotation.set(
             MathUtils.degToRad(part.socket.rotation.x),
             MathUtils.degToRad(part.socket.rotation.y),
             MathUtils.degToRad(part.socket.rotation.z),
           );
-          modelGroup.setRotationFromEuler(offsetRotation);
 
           modelGroup.scale.set(part.socket.scale.x, part.socket.scale.y, part.socket.scale.z);
         }
       } else {
+        const skinnedMeshes: Array<SkinnedMesh> = [];
         modelGroup.traverse((child) => {
           const asSkinnedMesh = child as SkinnedMesh;
           if (asSkinnedMesh.isSkinnedMesh) {
-            const skinnedMeshClone = child.clone(true) as SkinnedMesh;
-            this.remapBoneIndices(skinnedMeshClone);
-            skinnedMeshClone.castShadow = true;
-            skinnedMeshClone.receiveShadow = true;
-            skinnedMeshClone.bind(this.sharedSkeleton!, this.sharedMatrixWorld!);
-            skinnedMeshClone.children = [];
-            this.skinnedMeshesParent?.add(skinnedMeshClone);
+            skinnedMeshes.push(asSkinnedMesh);
           }
         });
+        for (const skinnedMeshPart of skinnedMeshes) {
+          this.remapBoneIndices(skinnedMeshPart, sharedSkeleton);
+          skinnedMeshPart.castShadow = true;
+          skinnedMeshPart.receiveShadow = true;
+          skinnedMeshPart.bind(sharedSkeleton, sharedMatrixWorld!);
+          skinnedMeshPart.children = [];
+          group.add(skinnedMeshPart);
+        }
       }
     }
-    return fullBodyGLTF!.gltf.scene as Object3D;
+    return group;
   }
 }

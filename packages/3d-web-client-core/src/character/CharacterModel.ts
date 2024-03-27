@@ -1,9 +1,9 @@
 import {
   MMLCharacter,
   type MMLCharacterDescription,
-  ModelLoader,
   parseMMLDescription,
 } from "@mml-io/3d-web-avatar";
+import { ModelLoader } from "@mml-io/model-loader";
 import {
   AnimationAction,
   AnimationClip,
@@ -23,7 +23,18 @@ import { CharacterMaterial } from "./CharacterMaterial";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
 
+export type CharacterModelConfig = {
+  characterDescription: CharacterDescription;
+  animationConfig: AnimationConfig;
+  characterModelLoader: CharacterModelLoader;
+  cameraManager: CameraManager;
+  characterId: number;
+  isLocal: boolean;
+};
+
 export class CharacterModel {
+  public static ModelLoader: ModelLoader = new ModelLoader();
+
   public mesh: Object3D | null = null;
   public headBone: Bone | null = null;
 
@@ -35,27 +46,26 @@ export class CharacterModel {
 
   public mmlCharacterDescription: MMLCharacterDescription;
 
-  constructor(
-    private readonly characterDescription: CharacterDescription,
-    private readonly animationConfig: AnimationConfig,
-    private characterModelLoader: CharacterModelLoader,
-    private readonly cameraManager: CameraManager,
-    private readonly characterId: number,
-    private readonly isLocal: boolean,
-  ) {}
+  constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
     await this.loadMainMesh();
-    await this.setAnimationFromFile(this.animationConfig.idleAnimationFileUrl, AnimationState.idle);
     await this.setAnimationFromFile(
-      this.animationConfig.jogAnimationFileUrl,
+      this.config.animationConfig.idleAnimationFileUrl,
+      AnimationState.idle,
+    );
+    await this.setAnimationFromFile(
+      this.config.animationConfig.jogAnimationFileUrl,
       AnimationState.walking,
     );
     await this.setAnimationFromFile(
-      this.animationConfig.sprintAnimationFileUrl,
+      this.config.animationConfig.sprintAnimationFileUrl,
       AnimationState.running,
     );
-    await this.setAnimationFromFile(this.animationConfig.airAnimationFileUrl, AnimationState.air);
+    await this.setAnimationFromFile(
+      this.config.animationConfig.airAnimationFileUrl,
+      AnimationState.air,
+    );
     this.applyCustomMaterials();
   }
 
@@ -70,19 +80,19 @@ export class CharacterModel {
         } else {
           const material =
             originalMaterial.name === "body_replaceable_color"
-              ? new CharacterMaterial(
-                  this.isLocal,
-                  this.cameraManager,
-                  this.characterId,
+              ? new CharacterMaterial({
+                  isLocal: this.config.isLocal,
+                  cameraManager: this.config.cameraManager,
+                  characterId: this.config.characterId,
                   originalMaterial,
-                )
-              : new CharacterMaterial(
-                  this.isLocal,
-                  this.cameraManager,
-                  this.characterId,
+                })
+              : new CharacterMaterial({
+                  isLocal: this.config.isLocal,
+                  cameraManager: this.config.cameraManager,
+                  characterId: this.config.characterId,
                   originalMaterial,
-                  originalMaterial.color,
-                );
+                  colorOverride: originalMaterial.color,
+                });
           this.materials.set(originalMaterial.name, material);
           asMesh.material = material;
         }
@@ -113,7 +123,7 @@ export class CharacterModel {
   ): Promise<Object3D | undefined> {
     if (mmlCharacterDescription.base?.url.length === 0) {
       throw new Error(
-        "ERROR: An MML Character Description was provided but it's not a valid <m-character> string, or a valid URL",
+        "ERROR: An MML Character Description was provided, but it's not a valid <m-character> string, or a valid URL",
       );
     }
 
@@ -122,32 +132,34 @@ export class CharacterModel {
       const characterBase = mmlCharacterDescription.base?.url || null;
       if (characterBase) {
         this.mmlCharacterDescription = mmlCharacterDescription;
-        const mmlCharacter = new MMLCharacter(new ModelLoader());
+        const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
         mergedCharacter = await mmlCharacter.mergeBodyParts(
           characterBase,
           mmlCharacterDescription.parts,
         );
         if (mergedCharacter) {
-          return mergedCharacter.children[0].children[0];
+          return mergedCharacter;
         }
       }
     }
   }
 
   private async loadCharacterFromDescription(): Promise<Object3D | null> {
-    if (this.characterDescription.meshFileUrl) {
+    if (this.config.characterDescription.meshFileUrl) {
       return (
-        (await this.characterModelLoader.load(this.characterDescription.meshFileUrl, "model")) ||
-        null
+        (await this.config.characterModelLoader.load(
+          this.config.characterDescription.meshFileUrl,
+          "model",
+        )) || null
       );
     }
 
     let mmlCharacterSource: string;
-    if (this.characterDescription.mmlCharacterUrl) {
-      const res = await fetch(this.characterDescription.mmlCharacterUrl);
+    if (this.config.characterDescription.mmlCharacterUrl) {
+      const res = await fetch(this.config.characterDescription.mmlCharacterUrl);
       mmlCharacterSource = await res.text();
-    } else if (this.characterDescription.mmlCharacterString) {
-      mmlCharacterSource = this.characterDescription.mmlCharacterString;
+    } else if (this.config.characterDescription.mmlCharacterString) {
+      mmlCharacterSource = this.config.characterDescription.mmlCharacterString;
     } else {
       throw new Error(
         "ERROR: No Character Description was provided. Specify one of meshFileUrl, mmlCharacterUrl or mmlCharacterString",
@@ -197,7 +209,7 @@ export class CharacterModel {
     animationType: AnimationState,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const animation = await this.characterModelLoader.load(animationFileUrl, "animation");
+      const animation = await this.config.characterModelLoader.load(animationFileUrl, "animation");
       const cleanAnimation = this.cleanAnimationClips(this.mesh!, animation as AnimationClip);
       if (typeof animation !== "undefined" && cleanAnimation instanceof AnimationClip) {
         this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);

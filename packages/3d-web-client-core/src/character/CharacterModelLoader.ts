@@ -1,42 +1,6 @@
-import { AnimationClip, LoadingManager, Object3D } from "three";
-import { GLTF, GLTFLoader as ThreeGLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-
-class CachedGLTFLoader extends ThreeGLTFLoader {
-  private blobCache: Map<string, string>;
-
-  constructor(
-    manager?: LoadingManager,
-    private debug: boolean = false,
-  ) {
-    super(manager);
-    this.blobCache = new Map();
-  }
-
-  setBlobUrl(originalUrl: string, blobUrl: string) {
-    this.blobCache.set(originalUrl, blobUrl);
-  }
-
-  getBlobUrl(originalUrl: string): string | undefined {
-    return this.blobCache.get(originalUrl);
-  }
-
-  load(
-    url: string,
-    onLoad: (gltf: GLTF) => void,
-    onProgress?: ((event: ProgressEvent<EventTarget>) => void) | undefined,
-    onError?: ((event: ErrorEvent) => void) | undefined,
-  ): void {
-    const blobUrl = this.getBlobUrl(url);
-    if (blobUrl) {
-      if (this.debug === true) {
-        console.log(`Loading cached ${url.split("/").pop()}`);
-      }
-      super.load(blobUrl, onLoad, onProgress, onError);
-    } else {
-      super.load(url, onLoad, onProgress, onError);
-    }
-  }
-}
+import { ModelLoader, ModelLoadResult } from "@mml-io/model-loader";
+import { AnimationClip, Object3D } from "three";
+import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 class LRUCache<K, V> {
   private maxSize: number;
@@ -71,8 +35,7 @@ interface CachedModel {
 }
 
 export class CharacterModelLoader {
-  private readonly loadingManager: LoadingManager;
-  private readonly gltfLoader: CachedGLTFLoader;
+  private readonly modelLoader: ModelLoader = new ModelLoader();
   private modelCache: LRUCache<string, CachedModel>;
   private ongoingLoads: Map<string, Promise<CachedModel>> = new Map();
 
@@ -80,8 +43,6 @@ export class CharacterModelLoader {
     maxCacheSize: number = 100,
     private debug: boolean = false,
   ) {
-    this.loadingManager = new LoadingManager();
-    this.gltfLoader = new CachedGLTFLoader(this.loadingManager, this.debug);
     this.modelCache = new LRUCache(maxCacheSize);
   }
 
@@ -94,8 +55,6 @@ export class CharacterModelLoader {
     const cachedModel = this.modelCache.get(fileUrl);
 
     if (cachedModel) {
-      const blobURL = URL.createObjectURL(cachedModel.blob);
-      this.gltfLoader.setBlobUrl(fileUrl, blobURL);
       return this.loadFromUrl(fileUrl, fileType, cachedModel.originalExtension);
     } else {
       if (this.debug === true) {
@@ -132,26 +91,22 @@ export class CharacterModelLoader {
     extension: string,
   ): Promise<Object3D | AnimationClip | undefined> {
     if (["gltf", "glb"].includes(extension)) {
-      return new Promise((resolve, reject) => {
-        this.gltfLoader.load(
+      return new Promise(async (resolve, reject) => {
+        const modelLoadResult: ModelLoadResult = await this.modelLoader.load(
           url,
-          (object: GLTF) => {
-            if (fileType === "model") {
-              resolve(object.scene as Object3D);
-            } else if (fileType === "animation") {
-              resolve(object.animations[0] as AnimationClip);
-            } else {
-              const error = `Trying to load unknown ${fileType} type of element from file ${url}`;
-              console.error(error);
-              reject(error);
-            }
-          },
-          undefined,
-          (error) => {
-            console.error(`Error loading GL(B|TF) from ${url}: ${error}`);
-            reject(error);
+          (loaded: number, total: number) => {
+            // no-op
           },
         );
+        if (fileType === "model") {
+          resolve(modelLoadResult.group as Object3D);
+        } else if (fileType === "animation") {
+          resolve(modelLoadResult.animations[0] as AnimationClip);
+        } else {
+          const error = `Trying to load unknown ${fileType} type of element from file ${url}`;
+          console.error(error);
+          reject(error);
+        }
       });
     } else {
       console.error(`Error: can't recognize ${url} extension: ${extension}`);

@@ -11,8 +11,6 @@ interface JoyStickAttributes {
 }
 
 export class VirtualJoystick {
-  public static JOYSTICK_DIV: HTMLDivElement | null = null;
-
   private radius: number;
   private inner_radius: number;
   private anchor: "left" | "right";
@@ -32,7 +30,10 @@ export class VirtualJoystick {
   public down: boolean = false;
   public hasDirection: boolean = false;
 
-  constructor(attrs: JoyStickAttributes) {
+  constructor(
+    private holderElement: HTMLElement,
+    attrs: JoyStickAttributes,
+  ) {
     this.radius = attrs.radius || 50;
     this.inner_radius = attrs.inner_radius || this.radius / 2;
     this.anchor = attrs.anchor || "left";
@@ -42,7 +43,24 @@ export class VirtualJoystick {
     this.height = attrs.height || this.radius * 2 + this.inner_radius * 2;
     this.mouse_support = this.checkTouch() || attrs.mouse_support === true;
 
-    this.initializeJoystick();
+    this.div = document.createElement("div");
+    const divStyle = this.div.style;
+    divStyle.display = this.checkTouch() || this.mouse_support ? "visible" : "none";
+    divStyle.position = "fixed";
+    if (this.anchor === "left") {
+      divStyle.left = `${this.x}px`;
+    } else {
+      divStyle.right = `${this.x}px`;
+    }
+    divStyle.bottom = `${this.y}px`;
+    divStyle.width = `${this.width}px`;
+    divStyle.height = `${this.height}px`;
+    divStyle.zIndex = "10000";
+    divStyle.overflow = "hidden";
+    this.holderElement.appendChild(this.div);
+
+    this.setupBaseAndControl();
+    this.bindEvents();
   }
 
   public static checkForTouch(): boolean {
@@ -54,45 +72,8 @@ export class VirtualJoystick {
     }
   }
 
-  public static isTouchOnJoystick(touch: Touch): boolean {
-    if (!VirtualJoystick.JOYSTICK_DIV) {
-      return false;
-    }
-    const divRect = VirtualJoystick.JOYSTICK_DIV.getBoundingClientRect();
-    return (
-      touch.clientX >= divRect.left &&
-      touch.clientX <= divRect.right &&
-      touch.clientY >= divRect.top &&
-      touch.clientY <= divRect.bottom
-    );
-  }
-
   private checkTouch() {
     return VirtualJoystick.checkForTouch();
-  }
-
-  private initializeJoystick(): void {
-    if (!VirtualJoystick.JOYSTICK_DIV) {
-      this.div = document.createElement("div");
-      const divStyle = this.div.style;
-      divStyle.display = this.checkTouch() || this.mouse_support ? "visible" : "none";
-      divStyle.position = "fixed";
-      if (this.anchor === "left") {
-        divStyle.left = `${this.x}px`;
-      } else {
-        divStyle.right = `${this.x}px`;
-      }
-      divStyle.bottom = `${this.y}px`;
-      divStyle.width = `${this.width}px`;
-      divStyle.height = `${this.height}px`;
-      divStyle.zIndex = "10000";
-      divStyle.overflow = "hidden";
-      document.body.appendChild(this.div);
-      VirtualJoystick.JOYSTICK_DIV = this.div;
-    }
-
-    this.setupBaseAndControl();
-    this.bindEvents();
   }
 
   private setupBaseAndControl(): void {
@@ -138,6 +119,7 @@ export class VirtualJoystick {
 
   private handleTouchStart(evt: TouchEvent): void {
     evt.preventDefault();
+    evt.stopPropagation();
     if (evt.touches) {
       const touch = evt.touches[0];
       this.updateControlAndDirection(touch);
@@ -146,6 +128,7 @@ export class VirtualJoystick {
 
   private handleTouchMove(evt: TouchEvent): void {
     evt.preventDefault();
+    evt.stopPropagation();
     if (evt.touches.length > 0) {
       const touch = evt.touches[0];
       this.updateControlAndDirection(touch);
@@ -154,12 +137,14 @@ export class VirtualJoystick {
 
   private handleMouseDown(evt: MouseEvent): void {
     evt.preventDefault();
+    evt.stopPropagation();
     this.updateControlAndDirection(evt);
   }
 
   private handleMouseMove(evt: MouseEvent): void {
     if (evt.buttons === 1) {
       evt.preventDefault();
+      evt.stopPropagation();
       this.updateControlAndDirection(evt);
     }
   }

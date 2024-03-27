@@ -5,6 +5,7 @@ import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { ease } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
+import { VirtualJoystick } from "../input/VirtualJoystick";
 import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
 
@@ -14,6 +15,23 @@ import { AnimationState, CharacterState } from "./CharacterState";
 import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
 import { encodeCharacterAndCamera } from "./url-position";
+
+export type CharacterManagerConfig = {
+  composer: Composer;
+  characterModelLoader: CharacterModelLoader;
+  collisionsManager: CollisionsManager;
+  cameraManager: CameraManager;
+  timeManager: TimeManager;
+  keyInputManager: KeyInputManager;
+  virtualJoystick?: VirtualJoystick;
+  remoteUserStates: Map<number, CharacterState>;
+  sendUpdate: (update: CharacterState) => void;
+  animationConfig: AnimationConfig;
+  characterResolve: (clientId: number) => {
+    username: string;
+    characterDescription: CharacterDescription;
+  };
+};
 
 export class CharacterManager {
   private updateLocationHash = true;
@@ -33,21 +51,7 @@ export class CharacterManager {
 
   public readonly group: Group;
 
-  constructor(
-    private readonly composer: Composer,
-    private readonly characterModelLoader: CharacterModelLoader,
-    private readonly collisionsManager: CollisionsManager,
-    private readonly cameraManager: CameraManager,
-    private readonly timeManager: TimeManager,
-    private readonly keyInputManager: KeyInputManager,
-    private readonly clientStates: Map<number, CharacterState>,
-    private readonly sendUpdate: (update: CharacterState) => void,
-    private readonly animationConfig: AnimationConfig,
-    private readonly characterResolve: (clientId: number) => {
-      username: string;
-      characterDescription: CharacterDescription;
-    },
-  ) {
+  constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
   }
 
@@ -58,21 +62,21 @@ export class CharacterManager {
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
   ) {
-    const character = new Character(
+    const character = new Character({
       username,
       characterDescription,
-      this.animationConfig,
-      this.characterModelLoader,
-      id,
-      () => {
+      animationConfig: this.config.animationConfig,
+      characterModelLoader: this.config.characterModelLoader,
+      characterId: id,
+      modelLoadedCallback: () => {
         // character loaded callback
       },
-      this.cameraManager,
-      this.composer,
-      true,
-    );
+      cameraManager: this.config.cameraManager,
+      composer: this.config.composer,
+      isLocal: true,
+    });
     const quaternion = new Quaternion().setFromEuler(character.rotation);
-    this.sendUpdate({
+    this.config.sendUpdate({
       id: id,
       position: {
         x: spawnPosition.x,
@@ -84,14 +88,15 @@ export class CharacterManager {
     });
     this.localClientId = id;
     this.localCharacter = character;
-    this.localController = new LocalController(
-      this.localCharacter,
-      this.localClientId,
-      this.collisionsManager,
-      this.keyInputManager,
-      this.cameraManager,
-      this.timeManager,
-    );
+    this.localController = new LocalController({
+      character: this.localCharacter,
+      id: this.localClientId,
+      collisionsManager: this.config.collisionsManager,
+      keyInputManager: this.config.keyInputManager,
+      virtualJoystick: this.config.virtualJoystick,
+      cameraManager: this.config.cameraManager,
+      timeManager: this.config.timeManager,
+    });
     this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
     this.group.add(character);
@@ -105,24 +110,24 @@ export class CharacterManager {
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
   ) {
-    const character = new Character(
+    const character = new Character({
       username,
       characterDescription,
-      this.animationConfig,
-      this.characterModelLoader,
-      id,
-      () => {
+      animationConfig: this.config.animationConfig,
+      characterModelLoader: this.config.characterModelLoader,
+      characterId: id,
+      modelLoadedCallback: () => {
         // character loaded callback
       },
-      this.cameraManager,
-      this.composer,
-      false,
-    );
+      cameraManager: this.config.cameraManager,
+      composer: this.config.composer,
+      isLocal: false,
+    });
 
     this.remoteCharacters.set(id, character);
-    const remoteController = new RemoteController(character, id);
-    remoteController.character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-    remoteController.character.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+    character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    character.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+    const remoteController = new RemoteController({ character, id });
     this.remoteCharacterControllers.set(id, remoteController);
     this.group.add(character);
   }
@@ -157,7 +162,7 @@ export class CharacterManager {
   }
 
   public respawnIfPresent(id: number) {
-    const characterInfo = this.characterResolve(id);
+    const characterInfo = this.config.characterResolve(id);
 
     if (this.localCharacter && this.localClientId == id) {
       this.localCharacter.updateCharacter(
@@ -174,7 +179,7 @@ export class CharacterManager {
 
   public update() {
     if (this.localCharacter) {
-      this.localCharacter.update(this.timeManager.time, this.timeManager.deltaTime);
+      this.localCharacter.update(this.config.timeManager.time, this.config.timeManager.deltaTime);
       if (this.speakingCharacters.has(this.localClientId)) {
         this.localCharacter.speakingIndicator?.setSpeaking(
           this.speakingCharacters.get(this.localClientId)!,
@@ -182,8 +187,8 @@ export class CharacterManager {
       }
 
       this.localController.update();
-      if (this.timeManager.frame % 2 === 0) {
-        this.sendUpdate(this.localController.networkState);
+      if (this.config.timeManager.frame % 2 === 0) {
+        this.config.sendUpdate(this.localController.networkState);
       }
 
       const targetOffset = new Vector3();
@@ -191,9 +196,9 @@ export class CharacterManager {
         .add(this.headTargetOffset)
         .applyQuaternion(this.localCharacter.quaternion)
         .add(this.localCharacter.position);
-      this.cameraManager.setTarget(targetOffset);
+      this.config.cameraManager.setTarget(targetOffset);
 
-      for (const [id, update] of this.clientStates) {
+      for (const [id, update] of this.config.remoteUserStates) {
         if (this.remoteCharacters.has(id) && this.speakingCharacters.has(id)) {
           const character = this.remoteCharacters.get(id);
           character?.speakingIndicator?.setSpeaking(this.speakingCharacters.get(id)!);
@@ -201,7 +206,7 @@ export class CharacterManager {
         const { position } = update;
 
         if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
-          const characterInfo = this.characterResolve(id);
+          const characterInfo = this.config.characterResolve(id);
           this.spawnRemoteCharacter(
             id,
             characterInfo.username,
@@ -212,12 +217,16 @@ export class CharacterManager {
 
         const characterController = this.remoteCharacterControllers.get(id);
         if (characterController) {
-          characterController.update(update, this.timeManager.time, this.timeManager.deltaTime);
+          characterController.update(
+            update,
+            this.config.timeManager.time,
+            this.config.timeManager.deltaTime,
+          );
         }
       }
 
       for (const [id, character] of this.remoteCharacters) {
-        if (!this.clientStates.has(id)) {
+        if (!this.config.remoteUserStates.has(id)) {
           character.speakingIndicator?.dispose();
           this.group.remove(character);
           this.remoteCharacters.delete(id);
@@ -225,10 +234,10 @@ export class CharacterManager {
         }
       }
 
-      if (this.updateLocationHash && this.timeManager.frame % 60 === 0) {
+      if (this.updateLocationHash && this.config.timeManager.frame % 60 === 0) {
         window.location.hash = encodeCharacterAndCamera(
           this.localCharacter,
-          this.cameraManager.camera,
+          this.config.cameraManager.camera,
         );
       }
     }

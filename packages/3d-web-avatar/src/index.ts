@@ -1,7 +1,6 @@
 export { MMLCharacter } from "./character/MMLCharacter";
-export { cloneModel } from "./helpers/SkeletonHelpers";
+export { cloneSkinnedMesh } from "./helpers/cloneSkinnedMesh";
 export { TimeManagerInterface } from "./character/types";
-export { ModelLoader } from "./character/ModelLoader";
 export {
   type LoadingErrors,
   type MMLCharacterDescriptionPart,

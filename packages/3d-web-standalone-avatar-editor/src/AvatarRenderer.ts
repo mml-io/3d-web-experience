@@ -1,5 +1,5 @@
-import { ModelLoader } from "@mml-io/3d-web-avatar";
 import { TimeManager, CameraManager, CollisionsManager } from "@mml-io/3d-web-client-core";
+import { ModelLoader, ModelLoadResult } from "@mml-io/model-loader";
 import {
   AnimationClip,
   AnimationMixer,
@@ -36,7 +36,7 @@ export class AvatarRenderer {
   public scene: Scene;
 
   private mixer: AnimationMixer | null = null;
-  private animationAsset: GLTF | null | undefined = null;
+  private animationAsset: ModelLoadResult | null | undefined = null;
 
   private lights: Lights;
   private mirror: Mirror | null = null;
@@ -154,7 +154,7 @@ export class AvatarRenderer {
     }
     if (this.animationAsset && this.animationAsset.animations) {
       const animationClip = this.cleanupNonRotationAnimTracks
-        ? this.cleanAnimationClips(this.animationAsset.scene, this.animationAsset.animations[0])
+        ? this.cleanAnimationClips(this.animationAsset.group, this.animationAsset.animations[0])
         : this.animationAsset.animations[0];
 
       const animationAction = this.mixer.clipAction(animationClip);
