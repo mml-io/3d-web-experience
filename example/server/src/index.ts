@@ -4,18 +4,20 @@ import url from "url";
 import dolbyio from "@dolbyio/dolbyio-rest-apis-client";
 import * as jwtToken from "@dolbyio/dolbyio-rest-apis-client/dist/types/jwtToken";
 import { ChatNetworkingServer } from "@mml-io/3d-web-text-chat";
-import { UserNetworkingServer, UserUpdateMessage } from "@mml-io/3d-web-user-networking";
+import type { CharacterDescription, UserData } from "@mml-io/3d-web-user-networking";
+import { UserIdentity, UserNetworkingServer } from "@mml-io/3d-web-user-networking";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import enableWs from "express-ws";
 import WebSocket from "ws";
 
-import { authMiddleware, UserAuthenticator } from "./auth";
+import { authMiddleware } from "./auth";
+import { BasicUserAuthenticator } from "./BasicUserAuthenticator";
+import { ExampleEnforcingUserAuthenticator } from "./example-character-customisation-auth/ExampleEnforcingUserAuthenticator";
 import { addLocalMultiWebAppRoutes } from "./router/local-multi-web-client-app-routes";
 import { MMLDocumentsServer } from "./router/MMLDocumentsServer";
 import { addWebAppRoutes } from "./router/web-app-routes";
-import { CharacterController } from "./CharacterControl";
 
 dotenv.config();
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
@@ -25,16 +27,34 @@ const documentsWatchPath = path.resolve(path.join(dirname, "../mml-documents"), 
 const { app } = enableWs(express());
 app.enable("trust proxy");
 
-const characterController = new CharacterController();
+// TODO - remove example
+// This exampleEnforcingUserAuthenticator is an example of how to enforce user-level character customisation
+const exampleEnforcingUserAuthenticator = new ExampleEnforcingUserAuthenticator({
+  updateUserCharacter: (clientId, userData) => {
+    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    userNetworkingServer.updateUserCharacter(clientId, userData);
+  },
+});
 
-// null: Simplified version without CharacterController
-// Use this when user characters shall be permissionless, i.e. the client has no limitations
-// in defining character descriptions.
-// const userAuthenticator = new UserAuthenticator(null); 
-
-// Permissioned character descriptions
-// The server verifies whether client-created characterDescriptions are valid
-const userAuthenticator = new UserAuthenticator(characterController);
+// Specify the avatar to use here:
+const characterDescription: CharacterDescription = {
+  // Option 1 (Default) - Use a GLB file directly
+  meshFileUrl: "/assets/models/bot.glb", // This is just an address of a GLB file
+  // Option 2 - Use an MML Character from a URL
+  // mmlCharacterUrl: "https://...",
+  // Option 3 - Use an MML Character from a string
+  // mmlCharacterString: `
+  // <m-character src="/assets/models/bot.glb">
+  //   <m-model src="/assets/models/hat.glb"
+  //     socket="head"
+  //     x="0.03" y="0" z="0.0"
+  //     sx="1.03" sy="1.03" sz="1.03"
+  //     rz="-90"
+  //   ></m-model>
+  // </m-character>
+  // `,
+};
+const userAuthenticator = new BasicUserAuthenticator(characterDescription);
 
 const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
 const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
@@ -120,29 +140,47 @@ app.ws(`/mml-documents/:filename`, (ws: WebSocket, req: express.Request) => {
 // Serve assets with CORS allowing all origins
 app.use("/assets/", cors(), express.static(path.resolve(dirname, "../../assets/")));
 
-const userNetworkingServer = new UserNetworkingServer(
-  (clientId: number, msg: UserUpdateMessage) => {
-    return userAuthenticator.processUserUpdate(clientId, msg);
+const chatNetworkingServer = new ChatNetworkingServer({
+  getChatUserIdentity: (sessionToken: string) => {
+    return userAuthenticator.getClientIdForSessionToken(sessionToken);
   },
-  (clientId: number) => {
-    userAuthenticator.processClientDisconnect(clientId);
-  }
-);
+});
+app.ws("/chat-network", (ws) => {
+  chatNetworkingServer.connectClient(ws);
+});
 
-// Necessary for CharacterUpdates initiated server-side
-userAuthenticator.registerUserNetworkServer(userNetworkingServer);
+const userNetworkingServer = new UserNetworkingServer({
+  onClientConnect: (
+    clientId: number,
+    sessionToken: string,
+    userIdentityPresentedOnConnection?: UserIdentity,
+  ): UserData | null => {
+    return userAuthenticator.onClientConnect(
+      clientId,
+      sessionToken,
+      userIdentityPresentedOnConnection,
+    );
+  },
+  onClientUserIdentityUpdate: (clientId: number, userIdentity: UserIdentity): UserData | null => {
+    // Called whenever a user connects or updates their character/identity
+    return userAuthenticator.onClientUserIdentityUpdate(clientId, userIdentity);
+  },
+  onClientDisconnect: (clientId: number): void => {
+    userAuthenticator.onClientDisconnect(clientId);
+    // Disconnect the corresponding chat client to avoid later conflicts of client ids
+    chatNetworkingServer.disconnectClientId(clientId);
+  },
+});
 
 app.ws("/network", (ws) => {
   userNetworkingServer.connectClient(ws);
 });
-
-const chatNetworkingServer = new ChatNetworkingServer();
-app.ws("/chat-network", (ws, req) => {
-  chatNetworkingServer.connectClient(ws, parseInt(req.query.id as string, 10));
-});
-
 // Serve the web-client app (including development mode)
-addWebAppRoutes(app, userAuthenticator);
+addWebAppRoutes(app, {
+  generateAuthorizedSessionToken(req: express.Request): string | null {
+    return userAuthenticator.generateAuthorizedSessionToken(req);
+  },
+});
 
 // Serve the local-multi-web-client app
 addLocalMultiWebAppRoutes(app);

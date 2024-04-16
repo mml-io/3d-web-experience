@@ -6,7 +6,7 @@ import chokidar from "chokidar";
 import express from "express";
 import enableWs from "express-ws";
 import WebSocket from "ws";
-import { UserAuthenticator } from "src/auth";
+
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
 
 const FORK_PAGE_CONTENT = `
@@ -16,7 +16,12 @@ const FORK_PAGE_CONTENT = `
 const webClientBuildDir = path.join(dirname, "../../web-client/build/");
 const webAvatarBuildDir = path.join(dirname, "../../web-avatar-client/build/");
 
-export function addWebAppRoutes(app: enableWs.Application, userAuthenticator: UserAuthenticator) {
+export function addWebAppRoutes(
+  app: enableWs.Application,
+  options: {
+    generateAuthorizedSessionToken(req: express.Request): string | null;
+  },
+) {
   // Serve frontend statically in production
   const demoIndexContent = fs.readFileSync(path.join(webClientBuildDir, "index.html"), "utf8");
   app.get("/", (req, res) => {
@@ -25,13 +30,13 @@ export function addWebAppRoutes(app: enableWs.Application, userAuthenticator: Us
       return;
     }
 
-    const token = userAuthenticator.generateAuthorizedSessionToken(req)
-  
-    if(!token) {
-      console.log("RETURN ERROR PAGE");
+    const token = options.generateAuthorizedSessionToken(req);
+    if (!token) {
+      res.send("Error: Could not generate token");
+      return;
     }
 
-    const authorizedDemoIndexContent = demoIndexContent.replace("SOME.TOKEN.PLACEHOLDER", token)
+    const authorizedDemoIndexContent = demoIndexContent.replace("SESSION.TOKEN.PLACEHOLDER", token);
     res.send(authorizedDemoIndexContent);
   });
 

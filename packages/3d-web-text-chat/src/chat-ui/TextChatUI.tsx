@@ -15,7 +15,9 @@ export class TextChatUI {
   private appRef: React.RefObject<ChatUIInstance> = createRef<ChatUIInstance>();
 
   public addTextMessage(username: string, message: string) {
-    if (this.appRef.current) this.appRef.current.addMessage(username, message);
+    if (this.appRef.current) {
+      this.appRef.current.addMessage(username, message);
+    }
   }
 
   private wrapper = document.createElement("div");

@@ -1,5 +1,7 @@
 import * as esbuild from "esbuild";
 
+import { rebuildOnDependencyChangesPlugin } from "../../utils/rebuildOnDependencyChangesPlugin";
+
 const buildMode = "--build";
 const watchMode = "--watch";
 
@@ -24,6 +26,7 @@ const buildOptions: esbuild.BuildOptions = {
   sourcemap: true,
   platform: "node",
   target: "es2020",
+  plugins: mode === watchMode ? [rebuildOnDependencyChangesPlugin] : [],
 };
 
 switch (mode) {

@@ -6,17 +6,37 @@ import {
   FromClientMessage,
   FromServerMessage,
   PING_MESSAGE_TYPE,
+  USER_AUTHENTICATE_MESSAGE_TYPE,
 } from "./ChatNetworkingMessages";
 import { ReconnectingWebSocket, WebsocketFactory, WebsocketStatus } from "./ReconnectingWebsocket";
 
+export type ChatNetworkingClientConfig = {
+  url: string;
+  sessionToken: string;
+  websocketFactory: WebsocketFactory;
+  statusUpdateCallback: (status: WebsocketStatus) => void;
+  clientChatUpdate: (id: number, update: null | FromClientChatMessage) => void;
+};
+
 export class ChatNetworkingClient extends ReconnectingWebSocket {
-  constructor(
-    url: string,
-    websocketFactory: WebsocketFactory,
-    statusUpdateCallback: (status: WebsocketStatus) => void,
-    private clientChatUpdate: (id: number, update: null | FromClientChatMessage) => void,
-  ) {
-    super(url, websocketFactory, statusUpdateCallback);
+  constructor(private config: ChatNetworkingClientConfig) {
+    super(config.url, config.websocketFactory, (status: WebsocketStatus) => {
+      if (status === WebsocketStatus.Connected) {
+        this.sendMessage({
+          type: USER_AUTHENTICATE_MESSAGE_TYPE,
+          sessionToken: config.sessionToken,
+        });
+      }
+      config.statusUpdateCallback(status);
+    });
+  }
+
+  public sendChatMessage(message: string) {
+    this.sendMessage({ type: CHAT_MESSAGE_TYPE, text: message });
+  }
+
+  private sendMessage(message: FromClientMessage): void {
+    this.send(message);
   }
 
   protected handleIncomingWebsocketMessage(message: MessageEvent) {
@@ -30,11 +50,11 @@ export class ChatNetworkingClient extends ReconnectingWebSocket {
           console.log(`Client ID: ${parsed.id} left chat`);
           break;
         case PING_MESSAGE_TYPE: {
-          this.send({ type: "pong" } as FromClientMessage);
+          this.sendMessage({ type: "pong" });
           break;
         }
         case CHAT_MESSAGE_TYPE: {
-          this.clientChatUpdate(parsed.id, parsed);
+          this.config.clientChatUpdate(parsed.id, parsed);
           break;
         }
         default:
@@ -43,9 +63,5 @@ export class ChatNetworkingClient extends ReconnectingWebSocket {
     } else {
       console.error("Unhandled message type", message.data);
     }
-  }
-
-  public sendUpdate(chatMessage: FromClientChatMessage) {
-    this.send(chatMessage as FromClientChatMessage);
   }
 }

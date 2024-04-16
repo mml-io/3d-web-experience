@@ -5,7 +5,7 @@
 import express from "express";
 import enableWs from "express-ws";
 
-import { UserNetworkingClientUpdate } from "../src";
+import { UserData, UserIdentity, UserNetworkingClientUpdate } from "../src";
 import { WebsocketStatus } from "../src/ReconnectingWebSocket";
 import { UserNetworkingClient } from "../src/UserNetworkingClient";
 import { UserNetworkingServer } from "../src/UserNetworkingServer";
@@ -14,7 +14,37 @@ import { createWaitable, waitUntil } from "./test-utils";
 
 describe("UserNetworking", () => {
   test("should see updates end-to-end", async () => {
-    const server = new UserNetworkingServer();
+    const sessionTokenForOne = "session-token-one";
+    const sessionTokenForTwo = "session-token-two";
+
+    const options = {
+      onClientConnect: (
+        clientId: number,
+        sessionToken: string,
+        userIdentity?: UserIdentity,
+      ): UserData | null => {
+        if (sessionToken === sessionTokenForOne) {
+          return {
+            username: "user1",
+            characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
+          };
+        } else if (sessionToken === sessionTokenForTwo) {
+          return {
+            username: "user2",
+            characterDescription: { meshFileUrl: "http://example.com/user2.glb" },
+          };
+        }
+        return null;
+      },
+      onClientUserIdentityUpdate: (
+        clientId: number,
+        userIdentity: UserIdentity,
+      ): UserData | null => {
+        return null;
+      },
+      onClientDisconnect: (clientId: number): void => {},
+    };
+    const server = new UserNetworkingServer(options);
 
     const { app } = enableWs(express());
     app.ws("/user-networking", (ws) => {
@@ -30,61 +60,101 @@ describe("UserNetworking", () => {
     const [user2ConnectPromise, user2ConnectResolve] = await createWaitable<null>();
 
     const user1UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
-    const user1 = new UserNetworkingClient(
-      serverAddress,
-      (url) => new WebSocket(url),
-      (status) => {
+    const user1Profiles: Map<number, UserData> = new Map();
+    const user1 = new UserNetworkingClient({
+      url: serverAddress,
+      sessionToken: sessionTokenForOne,
+      websocketFactory: (url) => new WebSocket(url),
+      statusUpdateCallback: (status) => {
         if (status === WebsocketStatus.Connected) {
           user1ConnectResolve(null);
         }
       },
-      (clientId: number) => {
+      assignedIdentity: (clientId: number) => {
         user1IdentityResolve(clientId);
       },
-      (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
+      clientUpdate: (
+        clientId: number,
+        userNetworkingClientUpdate: null | UserNetworkingClientUpdate,
+      ) => {
         if (userNetworkingClientUpdate === null) {
           user1UserStates.delete(clientId);
         } else {
           user1UserStates.set(clientId, userNetworkingClientUpdate);
         }
       },
-    );
+      clientProfileUpdated: (id, username, characterDescription) => {
+        user1Profiles.set(id, { username, characterDescription });
+      },
+    });
     await user1ConnectPromise;
     expect(await user1IdentityPromise).toEqual(1);
 
     await waitUntil(
-      () => (server as any).clients.size === 1,
+      () => (server as any).allClients.size === 1,
       "wait for server to see the presence of user 1",
     );
 
+    await waitUntil(
+      () => user1Profiles.size === 1,
+      "wait for user 1 to see their own profile returned from the server",
+    );
+
+    expect(user1Profiles.get(1)).toEqual({
+      username: "user1",
+      characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
+    });
+
     const user2UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
-    const user2 = new UserNetworkingClient(
-      serverAddress,
-      (url) => new WebSocket(url),
-      (status) => {
+    const user2Profiles: Map<number, UserData> = new Map();
+    const user2 = new UserNetworkingClient({
+      url: serverAddress,
+      sessionToken: sessionTokenForTwo,
+      websocketFactory: (url) => new WebSocket(url),
+      statusUpdateCallback: (status) => {
         if (status === WebsocketStatus.Connected) {
           user2ConnectResolve(null);
         }
       },
-      (clientId: number) => {
+      assignedIdentity: (clientId: number) => {
         user2IdentityResolve(clientId);
       },
-      (clientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
+      clientUpdate: (
+        clientId: number,
+        userNetworkingClientUpdate: null | UserNetworkingClientUpdate,
+      ) => {
         if (userNetworkingClientUpdate === null) {
           user2UserStates.delete(clientId);
         } else {
           user2UserStates.set(clientId, userNetworkingClientUpdate);
         }
       },
-    );
+      clientProfileUpdated: (id, username, characterDescription) => {
+        user2Profiles.set(id, { username, characterDescription });
+      },
+    });
 
     await user2ConnectPromise;
     expect(await user2IdentityPromise).toEqual(2);
 
     await waitUntil(
-      () => (server as any).clients.size === 2,
+      () => (server as any).allClients.size === 2,
       "wait for server to see the presence of user 2",
     );
+
+    await waitUntil(
+      () => user2Profiles.size === 2,
+      "wait for user 2 to see both profiles returned from the server",
+    );
+
+    expect(user2Profiles.get(1)).toEqual({
+      username: "user1",
+      characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
+    });
+    expect(user2Profiles.get(2)).toEqual({
+      username: "user2",
+      characterDescription: { meshFileUrl: "http://example.com/user2.glb" },
+    });
 
     user1.sendUpdate({
       id: 1,
@@ -139,7 +209,7 @@ describe("UserNetworking", () => {
     user2.stop();
 
     await waitUntil(
-      () => (server as any).clients.size === 1,
+      () => (server as any).allClients.size === 1,
       "wait for server to see the removal of user 2",
     );
 
@@ -151,7 +221,7 @@ describe("UserNetworking", () => {
     user1.stop();
 
     await waitUntil(
-      () => (server as any).clients.size === 0,
+      () => (server as any).allClients.size === 0,
       "wait for server to see the removal of user 1",
     );
 

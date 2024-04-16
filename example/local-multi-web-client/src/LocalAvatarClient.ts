@@ -121,7 +121,9 @@ export class LocalAvatarClient {
         localAvatarServer.send(localClientId, characterState);
       },
       animationConfig,
-      characterDescription,
+      () => {
+        return { username: "User", characterDescription };
+      },
     );
     this.scene.add(this.characterManager.group);
 
@@ -143,8 +145,9 @@ export class LocalAvatarClient {
     this.scene.add(room);
 
     this.characterManager.spawnLocalCharacter(
-      characterDescription,
       localClientId,
+      "User",
+      characterDescription,
       spawnPosition,
       spawnRotation,
     );

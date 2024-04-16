@@ -20,7 +20,7 @@ export class CharacterManager {
 
   public readonly headTargetOffset = new Vector3(0, 1.3, 0);
 
-  private id: number = 0;
+  private localClientId: number = 0;
 
   public remoteCharacters: Map<number, Character> = new Map();
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
@@ -43,18 +43,23 @@ export class CharacterManager {
     private readonly clientStates: Map<number, CharacterState>,
     private readonly sendUpdate: (update: CharacterState) => void,
     private readonly animationConfig: AnimationConfig,
-    private readonly characterResolve: (characterId: number) => CharacterDescription
+    private readonly characterResolve: (clientId: number) => {
+      username: string;
+      characterDescription: CharacterDescription;
+    },
   ) {
     this.group = new Group();
   }
 
   public spawnLocalCharacter(
-    characterDescription: CharacterDescription,
     id: number,
+    username: string,
+    characterDescription: CharacterDescription,
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
   ) {
     const character = new Character(
+      username,
       characterDescription,
       this.animationConfig,
       this.characterModelLoader,
@@ -77,11 +82,11 @@ export class CharacterManager {
       rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
       state: AnimationState.idle,
     });
-    this.id = id;
+    this.localClientId = id;
     this.localCharacter = character;
     this.localController = new LocalController(
       this.localCharacter,
-      this.id,
+      this.localClientId,
       this.collisionsManager,
       this.keyInputManager,
       this.cameraManager,
@@ -89,18 +94,19 @@ export class CharacterManager {
     );
     this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
-    character.tooltip?.setText(`${id}`, true);
     this.group.add(character);
     this.localCharacterSpawned = true;
   }
 
   public spawnRemoteCharacter(
-    characterDescription: CharacterDescription,
     id: number,
+    username: string,
+    characterDescription: CharacterDescription,
     spawnPosition: Vector3 = new Vector3(),
     spawnRotation: Euler = new Euler(),
   ) {
     const character = new Character(
+      username,
       characterDescription,
       this.animationConfig,
       this.characterModelLoader,
@@ -118,7 +124,6 @@ export class CharacterManager {
     remoteController.character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
     remoteController.character.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
     this.remoteCharacterControllers.set(id, remoteController);
-    character.tooltip?.setText(`${id}`);
     this.group.add(character);
   }
 
@@ -151,39 +156,29 @@ export class CharacterManager {
     this.speakingCharacters.set(id, value);
   }
 
-  public respawn(id: number) {
-    console.log(`respawning logic for id ${id}`);
+  public respawnIfPresent(id: number) {
+    const characterInfo = this.characterResolve(id);
 
-    if(this.id == id) {
-      console.log("RESPAWN THE LOCAL CHARACTER");
-      const pos = this.localCharacter?.position;
-      const rot = this.localCharacter?.rotation;
-      this.group.remove(this.localCharacter!);
-      this.localCharacter = null;
-
-      this.spawnLocalCharacter(this.characterResolve(id), id, pos, rot);
+    if (this.localCharacter && this.localClientId == id) {
+      this.localCharacter.updateCharacter(
+        characterInfo.username,
+        characterInfo.characterDescription,
+      );
     }
 
-    if(this.remoteCharacters.has(id)){
-      const remoteCharacter = this.remoteCharacters.get(id)!;
-      console.log(`RESPAWN Remote: ${id}!!!`);
-
-      const pos = remoteCharacter.position;
-      const rot = remoteCharacter.rotation;
-
-      this.group.remove(remoteCharacter);
-      this.remoteCharacters.delete(id);
-      this.remoteCharacterControllers.delete(id);
-
-      this.spawnRemoteCharacter(this.characterResolve(id), id, pos, rot);
+    const remoteCharacter = this.remoteCharacters.get(id);
+    if (remoteCharacter) {
+      remoteCharacter.updateCharacter(characterInfo.username, characterInfo.characterDescription);
     }
   }
 
   public update() {
     if (this.localCharacter) {
       this.localCharacter.update(this.timeManager.time, this.timeManager.deltaTime);
-      if (this.speakingCharacters.has(this.id)) {
-        this.localCharacter.speakingIndicator?.setSpeaking(this.speakingCharacters.get(this.id)!);
+      if (this.speakingCharacters.has(this.localClientId)) {
+        this.localCharacter.speakingIndicator?.setSpeaking(
+          this.speakingCharacters.get(this.localClientId)!,
+        );
       }
 
       this.localController.update();
@@ -204,11 +199,13 @@ export class CharacterManager {
           character?.speakingIndicator?.setSpeaking(this.speakingCharacters.get(id)!);
         }
         const { position } = update;
-        
+
         if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
+          const characterInfo = this.characterResolve(id);
           this.spawnRemoteCharacter(
-            this.characterResolve(id)!,
             id,
+            characterInfo.username,
+            characterInfo.characterDescription,
             new Vector3(position.x, position.y, position.z),
           );
         }
