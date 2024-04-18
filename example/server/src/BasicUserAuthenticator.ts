@@ -13,11 +13,22 @@ export type AuthUser = {
   sessionToken: string;
 };
 
+export type BasicUserAuthenticatorOptions = {
+  devAllowUnrecognizedSessions: boolean;
+};
+
+const defaultOptions: BasicUserAuthenticatorOptions = {
+  devAllowUnrecognizedSessions: false,
+};
+
 export class BasicUserAuthenticator {
   private usersByClientId = new Map<number, AuthUser>();
   private userBySessionToken = new Map<string, AuthUser>();
 
-  constructor(private characterDescription: CharacterDescription) {}
+  constructor(
+    private characterDescription: CharacterDescription,
+    private options: BasicUserAuthenticatorOptions = defaultOptions,
+  ) {}
 
   public generateAuthorizedSessionToken(req: express.Request): string {
     const sessionToken = crypto.randomBytes(20).toString("hex");
@@ -36,9 +47,18 @@ export class BasicUserAuthenticator {
     userIdentityPresentedOnConnection?: UserIdentity,
   ): UserData | null {
     console.log(`Client ID: ${clientId} joined with token`);
-    const user = this.userBySessionToken.get(sessionToken);
+    let user = this.userBySessionToken.get(sessionToken);
     if (!user) {
       console.error(`Invalid initial user-update for clientId ${clientId}, unknown session`);
+
+      if (this.options.devAllowUnrecognizedSessions) {
+        console.warn(`Dev mode: allowing unrecognized session token`);
+        user = {
+          clientId: null,
+          sessionToken,
+        };
+        this.userBySessionToken.set(sessionToken, user);
+      }
       return null;
     }
 

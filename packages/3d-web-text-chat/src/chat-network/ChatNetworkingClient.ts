@@ -5,6 +5,7 @@ import {
   FromClientChatMessage,
   FromClientMessage,
   FromServerMessage,
+  IDENTITY_MESSAGE_TYPE,
   PING_MESSAGE_TYPE,
   USER_AUTHENTICATE_MESSAGE_TYPE,
 } from "./ChatNetworkingMessages";
@@ -43,6 +44,9 @@ export class ChatNetworkingClient extends ReconnectingWebSocket {
     if (typeof message.data === "string") {
       const parsed = JSON.parse(message.data) as FromServerMessage;
       switch (parsed.type) {
+        case IDENTITY_MESSAGE_TYPE:
+          console.log(`Client ID: ${parsed.id} assigned to self`);
+          break;
         case CONNECTED_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} joined chat`);
           break;
