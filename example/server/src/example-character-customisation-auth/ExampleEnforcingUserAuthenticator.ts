@@ -93,6 +93,8 @@ export class ExampleEnforcingUserAuthenticator {
       if (foundCharacter) {
         resultCharacterDescription = foundCharacter;
       }
+    }
+    if (resultPermissions.allowUsername && req.query.username) {
       resultUsername = req.query.username as string;
     }
 
@@ -235,6 +237,19 @@ export class ExampleEnforcingUserAuthenticator {
     }
     this.usersByClientId.set(clientId, user);
     return user.userData;
+  }
+
+  public getClientIdForSessionToken(sessionToken: string): { id: number } | null {
+    const user = this.userBySessionToken.get(sessionToken);
+    if (!user) {
+      console.error("getClientIdForSessionToken - unknown session");
+      return null;
+    }
+    if (user.clientId === null) {
+      console.error("getClientIdForSessionToken - client not connected");
+      return null;
+    }
+    return { id: user.clientId };
   }
 
   public onClientUserIdentityUpdate(
