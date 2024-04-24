@@ -1,7 +1,7 @@
 {
   "name": "@example/server",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.15.0",
   "engines": {
     "node": "18.x"
   },
@@ -18,15 +18,15 @@
   },
   "dependencies": {
     "@dolbyio/dolbyio-rest-apis-client": "4.1.0",
-    "@example/web-client": "^0.14.0",
-    "@mml-io/3d-web-text-chat": "^0.14.0",
-    "@mml-io/3d-web-user-networking": "^0.14.0",
+    "@example/web-client": "^0.15.0",
+    "@mml-io/3d-web-text-chat": "^0.15.0",
+    "@mml-io/3d-web-user-networking": "^0.15.0",
     "chokidar": "^3.5.3",
     "cors": "^2.8.5",
     "express": "4.18.2",
     "express-ws": "5.0.2",
     "http-proxy": "^1.18.1",
-    "networked-dom-server": "0.12.0",
+    "networked-dom-server": "0.13.0",
     "ws": "8.16.0"
   },
   "devDependencies": {
