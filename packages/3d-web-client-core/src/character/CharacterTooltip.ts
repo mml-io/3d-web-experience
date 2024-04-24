@@ -22,7 +22,7 @@ const defaultLabelColor = new Color(0x000000);
 const defaultFontColor = new Color(0xffffff);
 const defaultLabelAlignment = LabelAlignment.center;
 const defaultLabelFontSize = 8;
-const defaultLabelPadding = 0;
+const defaultLabelPadding = 8;
 const defaultLabelWidth = 0.25;
 const defaultLabelHeight = 0.1;
 const defaultLabelCastShadows = true;
@@ -84,10 +84,6 @@ export class CharacterTooltip extends Mesh {
         b: this.props.color.b * 255,
         a: 1.0,
       },
-      dimensions: {
-        width: this.props.width * (100 * fontScale),
-        height: this.props.height * (100 * fontScale),
-      },
       alignment: this.props.alignment,
     });
 
@@ -102,7 +98,8 @@ export class CharacterTooltip extends Mesh {
   }
 
   setText(text: string, temporary: boolean = false) {
-    this.redrawText(text);
+    const sanitizedText = text.replace(/(\r\n|\n|\r)/gm, "");
+    this.redrawText(sanitizedText);
     this.visible = true;
     this.targetOpacity = this.visibleOpacity;
     if (temporary) {

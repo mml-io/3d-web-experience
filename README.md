@@ -21,10 +21,11 @@ contains:
     `@mml-io/3d-web-user-networking`
   - Additionally, the server runs MML documents in the `mml-documents` directory which are then
     connected to by the `web-client`.
+  - A simple session-based [auth system](#auth) that can be used as a reference to implement arbitrary http-based auth. 
 
 It can be easily deployed to environments that support Node.js and expose ports to the internet.
 
-<img src="./playground.png">
+<img src="./playground.jpg">
 
 ## Main features
 
@@ -44,3 +45,9 @@ npm run iterate
 ```
 
 Once the example server is running, open `http://localhost:8080` in your browser.
+
+## Auth
+- When the client page is rendered by the server the server uses a UserAuthenticator implementation to determine if a session should be generated for the incoming http request and if so includes that session token on the client page.
+- The client then sends the session token in the first message to the server when it connects via websocket.
+- The server can use the session token to authenticate the user and determine what identity (username, avatar etc) the user should have.
+- An example implementation of this is provided in the example server, but the interface is extensible enough that a more complex user authenticator can limit which avatar components should be permitted based on external systems.

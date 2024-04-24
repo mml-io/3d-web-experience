@@ -1,4 +1,5 @@
 import {
+  AnimationConfig,
   CameraManager,
   CharacterDescription,
   CharacterManager,
@@ -12,10 +13,10 @@ import {
   MMLCompositionScene,
   TimeManager,
   TweakPane,
-  AnimationConfig,
 } from "@mml-io/3d-web-client-core";
 import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
 import {
+  UserData,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
   WebsocketStatus,
@@ -34,7 +35,6 @@ import airAnimationFileUrl from "../../assets/models/anim_air.glb";
 import idleAnimationFileUrl from "../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../assets/models/anim_run.glb";
-import defaultAvatarMeshFileUrl from "../../assets/models/bot.glb";
 
 import { LoadingScreen } from "./LoadingScreen";
 import { Room } from "./Room";
@@ -44,25 +44,6 @@ const animationConfig: AnimationConfig = {
   idleAnimationFileUrl,
   jogAnimationFileUrl,
   sprintAnimationFileUrl,
-};
-
-// Specify the avatar to use here:
-const characterDescription: CharacterDescription = {
-  // Option 1 (Default) - Use a GLB file directly
-  meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
-  // Option 2 - Use an MML Character from a URL
-  // mmlCharacterUrl: "https://...",
-  // Option 3 - Use an MML Character from a string
-  // mmlCharacterString: `
-  // <m-character src="/assets/models/bot.glb">
-  //   <m-model src="/assets/models/hat.glb"
-  //     socket="head"
-  //     x="0.03" y="0" z="0.0"
-  //     sx="1.03" sy="1.03" sz="1.03"
-  //     rz="-90"
-  //   ></m-model>
-  // </m-character>
-  // `,
 };
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -85,6 +66,8 @@ export class App {
   private mmlCompositionScene: MMLCompositionScene;
   private networkClient: UserNetworkingClient;
   private remoteUserStates = new Map<number, CharacterState>();
+  // A dictionary holding information about my own user and all remote users
+  private userProfiles = new Map<number, UserData>();
 
   private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
@@ -101,8 +84,9 @@ export class App {
   private loadingScreen: LoadingScreen;
 
   private appWrapper = document.getElementById("app");
+  private initialNetworkLoadRef = {};
 
-  constructor() {
+  constructor(private sessionToken: string) {
     document.addEventListener("mousedown", () => {
       if (this.audioListener.context.state === "suspended") {
         this.audioListener.context.resume();
@@ -138,12 +122,12 @@ export class App {
     });
     resizeObserver.observe(this.element);
 
-    const initialNetworkLoadRef = {};
-    this.loadingProgressManager.addLoadingAsset(initialNetworkLoadRef, "network", "network");
-    this.networkClient = new UserNetworkingClient(
-      userNetworkAddress,
-      (url: string) => new WebSocket(url),
-      (status: WebsocketStatus) => {
+    this.loadingProgressManager.addLoadingAsset(this.initialNetworkLoadRef, "network", "network");
+    this.networkClient = new UserNetworkingClient({
+      url: userNetworkAddress,
+      sessionToken: this.sessionToken,
+      websocketFactory: (url: string) => new WebSocket(url),
+      statusUpdateCallback: (status: WebsocketStatus) => {
         if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
           // The connection was lost after being established - the connection may be re-established with a different client ID
           this.characterManager.clear();
@@ -151,23 +135,37 @@ export class App {
           this.clientId = null;
         }
       },
-      (clientId: number) => {
+      assignedIdentity: (clientId: number) => {
+        console.log(`Assigned ID: ${clientId}`);
         this.clientId = clientId;
         if (this.initialLoadCompleted) {
           // Already loaded - respawn the character
           this.spawnCharacter();
         } else {
-          this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
+          this.loadingProgressManager.completedLoadingAsset(this.initialNetworkLoadRef);
         }
       },
-      (remoteClientId: number, userNetworkingClientUpdate: null | UserNetworkingClientUpdate) => {
+      clientUpdate: (
+        remoteClientId: number,
+        userNetworkingClientUpdate: null | UserNetworkingClientUpdate,
+      ) => {
         if (userNetworkingClientUpdate === null) {
           this.remoteUserStates.delete(remoteClientId);
         } else {
           this.remoteUserStates.set(remoteClientId, userNetworkingClientUpdate);
         }
       },
-    );
+      clientProfileUpdated: (
+        clientId: number,
+        username: string,
+        characterDescription: CharacterDescription,
+      ): void => {
+        this.updateUserProfile(clientId, {
+          username,
+          characterDescription,
+        });
+      },
+    });
 
     this.characterManager = new CharacterManager(
       this.composer,
@@ -182,7 +180,9 @@ export class App {
         this.networkClient.sendUpdate(characterState);
       },
       animationConfig,
-      characterDescription,
+      (characterId: number) => {
+        return this.resolveCharacterData(characterId);
+      },
     );
     this.scene.add(this.characterManager.group);
 
@@ -211,15 +211,33 @@ export class App {
     this.loadingProgressManager.setInitialLoad(true);
   }
 
+  private resolveCharacterData(clientId: number): {
+    username: string;
+    characterDescription: CharacterDescription;
+  } {
+    const user = this.userProfiles.get(clientId)!;
+    if (!user) {
+      throw new Error(`Failed to resolve user for clientId ${clientId}`);
+    }
+
+    return {
+      username: user.username,
+      characterDescription: user.characterDescription,
+    };
+  }
+
+  private updateUserProfile(id: number, userData: UserData) {
+    console.log(`Update user_profile for id=${id} (username=${userData.username})`);
+
+    this.userProfiles.set(id, userData);
+
+    this.characterManager.respawnIfPresent(id);
+  }
+
   private sendChatMessageToServer(message: string): void {
     this.mmlCompositionScene.onChatMessage(message);
     if (this.clientId === null || this.networkChat === null) return;
-    const chatMessage: FromClientChatMessage = {
-      type: "chat",
-      id: this.clientId,
-      text: message,
-    };
-    this.networkChat.sendUpdate(chatMessage);
+    this.networkChat.sendChatMessage(message);
   }
 
   private connectToVoiceChat() {
@@ -235,31 +253,39 @@ export class App {
   }
 
   private connectToTextChat() {
-    if (this.clientId === null) return;
+    if (this.clientId === null) {
+      return;
+    }
+    const user = this.userProfiles.get(this.clientId);
+    if (!user) {
+      throw new Error("User not found");
+    }
 
     if (this.textChatUI === null) {
-      this.textChatUI = new TextChatUI(
-        this.clientId.toString(),
-        this.sendChatMessageToServer.bind(this),
-      );
+      this.textChatUI = new TextChatUI(user.username, this.sendChatMessageToServer.bind(this));
       this.textChatUI.init();
     }
 
     if (this.networkChat === null) {
-      this.networkChat = new ChatNetworkingClient(
-        `${protocol}//${host}/chat-network?id=${this.clientId}`,
-        (url: string) => new WebSocket(`${url}?id=${this.clientId}`),
-        (status: WebsocketStatus) => {
+      this.networkChat = new ChatNetworkingClient({
+        url: `${protocol}//${host}/chat-network`,
+        sessionToken: this.sessionToken,
+        websocketFactory: (url: string) => new WebSocket(`${url}?id=${this.clientId}`),
+        statusUpdateCallback: (status: WebsocketStatus) => {
           if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
             // The connection was lost after being established - the connection may be re-established with a different client ID
           }
         },
-        (clientId: number, chatNetworkingUpdate: null | FromClientChatMessage) => {
+        clientChatUpdate: (
+          clientId: number,
+          chatNetworkingUpdate: null | FromClientChatMessage,
+        ) => {
           if (chatNetworkingUpdate !== null && this.textChatUI !== null) {
-            this.textChatUI.addTextMessage(clientId.toString(), chatNetworkingUpdate.text);
+            const username = this.userProfiles.get(clientId)?.username || "Unknown";
+            this.textChatUI.addTextMessage(username, chatNetworkingUpdate.text);
           }
         },
-      );
+      });
     }
   }
 
@@ -293,9 +319,15 @@ export class App {
       spawnRotation.setFromQuaternion(urlParams.character.quaternion);
       cameraPosition = urlParams.camera.position;
     }
+    const ownIdentity = this.userProfiles.get(this.clientId);
+    if (!ownIdentity) {
+      throw new Error("Own identity not found");
+    }
+
     this.characterManager.spawnLocalCharacter(
-      characterDescription,
       this.clientId!,
+      ownIdentity.username,
+      ownIdentity.characterDescription,
       spawnPosition,
       spawnRotation,
     );
@@ -340,5 +372,5 @@ export class App {
   }
 }
 
-const app = new App();
+const app = new App((window as any).SESSION_TOKEN);
 app.update();

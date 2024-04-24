@@ -20,16 +20,27 @@ export type CharacterDescription = {
   meshFileUrl?: string;
   mmlCharacterUrl?: string;
   mmlCharacterString?: string;
-};
+} & (
+  | {
+      meshFileUrl: string;
+    }
+  | {
+      mmlCharacterUrl: string;
+    }
+  | {
+      mmlCharacterString: string;
+    }
+);
 
 export class Character extends Group {
   private model: CharacterModel | null = null;
   public color: Color = new Color();
-  public tooltip: CharacterTooltip | null = null;
+  public tooltip: CharacterTooltip;
   public speakingIndicator: CharacterSpeakingIndicator | null = null;
 
   constructor(
-    private readonly characterDescription: CharacterDescription,
+    private username: string,
+    private characterDescription: CharacterDescription,
     private readonly animationConfig: AnimationConfig,
     private readonly characterModelLoader: CharacterModelLoader,
     private readonly characterId: number,
@@ -40,11 +51,22 @@ export class Character extends Group {
   ) {
     super();
     this.tooltip = new CharacterTooltip();
+    this.tooltip.setText(this.username, isLocal);
     this.add(this.tooltip);
-    this.load();
+    this.load().then(() => {
+      this.modelLoadedCallback();
+    });
   }
 
-  private async load(): Promise<void> {
+  updateCharacter(username: string, characterDescription: CharacterDescription) {
+    this.username = username;
+    this.characterDescription = characterDescription;
+    this.load();
+    this.tooltip.setText(username, this.isLocal);
+  }
+
+  private async load(callback?: () => void): Promise<void> {
+    const previousModel = this.model;
     this.model = new CharacterModel(
       this.characterDescription,
       this.animationConfig,
@@ -54,11 +76,13 @@ export class Character extends Group {
       this.isLocal,
     );
     await this.model.init();
+    if (previousModel && previousModel.mesh) {
+      this.remove(previousModel.mesh!);
+    }
     this.add(this.model.mesh!);
     if (this.speakingIndicator === null) {
       this.speakingIndicator = new CharacterSpeakingIndicator(this.composer.postPostScene);
     }
-    this.modelLoadedCallback();
   }
 
   public updateAnimation(targetAnimation: AnimationState) {

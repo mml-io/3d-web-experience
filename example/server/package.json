@@ -9,7 +9,8 @@
   "type": "module",
   "scripts": {
     "build": "rimraf ./build && tsx ./build.ts --build",
-    "iterate": "concurrently \"tsx ./build.ts --watch\" \"nodemon\"",
+    "iterate": "tsx ./build.ts --watch",
+    "iterate:start": "node ./build/index.js",
     "start": "NODE_ENV=production node build/index.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",

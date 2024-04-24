@@ -1,108 +1,161 @@
 import WebSocket from "ws";
 
 import {
+  CHAT_MESSAGE_TYPE,
   CONNECTED_MESSAGE_TYPE,
+  ConnectedMessage,
   DISCONNECTED_MESSAGE_TYPE,
+  DisconnectedMessage,
+  FromClientAuthenticateMessage,
   FromClientMessage,
+  FromServerChatMessage,
   FromServerMessage,
+  IDENTITY_MESSAGE_TYPE,
+  IdentityMessage,
+  PONG_MESSAGE_TYPE,
+  USER_AUTHENTICATE_MESSAGE_TYPE,
 } from "./ChatNetworkingMessages";
 import { heartBeatRate, pingPongRate } from "./ChatNetworkingSettings";
 
 export type Client = {
   socket: WebSocket;
+  id: number | null;
+  lastPong: number;
 };
 
 const WebSocketOpenStatus = 1;
 
-export class ChatNetworkingServer {
-  private clients: Map<number, Client> = new Map();
-  private clientLastPong: Map<number, number> = new Map();
+export type ChatNetworkingServerOptions = {
+  getChatUserIdentity: (sessionToken: string) => { id: number } | null;
+};
 
-  constructor() {
+export class ChatNetworkingServer {
+  private allClients = new Set<Client>();
+  private clientsById = new Map<number, Client>();
+
+  constructor(private options: ChatNetworkingServerOptions) {
     setInterval(this.pingClients.bind(this), pingPongRate);
     setInterval(this.heartBeat.bind(this), heartBeatRate);
   }
 
-  heartBeat() {
+  private heartBeat() {
     const now = Date.now();
-    this.clientLastPong.forEach((clientLastPong, id) => {
-      if (now - clientLastPong > heartBeatRate) {
-        this.clients.delete(id);
-        this.clientLastPong.delete(id);
-        const disconnectMessage = JSON.stringify({
-          id,
-          type: DISCONNECTED_MESSAGE_TYPE,
-        } as FromServerMessage);
-        for (const { socket: otherSocket } of this.clients.values()) {
-          if (otherSocket.readyState === WebSocketOpenStatus) {
-            otherSocket.send(disconnectMessage);
-          }
-        }
+    this.allClients.forEach((client) => {
+      if (now - client.lastPong > heartBeatRate) {
+        client.socket.close();
+        this.handleDisconnectedClient(client);
       }
     });
   }
 
-  pingClients() {
-    this.clients.forEach((client) => {
-      if (client.socket.readyState === WebSocketOpenStatus) {
-        client.socket.send(JSON.stringify({ type: "ping" } as FromServerMessage));
+  private sendToAuthenticated(message: FromServerMessage, exceptClient?: Client) {
+    const stringified = JSON.stringify(message);
+    for (const client of this.allClients) {
+      if (
+        (exceptClient === undefined || exceptClient !== client) &&
+        client.id !== null &&
+        client.socket.readyState === WebSocketOpenStatus
+      ) {
+        client.socket.send(stringified);
       }
-    });
+    }
   }
 
-  connectClient(socket: WebSocket, id: number) {
-    console.log(`Client joined chat with ID: ${id}`);
-
-    if (this.clients.has(id)) {
-      console.error(`Client ID ${id} already exists`);
-      socket.close();
+  private handleDisconnectedClient(client: Client) {
+    if (!this.allClients.has(client)) {
       return;
     }
-
-    const connectMessage = JSON.stringify({
-      id,
-      type: CONNECTED_MESSAGE_TYPE,
-    } as FromServerMessage);
-    for (const { socket: otherSocket } of this.clients.values()) {
-      if (otherSocket.readyState === WebSocketOpenStatus) {
-        otherSocket.send(connectMessage);
-      }
+    this.allClients.delete(client);
+    if (client.id) {
+      this.clientsById.delete(client.id);
+      const disconnectMessage: DisconnectedMessage = {
+        id: client.id,
+        type: DISCONNECTED_MESSAGE_TYPE,
+      };
+      this.sendToAuthenticated(disconnectMessage);
     }
+  }
 
-    this.clients.set(id, {
+  private pingClients() {
+    this.sendToAuthenticated({ type: "ping" });
+  }
+
+  public connectClient(socket: WebSocket) {
+    console.log(`Client joined chat.`);
+
+    const client: Client = {
+      id: null,
+      lastPong: Date.now(),
       socket: socket as WebSocket,
-    });
+    };
+    this.allClients.add(client);
 
     socket.on("message", (message: WebSocket.Data) => {
+      let parsed;
       try {
-        const data = JSON.parse(message as string) as FromClientMessage;
-        if (data.type === "pong") {
-          this.clientLastPong.set(id, Date.now());
-        } else if (data.type === "chat") {
-          for (const [otherClientId, otherClient] of this.clients) {
-            if (otherClientId !== id && otherClient.socket.readyState === WebSocketOpenStatus) {
-              otherClient.socket.send(JSON.stringify(data));
-            }
-          }
-        }
+        parsed = JSON.parse(message as string) as FromClientMessage;
       } catch (e) {
         console.error("Error parsing JSON message", message, e);
+        return;
+      }
+      if (!client.id) {
+        if (parsed.type === USER_AUTHENTICATE_MESSAGE_TYPE) {
+          const { sessionToken } = parsed;
+          const authResponse = this.options.getChatUserIdentity(sessionToken);
+          if (authResponse === null) {
+            // If the user is not authorized, disconnect the client
+            socket.close();
+            return;
+          }
+          if (this.clientsById.has(authResponse.id)) {
+            throw new Error(`Client already connected with ID: ${authResponse.id}`);
+          }
+          client.id = authResponse.id;
+          this.clientsById.set(client.id, client);
+          socket.send(
+            JSON.stringify({ type: IDENTITY_MESSAGE_TYPE, id: client.id } as IdentityMessage),
+          );
+          const connectedMessage = {
+            type: CONNECTED_MESSAGE_TYPE,
+            id: client.id,
+          } as ConnectedMessage;
+          this.sendToAuthenticated(connectedMessage, client);
+        } else {
+          console.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
+          socket.close();
+        }
+      } else {
+        switch (parsed.type) {
+          case PONG_MESSAGE_TYPE:
+            client.lastPong = Date.now();
+            break;
+
+          case CHAT_MESSAGE_TYPE:
+            const asChatMessage: FromServerChatMessage = {
+              type: CHAT_MESSAGE_TYPE,
+              id: client.id,
+              text: parsed.text,
+            };
+            this.sendToAuthenticated(asChatMessage, client);
+            break;
+
+          default:
+            console.error(`Unhandled message: ${JSON.stringify(parsed)}`);
+        }
       }
     });
 
     socket.on("close", () => {
-      console.log("Client disconnected from Chat", id);
-      this.clients.delete(id);
-      const disconnectMessage = JSON.stringify({
-        id,
-        type: DISCONNECTED_MESSAGE_TYPE,
-      } as FromServerMessage);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      for (const [, { socket: otherSocket }] of this.clients) {
-        if (otherSocket.readyState === WebSocketOpenStatus) {
-          otherSocket.send(disconnectMessage);
-        }
-      }
+      console.log("Client disconnected from Chat", client.id);
+      this.handleDisconnectedClient(client);
     });
+  }
+
+  public disconnectClientId(clientId: number) {
+    const client = this.clientsById.get(clientId);
+    if (client) {
+      client.socket.close();
+      this.handleDisconnectedClient(client);
+    }
   }
 }
