@@ -13,19 +13,11 @@ enum Key {
 export class KeyInputManager {
   private keys = new Map<string, boolean>();
   private eventHandlerCollection = new EventHandlerCollection();
-  private directionJoystick: VirtualJoystick | null = null;
 
   constructor(private shouldCaptureKeyPress: () => boolean = () => true) {
     this.eventHandlerCollection.add(document, "keydown", this.onKeyDown.bind(this));
     this.eventHandlerCollection.add(document, "keyup", this.onKeyUp.bind(this));
     this.eventHandlerCollection.add(window, "blur", this.handleUnfocus.bind(this));
-    this.directionJoystick = new VirtualJoystick({
-      radius: 70,
-      inner_radius: 20,
-      x: 70,
-      y: 0,
-      mouse_support: false,
-    });
   }
 
   private handleUnfocus(_event: FocusEvent): void {
@@ -56,26 +48,23 @@ export class KeyInputManager {
   }
 
   public isMovementKeyPressed(): boolean {
-    return (
-      [Key.W, Key.A, Key.S, Key.D].some((key) => this.isKeyPressed(key)) ||
-      this.directionJoystick!.hasDirection
-    );
+    return [Key.W, Key.A, Key.S, Key.D].some((key) => this.isKeyPressed(key));
   }
 
   get forward(): boolean {
-    return this.isKeyPressed(Key.W) || this.directionJoystick!.up;
+    return this.isKeyPressed(Key.W);
   }
 
   get backward(): boolean {
-    return this.isKeyPressed(Key.S) || this.directionJoystick!.down;
+    return this.isKeyPressed(Key.S);
   }
 
   get left(): boolean {
-    return this.isKeyPressed(Key.A) || this.directionJoystick!.left;
+    return this.isKeyPressed(Key.A);
   }
 
   get right(): boolean {
-    return this.isKeyPressed(Key.D) || this.directionJoystick!.right;
+    return this.isKeyPressed(Key.D);
   }
 
   get run(): boolean {

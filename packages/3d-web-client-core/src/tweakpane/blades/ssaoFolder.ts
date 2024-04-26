@@ -247,6 +247,10 @@ export class SSAOFolder {
         case "enabled":
           if (e.value === true) {
             composer.addPass(n8aopass, this.postProcessingSSAOIndex + 2);
+            composer.passes[this.postProcessingSSAOIndex + 2].setSize(
+              window.innerWidth,
+              window.innerHeight,
+            );
           } else {
             composer.removePass(n8aopass);
           }

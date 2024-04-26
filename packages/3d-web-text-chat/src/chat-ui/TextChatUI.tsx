@@ -21,13 +21,13 @@ export class TextChatUI {
   }
 
   private wrapper = document.createElement("div");
-  private container = document.getElementById("app")!;
 
   constructor(
+    private holderElement: HTMLElement,
     private clientname: string,
     private sendMessageToServerMethod: (message: string) => void,
   ) {
-    this.container.appendChild(this.wrapper);
+    this.holderElement.appendChild(this.wrapper);
     this.root = createRoot(this.wrapper);
     this.sendMessageToServerMethod = sendMessageToServerMethod;
   }

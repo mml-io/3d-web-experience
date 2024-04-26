@@ -5,7 +5,6 @@ import {
   LinearFilter,
   Mesh,
   MeshBasicMaterial,
-  Object3D,
   PlaneGeometry,
 } from "three";
 
@@ -29,27 +28,39 @@ const defaultLabelCastShadows = true;
 
 const tooltipGeometry = new PlaneGeometry(1, 1, 1, 1);
 
+export type CharacterTooltipConfig = {
+  alignment: LabelAlignment;
+  width: number;
+  height: number;
+  fontSize: number;
+  padding: number;
+  color: Color;
+  fontColor: Color;
+  castShadows: boolean;
+};
+
 export class CharacterTooltip extends Mesh {
   private tooltipMaterial: MeshBasicMaterial;
   private visibleOpacity: number = 0.85;
   private targetOpacity: number = 0;
   private fadingSpeed: number = 0.02;
   private secondsToFadeOut: number = 10;
+  private config: CharacterTooltipConfig;
 
-  private props = {
-    content: "",
-    alignment: defaultLabelAlignment,
-    width: defaultLabelWidth,
-    height: defaultLabelHeight,
-    fontSize: defaultLabelFontSize,
-    padding: defaultLabelPadding,
-    color: defaultLabelColor,
-    fontColor: defaultFontColor,
-    castShadows: defaultLabelCastShadows,
-  };
-
-  constructor() {
+  constructor(configArg?: Partial<CharacterTooltipConfig>) {
     super(tooltipGeometry);
+    this.config = {
+      alignment: defaultLabelAlignment,
+      width: defaultLabelWidth,
+      height: defaultLabelHeight,
+      fontSize: defaultLabelFontSize,
+      padding: defaultLabelPadding,
+      color: defaultLabelColor,
+      fontColor: defaultFontColor,
+      castShadows: defaultLabelCastShadows,
+      ...configArg,
+    };
+
     this.tooltipMaterial = new MeshBasicMaterial({
       map: null,
       transparent: true,
@@ -70,21 +81,21 @@ export class CharacterTooltip extends Mesh {
     }
     const { texture, width, height } = THREECanvasTextTexture(content, {
       bold: true,
-      fontSize: this.props.fontSize * fontScale,
-      paddingPx: this.props.padding,
+      fontSize: this.config.fontSize * fontScale,
+      paddingPx: this.config.padding,
       textColorRGB255A1: {
-        r: this.props.fontColor.r * 255,
-        g: this.props.fontColor.g * 255,
-        b: this.props.fontColor.b * 255,
+        r: this.config.fontColor.r * 255,
+        g: this.config.fontColor.g * 255,
+        b: this.config.fontColor.b * 255,
         a: 1.0,
       },
       backgroundColorRGB255A1: {
-        r: this.props.color.r * 255,
-        g: this.props.color.g * 255,
-        b: this.props.color.b * 255,
+        r: this.config.color.r * 255,
+        g: this.config.color.g * 255,
+        b: this.config.color.b * 255,
         a: 1.0,
       },
-      alignment: this.props.alignment,
+      alignment: this.config.alignment,
     });
 
     this.tooltipMaterial.map = texture;

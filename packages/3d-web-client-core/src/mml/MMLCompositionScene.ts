@@ -15,6 +15,16 @@ import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 
+type MMLCompositionSceneConfig = {
+  targetElement: HTMLElement;
+  renderer: WebGLRenderer;
+  scene: Scene;
+  camera: PerspectiveCamera;
+  audioListener: AudioListener;
+  collisionsManager: CollisionsManager;
+  getUserPositionAndRotation: () => PositionAndRotation;
+};
+
 export class MMLCompositionScene {
   public group: Group;
 
@@ -26,43 +36,35 @@ export class MMLCompositionScene {
   private readonly clickTrigger: MMLClickTrigger;
   private readonly loadingProgressManager: LoadingProgressManager;
 
-  constructor(
-    targetElement: HTMLElement,
-    private renderer: WebGLRenderer,
-    private scene: Scene,
-    private camera: PerspectiveCamera,
-    private audioListener: AudioListener,
-    private collisionsManager: CollisionsManager,
-    private getUserPositionAndRotation: () => PositionAndRotation,
-  ) {
+  constructor(private config: MMLCompositionSceneConfig) {
     this.group = new Group();
-    this.promptManager = PromptManager.init(targetElement);
+    this.promptManager = PromptManager.init(this.config.targetElement);
 
     const { interactionListener, interactionManager } = InteractionManager.init(
-      targetElement,
-      this.camera,
-      this.scene,
+      this.config.targetElement,
+      this.config.camera,
+      this.config.scene,
     );
     this.interactionManager = interactionManager;
     this.interactionListener = interactionListener;
     this.loadingProgressManager = new LoadingProgressManager();
 
     this.mmlScene = {
-      getAudioListener: () => this.audioListener,
-      getRenderer: () => this.renderer,
-      getThreeScene: () => this.scene,
+      getAudioListener: () => this.config.audioListener,
+      getRenderer: () => this.config.renderer,
+      getThreeScene: () => this.config.scene,
       getRootContainer: () => this.group,
-      getCamera: () => this.camera,
+      getCamera: () => this.config.camera,
       addCollider: (object: Object3D, mElement: MElement) => {
-        this.collisionsManager.addMeshesGroup(object as Group, mElement);
+        this.config.collisionsManager.addMeshesGroup(object as Group, mElement);
       },
       updateCollider: (object: Object3D) => {
-        this.collisionsManager.updateMeshesGroup(object as Group);
+        this.config.collisionsManager.updateMeshesGroup(object as Group);
       },
       removeCollider: (object: Object3D) => {
-        this.collisionsManager.removeMeshesGroup(object as Group);
+        this.config.collisionsManager.removeMeshesGroup(object as Group);
       },
-      getUserPositionAndRotation: this.getUserPositionAndRotation,
+      getUserPositionAndRotation: this.config.getUserPositionAndRotation,
       addInteraction: (interaction: Interaction) => {
         this.interactionListener.addInteraction(interaction);
       },
@@ -89,7 +91,7 @@ export class MMLCompositionScene {
       },
     };
 
-    this.clickTrigger = MMLClickTrigger.init(targetElement, this.mmlScene as IMMLScene);
+    this.clickTrigger = MMLClickTrigger.init(this.config.targetElement, this.mmlScene as IMMLScene);
   }
 
   onChatMessage(message: string) {

@@ -1,3 +1,4 @@
+import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
   EffectComposer,
   RenderPass,
@@ -30,6 +31,7 @@ import {
   ToneMapping,
   Vector2,
   WebGLRenderer,
+  EquirectangularReflectionMapping,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
@@ -295,6 +297,29 @@ export class Composer {
     this.renderer.render(this.postPostScene, this.camera);
   }
 
+  public useHDRJPG(url: string, fromFile: boolean = false): void {
+    const pmremGenerator = new PMREMGenerator(this.renderer);
+    const hdrJpg = new HDRJPGLoader(this.renderer).load(url, () => {
+      const hdrJpgEquirectangularMap = hdrJpg.renderTarget.texture;
+
+      hdrJpgEquirectangularMap.mapping = EquirectangularReflectionMapping;
+      hdrJpgEquirectangularMap.needsUpdate = true;
+
+      const envMap = pmremGenerator!.fromEquirectangular(hdrJpgEquirectangularMap).texture;
+      if (envMap) {
+        envMap.colorSpace = LinearSRGBColorSpace;
+        envMap.needsUpdate = true;
+        this.scene.background = envMap;
+        this.scene.backgroundIntensity = rendererValues.bgIntensity;
+        this.isEnvHDRI = true;
+        hdrJpgEquirectangularMap.dispose();
+        pmremGenerator!.dispose();
+      }
+
+      hdrJpg.dispose();
+    });
+  }
+
   public useHDRI(url: string, fromFile: boolean = false): void {
     if ((this.isEnvHDRI && fromFile === false) || !this.renderer) return;
     const pmremGenerator = new PMREMGenerator(this.renderer);
@@ -323,16 +348,23 @@ export class Composer {
     if (!this.renderer) return;
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = ".hdr";
+    fileInput.accept = ".hdr,.jpg";
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0];
       if (!file) {
         console.log("no file");
         return;
       }
+      const extension = file.name.split(".").pop();
       const fileURL = URL.createObjectURL(file);
       if (fileURL) {
-        this.useHDRI(fileURL, true);
+        if (extension === "hdr") {
+          this.useHDRI(fileURL, true);
+        } else if (extension === "jpg") {
+          this.useHDRJPG(fileURL);
+        } else {
+          console.error(`Unrecognized extension for HDR file ${file.name}`);
+        }
         URL.revokeObjectURL(fileURL);
         document.body.removeChild(fileInput);
       }

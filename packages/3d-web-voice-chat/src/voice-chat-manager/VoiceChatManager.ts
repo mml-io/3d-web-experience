@@ -74,6 +74,7 @@ export class VoiceChatManager {
   private tickInterval: NodeJS.Timeout | null = null;
 
   constructor(
+    private holderElement: HTMLElement,
     private userId: number,
     private remoteUserStates: Map<number, CharacterState>,
     private latestCharacterObj: {
@@ -84,6 +85,7 @@ export class VoiceChatManager {
     this.conferenceAlias = window.location.host;
 
     this.voiceChatUI = new VoiceChatUI(
+      this.holderElement,
       this.handleJoinClick.bind(this),
       this.handlePassword.bind(this),
     );

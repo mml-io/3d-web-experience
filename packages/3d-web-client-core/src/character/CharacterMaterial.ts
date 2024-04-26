@@ -12,6 +12,14 @@ import { characterValues } from "../tweakpane/blades/characterFolder";
 
 type TUniform<TValue = any> = { value: TValue };
 
+export type CharacterMaterialConfig = {
+  isLocal: boolean;
+  cameraManager: CameraManager;
+  characterId: number;
+  originalMaterial: MeshStandardMaterial;
+  colorOverride?: Color;
+};
+
 export class CharacterMaterial extends MeshStandardMaterial {
   private uniforms: Record<string, TUniform> = {
     discardAll: { value: 1 },
@@ -22,21 +30,15 @@ export class CharacterMaterial extends MeshStandardMaterial {
   private targetAlpha: number = 1;
   private currentAlpha: number = 1;
 
-  constructor(
-    private isLocal: boolean,
-    private cameraManager: CameraManager,
-    private characterId: number,
-    private originalMaterial: MeshStandardMaterial,
-    private colorOverride?: Color,
-  ) {
+  constructor(private config: CharacterMaterialConfig) {
     super();
-    this.copy(this.originalMaterial);
+    this.copy(this.config.originalMaterial);
     this.generateColorCube();
 
-    this.color = this.colorOverride || this.colorsCube216[this.characterId];
+    this.color = this.config.colorOverride || this.colorsCube216[this.config.characterId];
     this.envMapIntensity = characterValues.envMapIntensity;
     this.transparent = true;
-    this.side = this.originalMaterial.side;
+    this.side = this.config.originalMaterial.side;
 
     this.onBeforeCompile = (shader) => {
       this.uniforms = UniformsUtils.clone(shader.uniforms);
@@ -117,16 +119,16 @@ export class CharacterMaterial extends MeshStandardMaterial {
   }
 
   public update() {
-    if (this.isLocal) {
-      this.targetAlpha = this.cameraManager.targetDistance < 0.4 ? 0.0 : 1.0;
+    if (this.config.isLocal) {
+      this.targetAlpha = this.config.cameraManager.targetDistance < 0.4 ? 0.0 : 1.0;
       this.currentAlpha += ease(this.targetAlpha, this.currentAlpha, 0.07);
       if (this.currentAlpha > 0.999) {
         this.currentAlpha = 1;
-        this.cameraManager.minPolarAngle = Math.PI * 0.25;
+        this.config.cameraManager.minPolarAngle = Math.PI * 0.25;
       }
       if (this.currentAlpha < 0.001) {
         this.currentAlpha = 0;
-        this.cameraManager.minPolarAngle = Math.PI * 0.35;
+        this.config.cameraManager.minPolarAngle = Math.PI * 0.35;
       }
       this.uniforms.discardAll.value = this.currentAlpha === 0 ? 1 : 0;
       if (this.currentAlpha !== this.opacity) {

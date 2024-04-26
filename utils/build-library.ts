@@ -7,10 +7,23 @@ const watchMode = "--watch";
 
 const helpString = `Mode must be provided as one of ${buildMode} or ${watchMode}`;
 
-export function handleLibraryBuild(
-  plugins: Array<esbuild.Plugin> = [],
-  loader: { [key: string]: esbuild.Loader } = {},
-) {
+type LibraryBuildOptions = {
+  entryPoints: {
+    [key: string]: string;
+  };
+  plugins: Array<esbuild.Plugin>;
+  loader: { [key: string]: esbuild.Loader };
+};
+
+export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
+  const options = {
+    plugins: [],
+    loader: {},
+    entryPoints: {
+      index: "src/index.ts",
+    },
+    ...optionsArg,
+  };
   const args = process.argv.splice(2);
 
   if (args.length !== 1) {
@@ -21,9 +34,7 @@ export function handleLibraryBuild(
   const mode = args[0];
 
   const buildOptions: esbuild.BuildOptions = {
-    entryPoints: {
-      index: "src/index.ts",
-    },
+    entryPoints: options.entryPoints,
     write: true,
     bundle: true,
     metafile: true,
@@ -34,9 +45,9 @@ export function handleLibraryBuild(
     sourcemap: true,
     target: "node14",
     loader: {
-      ...loader,
+      ...options.loader,
     },
-    plugins: [...plugins, dtsPlugin()],
+    plugins: [...options.plugins, dtsPlugin()],
   };
 
   switch (mode) {

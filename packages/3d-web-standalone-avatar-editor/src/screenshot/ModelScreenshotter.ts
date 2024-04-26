@@ -1,4 +1,4 @@
-import { ModelLoader } from "@mml-io/3d-web-avatar";
+import { ModelLoader } from "@mml-io/model-loader";
 import {
   AnimationMixer,
   Box3,
@@ -77,8 +77,8 @@ export class ModelScreenshotter {
     if (model instanceof Object3D) {
       loadedModel = model;
     } else {
-      const gltf = (await this.modelLoader.load(model)) as GLTF;
-      loadedModel = gltf.scene;
+      const modelLoadResult = await this.modelLoader.load(model);
+      loadedModel = modelLoadResult.group;
     }
     const mixer = new AnimationMixer(loadedModel);
 
@@ -105,9 +105,9 @@ export class ModelScreenshotter {
       });
     }
 
-    const animationAsset = await this.modelLoader.load(animationURL);
-    if (animationAsset && animationAsset.animations) {
-      const animationClip = animationAsset.animations[0];
+    const modelLoadResult = await this.modelLoader.load(animationURL);
+    if (modelLoadResult && modelLoadResult.animations) {
+      const animationClip = modelLoadResult.animations[0];
       const animationAction = mixer.clipAction(animationClip);
       animationAction.play();
       mixer.setTime(animationTime);

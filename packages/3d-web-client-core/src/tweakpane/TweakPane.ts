@@ -45,14 +45,24 @@ export class TweakPane {
   public guiVisible: boolean = false;
 
   constructor(
+    private holderElement: HTMLElement,
     private renderer: WebGLRenderer,
     private scene: Scene,
     private composer: EffectComposer,
   ) {
-    const appWrapper = document.getElementById("app")!;
     const tweakPaneWrapper = document.createElement("div");
-    tweakPaneWrapper.id = "tweakpane-panel";
-    appWrapper.appendChild(tweakPaneWrapper);
+    tweakPaneWrapper.style.position = "fixed";
+    tweakPaneWrapper.style.width = "400px";
+    tweakPaneWrapper.style.height = "100%";
+    tweakPaneWrapper.style.top = "0px";
+    tweakPaneWrapper.style.right = "calc(-50vw)";
+    tweakPaneWrapper.style.zIndex = "99";
+    tweakPaneWrapper.style.overflow = "auto";
+    tweakPaneWrapper.style.backgroundColor = "rgba(0, 0, 0, 0.66)";
+    tweakPaneWrapper.style.paddingLeft = "5px";
+    tweakPaneWrapper.style.boxShadow = "-7px 0px 12px rgba(0, 0, 0, 0.5)";
+    tweakPaneWrapper.style.transition = "right cubic-bezier(0.83, 0, 0.17, 1) 0.7s";
+    holderElement.appendChild(tweakPaneWrapper);
 
     this.gui = new Pane({ container: tweakPaneWrapper! });
     this.gui.registerPlugin(EssentialsPlugin);

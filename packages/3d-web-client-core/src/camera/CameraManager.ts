@@ -91,11 +91,9 @@ export class CameraManager {
 
   private onTouchStart(evt: TouchEvent): void {
     Array.from(evt.touches).forEach((touch) => {
-      if (!VirtualJoystick.isTouchOnJoystick(touch)) {
-        this.dragging = true;
-        this.lastTouchX = touch.clientX;
-        this.lastTouchY = touch.clientY;
-      }
+      this.dragging = true;
+      this.lastTouchX = touch.clientX;
+      this.lastTouchY = touch.clientY;
     });
   }
 
@@ -105,7 +103,8 @@ export class CameraManager {
     }
     evt.preventDefault();
 
-    const touch = Array.from(evt.touches).find((t) => !VirtualJoystick.isTouchOnJoystick(t));
+    // TODO - handle multi-touch correctly
+    const touch = Array.from(evt.touches).find((t) => true);
     if (touch) {
       const dx = touch.clientX - this.lastTouchX;
       const dy = touch.clientY - this.lastTouchY;
@@ -122,9 +121,8 @@ export class CameraManager {
 
   private onTouchEnd(evt: TouchEvent): void {
     if (this.dragging) {
-      const touchEnded = Array.from(evt.changedTouches).some(
-        (t) => !VirtualJoystick.isTouchOnJoystick(t),
-      );
+      // TODO - handle multi-touch correctly
+      const touchEnded = Array.from(evt.changedTouches).some((t) => true);
       if (touchEnded) {
         this.dragging = false;
       }
