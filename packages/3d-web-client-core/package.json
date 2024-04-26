@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@mml-io/model-loader": "0.14.0",
-    "@mml-io/3d-web-avatar": "^0.15.0",
+    "@mml-io/3d-web-avatar": "0.15.0",
     "@monogrid/gainmap-js": "^3.0.5",
     "@tweakpane/core": "2.0.3",
     "@tweakpane/plugin-essentials": "0.2.1",
