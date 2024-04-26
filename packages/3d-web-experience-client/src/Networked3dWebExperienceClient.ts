@@ -33,11 +33,30 @@ import {
 } from "mml-web";
 import { AudioListener, Euler, Scene, Vector3 } from "three";
 
+type MMLDocumentConfiguration = {
+  url: string;
+  position?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  rotation?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  scale?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+};
+
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
-  chatNetworkAddress: string;
+  chatNetworkAddress?: string;
   userNetworkAddress: string;
-  mmlDocumentAddresses: string[];
+  mmlDocuments?: Array<MMLDocumentConfiguration>;
   animationConfig: AnimationConfig;
   hdrJpgUrl: string;
 };
@@ -275,21 +294,21 @@ export class Networked3dWebExperienceClient {
     if (this.clientId === null) {
       return;
     }
-    const user = this.userProfiles.get(this.clientId);
-    if (!user) {
-      throw new Error("User not found");
-    }
+    if (this.networkChat === null && this.config.chatNetworkAddress) {
+      const user = this.userProfiles.get(this.clientId);
+      if (!user) {
+        throw new Error("User not found");
+      }
 
-    if (this.textChatUI === null) {
-      this.textChatUI = new TextChatUI(
-        this.element,
-        user.username,
-        this.sendChatMessageToServer.bind(this),
-      );
-      this.textChatUI.init();
-    }
+      if (this.textChatUI === null) {
+        this.textChatUI = new TextChatUI(
+          this.element,
+          user.username,
+          this.sendChatMessageToServer.bind(this),
+        );
+        this.textChatUI.init();
+      }
 
-    if (this.networkChat === null) {
       this.networkChat = new ChatNetworkingClient({
         url: this.config.chatNetworkAddress,
         sessionToken: this.config.sessionToken,
@@ -379,10 +398,33 @@ export class Networked3dWebExperienceClient {
     this.scene.add(this.mmlCompositionScene.group);
     setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
 
-    for (const address of this.config.mmlDocumentAddresses) {
-      const frameElement = document.createElement("m-frame");
-      frameElement.setAttribute("src", address);
-      document.body.appendChild(frameElement);
+    if (this.config.mmlDocuments) {
+      for (const mmlDocument of this.config.mmlDocuments) {
+        const frameElement = document.createElement("m-frame");
+        frameElement.setAttribute("src", mmlDocument.url);
+        if (mmlDocument.position) {
+          frameElement.setAttribute("x", mmlDocument.position.x.toString());
+          frameElement.setAttribute("y", mmlDocument.position.y.toString());
+          frameElement.setAttribute("z", mmlDocument.position.z.toString());
+        }
+        if (mmlDocument.rotation) {
+          frameElement.setAttribute("rx", mmlDocument.rotation.x.toString());
+          frameElement.setAttribute("ry", mmlDocument.rotation.y.toString());
+          frameElement.setAttribute("rz", mmlDocument.rotation.z.toString());
+        }
+        if (mmlDocument.scale) {
+          if (mmlDocument.scale.x !== undefined) {
+            frameElement.setAttribute("sx", mmlDocument.scale.x.toString());
+          }
+          if (mmlDocument.scale.y !== undefined) {
+            frameElement.setAttribute("sy", mmlDocument.scale.y.toString());
+          }
+          if (mmlDocument.scale.z !== undefined) {
+            frameElement.setAttribute("sz", mmlDocument.scale.z.toString());
+          }
+        }
+        document.body.appendChild(frameElement);
+      }
     }
 
     const mmlProgressManager = this.mmlCompositionScene.mmlScene.getLoadingProgressManager!()!;
