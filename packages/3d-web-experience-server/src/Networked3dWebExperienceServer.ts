@@ -5,9 +5,8 @@ import express from "express";
 import enableWs from "express-ws";
 import WebSocket from "ws";
 
-import { websocketDirectoryChangeListener } from "../../../utils/websocketDirectoryChangeListener";
-
 import { MMLDocumentsServer } from "./MMLDocumentsServer";
+import { websocketDirectoryChangeListener } from "./websocketDirectoryChangeListener";
 
 type UserAuthenticator = {
   generateAuthorizedSessionToken(req: express.Request): string | null;
@@ -60,11 +59,13 @@ export class Networked3dWebExperienceServer {
       this.mmlDocumentsServer = new MMLDocumentsServer(this.config.mmlServing.documentsWatchPath);
     }
 
-    this.chatNetworkingServer = new ChatNetworkingServer({
-      getChatUserIdentity: (sessionToken: string) => {
-        return this.config.userAuthenticator.getClientIdForSessionToken(sessionToken);
-      },
-    });
+    if (this.config.chatNetworkPath) {
+      this.chatNetworkingServer = new ChatNetworkingServer({
+        getChatUserIdentity: (sessionToken: string) => {
+          return this.config.userAuthenticator.getClientIdForSessionToken(sessionToken);
+        },
+      });
+    }
 
     this.userNetworkingServer = new UserNetworkingServer({
       onClientConnect: (

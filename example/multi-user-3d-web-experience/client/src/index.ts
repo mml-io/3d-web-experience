@@ -23,6 +23,6 @@ const app = new Networked3dWebExperienceClient(holder, {
     sprintAnimationFileUrl,
   },
   hdrJpgUrl,
-  mmlDocumentAddresses: [`${protocol}//${host}/mml-documents/example-mml.html`],
+  mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/example-mml.html` }],
 });
 app.update();
