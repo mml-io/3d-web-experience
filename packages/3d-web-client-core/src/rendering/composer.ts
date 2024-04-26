@@ -348,16 +348,23 @@ export class Composer {
     if (!this.renderer) return;
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = ".hdr";
+    fileInput.accept = ".hdr,.jpg";
     fileInput.addEventListener("change", () => {
       const file = fileInput.files?.[0];
       if (!file) {
         console.log("no file");
         return;
       }
+      const extension = file.name.split(".").pop();
       const fileURL = URL.createObjectURL(file);
       if (fileURL) {
-        this.useHDRI(fileURL, true);
+        if (extension === "hdr") {
+          this.useHDRI(fileURL, true);
+        } else if (extension === "jpg") {
+          this.useHDRJPG(fileURL);
+        } else {
+          console.error(`Unrecognized extension for HDR file ${file.name}`);
+        }
         URL.revokeObjectURL(fileURL);
         document.body.removeChild(fileInput);
       }
