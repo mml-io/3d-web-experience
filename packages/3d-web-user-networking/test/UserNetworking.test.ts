@@ -91,7 +91,7 @@ describe("UserNetworking", () => {
     expect(await user1IdentityPromise).toEqual(1);
 
     await waitUntil(
-      () => (server as any).allClients.size === 1,
+      () => (server as any).allClientsById.size === 1,
       "wait for server to see the presence of user 1",
     );
 
@@ -138,7 +138,7 @@ describe("UserNetworking", () => {
     expect(await user2IdentityPromise).toEqual(2);
 
     await waitUntil(
-      () => (server as any).allClients.size === 2,
+      () => (server as any).allClientsById.size === 2,
       "wait for server to see the presence of user 2",
     );
 
@@ -209,7 +209,7 @@ describe("UserNetworking", () => {
     user2.stop();
 
     await waitUntil(
-      () => (server as any).allClients.size === 1,
+      () => (server as any).allClientsById.size === 1,
       "wait for server to see the removal of user 2",
     );
 
@@ -221,7 +221,7 @@ describe("UserNetworking", () => {
     user1.stop();
 
     await waitUntil(
-      () => (server as any).allClients.size === 0,
+      () => (server as any).allClientsById.size === 0,
       "wait for server to see the removal of user 1",
     );
 
