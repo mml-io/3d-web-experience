@@ -41,7 +41,7 @@ export type UserNetworkingServerOptions = {
 };
 
 export class UserNetworkingServer {
-  private allClients = new Set<Client>();
+  private allClientsById = new Map<number, Client>();
   private authenticatedClientsById: Map<number, Client> = new Map();
 
   constructor(private options: UserNetworkingServerOptions) {
@@ -52,7 +52,7 @@ export class UserNetworkingServer {
 
   private heartBeat() {
     const now = Date.now();
-    this.allClients.forEach((client) => {
+    this.allClientsById.forEach((client) => {
       if (now - client.lastPong > heartBeatRate) {
         client.socket.close();
         this.handleDisconnectedClient(client);
@@ -70,7 +70,7 @@ export class UserNetworkingServer {
 
   private getId(): number {
     let id = 1;
-    while (this.authenticatedClientsById.has(id)) {
+    while (this.allClientsById.has(id)) {
       id++;
     }
     return id;
@@ -93,7 +93,7 @@ export class UserNetworkingServer {
         state: 0,
       },
     };
-    this.allClients.add(client);
+    this.allClientsById.set(id, client);
 
     socket.on("message", (message: WebSocket.Data, _isBinary: boolean) => {
       if (message instanceof Buffer) {
@@ -147,10 +147,10 @@ export class UserNetworkingServer {
   }
 
   private handleDisconnectedClient(client: Client) {
-    if (!this.allClients.has(client)) {
+    if (!this.allClientsById.has(client.id)) {
       return;
     }
-    this.allClients.delete(client);
+    this.allClientsById.delete(client.id);
     if (client.authenticatedUser !== null) {
       // Only report disconnections of clients that were authenticated
       this.options.onClientDisconnect(client.id);
