@@ -325,6 +325,7 @@ export class Composer {
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.effectComposer.render();
+    this.renderer.clearDepth();
     this.renderer.render(this.postPostScene, this.camera);
   }
 
