@@ -32,13 +32,16 @@ import {
   Vector2,
   WebGLRenderer,
   EquirectangularReflectionMapping,
+  MathUtils,
+  Vector3,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues } from "../tweakpane/blades/environmentFolder";
+import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -90,6 +93,11 @@ export class Composer {
 
   private ambientLight: AmbientLight | null = null;
 
+  private sky = new Sky();
+  private skyUniforms = this.sky.material.uniforms;
+  private skyConfig: Record<string, any> = {};
+  private skySun: Vector3 = new Vector3();
+
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
@@ -100,9 +108,7 @@ export class Composer {
     this.spawnSun = spawnSun;
     this.renderer = new WebGLRenderer({
       powerPreference: "high-performance",
-      antialias: false,
-      stencil: false,
-      depth: false,
+      antialias: true,
     });
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.info.autoReset = false;
@@ -111,6 +117,28 @@ export class Composer {
     this.renderer.shadowMap.type = rendererValues.shadowMap as ShadowMapType;
     this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = rendererValues.exposure;
+
+    this.sky.scale.setScalar(450000);
+    this.skyConfig = {
+      turbidity: 0.01,
+      rayleigh: 3,
+      mieCoefficient: 0.005,
+      mieDirectionalG: 0.7,
+      elevation: 5,
+      azimuth: 180,
+      exposure: this.renderer.toneMappingExposure,
+    };
+    // this.scene.add(this.sky);
+
+    this.skyUniforms.turbidity.value = this.skyConfig.turbidity;
+    this.skyUniforms.rayleigh.value = this.skyConfig.rayleigh;
+    this.skyUniforms.mieCoefficient.value = this.skyConfig.mieCoefficient;
+    this.skyUniforms.mieDirectionalG.value = this.skyConfig.mieDirectionalG;
+
+    const phi = MathUtils.degToRad(90 - this.skyConfig.elevation);
+    const theta = MathUtils.degToRad(this.skyConfig.azimuth);
+    this.skySun.setFromSphericalCoords(1, phi, theta);
+    this.skyUniforms.sunPosition.value.copy(this.skySun);
 
     this.setAmbientLight();
     this.setFog();
@@ -124,7 +152,7 @@ export class Composer {
     this.normalPass = new NormalPass(this.scene, this.camera);
     this.normalPass.enabled = ppssaoValues.enabled;
     this.normalTextureEffect = new TextureEffect({
-      blendFunction: BlendFunction.SKIP,
+      blendFunction: BlendFunction.SET,
       texture: this.normalPass.texture,
     });
     this.ppssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
@@ -198,6 +226,7 @@ export class Composer {
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
+
     if (ppssaoValues.enabled) {
       this.effectComposer.addPass(this.normalPass);
       this.effectComposer.addPass(this.ppssaoPass);
@@ -206,8 +235,9 @@ export class Composer {
       this.effectComposer.addPass(this.n8aopass);
     }
     this.effectComposer.addPass(this.fxaaPass);
-    this.effectComposer.addPass(this.smaaPass);
+    // this.effectComposer.addPass(this.smaaPass);
     this.effectComposer.addPass(this.bloomPass);
+
     this.effectComposer.addPass(this.toneMappingPass);
     this.effectComposer.addPass(this.bcsPass);
     this.effectComposer.addPass(this.gaussGrainPass);
@@ -289,12 +319,20 @@ export class Composer {
 
   public render(timeManager: TimeManager): void {
     this.renderer.info.reset();
+    this.setSunPosition();
     this.normalPass.texture.needsUpdate = true;
     this.gaussGrainEffect.uniforms.resolution.value = this.resolution;
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.effectComposer.render();
     this.renderer.render(this.postPostScene, this.camera);
+  }
+
+  public setSunPosition() {
+    const phi = MathUtils.degToRad(sunValues.sunPosition.sunPolarAngle);
+    const theta = MathUtils.degToRad(90 - sunValues.sunPosition.sunAzimuthalAngle);
+    this.skySun.setFromSphericalCoords(1, phi, theta);
+    this.skyUniforms.sunPosition.value.copy(this.skySun);
   }
 
   public useHDRJPG(url: string, fromFile: boolean = false): void {

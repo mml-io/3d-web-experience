@@ -83,14 +83,14 @@ export class TweakPane {
     styleElement.appendChild(document.createTextNode(tweakPaneStyle));
     document.head.appendChild(styleElement);
 
-    this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
+    this.renderStatsFolder = new RendererStatsFolder(this.gui, false);
     this.rendererFolder = new RendererFolder(this.gui, false);
-    this.toneMappingFolder = new ToneMappingFolder(this.gui, false);
+    this.toneMappingFolder = new ToneMappingFolder(this.gui, true);
     this.ssaoFolder = new SSAOFolder(this.gui, false);
     this.bcsFolder = new BrightnessContrastSaturationFolder(this.gui, false);
     this.postExtrasFolder = new PostExtrasFolder(this.gui, false);
     this.character = new CharacterFolder(this.gui, false);
-    this.environment = new EnvironmentFolder(this.gui, false);
+    this.environment = new EnvironmentFolder(this.gui, true);
 
     this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 

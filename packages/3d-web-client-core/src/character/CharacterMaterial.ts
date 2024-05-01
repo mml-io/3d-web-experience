@@ -77,7 +77,7 @@ export class CharacterMaterial extends MeshStandardMaterial {
 
       shader.fragmentShader = injectBefore(
         shader.fragmentShader,
-        "#include <output_fragment>",
+        "#include <dithering_fragment>",
         /* glsl */ `
           if (discardAll == 1) {
             discard;

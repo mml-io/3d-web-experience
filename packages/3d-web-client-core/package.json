@@ -19,12 +19,12 @@
   },
   "dependencies": {
     "@mml-io/model-loader": "0.14.0",
-    "@mml-io/3d-web-avatar": "0.15.0",
+    "@mml-io/3d-web-avatar": "^0.15.0",
     "@monogrid/gainmap-js": "^3.0.5",
     "@tweakpane/core": "2.0.3",
     "@tweakpane/plugin-essentials": "0.2.1",
     "mml-web": "0.14.0",
-    "postprocessing": "6.35.3",
+    "postprocessing": "6.35.4",
     "three-mesh-bvh": "0.7.4",
     "tweakpane": "4.0.3"
   },
