@@ -16,9 +16,9 @@ const canvas = document.createElement("canvas");
 canvas.width = 2;
 canvas.height = 2;
 const ctx = canvas.getContext("2d")!;
-ctx.fillStyle = "#C0C0C0";
+ctx.fillStyle = "#e0e0e0";
 ctx.fillRect(0, 0, 2, 2);
-ctx.fillStyle = "#808080";
+ctx.fillStyle = "#606060";
 ctx.fillRect(0, 0, 1, 1);
 ctx.fillRect(1, 1, 1, 1);
 

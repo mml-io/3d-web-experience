@@ -435,6 +435,8 @@ export class LocalController {
 
   private updateNetworkState(): void {
     const characterQuaternion = this.config.character.getWorldQuaternion(this.tempQuaternion);
+    const cameraQuaternion = new Quaternion();
+    this.config.cameraManager.camera.getWorldQuaternion(cameraQuaternion);
     this.networkState = {
       id: this.config.id,
       position: {
@@ -443,6 +445,15 @@ export class LocalController {
         z: this.config.character.position.z,
       },
       rotation: { quaternionY: characterQuaternion.y, quaternionW: characterQuaternion.w },
+      camPosition: {
+        x: this.config.cameraManager.camera.position.x,
+        y: this.config.cameraManager.camera.position.y,
+        z: this.config.cameraManager.camera.position.z,
+      },
+      camQuaternion: {
+        y: cameraQuaternion.y,
+        w: cameraQuaternion.w,
+      },
       state: this.config.character.getCurrentAnimation(),
     };
   }
