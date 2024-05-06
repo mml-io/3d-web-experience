@@ -81,7 +81,7 @@ export class CharacterSpeakingIndicator {
   }
 
   public setBillboarding(position: Vector3, camera: Camera) {
-    this.mesh.position.set(position.x, position.y - 0.15, position.z);
+    this.mesh.position.set(position.x, position.y, position.z);
     this.mesh.lookAt(camera.position);
   }
 
