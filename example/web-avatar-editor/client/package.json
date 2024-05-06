@@ -1,7 +1,7 @@
 {
   "name": "@example/web-avatar-editor-client",
   "private": true,
-  "version": "0.15.0",
+  "version": "0.16.0",
   "files": [
     "/build"
   ],
@@ -14,6 +14,6 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-standalone-avatar-editor": "0.15.0"
+    "@mml-io/3d-web-standalone-avatar-editor": "^0.16.0"
   }
 }
