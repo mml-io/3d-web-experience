@@ -72,6 +72,11 @@ export class CharacterModel {
   private applyCustomMaterials(): void {
     if (!this.mesh) return;
     this.mesh.traverse((child: Object3D) => {
+      if ((child as Bone).isBone) {
+        if (child.name === "head") {
+          this.headBone = child as Bone;
+        }
+      }
       if ((child as Mesh).isMesh || (child as SkinnedMesh).isSkinnedMesh) {
         const asMesh = child as Mesh;
         const originalMaterial = asMesh.material as MeshStandardMaterial;
