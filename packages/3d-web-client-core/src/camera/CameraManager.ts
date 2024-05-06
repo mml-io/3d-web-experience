@@ -63,7 +63,7 @@ export class CameraManager {
     this.targetPhi = initialPhi;
     this.theta = initialTheta;
     this.targetTheta = initialTheta;
-    this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
+    this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 300);
     this.camera.position.set(0, 1.4, -this.initialDistance);
     this.rayCaster = new Raycaster();
 
