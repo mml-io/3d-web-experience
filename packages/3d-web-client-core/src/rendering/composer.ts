@@ -32,13 +32,16 @@ import {
   Vector2,
   WebGLRenderer,
   EquirectangularReflectionMapping,
+  MathUtils,
+  Vector3,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues } from "../tweakpane/blades/environmentFolder";
+import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -101,8 +104,6 @@ export class Composer {
     this.renderer = new WebGLRenderer({
       powerPreference: "high-performance",
       antialias: false,
-      stencil: false,
-      depth: false,
     });
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.info.autoReset = false;
@@ -127,6 +128,7 @@ export class Composer {
       blendFunction: BlendFunction.SKIP,
       texture: this.normalPass.texture,
     });
+
     this.ppssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
       blendFunction: ppssaoValues.blendFunction,
       distanceScaling: ppssaoValues.distanceScaling,
@@ -195,6 +197,9 @@ export class Composer {
     this.bcs.uniforms.saturation.value = bcsValues.saturation;
 
     this.gaussGrainPass = new ShaderPass(this.gaussGrainEffect, "tDiffuse");
+    this.gaussGrainEffect.uniforms.amount.value = extrasValues.grain;
+    this.gaussGrainEffect.uniforms.alpha.value = 1.0;
+
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
@@ -206,7 +211,6 @@ export class Composer {
       this.effectComposer.addPass(this.n8aopass);
     }
     this.effectComposer.addPass(this.fxaaPass);
-    this.effectComposer.addPass(this.smaaPass);
     this.effectComposer.addPass(this.bloomPass);
     this.effectComposer.addPass(this.toneMappingPass);
     this.effectComposer.addPass(this.bcsPass);
@@ -284,16 +288,16 @@ export class Composer {
     this.bloomPass.setSize(this.width, this.height);
     this.toneMappingPass.setSize(this.width, this.height);
     this.gaussGrainPass.setSize(this.width, this.height);
+    this.gaussGrainEffect.uniforms.resolution.value = new Vector2(this.width, this.height);
     this.renderer.setSize(this.width, this.height);
   }
 
   public render(timeManager: TimeManager): void {
     this.renderer.info.reset();
     this.normalPass.texture.needsUpdate = true;
-    this.gaussGrainEffect.uniforms.resolution.value = this.resolution;
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
-    this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.effectComposer.render();
+    this.renderer.clearDepth();
     this.renderer.render(this.postPostScene, this.camera);
   }
 

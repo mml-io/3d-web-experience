@@ -6,8 +6,8 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 export const rendererValues = {
   shadowMap: 2,
   toneMapping: 5,
-  exposure: 1,
-  bgIntensity: 1,
+  exposure: 1.7,
+  bgIntensity: 0.8,
   bgBlurriness: 0.0,
 };
 
@@ -45,6 +45,8 @@ const setShadowMapType = (value: number): void => {
 
 const setToneMappingType = (value: number): void => {
   monitoredValues.toneMappingType = toneMappingTypes[value];
+  rendererValues.toneMapping = value;
+  console.log(rendererValues.toneMapping);
 };
 
 export class RendererFolder {
@@ -82,7 +84,7 @@ export class RendererFolder {
           break;
         }
         case "toneMapping":
-          renderer.toneMapping = e.value as ToneMapping;
+          const value = e.value as ToneMapping;
           toneMappingFolder.hidden = e.value !== 5;
           toneMappingPass.enabled = e.value === 5 ? true : false;
           setToneMappingType(e.value as ToneMapping);

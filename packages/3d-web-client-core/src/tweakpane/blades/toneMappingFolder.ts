@@ -3,7 +3,7 @@ import { ToneMappingEffect, ToneMappingMode } from "postprocessing";
 import { FolderApi } from "tweakpane";
 
 export const toneMappingValues = {
-  mode: 2 as ToneMappingMode,
+  mode: 7 as ToneMappingMode,
   resolution: 512,
   whitePoint: 32.0,
   middleGrey: 21.0,
@@ -13,21 +13,25 @@ export const toneMappingValues = {
 };
 
 const toneMappingOptions = {
-  mode: { min: 0, max: 4, step: 1 },
+  mode: { min: 0, max: 8, step: 1 },
   resolution: { min: 64, max: 512, step: 64 },
   whitePoint: { min: 0, max: 32, step: 0.01 },
   middleGrey: { min: 0, max: 32, step: 0.01 },
   minLuminance: { min: 0, max: 32, step: 0.001 },
-  averageLuminance: { min: 0.001, max: 0.2, step: 0.001 },
+  averageLuminance: { min: 0.001, max: 2, step: 0.001 },
   adaptationRate: { min: 0.1, max: 2.0, step: 0.1 },
 };
 
 const customToneMappingTypes: Record<number, string> = {
-  0: "REINHARD",
-  1: "REINHARD2",
-  2: "REINHARD2_ADAPTIVE",
-  3: "OPTIMIZED_CINEON",
-  4: "ACES_FILMIC",
+  0: "LINEAR",
+  1: "REINHARD",
+  2: "REINHARD2",
+  3: "REINHARD2_ADAPTIVE",
+  4: "UNCHARTED2",
+  5: "OPTIMIZED_CINEON",
+  6: "ACES_FILMIC",
+  7: "AGX",
+  8: "NEUTRAL",
 };
 
 const customToneMappingBlade = {
@@ -57,13 +61,13 @@ export class ToneMappingFolder {
       "minLuminance",
       toneMappingOptions.minLuminance,
     );
-    this.minLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
+    this.minLuminance.hidden = false; // toneMappingValues.mode === 2 ? true : false;
     this.avgLuminance = this.folder.addBinding(
       toneMappingValues,
       "averageLuminance",
       toneMappingOptions.averageLuminance,
     );
-    this.avgLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
+    this.avgLuminance.hidden = false; // FtoneMappingValues.mode === 2 ? true : false;
     this.folder.addBinding(toneMappingValues, "adaptationRate", toneMappingOptions.adaptationRate);
   }
 
@@ -72,8 +76,8 @@ export class ToneMappingFolder {
       const target = (e.target as any).key;
       if (!target) return;
       if (target === "mode") {
-        this.minLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
-        this.avgLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
+        // this.minLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
+        // this.avgLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
         setCustomToneMappingType(e.value as number);
       }
       (toneMappingEffect as any)[target] = e.value;
