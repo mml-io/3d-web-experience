@@ -136,6 +136,7 @@ export class Networked3dWebExperienceClient {
       this.composer.renderer,
       this.scene,
       this.composer.effectComposer,
+      this.collisionsManager.toggleDebug,
     );
     this.composer.setupTweakPane(this.tweakPane);
 
