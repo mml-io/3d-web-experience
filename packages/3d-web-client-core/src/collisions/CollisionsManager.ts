@@ -64,6 +64,38 @@ export class CollisionsManager {
   constructor(scene: Scene) {
     this.scene = scene;
     this.collisionTrigger = MMLCollisionTrigger.init();
+    this.toggleDebug = this.toggleDebug.bind(this);
+  }
+
+  public toggleDebug() {
+    this.debug = !this.debug;
+
+    this.collisionMeshState.forEach((meshState) => {
+      if (this.debug) {
+        if (!meshState.debugGroup) {
+          meshState.debugGroup = this.createDebugVisuals(meshState);
+          this.scene.add(meshState.debugGroup);
+        }
+      } else {
+        if (meshState.debugGroup) {
+          this.scene.remove(meshState.debugGroup);
+          // Dispose of all resources used by the debug visuals, including materials and geometries.
+          meshState.debugGroup.traverse((object) => {
+            // Because MeshBVH can have its own variable complexity in terms of creating geometries
+            // and materials for its Helper, insteach of checking for instanceof Meshes and disposing
+            // their materials and geometries, we'll check for the existence of a dispose() function.
+            // During tests, this revealed to be safe, and an effective way to toggle the debug
+            // on and off while ending up with the original number of geometries on the scene, with no
+            // leftovers (no memory leak).
+            if (typeof (object as any).dispose === "function") {
+              (object as any).dispose();
+            }
+          });
+          meshState.debugGroup.clear();
+          meshState.debugGroup = undefined;
+        }
+      }
+    });
   }
 
   public raycastFirst(
@@ -120,6 +152,31 @@ export class CollisionsManager {
     return [minimumDistance, minimumNormal, minimumHit, minimumPoint];
   }
 
+  private createDebugVisuals(meshState: CollisionMeshState): Group {
+    const geometry = meshState.meshBVH.geometry;
+
+    // Cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
+    (geometry as any).boundsTree = meshState.meshBVH;
+    const wireframeMesh = new Mesh(geometry, new MeshBasicMaterial({ wireframe: true }));
+    wireframeMesh.name = "wireframe mesh";
+    const normalsHelper = new VertexNormalsHelper(wireframeMesh, 0.25, 0x00ff00);
+    normalsHelper.name = "normals helper";
+    const visualizer = new MeshBVHHelper(wireframeMesh, 4);
+    visualizer.name = "meshBVH visualizer";
+    (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
+
+    const debugGroup = new Group();
+    debugGroup.add(wireframeMesh, normalsHelper, visualizer as unknown as Object3D);
+    meshState.source.matrixWorld.decompose(
+      debugGroup.position,
+      debugGroup.quaternion,
+      debugGroup.scale,
+    );
+    visualizer.update();
+
+    return debugGroup;
+  }
+
   private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
     const geometries: Array<BufferGeometry> = [];
     group.updateWorldMatrix(true, false);
@@ -174,26 +231,15 @@ export class CollisionsManager {
       meshBVH,
       matrix: new Matr4(group.matrixWorld.elements),
       trackCollisions,
+      debugGroup: this.debug
+        ? this.createDebugVisuals({
+            source: group,
+            meshBVH: meshBVH,
+            matrix: group.matrixWorld.clone(),
+            trackCollisions,
+          })
+        : undefined,
     };
-    if (this.debug) {
-      // Have to cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
-      (newBufferGeometry as any).boundsTree = meshBVH;
-
-      const wireframeMesh = new Mesh(newBufferGeometry, new MeshBasicMaterial({ wireframe: true }));
-
-      const normalsHelper = new VertexNormalsHelper(wireframeMesh, 0.25, 0x00ff00);
-
-      const visualizer = new MeshBVHHelper(wireframeMesh, 4);
-      (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
-
-      const debugGroup = new Group();
-      debugGroup.add(wireframeMesh, normalsHelper, visualizer as unknown as Object3D);
-
-      group.matrixWorld.decompose(debugGroup.position, debugGroup.quaternion, debugGroup.scale);
-      visualizer.update();
-
-      meshState.debugGroup = debugGroup;
-    }
     return meshState;
   }
 
