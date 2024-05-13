@@ -31,11 +31,10 @@ export type CharacterManagerConfig = {
     username: string;
     characterDescription: CharacterDescription;
   };
+  updateLocationHash?: boolean;
 };
 
 export class CharacterManager {
-  private updateLocationHash = true;
-
   public readonly headTargetOffset = new Vector3(0, 1.3, 0);
 
   private localClientId: number = 0;
@@ -234,7 +233,7 @@ export class CharacterManager {
         }
       }
 
-      if (this.updateLocationHash && this.config.timeManager.frame % 60 === 0) {
+      if (this.config.updateLocationHash && this.config.timeManager.frame % 60 === 0) {
         window.location.hash = encodeCharacterAndCamera(
           this.localCharacter,
           this.config.cameraManager.camera,
