@@ -207,6 +207,7 @@ export class Networked3dWebExperienceClient {
       characterResolve: (characterId: number) => {
         return this.resolveCharacterData(characterId);
       },
+      updateLocationHash: true,
     });
     this.scene.add(this.characterManager.group);
 
