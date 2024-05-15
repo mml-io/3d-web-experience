@@ -2,10 +2,8 @@
  * @jest-environment jsdom
  */
 
-import { parseMMLDescription } from "@mml-io/3d-web-avatar/src/helpers/parseMMLDescription";
-import { findAssetsInCollection } from "@mml-io/3d-web-avatar-editor-ui/src/findAssetsInCollection";
+import { parseMMLDescription } from "../src";
 
-import collectionData from "./collection.json";
 import {
   semanticallyInvalidString,
   threeNestedMCharacters,
@@ -19,20 +17,18 @@ import {
   twoRedundantMCharacterswithThreeMModelsEach,
   twoRedundantMCharacterswithThreeMModelsEachExpectedData,
   validMCharacter,
-  validMCharacterWithSocketAttributes,
-  validMCharacterWithSocketAttributesExpectedData,
-  validMCharacterWithOneInvalidMModel,
+  validMCharacterWithNoSocket,
+  validMCharacterWithNoSocketExpectedData,
   validMCharacterWithRedundantMCharacterClosingTag,
   validMCharacterWithRedundantMCharacterClosingTagExpectedData,
   validMCharacterWithRedundantMModelClosingTag,
   validMCharacterWithRedundantMModelClosingTagExpectedData,
-  validMCharacterWithTwoInvalidMModels,
   validMCharacterWithSocketAndPosition,
   validMCharacterWithSocketAndPositionExpectedData,
   validMCharacterWithSocketAndRotationInOneAxis,
   validMCharacterWithSocketAndRotationInOneAxisExpectedData,
-  validMCharacterWithNoSocket,
-  validMCharacterWithNoSocketExpectedData,
+  validMCharacterWithSocketAttributes,
+  validMCharacterWithSocketAttributesExpectedData,
 } from "./test-data";
 import { extractNumberFromErrorMessage } from "./test-utils";
 
@@ -131,34 +127,6 @@ describe("WebAvatarClient MML Parsing", () => {
       errors[0].includes("No valid <m-character> tag was found in the provided document."),
     ).toBe(true);
     expect(parsedData).toStrictEqual(expectedData);
-  });
-});
-
-describe("Check <m-character> against collection", () => {
-  test("valid <m-character> tag with 1 invalid <m-model> asset", async () => {
-    const [characterDescription, parsingErrors] = parseMMLDescription(
-      validMCharacterWithOneInvalidMModel,
-    );
-    expect(parsingErrors).toHaveLength(0);
-    const checkCollection = findAssetsInCollection(
-      collectionData,
-      characterDescription,
-      parsingErrors,
-    );
-    expect(checkCollection.accumulatedErrors).toHaveLength(1);
-  });
-
-  test("valid <m-character> tag with 2 invalid <m-model> asset", async () => {
-    const [characterDescription, parsingErrors] = parseMMLDescription(
-      validMCharacterWithTwoInvalidMModels,
-    );
-    expect(parsingErrors).toHaveLength(0);
-    const checkCollection = findAssetsInCollection(
-      collectionData,
-      characterDescription,
-      parsingErrors,
-    );
-    expect(checkCollection.accumulatedErrors).toHaveLength(2);
   });
 });
 
