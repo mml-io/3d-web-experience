@@ -96,6 +96,11 @@ export class Networked3dWebExperienceServer {
     });
   }
 
+  public updateUserCharacter(clientId: number, userData: UserData) {
+    console.log(`Initiate server-side update of client ${clientId}`);
+    this.userNetworkingServer.updateUserCharacter(clientId, userData);
+  }
+
   registerExpressRoutes(app: enableWs.Application) {
     app.ws(this.config.networkPath, (ws) => {
       this.userNetworkingServer.connectClient(ws);
