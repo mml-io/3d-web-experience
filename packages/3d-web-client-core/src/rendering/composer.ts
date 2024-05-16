@@ -33,15 +33,14 @@ import {
   WebGLRenderer,
   EquirectangularReflectionMapping,
   MathUtils,
-  Vector3,
+  Euler,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
+import { envValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -112,6 +111,9 @@ export class Composer {
     this.renderer.shadowMap.type = rendererValues.shadowMap as ShadowMapType;
     this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = rendererValues.exposure;
+
+    this.scene.backgroundIntensity = envValues.hdrIntensity;
+    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
 
     this.setAmbientLight();
     this.setFog();
@@ -243,6 +245,8 @@ export class Composer {
       this.spawnSun,
       this.sun,
       this.setHDRIFromFile.bind(this),
+      this.setHDRAzimuthalAngle.bind(this),
+      this.setHDRPolarAngle.bind(this),
       this.setAmbientLight.bind(this),
       this.setFog.bind(this),
     );
@@ -301,6 +305,22 @@ export class Composer {
     this.renderer.render(this.postPostScene, this.camera);
   }
 
+  public setHDRAzimuthalAngle(azimuthalAngle: number) {
+    this.scene.backgroundRotation = new Euler(
+      MathUtils.degToRad(envValues.hdrPolarAngle),
+      MathUtils.degToRad(azimuthalAngle),
+      0,
+    );
+  }
+
+  public setHDRPolarAngle(polarAngle: number) {
+    this.scene.backgroundRotation = new Euler(
+      MathUtils.degToRad(polarAngle),
+      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+      0,
+    );
+  }
+
   public useHDRJPG(url: string, fromFile: boolean = false): void {
     const pmremGenerator = new PMREMGenerator(this.renderer);
     const hdrJpg = new HDRJPGLoader(this.renderer).load(url, () => {
@@ -314,7 +334,13 @@ export class Composer {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
         this.scene.background = envMap;
-        this.scene.backgroundIntensity = rendererValues.bgIntensity;
+        this.scene.backgroundIntensity = envValues.hdrIntensity;
+        this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+        this.scene.backgroundRotation = new Euler(
+          MathUtils.degToRad(envValues.hdrPolarAngle),
+          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          0,
+        );
         this.isEnvHDRI = true;
         hdrJpgEquirectangularMap.dispose();
         pmremGenerator!.dispose();
@@ -335,7 +361,8 @@ export class Composer {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
           this.scene.background = envMap;
-          this.scene.backgroundIntensity = rendererValues.bgIntensity;
+          this.scene.backgroundIntensity = envValues.hdrIntensity;
+          this.scene.backgroundBlurriness = envValues.hdrBlurriness;
           this.isEnvHDRI = true;
           texture.dispose();
           pmremGenerator!.dispose();

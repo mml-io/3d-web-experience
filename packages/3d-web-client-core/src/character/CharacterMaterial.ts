@@ -120,7 +120,7 @@ export class CharacterMaterial extends MeshStandardMaterial {
 
   public update() {
     if (this.config.isLocal) {
-      this.targetAlpha = this.config.cameraManager.targetDistance < 0.4 ? 0.0 : 1.0;
+      this.targetAlpha = this.config.cameraManager.distance < 0.4 ? 0.0 : 1.0;
       this.currentAlpha += ease(this.targetAlpha, this.currentAlpha, 0.07);
       if (this.currentAlpha > 0.999) {
         this.currentAlpha = 1;
