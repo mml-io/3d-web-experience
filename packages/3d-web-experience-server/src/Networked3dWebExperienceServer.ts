@@ -9,7 +9,7 @@ import { MMLDocumentsServer } from "./MMLDocumentsServer";
 import { websocketDirectoryChangeListener } from "./websocketDirectoryChangeListener";
 
 type UserAuthenticator = {
-  generateAuthorizedSessionToken(req: express.Request): string | null;
+  generateAuthorizedSessionToken(req: express.Request): Promise<string | null>;
   getClientIdForSessionToken: (sessionToken: string) => {
     id: number;
   } | null;
@@ -110,8 +110,8 @@ export class Networked3dWebExperienceServer {
 
     const webClientServing = this.config.webClientServing;
     if (webClientServing) {
-      app.get(webClientServing.indexUrl, (req: express.Request, res: express.Response) => {
-        const token = this.config.userAuthenticator.generateAuthorizedSessionToken(req);
+      app.get(webClientServing.indexUrl, async (req: express.Request, res: express.Response) => {
+        const token = await this.config.userAuthenticator.generateAuthorizedSessionToken(req);
         if (!token) {
           res.send("Error: Could not generate token");
           return;
