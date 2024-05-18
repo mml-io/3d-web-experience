@@ -17,7 +17,7 @@ type UserAuthenticator = {
     clientId: number,
     sessionToken: string,
     userIdentityPresentedOnConnection?: UserIdentity,
-  ): UserData | null;
+  ): Promise<UserData | null> | UserData | null;
   onClientUserIdentityUpdate(clientId: number, userIdentity: UserIdentity): UserData | null;
   onClientDisconnect(clientId: number): void;
 };
@@ -72,7 +72,7 @@ export class Networked3dWebExperienceServer {
         clientId: number,
         sessionToken: string,
         userIdentityPresentedOnConnection?: UserIdentity,
-      ): UserData | null => {
+      ): Promise<UserData | null> | UserData | null => {
         return this.config.userAuthenticator.onClientConnect(
           clientId,
           sessionToken,
