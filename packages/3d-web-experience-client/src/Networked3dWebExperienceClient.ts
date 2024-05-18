@@ -55,6 +55,7 @@ type MMLDocumentConfiguration = {
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
+  voiceChatAddress?: string;
   userNetworkAddress: string;
   mmlDocuments?: Array<MMLDocumentConfiguration>;
   animationConfig: AnimationConfig;
@@ -281,13 +282,15 @@ export class Networked3dWebExperienceClient {
   private connectToVoiceChat() {
     if (this.clientId === null) return;
 
-    if (this.voiceChatManager === null) {
-      this.voiceChatManager = new VoiceChatManager(
-        this.element,
-        this.clientId,
-        this.remoteUserStates,
-        this.latestCharacterObject,
-      );
+    if (this.voiceChatManager === null && this.config.voiceChatAddress) {
+      this.voiceChatManager = new VoiceChatManager({
+        url: this.config.voiceChatAddress,
+        holderElement: this.element,
+        userId: this.clientId,
+        remoteUserStates: this.remoteUserStates,
+        latestCharacterObj: this.latestCharacterObject,
+        autoJoin: false,
+      });
     }
   }
 
