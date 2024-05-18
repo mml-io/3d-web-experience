@@ -50,22 +50,24 @@ export class CharacterModel {
 
   public async init(): Promise<void> {
     await this.loadMainMesh();
-    await this.setAnimationFromFile(
-      this.config.animationConfig.idleAnimationFileUrl,
-      AnimationState.idle,
-    );
-    await this.setAnimationFromFile(
-      this.config.animationConfig.jogAnimationFileUrl,
-      AnimationState.walking,
-    );
-    await this.setAnimationFromFile(
-      this.config.animationConfig.sprintAnimationFileUrl,
-      AnimationState.running,
-    );
-    await this.setAnimationFromFile(
-      this.config.animationConfig.airAnimationFileUrl,
-      AnimationState.air,
-    );
+    await Promise.all([
+      this.setAnimationFromFile(
+        this.config.animationConfig.idleAnimationFileUrl,
+        AnimationState.idle,
+      ),
+      this.setAnimationFromFile(
+        this.config.animationConfig.jogAnimationFileUrl,
+        AnimationState.walking,
+      ),
+      this.setAnimationFromFile(
+        this.config.animationConfig.sprintAnimationFileUrl,
+        AnimationState.running,
+      ),
+      this.setAnimationFromFile(
+        this.config.animationConfig.airAnimationFileUrl,
+        AnimationState.air,
+      ),
+    ]);
     this.applyCustomMaterials();
   }
 
