@@ -4,30 +4,33 @@ import { CollisionsManager } from "../collisions/CollisionsManager";
 import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
 import { VirtualJoystick } from "../input/VirtualJoystick";
+import { camValues } from "../tweakpane/blades/cameraFolder";
+import { TweakPane } from "../tweakpane/TweakPane";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
 export class CameraManager {
   public readonly camera: PerspectiveCamera;
 
-  public initialDistance: number = 3.3;
+  public initialDistance: number = camValues.initialDistance;
+  public minDistance: number = camValues.minDistance;
+  public maxDistance: number = camValues.maxDistance;
+  public initialFOV: number = camValues.initialFOV;
+  public maxFOV: number = camValues.maxFOV;
+  public minFOV: number = camValues.minFOV;
+  public damping: number = camValues.damping;
+  public dampingScale: number = 0.01;
+  public zoomScale: number = camValues.zoomScale;
+  public invertFOVMapping: boolean = camValues.invertFOVMapping;
+  public fov: number = this.initialFOV;
 
-  private minDistance: number = 0.1;
-  private maxDistance: number = 8;
-
-  private initialFOV: number = 60;
-  private fov: number = this.initialFOV;
-  private minFOV: number = 85;
-  private maxFOV: number = 60;
   private targetFOV: number = this.initialFOV;
 
   public minPolarAngle: number = Math.PI * 0.25;
   private maxPolarAngle: number = Math.PI * 0.95;
 
-  private dampingFactor: number = 0.091;
-
   public targetDistance: number = this.initialDistance;
-  private distance: number = this.initialDistance;
-  private desiredDistance: number = this.initialDistance;
+  public distance: number = this.initialDistance;
+  public desiredDistance: number = this.initialDistance;
 
   private targetPhi: number | null;
   private phi: number = Math.PI / 2;
@@ -89,6 +92,10 @@ export class CameraManager {
     }
   }
 
+  public setupTweakPane(tweakPane: TweakPane) {
+    tweakPane.setupCamPane(this);
+  }
+
   private onTouchStart(evt: TouchEvent): void {
     Array.from(evt.touches).forEach((touch) => {
       this.dragging = true;
@@ -112,8 +119,8 @@ export class CameraManager {
       this.lastTouchY = touch.clientY;
 
       if (this.targetTheta !== null && this.targetPhi !== null) {
-        this.targetTheta += dx * 0.01;
-        this.targetPhi -= dy * 0.01;
+        this.targetTheta += dx * this.dampingScale;
+        this.targetPhi -= dy * this.dampingScale;
         this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
       }
     }
@@ -140,14 +147,14 @@ export class CameraManager {
   private onMouseMove(event: MouseEvent): void {
     if (!this.dragging || getTweakpaneActive()) return;
     if (this.targetTheta === null || this.targetPhi === null) return;
-    this.targetTheta += event.movementX * 0.01;
-    this.targetPhi -= event.movementY * 0.01;
+    this.targetTheta += event.movementX * this.dampingScale;
+    this.targetPhi -= event.movementY * this.dampingScale;
     this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
     event.preventDefault();
   }
 
   private onMouseWheel(event: WheelEvent): void {
-    const scrollAmount = event.deltaY * 0.001;
+    const scrollAmount = event.deltaY * this.zoomScale * 0.1;
     this.targetDistance += scrollAmount;
     this.targetDistance = Math.max(
       this.minDistance,
@@ -190,14 +197,7 @@ export class CameraManager {
     this.theta = this.targetTheta;
     this.distance = this.targetDistance;
     this.desiredDistance = this.targetDistance;
-    this.targetFOV = remap(
-      this.targetDistance,
-      this.minDistance,
-      this.maxDistance,
-      this.minFOV,
-      this.maxFOV,
-    );
-    this.fov = this.targetFOV;
+    this.recomputeFoV(true);
   }
 
   public adjustCameraPosition(): void {
@@ -222,7 +222,7 @@ export class CameraManager {
       this.targetDistance = cameraToPlayerDistance - firstRaycastHit[0];
       this.distance = this.targetDistance;
     } else {
-      this.targetDistance += (this.desiredDistance - this.targetDistance) * this.dampingFactor * 4;
+      this.targetDistance += (this.desiredDistance - this.targetDistance) * this.damping * 4;
     }
   }
 
@@ -236,6 +236,19 @@ export class CameraManager {
 
   public updateAspect(aspect: number): void {
     this.camera.aspect = aspect;
+  }
+
+  public recomputeFoV(immediately: boolean = false): void {
+    this.targetFOV = remap(
+      this.targetDistance,
+      this.minDistance,
+      this.maxDistance,
+      this.invertFOVMapping ? this.minFOV : this.maxFOV,
+      this.invertFOVMapping ? this.maxFOV : this.minFOV,
+    );
+    if (immediately) {
+      this.fov = this.targetFOV;
+    }
   }
 
   public update(): void {
@@ -253,22 +266,16 @@ export class CameraManager {
       this.theta !== null &&
       this.targetTheta !== null
     ) {
-      this.distance += (this.targetDistance - this.distance) * this.dampingFactor * 0.21;
-      this.phi += (this.targetPhi - this.phi) * this.dampingFactor;
-      this.theta += (this.targetTheta - this.theta) * this.dampingFactor;
+      this.distance += (this.targetDistance - this.distance) * this.damping * 0.21;
+      this.phi += (this.targetPhi - this.phi) * this.damping;
+      this.theta += (this.targetTheta - this.theta) * this.damping;
 
       const x = this.target.x + this.distance * Math.sin(this.phi) * Math.cos(this.theta);
       const y = this.target.y + this.distance * Math.cos(this.phi);
       const z = this.target.z + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
 
-      this.targetFOV = remap(
-        this.targetDistance,
-        this.minDistance,
-        this.maxDistance,
-        this.minFOV,
-        this.maxFOV,
-      );
-      this.fov += (this.targetFOV - this.fov) * this.dampingFactor;
+      this.recomputeFoV();
+      this.fov += (this.targetFOV - this.fov) * this.damping;
       this.camera.fov = this.fov;
       this.camera.updateProjectionMatrix();
 

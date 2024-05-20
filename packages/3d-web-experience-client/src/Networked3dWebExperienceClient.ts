@@ -138,6 +138,7 @@ export class Networked3dWebExperienceClient {
       this.scene,
       this.composer.effectComposer,
     );
+    this.cameraManager.setupTweakPane(this.tweakPane);
     this.composer.setupTweakPane(this.tweakPane);
 
     const resizeObserver = new ResizeObserver(() => {
@@ -346,6 +347,7 @@ export class Networked3dWebExperienceClient {
     this.composer.render(this.timeManager);
     if (this.tweakPane.guiVisible) {
       this.tweakPane.updateStats(this.timeManager);
+      this.tweakPane.updateCameraData(this.cameraManager);
     }
     requestAnimationFrame(() => {
       this.update();
