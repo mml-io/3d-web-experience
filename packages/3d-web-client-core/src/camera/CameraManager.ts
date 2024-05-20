@@ -20,6 +20,7 @@ export class CameraManager {
   public damping: number = camValues.damping;
   public dampingScale: number = 0.01;
   public zoomScale: number = camValues.zoomScale;
+  public zoomDamping: number = camValues.zoomDamping;
   public invertFOVMapping: boolean = camValues.invertFOVMapping;
   public fov: number = this.initialFOV;
 
@@ -66,7 +67,7 @@ export class CameraManager {
     this.targetPhi = initialPhi;
     this.theta = initialTheta;
     this.targetTheta = initialTheta;
-    this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 300);
+    this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
     this.rayCaster = new Raycaster();
 
@@ -77,6 +78,7 @@ export class CameraManager {
       [document, "mouseup", this.onMouseUp.bind(this)],
       [document, "mousemove", this.onMouseMove.bind(this)],
       [targetElement, "wheel", this.onMouseWheel.bind(this)],
+      [targetElement, "contextmenu", this.onContextMenu.bind(this)],
     ]);
 
     if (this.hasTouchControl) {
@@ -136,21 +138,30 @@ export class CameraManager {
     }
   }
 
-  private onMouseDown(): void {
-    this.dragging = true;
+  private onMouseDown(event: MouseEvent): void {
+    if (event.button === 0 || event.button === 2) {
+      // Left or right mouse button
+      this.dragging = true;
+      document.body.style.cursor = "none";
+    }
   }
 
-  private onMouseUp(_event: MouseEvent): void {
-    this.dragging = false;
+  private onMouseUp(event: MouseEvent): void {
+    if (event.button === 0 || event.button === 2) {
+      this.dragging = false;
+      document.body.style.cursor = "default";
+    }
   }
 
   private onMouseMove(event: MouseEvent): void {
-    if (!this.dragging || getTweakpaneActive()) return;
-    if (this.targetTheta === null || this.targetPhi === null) return;
-    this.targetTheta += event.movementX * this.dampingScale;
-    this.targetPhi -= event.movementY * this.dampingScale;
-    this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
-    event.preventDefault();
+    if (getTweakpaneActive()) return;
+    if (this.dragging) {
+      if (this.targetTheta === null || this.targetPhi === null) return;
+      this.targetTheta += event.movementX * this.dampingScale;
+      this.targetPhi -= event.movementY * this.dampingScale;
+      this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
+      event.preventDefault();
+    }
   }
 
   private onMouseWheel(event: WheelEvent): void {
@@ -161,6 +172,10 @@ export class CameraManager {
       Math.min(this.maxDistance, this.targetDistance),
     );
     this.desiredDistance = this.targetDistance;
+    event.preventDefault();
+  }
+
+  private onContextMenu(event: MouseEvent): void {
     event.preventDefault();
   }
 
@@ -201,13 +216,6 @@ export class CameraManager {
   }
 
   public adjustCameraPosition(): void {
-    /*
-    The purpose for the offsetDistance is to set the rayCaster further from the player
-    than the camera is on the z relative axis, so we can avoid having a camera collider
-    and expensive checks to prevent seeing clipped wals or floors or objects when we
-    readjust the camera. 50cm (the current offset) should get a good balance for most
-    indoor environments
-    */
     const offsetDistance = 0.5;
     const offset = new Vector3(0, 0, offsetDistance);
     offset.applyEuler(this.camera.rotation);
@@ -266,7 +274,8 @@ export class CameraManager {
       this.theta !== null &&
       this.targetTheta !== null
     ) {
-      this.distance += (this.targetDistance - this.distance) * this.damping * 0.21;
+      this.distance +=
+        (this.targetDistance - this.distance) * this.damping * (0.21 + this.zoomDamping);
       this.phi += (this.targetPhi - this.phi) * this.damping;
       this.theta += (this.targetTheta - this.theta) * this.damping;
 

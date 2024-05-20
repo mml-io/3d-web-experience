@@ -14,6 +14,7 @@ export type AnimationConfig = {
   jogAnimationFileUrl: string;
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
+  doubleJumpAnimationFileUrl: string;
 };
 
 export type CharacterDescription = {

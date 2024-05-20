@@ -3,11 +3,11 @@ import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
 import { VirtualJoystick } from "../input/VirtualJoystick";
 import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
+import { TweakPane } from "../tweakpane/TweakPane";
 
 import { AnimationConfig, Character, CharacterDescription } from "./Character";
 import { CharacterModelLoader } from "./CharacterModelLoader";
@@ -43,7 +43,7 @@ export class CharacterManager {
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
 
   private localCharacterSpawned: boolean = false;
-  private localController: LocalController;
+  public localController: LocalController;
   public localCharacter: Character | null = null;
 
   private speakingCharacters: Map<number, boolean> = new Map();
@@ -100,6 +100,10 @@ export class CharacterManager {
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
     this.group.add(character);
     this.localCharacterSpawned = true;
+  }
+
+  public setupTweakPane(tweakPane: TweakPane) {
+    tweakPane.setupCharacterController(this.localController);
   }
 
   public spawnRemoteCharacter(

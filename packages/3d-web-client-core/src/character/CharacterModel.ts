@@ -46,28 +46,38 @@ export class CharacterModel {
 
   public mmlCharacterDescription: MMLCharacterDescription;
 
+  private preventDoubleJump = false;
+
   constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
     await this.loadMainMesh();
-    await Promise.all([
-      this.setAnimationFromFile(
-        this.config.animationConfig.idleAnimationFileUrl,
-        AnimationState.idle,
-      ),
-      this.setAnimationFromFile(
-        this.config.animationConfig.jogAnimationFileUrl,
-        AnimationState.walking,
-      ),
-      this.setAnimationFromFile(
-        this.config.animationConfig.sprintAnimationFileUrl,
-        AnimationState.running,
-      ),
-      this.setAnimationFromFile(
-        this.config.animationConfig.airAnimationFileUrl,
-        AnimationState.air,
-      ),
-    ]);
+    await this.setAnimationFromFile(
+      this.config.animationConfig.idleAnimationFileUrl,
+      AnimationState.idle,
+      true,
+    );
+    await this.setAnimationFromFile(
+      this.config.animationConfig.jogAnimationFileUrl,
+      AnimationState.walking,
+      true,
+    );
+    await this.setAnimationFromFile(
+      this.config.animationConfig.sprintAnimationFileUrl,
+      AnimationState.running,
+      true,
+    );
+    await this.setAnimationFromFile(
+      this.config.animationConfig.airAnimationFileUrl,
+      AnimationState.air,
+      true,
+    );
+    await this.setAnimationFromFile(
+      this.config.animationConfig.doubleJumpAnimationFileUrl,
+      AnimationState.doubleJump,
+      true,
+      1.3,
+    );
     this.applyCustomMaterials();
   }
 
@@ -214,6 +224,8 @@ export class CharacterModel {
   private async setAnimationFromFile(
     animationFileUrl: string,
     animationType: AnimationState,
+    loop: boolean = true,
+    playbackSpeed: number = 1.0,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       const animation = await this.config.characterModelLoader.load(animationFileUrl, "animation");
@@ -221,8 +233,13 @@ export class CharacterModel {
       if (typeof animation !== "undefined" && cleanAnimation instanceof AnimationClip) {
         this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);
         this.animations[animationType].stop();
+        this.animations[animationType].timeScale = playbackSpeed;
         if (animationType === AnimationState.idle) {
           this.animations[animationType].play();
+        }
+        if (!loop) {
+          this.animations[animationType].setLoop(LoopRepeat, 1); // Ensure non-looping
+          this.animations[animationType].clampWhenFinished = true;
         }
         resolve();
       } else {
@@ -236,6 +253,14 @@ export class CharacterModel {
     transitionDuration: number = 0.15,
   ): void {
     if (!this.mesh) return;
+    const airAnimation =
+      targetAnimation === AnimationState.air || targetAnimation === AnimationState.doubleJump;
+
+    if (!airAnimation) {
+      this.preventDoubleJump = false;
+    } else if (this.preventDoubleJump === true) {
+      return;
+    }
 
     const currentAction = this.animations[this.currentAnimation];
     this.currentAnimation = targetAnimation;
@@ -244,13 +269,38 @@ export class CharacterModel {
     if (!targetAction) return;
 
     if (currentAction) {
-      currentAction.enabled = true;
       currentAction.fadeOut(transitionDuration);
     }
 
-    if (!targetAction.isRunning()) targetAction.play();
+    targetAction.reset();
+    if (!targetAction.isRunning()) {
+      targetAction.play();
+    }
 
-    targetAction.setLoop(LoopRepeat, Infinity);
+    if (targetAnimation === AnimationState.doubleJump) {
+      if (!this.preventDoubleJump) {
+        targetAction.setLoop(LoopRepeat, 1);
+        targetAction.clampWhenFinished = true;
+        targetAction.getMixer().addEventListener("finished", (_event) => {
+          if (this.currentAnimation === AnimationState.doubleJump) {
+            Object.values(this.animations).forEach((action) => {
+              action.stop();
+            });
+            this.preventDoubleJump = true;
+            this.currentAnimation = AnimationState.air;
+            const airAction = this.animations[AnimationState.air];
+            airAction.reset();
+            airAction.setLoop(LoopRepeat, Infinity);
+            airAction.enabled = true;
+            airAction.fadeIn(0.15);
+            airAction.play();
+          }
+        });
+      }
+    } else {
+      targetAction.setLoop(LoopRepeat, Infinity);
+    }
+
     targetAction.enabled = true;
     targetAction.fadeIn(transitionDuration);
   }
