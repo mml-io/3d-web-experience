@@ -6,7 +6,7 @@ import { GaussGrainEffect } from "../../rendering/post-effects/gauss-grain";
 
 export const extrasValues = {
   grain: 0.045,
-  bloom: 0.15, // 0.75,
+  bloom: 0.15,
 };
 
 const extrasOptions = {
