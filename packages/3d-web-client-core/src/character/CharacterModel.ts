@@ -46,7 +46,7 @@ export class CharacterModel {
 
   public mmlCharacterDescription: MMLCharacterDescription;
 
-  private preventDoubleJump = false;
+  private isPostDoubleJump = false;
 
   constructor(private config: CharacterModelConfig) {}
 
@@ -75,7 +75,7 @@ export class CharacterModel {
     await this.setAnimationFromFile(
       this.config.animationConfig.doubleJumpAnimationFileUrl,
       AnimationState.doubleJump,
-      true,
+      false,
       1.3,
     );
     this.applyCustomMaterials();
@@ -118,6 +118,15 @@ export class CharacterModel {
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
+    if (this.isPostDoubleJump) {
+      if (targetAnimation === AnimationState.doubleJump) {
+        // Double jump is requested, but we're in the post double jump state so we play air instead
+        targetAnimation = AnimationState.air;
+      } else {
+        // Reset the post double jump flag if something other than double jump is requested
+        this.isPostDoubleJump = false;
+      }
+    }
     if (this.currentAnimation !== targetAnimation) {
       this.transitionToAnimation(targetAnimation);
     }
@@ -252,13 +261,7 @@ export class CharacterModel {
     targetAnimation: AnimationState,
     transitionDuration: number = 0.15,
   ): void {
-    if (!this.mesh) return;
-    const airAnimation =
-      targetAnimation === AnimationState.air || targetAnimation === AnimationState.doubleJump;
-
-    if (!airAnimation) {
-      this.preventDoubleJump = false;
-    } else if (this.preventDoubleJump === true) {
+    if (!this.mesh) {
       return;
     }
 
@@ -266,7 +269,9 @@ export class CharacterModel {
     this.currentAnimation = targetAnimation;
     const targetAction = this.animations[targetAnimation];
 
-    if (!targetAction) return;
+    if (!targetAction) {
+      return;
+    }
 
     if (currentAction) {
       currentAction.fadeOut(transitionDuration);
@@ -278,27 +283,13 @@ export class CharacterModel {
     }
 
     if (targetAnimation === AnimationState.doubleJump) {
-      if (!this.preventDoubleJump) {
-        targetAction.setLoop(LoopRepeat, 1);
-        targetAction.clampWhenFinished = true;
-        targetAction.getMixer().addEventListener("finished", (_event) => {
-          if (this.currentAnimation === AnimationState.doubleJump) {
-            Object.values(this.animations).forEach((action) => {
-              action.stop();
-            });
-            this.preventDoubleJump = true;
-            this.currentAnimation = AnimationState.air;
-            const airAction = this.animations[AnimationState.air];
-            airAction.reset();
-            airAction.setLoop(LoopRepeat, Infinity);
-            airAction.enabled = true;
-            airAction.fadeIn(0.15);
-            airAction.play();
-          }
-        });
-      }
-    } else {
-      targetAction.setLoop(LoopRepeat, Infinity);
+      targetAction.getMixer().addEventListener("finished", (_event) => {
+        if (this.currentAnimation === AnimationState.doubleJump) {
+          this.isPostDoubleJump = true;
+          // This triggers the transition to the air animation because the double jump animation is done
+          this.updateAnimation(AnimationState.doubleJump);
+        }
+      });
     }
 
     targetAction.enabled = true;
