@@ -11,6 +11,7 @@ import { Scene, WebGLRenderer } from "three";
 import { FolderApi, Pane } from "tweakpane";
 
 import { CameraManager } from "../camera/CameraManager";
+import { LocalController } from "../character/LocalController";
 import { BrightnessContrastSaturation } from "../rendering/post-effects/bright-contrast-sat";
 import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
 import { Sun } from "../sun/Sun";
@@ -18,6 +19,7 @@ import { TimeManager } from "../time/TimeManager";
 
 import { BrightnessContrastSaturationFolder } from "./blades/bcsFolder";
 import { CameraFolder } from "./blades/cameraFolder";
+import { CharacterControlsFolder } from "./blades/characterControlsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
 import { EnvironmentFolder } from "./blades/environmentFolder";
 import { PostExtrasFolder } from "./blades/postExtrasFolder";
@@ -41,6 +43,7 @@ export class TweakPane {
   private character: CharacterFolder;
   private environment: EnvironmentFolder;
   private camera: CameraFolder;
+  private characterControls: CharacterControlsFolder;
 
   private export: FolderApi;
 
@@ -95,6 +98,7 @@ export class TweakPane {
     this.character = new CharacterFolder(this.gui, false);
     this.environment = new EnvironmentFolder(this.gui, false);
     this.camera = new CameraFolder(this.gui, false);
+    this.characterControls = new CharacterControlsFolder(this.gui, false);
 
     this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 
@@ -176,12 +180,20 @@ export class TweakPane {
     this.camera.setupChangeEvent(cameraManager);
   }
 
+  public setupCharacterController(localController: LocalController) {
+    this.characterControls.setupChangeEvent(localController);
+  }
+
   public updateStats(timeManager: TimeManager): void {
     this.renderStatsFolder.update(this.renderer, this.composer, timeManager);
   }
 
   public updateCameraData(cameraManager: CameraManager) {
     this.camera.update(cameraManager);
+  }
+
+  public updateCharacterData(localController: LocalController) {
+    this.characterControls.update(localController);
   }
 
   private formatDateForFilename(): string {

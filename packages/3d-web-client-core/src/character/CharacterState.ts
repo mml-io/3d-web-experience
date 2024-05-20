@@ -5,6 +5,7 @@ export enum AnimationState {
   "jumpToAir" = 3,
   "air" = 4,
   "airToGround" = 5,
+  "doubleJump" = 6,
 }
 
 export type CharacterState = {

@@ -18,6 +18,7 @@ import { AudioListener, Euler, Scene, Vector3 } from "three";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
 import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
@@ -30,6 +31,7 @@ const animationConfig: AnimationConfig = {
   idleAnimationFileUrl,
   jogAnimationFileUrl,
   sprintAnimationFileUrl,
+  doubleJumpAnimationFileUrl,
 };
 
 // Specify the avatar to use here:

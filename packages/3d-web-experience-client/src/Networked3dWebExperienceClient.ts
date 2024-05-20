@@ -96,6 +96,7 @@ export class Networked3dWebExperienceClient {
   private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
   };
+  private characterControllerPaneSet: boolean = false;
 
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
@@ -348,6 +349,14 @@ export class Networked3dWebExperienceClient {
     if (this.tweakPane.guiVisible) {
       this.tweakPane.updateStats(this.timeManager);
       this.tweakPane.updateCameraData(this.cameraManager);
+      if (this.characterManager.localCharacter && this.characterManager.localController) {
+        if (!this.characterControllerPaneSet) {
+          this.characterControllerPaneSet = true;
+          this.characterManager.setupTweakPane(this.tweakPane);
+        } else {
+          this.tweakPane.updateCharacterData(this.characterManager.localController);
+        }
+      }
     }
     requestAnimationFrame(() => {
       this.update();
