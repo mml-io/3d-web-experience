@@ -5,7 +5,7 @@ import type { SpatialAudioStyle } from "@voxeet/voxeet-web-sdk/types/models/Spat
 
 import { VoiceChatUI } from "../chat-ui/components/voice-chat-ui";
 
-import { getEulerFromQuaternion, formatPos, formatDirection } from "./helpers";
+import { formatDirection, formatPos, getEulerFromQuaternion } from "./helpers";
 
 export type Quaternion = { w: number; x: number; y: number; z: number };
 
@@ -41,6 +41,17 @@ const RETRY_DELAY = 3000;
 
 const UPDATE_INTERVAL = 333;
 
+export type VoiceChatManagerConfig = {
+  url: string;
+  holderElement: HTMLElement;
+  userId: number;
+  remoteUserStates: Map<number, CharacterState>;
+  latestCharacterObj: {
+    characterState: null | CharacterState;
+  };
+  autoJoin: boolean;
+};
+
 export class VoiceChatManager {
   private debug = false;
 
@@ -73,26 +84,18 @@ export class VoiceChatManager {
 
   private tickInterval: NodeJS.Timeout | null = null;
 
-  constructor(
-    private holderElement: HTMLElement,
-    private userId: number,
-    private remoteUserStates: Map<number, CharacterState>,
-    private latestCharacterObj: {
-      characterState: null | CharacterState;
-    },
-    private autoJoin: boolean = false,
-  ) {
+  constructor(private config: VoiceChatManagerConfig) {
     this.conferenceAlias = window.location.host;
 
     this.voiceChatUI = new VoiceChatUI(
-      this.holderElement,
+      this.config.holderElement,
       this.handleJoinClick.bind(this),
       this.handlePassword.bind(this),
     );
     this.voiceChatUI.render();
     this.tick = this.tick.bind(this);
 
-    if (this.autoJoin === true) {
+    if (this.config.autoJoin) {
       this.init();
       this.tickInterval = setInterval(() => this.tick(), UPDATE_INTERVAL);
     }
@@ -113,9 +116,9 @@ export class VoiceChatManager {
         if (participant.status === "Connected" && participant.audioTransmitting === true) {
           activeSpeakers++;
         }
-        if (parsed === this.userId) {
-          if (this.latestCharacterObj.characterState) {
-            const { position, rotation } = this.latestCharacterObj.characterState;
+        if (parsed === this.config.userId) {
+          if (this.config.latestCharacterObj.characterState) {
+            const { position, rotation } = this.config.latestCharacterObj.characterState;
             const eulerRot = getEulerFromQuaternion(rotation);
             const direction: Direction = { x: eulerRot.pitch, y: eulerRot.yaw, z: eulerRot.roll };
             if (this.debug === true) {
@@ -126,7 +129,7 @@ export class VoiceChatManager {
             VoxeetSDK.conference.setSpatialDirection(participant, direction);
           }
         } else {
-          const remoteUserState = this.remoteUserStates.get(parsed);
+          const remoteUserState = this.config.remoteUserStates.get(parsed);
           if (remoteUserState) {
             const { position, rotation } = remoteUserState;
             if (this.debug === true) {
@@ -156,13 +159,12 @@ export class VoiceChatManager {
     if (this.password === null) return null;
     try {
       this.status = SessionStatus.Connecting;
-      const response = await fetch(`/voice-token/${this.userId.toString(10)}`, {
+      const response = await fetch(`${this.config.url}${this.config.userId.toString(10)}`, {
         headers: {
           "x-custom-auth": this.password,
         },
       });
       if (response.status === 501 && response.statusText === "Not Implemented") {
-        console.log("Voice Chat Disabled");
         this.status = SessionStatus.Unavailable;
         this.voiceChatUI.setStatus(this.status);
         return null;
@@ -220,7 +222,7 @@ export class VoiceChatManager {
   private async openSession(retries: number = 3): Promise<void> {
     try {
       this.status = SessionStatus.Connecting;
-      await VoxeetSDK.session.open({ name: this.userId.toString(10) });
+      await VoxeetSDK.session.open({ name: this.config.userId.toString(10) });
       this.status = SessionStatus.Connected;
     } catch (err) {
       console.error(`Failed to open session. Retries left: ${retries}`);

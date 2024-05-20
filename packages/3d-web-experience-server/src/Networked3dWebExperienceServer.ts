@@ -9,7 +9,7 @@ import { MMLDocumentsServer } from "./MMLDocumentsServer";
 import { websocketDirectoryChangeListener } from "./websocketDirectoryChangeListener";
 
 type UserAuthenticator = {
-  generateAuthorizedSessionToken(req: express.Request): string | null;
+  generateAuthorizedSessionToken(req: express.Request): Promise<string | null>;
   getClientIdForSessionToken: (sessionToken: string) => {
     id: number;
   } | null;
@@ -17,7 +17,7 @@ type UserAuthenticator = {
     clientId: number,
     sessionToken: string,
     userIdentityPresentedOnConnection?: UserIdentity,
-  ): UserData | null;
+  ): Promise<UserData | null> | UserData | null;
   onClientUserIdentityUpdate(clientId: number, userIdentity: UserIdentity): UserData | null;
   onClientDisconnect(clientId: number): void;
 };
@@ -72,7 +72,7 @@ export class Networked3dWebExperienceServer {
         clientId: number,
         sessionToken: string,
         userIdentityPresentedOnConnection?: UserIdentity,
-      ): UserData | null => {
+      ): Promise<UserData | null> | UserData | null => {
         return this.config.userAuthenticator.onClientConnect(
           clientId,
           sessionToken,
@@ -110,8 +110,8 @@ export class Networked3dWebExperienceServer {
 
     const webClientServing = this.config.webClientServing;
     if (webClientServing) {
-      app.get(webClientServing.indexUrl, (req: express.Request, res: express.Response) => {
-        const token = this.config.userAuthenticator.generateAuthorizedSessionToken(req);
+      app.get(webClientServing.indexUrl, async (req: express.Request, res: express.Response) => {
+        const token = await this.config.userAuthenticator.generateAuthorizedSessionToken(req);
         if (!token) {
           res.send("Error: Could not generate token");
           return;

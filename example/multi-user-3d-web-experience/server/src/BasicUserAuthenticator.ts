@@ -30,7 +30,7 @@ export class BasicUserAuthenticator {
     private options: BasicUserAuthenticatorOptions = defaultOptions,
   ) {}
 
-  public generateAuthorizedSessionToken(req: express.Request): string {
+  public async generateAuthorizedSessionToken(req: express.Request): Promise<string> {
     const sessionToken = crypto.randomBytes(20).toString("hex");
     const authUser: AuthUser = {
       clientId: null,
