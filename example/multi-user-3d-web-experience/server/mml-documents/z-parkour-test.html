@@ -1,0 +1,221 @@
+<m-group id="parkour-test"></m-group>
+<script>
+  const parkourTestGroup = document.getElementById("parkour-test");
+  const defaultColor = "#cccccc";
+  const cubeWidth = 5;
+  const cubeDepth = 5;
+
+  function createCube(x, y, z, width, height, depth, color = defaultColor) {
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("x", x);
+    cube.setAttribute("y", y);
+    cube.setAttribute("z", z);
+    cube.setAttribute("width", width);
+    cube.setAttribute("depth", depth);
+    cube.setAttribute("height", height);
+    cube.setAttribute("color", color);
+    return cube;
+  }
+
+  function createLabel(parent, x, y, z, axis, content, color = defaultColor) {
+    const label = document.createElement("m-label");
+    label.setAttribute("z", z);
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "center");
+    label.setAttribute("width", 2);
+    label.setAttribute("height", 0.5);
+    if (axis === "x") {
+      label.setAttribute("x", x - 2.5);
+      label.setAttribute("y", y + 0.303);
+      label.setAttribute("rx", -90);
+      label.setAttribute("rz", 90);
+    } else if (axis === "y") {
+      label.setAttribute("x", x - 0.09);
+      label.setAttribute("y", y);
+      label.setAttribute("ry", 90);
+    }
+    label.setAttribute("content", content);
+    label.setAttribute("color", color);
+    parent.appendChild(label);
+  }
+
+  function animate(element, attr, start, end, duration, easing) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+    }, duration);
+    return anim;
+  }
+
+  function createPingPongAnim(attr, start, end, startTime, duration, pingPongDelay) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("ping-pong", true);
+    anim.setAttribute("ping-pong-delay", pingPongDelay);
+    return anim;
+  }
+
+  for (let i = 1; i < 7; i++) {
+    const xA = i * 11 - 11;
+    const xB = i * 12 - 12;
+    const xC = i * 13 - 13;
+    const xD = i * 14 - 14;
+    const height = i * 2;
+    const y = i;
+    const cubeA = createCube(-xA, y, 0, cubeWidth, height, cubeDepth);
+    const cubeB = createCube(-xB, y, -12.5, cubeWidth, height, cubeDepth);
+    const cubeC = createCube(-xC, y, -25, cubeWidth, height, cubeDepth);
+    const cubeD = createCube(-xD, y, -37.5, cubeWidth, height, cubeDepth);
+    createLabel(cubeA, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "x", `${xA} m (11m gap)`);
+    createLabel(cubeA, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "y", `height: ${height} m`);
+    createLabel(cubeB, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "x", `${xB} m (12m gap)`);
+    createLabel(cubeB, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "y", `height: ${height} m`);
+    createLabel(cubeC, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "x", `${xC} m (13m gap)`);
+    createLabel(cubeC, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "y", `height: ${height} m`);
+    createLabel(cubeD, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "x", `${xD} m (14m gap)`);
+    createLabel(cubeD, cubeWidth / 2 + 0.1, height / 2 - 0.3, 0, "y", `height: ${height} m`);
+    parkourTestGroup.appendChild(cubeA);
+    parkourTestGroup.appendChild(cubeB);
+    parkourTestGroup.appendChild(cubeC);
+    parkourTestGroup.appendChild(cubeD);
+  }
+
+  function createSequence(element, sequence, easing, duration, pauses) {
+    const timeAction = (cb, delay) => setTimeout(() => cb(), delay);
+
+    const animSequence = [];
+    for (let i = 0; i < sequence.length; i++) {
+      const seq = sequence[i];
+      if (Array.isArray(seq)) {
+        const subSeqArr = [];
+        for (let j = 0; j < seq.length; j++) {
+          const subSeq = seq[j];
+          subSeqArr.push(() =>
+            animate(element, subSeq.attr, subSeq.start, subSeq.end, duration, easing),
+          );
+        }
+        animSequence.push(subSeqArr);
+      } else {
+        animSequence.push(() =>
+          animate(element, sequence[i].attr, sequence[i].start, sequence[i].end, duration, easing),
+        );
+      }
+    }
+
+    const seqSize = animSequence.length;
+    const seqDuration = seqSize * duration + seqSize * pauses;
+
+    const playSeq = () => {
+      for (let i = 0; i < seqSize; i++) {
+        if (typeof animSequence[i] === "function") {
+          timeAction(animSequence[i], duration * i + pauses * i);
+        } else if (Array.isArray(animSequence[i])) {
+          for (let j = 0; j < animSequence[i].length; j++) {
+            timeAction(animSequence[i][j], duration * i + pauses * i);
+          }
+        }
+      }
+    };
+
+    playSeq();
+    setInterval(() => playSeq(), seqDuration);
+  }
+
+  const movingPlatformA = createCube(0, 0.5, 10, 5, 0.1, 5, "#ffffaa");
+  const sequenceA = [
+    [
+      { attr: "x", start: 0, end: -55 },
+      { attr: "ry", start: 0, end: -90 },
+    ],
+    { attr: "y", start: 0.5, end: 12 },
+    [
+      { attr: "x", start: -55, end: 0 },
+      { attr: "ry", start: -90, end: -360 },
+      { attr: "y", start: 12, end: 0.5 },
+    ],
+  ];
+  createSequence(movingPlatformA, sequenceA, "easeInOutQuint", 2000, 333);
+  parkourTestGroup.appendChild(movingPlatformA);
+
+  const movingPlatformB = createCube(0, 0.5, -47.5, 5, 0.1, 5, "#ffffaa");
+  const sequenceB = [
+    [
+      { attr: "x", start: 0, end: -70 },
+      { attr: "ry", start: 0, end: 90 },
+    ],
+    { attr: "y", start: 0.5, end: 12 },
+    [
+      { attr: "x", start: -70, end: 0 },
+      { attr: "ry", start: 90, end: 360 },
+      { attr: "y", start: 12, end: 0.5 },
+    ],
+  ];
+  createSequence(movingPlatformB, sequenceB, "easeInOutQuint", 2000, 333);
+  parkourTestGroup.appendChild(movingPlatformB);
+
+  const movingPlatformC = createCube(0, 0.5, -52.5, 5, 0.1, 5, "#aaffaa");
+  const sequenceC = [
+    { attr: "x", start: 0, end: 10 },
+    [
+      { attr: "x", start: 10, end: 20 },
+      { attr: "y", start: 0.5, end: 10 },
+    ],
+    { attr: "y", start: 10, end: 20 },
+    [
+      { attr: "x", start: 20, end: 10 },
+      { attr: "y", start: 20, end: 30 },
+    ],
+    { attr: "x", start: 10, end: -10 },
+    [
+      { attr: "x", start: -10, end: -20 },
+      { attr: "y", start: 30, end: 20 },
+    ],
+    { attr: "y", start: 20, end: 10 },
+    [
+      { attr: "x", start: -20, end: -10 },
+      { attr: "y", start: 10, end: 0.5 },
+    ],
+    { attr: "x", start: -10, end: 0 },
+  ];
+  createSequence(movingPlatformC, sequenceC, "easeInOutQuint", 2000, 333);
+  parkourTestGroup.appendChild(movingPlatformC);
+
+  const now = document.timeline.currentTime;
+  function createVolatilePlatforms() {
+    const frame = document.createElement("m-frame");
+    frame.setAttribute("min-x", -60);
+    frame.setAttribute("max-x", 60);
+    frame.setAttribute("min-y", 11.5);
+    frame.setAttribute("max-y", 12.2);
+    frame.setAttribute("min-z", 10);
+    frame.setAttribute("max-z", 20);
+    frame.setAttribute("debug", false);
+    parkourTestGroup.appendChild(frame);
+    const duration = 1000;
+    const total = 12;
+    for (let i = 0; i < 12; i++) {
+      const platform = createCube(-55 + i * 11, 12, 15, 5, 0.1, 5, "#aaaaff");
+      if (i > 0 && i < total - 2) {
+        const anim = createPingPongAnim("y", 11, 12, now + i * duration, duration * total);
+        platform.appendChild(anim);
+      }
+      frame.appendChild(platform);
+    }
+  }
+
+  // createVolatilePlatforms();
+</script>

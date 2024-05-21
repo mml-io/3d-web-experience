@@ -1,25 +1,660 @@
-<m-frame src="wss:///mml-documents/building.html"></m-frame>
-<m-frame src="wss:///mml-documents/ground-plinths.html"></m-frame>
-<m-group id="welcome-npc">
-  <m-model
-    src="/assets/playground/knee_and_point_blue.glb"
-    anim="/assets/playground/talking_skeleton.glb"
-    anim-start-time="0"
-    anim-loop="true"
-    x="-2"
-    z="2"
-    ry="120"
-    collide="false"
-  ></m-model>
-  <m-label
-    ry="160"
-    padding="0"
-    alignment="center"
-    content="welcome NPC"
-    x="-2"
-    y="2"
-    z="2.5"
-    width="2"
-    height="0.4"
-  ></m-label>
-</m-group>
+<m-group id="progression-space"></m-group>
+<script>
+  const progressionSpace = document.getElementById("progression-space");
+
+  const color = "#aaaaaa";
+  const defaultColor = "#aaaaaa";
+  const windowColor = "#000000";
+  const windowOpacity = 0.75;
+  const globalDebug = false;
+
+  const roomsWidth = 35;
+  const roomsDepth = 45;
+  const roomsHeight = 21;
+  const roomsThickness = 0.25;
+
+  const spaceBetweenRooms = 8;
+  const numberOfRooms = 4;
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function createWall(width, height, depth, angle, x, y, z, color) {
+    const group = document.createElement("m-group");
+    const wall = document.createElement("m-cube");
+    wall.setAttribute("width", width - depth);
+    wall.setAttribute("height", height + depth);
+    wall.setAttribute("depth", depth);
+    wall.setAttribute("y", height / 2);
+    wall.setAttribute("color", color);
+    group.appendChild(wall);
+    group.setAttribute("ry", angle);
+    group.setAttribute("x", x);
+    group.setAttribute("y", y + depth);
+    group.setAttribute("z", z);
+    return group;
+  }
+
+  function createWallWithOpening(
+    width,
+    height,
+    depth,
+    openingWidth,
+    openingHeight,
+    angle,
+    x,
+    y,
+    z,
+    openingOffsetX = 0.5, // Horizontal offset from 0.0 (left) to 1.0 (right)
+    openingOffsetY = 0.0, // Vertical offset from 0.0 (bottom) to 1.0 (top)
+    color,
+    hasWindowGlass = false,
+    windowOpacity = 0.8,
+    debug = false,
+  ) {
+    openingWidth += depth;
+    height += depth / 2; // Adjust overall height for depth compensation
+    openingHeight = Math.min(height, openingHeight);
+
+    const group = document.createElement("m-group");
+    const halfWidth = width / 2;
+    const entranceHalfWidth = openingWidth / 2;
+
+    const openingMinOffset = depth;
+    const openingMaxOffsetX = width - depth - openingWidth;
+    const openingMaxOffsetY = height - depth - openingHeight;
+
+    const openingCenterX =
+      -halfWidth +
+      (openingMinOffset +
+        openingOffsetX * (openingMaxOffsetX - openingMinOffset) +
+        entranceHalfWidth);
+
+    // Vertical opening positioning
+    const openingBaseY = openingOffsetY * (height - openingHeight);
+
+    // Calculate the widths of the left and right walls
+    const leftWallWidth = openingCenterX - entranceHalfWidth + halfWidth - depth;
+    const rightWallWidth = halfWidth - entranceHalfWidth - openingCenterX - depth;
+
+    // Create the left wall
+    const leftWall = document.createElement("m-cube");
+    leftWall.setAttribute("width", leftWallWidth + depth);
+    leftWall.setAttribute("height", height);
+    leftWall.setAttribute("depth", depth);
+    leftWall.setAttribute("x", -(halfWidth - leftWallWidth / 2 - depth));
+    leftWall.setAttribute("y", height / 2);
+    leftWall.setAttribute("color", color);
+
+    // Create the right wall
+    const rightWall = document.createElement("m-cube");
+    rightWall.setAttribute("width", rightWallWidth + depth);
+    rightWall.setAttribute("height", height);
+    rightWall.setAttribute("depth", depth);
+    rightWall.setAttribute("x", halfWidth - rightWallWidth / 2 - depth);
+    rightWall.setAttribute("y", height / 2);
+    rightWall.setAttribute("color", color);
+
+    // Create the top wall if necessary
+    let topWall = null;
+    if (openingOffsetY < 1.0 && openingBaseY + openingHeight < height) {
+      topWall = document.createElement("m-cube");
+      topWall.setAttribute("width", openingWidth);
+      topWall.setAttribute("height", height - (openingBaseY + openingHeight));
+      topWall.setAttribute("depth", depth);
+      topWall.setAttribute("x", openingCenterX);
+      topWall.setAttribute(
+        "y",
+        openingBaseY + openingHeight + (height - (openingBaseY + openingHeight)) / 2,
+      );
+      topWall.setAttribute("color", color);
+      group.appendChild(topWall);
+    }
+
+    // Create the bottom wall if necessary
+    let bottomWall = null;
+    if (openingOffsetY > -depth && openingBaseY > -depth) {
+      bottomWall = document.createElement("m-cube");
+      bottomWall.setAttribute("width", openingWidth - depth);
+      bottomWall.setAttribute("height", openingBaseY + depth);
+      bottomWall.setAttribute("depth", depth);
+      bottomWall.setAttribute("x", openingCenterX);
+      bottomWall.setAttribute("y", openingBaseY / 2 - depth / 2);
+      bottomWall.setAttribute("color", debug === true ? "#ffaaaa" : color);
+      group.appendChild(bottomWall);
+    }
+
+    if (hasWindowGlass) {
+      const windowPane = document.createElement("m-cube");
+      windowPane.setAttribute("width", openingWidth - depth);
+      windowPane.setAttribute("height", openingHeight);
+      windowPane.setAttribute("depth", depth);
+      windowPane.setAttribute("x", openingCenterX);
+      windowPane.setAttribute("y", openingBaseY + openingHeight / 2);
+      windowPane.setAttribute("collide", true);
+      windowPane.setAttribute("color", windowColor);
+      windowPane.setAttribute("opacity", windowOpacity);
+      windowPane.setAttribute("cast-shadows", false);
+      group.appendChild(windowPane);
+    }
+
+    // Set the group's rotation and position
+    group.setAttribute("ry", angle);
+    group.setAttribute("x", x);
+    group.setAttribute("y", y + depth);
+    group.setAttribute("z", z);
+
+    // Append the walls to the group
+    group.appendChild(leftWall);
+    group.appendChild(rightWall);
+
+    const wallOpeningData = {
+      width: openingWidth - depth,
+      height: openingHeight,
+      depth: depth,
+      x: angle === 90 ? x : openingCenterX,
+      y: openingBaseY, // + openingHeight / 2,
+      z: angle === 90 ? -openingCenterX : z,
+      meshGroup: group,
+    };
+
+    return wallOpeningData;
+  }
+
+  function createFloorOrCeiling(width, depth, x, y, z, height, color) {
+    const floor = document.createElement("m-cube");
+    floor.setAttribute("width", width - height);
+    floor.setAttribute("depth", depth - height);
+    floor.setAttribute("height", height);
+    floor.setAttribute("x", x);
+    floor.setAttribute("y", y + height / 2);
+    floor.setAttribute("z", z);
+    floor.setAttribute("color", color);
+    return floor;
+  }
+
+  function createRoom(
+    width,
+    depth,
+    height,
+    doors,
+    windows,
+    x,
+    y,
+    z,
+    thickness,
+    color,
+    debug = false,
+  ) {
+    const room = document.createElement("m-group");
+    const halfWidth = width / 2;
+    const halfDepth = depth / 2;
+
+    // Create floor centered under the room
+    const floor = createFloorOrCeiling(width, depth, 0, 0, -halfDepth, thickness, color);
+    room.appendChild(floor);
+
+    // Create ceiling if required
+    const ceiling = createFloorOrCeiling(
+      width,
+      depth,
+      0,
+      height + thickness * 1.5,
+      -halfDepth,
+      thickness,
+      color,
+    );
+    room.appendChild(ceiling);
+
+    const doorsData = {};
+
+    // Helper function to create walls
+    function addWallWithOrientation(direction, config) {
+      const hasWindowGlass = config.hasOwnProperty("glass") ? config.glass : false;
+      const posX = direction === "PX" ? halfWidth : direction === "NX" ? -halfWidth : 0;
+      const posZ = direction === "NZ" ? -depth : direction === "PZ" ? 0 : 0;
+      const wallAngle = direction === "PX" || direction === "NX" ? 90 : 0;
+
+      const wallData = createWallWithOpening(
+        direction === "PX" || direction === "NX" ? depth : width,
+        height,
+        thickness,
+        config.width,
+        config.height,
+        wallAngle,
+        posX,
+        0,
+        direction === "PX" || direction === "NX" ? -halfDepth : posZ,
+        config.offsetX,
+        config.offsetY,
+        color,
+        hasWindowGlass,
+        windowOpacity,
+        debug,
+      );
+
+      if (direction.includes("Z")) {
+        wallData.z += halfDepth;
+      }
+
+      if (!hasWindowGlass) {
+        doorsData[direction] = {
+          width: wallData.width,
+          height: wallData.height,
+          depth: wallData.depth,
+          x: wallData.x + x,
+          y: wallData.y + y,
+          z: wallData.z + z,
+        };
+      }
+
+      room.appendChild(wallData.meshGroup);
+    }
+
+    // Process each wall for doors and windows
+    ["PX", "NX", "PZ", "NZ"].forEach((side) => {
+      if (doors[side]) {
+        addWallWithOrientation(side, { ...doors[side], glass: false });
+      } else if (windows[side]) {
+        addWallWithOrientation(side, { ...windows[side], glass: true });
+      } else {
+        // Create a regular wall if no door or window is specified
+        const posX = side === "PX" ? halfWidth : side === "NX" ? -halfWidth : 0;
+        const posZ = side === "NZ" ? -depth : side === "PZ" ? 0 : 0;
+        room.appendChild(
+          createWall(
+            side === "PX" || side === "NX" ? depth : width,
+            height,
+            thickness,
+            side === "PX" || side === "NX" ? 90 : 0,
+            posX,
+            0,
+            side === "PX" || side === "NX" ? -halfDepth : posZ,
+            color,
+          ),
+        );
+      }
+    });
+
+    // Position the entire room
+    room.setAttribute("x", x);
+    room.setAttribute("y", y);
+    room.setAttribute("z", z + halfDepth);
+
+    const roomPX = x + halfWidth;
+    const roomNX = x - halfWidth;
+    const roomPZ = z + halfDepth;
+    const roomNZ = z - halfDepth;
+    const roomNY = y;
+    const roomPY = y + height + thickness + thickness * 1.5;
+
+    const roomData = {
+      bounds: {
+        NX: roomNX,
+        PX: roomPX,
+        NY: roomNY,
+        PY: roomPY,
+        NZ: roomNZ,
+        PZ: roomPZ,
+      },
+      size: {
+        width: roomPX - roomNX,
+        height: roomPY - roomNY,
+        depth: roomPZ - roomNZ,
+      },
+      position: {
+        x: x,
+        y: y,
+        z: z + halfDepth,
+      },
+      doors: doorsData,
+      meshGroup: room,
+    };
+
+    return roomData;
+  }
+
+  function createSignLabel(content, width, height, x, y, z, ry, fontSize = 24) {
+    const label = document.createElement("m-label");
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "center");
+    label.setAttribute("color", color);
+    label.setAttribute("font-size", fontSize);
+    label.setAttribute("content", content);
+    label.setAttribute("width", width);
+    label.setAttribute("height", height);
+    label.setAttribute("x", x);
+    label.setAttribute("y", y);
+    label.setAttribute("z", z);
+    label.setAttribute("ry", ry);
+    return label;
+  }
+
+  function createLoadingFrame(frameUrl, x, y, z, minX, maxX, minY, maxY, minZ, maxZ) {
+    const frame = document.createElement("m-frame");
+    frame.setAttribute("x", x);
+    frame.setAttribute("y", y);
+    frame.setAttribute("z", z);
+    frame.setAttribute("src", frameUrl);
+    frame.setAttribute("min-x", minX);
+    frame.setAttribute("max-x", maxX);
+    frame.setAttribute("min-y", minY);
+    frame.setAttribute("max-y", maxY);
+    frame.setAttribute("min-z", minZ);
+    frame.setAttribute("max-z", maxZ);
+    frame.setAttribute("load-range", spaceBetweenRooms - roomsThickness * 4);
+    frame.setAttribute("unload-range", roomsThickness);
+    frame.setAttribute("debug", false);
+    return frame;
+  }
+
+  function setBoundingFrame(frame, x, y, z, minX, maxX, minY, maxY, minZ, maxZ) {
+    frame.setAttribute("x", x);
+    frame.setAttribute("y", y);
+    frame.setAttribute("z", z);
+    frame.setAttribute("min-x", minX);
+    frame.setAttribute("max-x", maxX);
+    frame.setAttribute("min-y", minY);
+    frame.setAttribute("max-y", maxY);
+    frame.setAttribute("min-z", minZ);
+    frame.setAttribute("max-z", maxZ);
+    frame.setAttribute("debug", false);
+    return frame;
+  }
+
+  function animate(element, attr, start, end, duration) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("loop", true);
+    element.appendChild(anim);
+    return anim;
+  }
+
+  function createProgression() {
+    const roomsDoors = {
+      NX: {
+        width: 5,
+        height: 6,
+        offsetX: 0.9,
+        offsetY: 0.0,
+      },
+      NZ: {
+        width: 5,
+        height: 6,
+        offsetX: 0.9,
+        offsetY: 0.0,
+      },
+      PZ: {
+        width: 5,
+        height: 6,
+        offsetX: 0.0,
+        offsetY: 0.0,
+      },
+    };
+
+    const roomDoorsNoEntrance = {
+      NX: {
+        width: 5,
+        height: 6,
+        offsetX: 0.9,
+        offsetY: 0.0,
+      },
+      PZ: {
+        width: 5,
+        height: 6,
+        offsetX: 0.0,
+        offsetY: 0.0,
+      },
+    };
+
+    const roomDoorsNoExit = {
+      NX: {
+        width: 5,
+        height: 6,
+        offsetX: 0.9,
+        offsetY: 0.0,
+      },
+      NZ: {
+        width: 5,
+        height: 6,
+        offsetX: 0.9,
+        offsetY: 0.0,
+      },
+    };
+
+    const roomsWindows = {
+      PX: {
+        width: roomsDepth - 1,
+        height: roomsHeight - 0.5,
+        offsetX: 0.5,
+        offsetY: 0.5,
+      },
+    };
+
+    for (let i = 0; i < numberOfRooms; i++) {
+      const zPos = 14 + roomsDepth * i + spaceBetweenRooms * i;
+
+      const exampleXPos = roomsWidth / 2;
+
+      // create the room ======================================================
+      let roomDoorsType = roomsDoors;
+      if (i === 0) {
+        roomDoorsType = roomDoorsNoEntrance;
+      }
+
+      if (i === numberOfRooms - 1) {
+        roomDoorsType = roomDoorsNoExit;
+      }
+      const room = createRoom(
+        roomsWidth,
+        roomsDepth,
+        roomsHeight,
+        roomDoorsType,
+        roomsWindows,
+        0,
+        -roomsThickness + 0.03,
+        zPos,
+        roomsThickness,
+        defaultColor,
+      );
+      progressionSpace.appendChild(room.meshGroup);
+
+      // create the curves for the passages between rooms (loading) ===========
+      if (i < numberOfRooms - 1) {
+        const corridorWallNX = createWallWithOpening(
+          spaceBetweenRooms + spaceBetweenRooms / 4 - roomsThickness, // width
+          roomsHeight, //                         height
+          roomsThickness, //                      thickness
+          spaceBetweenRooms - 0.25, //            opening width
+          roomsHeight - roomsThickness - 1, //    opening height
+          -57, //                                 angle
+          -roomsWidth / 2 + spaceBetweenRooms / 3 + roomsThickness, // x
+          -roomsThickness + 0.03, //              y
+          zPos + roomsDepth / 2 + spaceBetweenRooms / 2, //         z
+          0.5, //                                 offsetX
+          0.5, //                                 offsetY,
+          defaultColor, //                        color
+          true, //                                place glass
+          1,
+          globalDebug, //                          debug
+        );
+        progressionSpace.appendChild(corridorWallNX.meshGroup);
+
+        const corridorWallPX = createWallWithOpening(
+          spaceBetweenRooms,
+          roomsHeight + 0.125,
+          roomsThickness,
+          spaceBetweenRooms - 1,
+          roomsHeight - roomsThickness - 0.25,
+          90,
+          roomsWidth / 2,
+          -roomsThickness + 0.03,
+          zPos + roomsDepth / 2 + spaceBetweenRooms / 2,
+          0.5,
+          0.5,
+          defaultColor,
+          true,
+          0.8,
+          globalDebug,
+        );
+        progressionSpace.appendChild(corridorWallPX.meshGroup);
+
+        const corridorFloor = createFloorOrCeiling(
+          roomsWidth,
+          spaceBetweenRooms,
+          0,
+          -roomsThickness + 0.03,
+          zPos + roomsDepth / 2 + spaceBetweenRooms / 2,
+          0.25,
+          defaultColor,
+        );
+        progressionSpace.appendChild(corridorFloor);
+
+        const travelatorPZ = document.createElement("m-frame");
+        travelatorPZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
+        travelatorPZ.setAttribute("x", -roomsWidth + 3);
+        travelatorPZ.setAttribute("z", zPos + 10);
+        progressionSpace.appendChild(travelatorPZ);
+
+        const travelatorNZ = document.createElement("m-frame");
+        travelatorNZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
+        travelatorNZ.setAttribute("ry", 180);
+        travelatorNZ.setAttribute("x", -roomsWidth + 10);
+        travelatorNZ.setAttribute("z", zPos + 10);
+        progressionSpace.appendChild(travelatorNZ);
+      }
+
+      if (i < 4) {
+        const frameURL = `wss:///mml-documents/z-room-${i}.html`;
+        const roomFrame = createLoadingFrame(
+          frameURL, // frameURL
+          0, // x
+          0, // y
+          zPos, // z
+          -roomsWidth, // minX
+          roomsWidth,
+          -roomsHeight / 2,
+          roomsHeight + roomsThickness,
+          -roomsDepth / 2,
+          +roomsDepth / 2,
+        );
+        progressionSpace.appendChild(roomFrame);
+
+        const debugToggle = document.createElement("m-label");
+        debugToggle.setAttribute("x", roomsWidth / 2 + roomsThickness / 2 + 0.01);
+        debugToggle.setAttribute("y", 0.15);
+        debugToggle.setAttribute("z", zPos);
+        debugToggle.setAttribute("content", "debug bounds");
+        debugToggle.setAttribute("padding", 0);
+        debugToggle.setAttribute("alignment", "center");
+        debugToggle.setAttribute("width", 2);
+        debugToggle.setAttribute("height", 0.3);
+        debugToggle.setAttribute("color", "#888888");
+        // debugToggle.setAttribute("rx", -90);
+        // debugToggle.setAttribute("rz", 90);
+        debugToggle.setAttribute("ry", 90);
+
+        debugToggle.addEventListener("click", () => {
+          const debugOn = roomFrame.getAttribute("class") === "debug-on";
+          if (debugOn) {
+            roomFrame.setAttribute("class", "debug-off");
+            roomFrame.setAttribute("debug", false);
+          } else {
+            roomFrame.setAttribute("class", "debug-on");
+            roomFrame.setAttribute("debug", true);
+          }
+        });
+        progressionSpace.appendChild(debugToggle);
+
+        const automaticDoor = document.createElement("m-frame");
+        automaticDoor.setAttribute("src", `wss:///mml-documents/z-travelator-door-${i}.html`);
+        automaticDoor.setAttribute("x", -roomsWidth / 2);
+        automaticDoor.setAttribute("z", zPos - 15.71);
+        progressionSpace.appendChild(automaticDoor);
+      }
+
+      // create the travelator shortcut labels
+      const nxExitPos =
+        zPos -
+        roomsDepth / 2 +
+        roomDoorsType.NX.width / 2 +
+        roomsDepth * (1 - roomDoorsType.NX.offsetX) -
+        roomsThickness;
+      const travelatorExitLabel = createSignLabel(
+        "shortcut to travellators",
+        2, // label width
+        0.6, // label height
+        -roomsWidth / 2 + 0.126, // label x pos
+        roomDoorsType.NX.height + 0.6, // label y pos
+        nxExitPos, // label z pos
+        90,
+      );
+      progressionSpace.appendChild(travelatorExitLabel);
+
+      // create the next step label
+      if (i !== numberOfRooms - 1) {
+        const nextStepLabel = createSignLabel(
+          "passage to the next stage",
+          2, // label width
+          0.6, // label height
+          -roomsWidth / 2 + (roomsDoors.PZ.width / 2 - roomsThickness) + 0.5, // x
+          roomsDoors.PZ.height + 0.6, // y
+          zPos + (roomsDepth / 2 - roomsThickness + 0.12), // z
+          180,
+        );
+        progressionSpace.appendChild(nextStepLabel);
+      }
+    }
+
+    const travelatorCorridorDepth =
+      roomsDepth * numberOfRooms + spaceBetweenRooms * (numberOfRooms - 1) - roomsThickness;
+    const travelatorCorridorWidth = 21;
+
+    const corridor = createRoom(
+      travelatorCorridorWidth,
+      travelatorCorridorDepth,
+      roomsHeight / 2,
+      {
+        PX: {
+          width: travelatorCorridorDepth,
+          height: 6,
+          offsetX: 0.9,
+          offsetY: 0.0,
+        },
+      },
+      {
+        NX: {
+          width: travelatorCorridorDepth - roomsThickness * 4,
+          height: roomsHeight / 2 - roomsThickness,
+          offsetX: 0.5,
+          offsetY: 0.0,
+        },
+        NZ: {
+          width: travelatorCorridorWidth - roomsThickness * 4,
+          height: roomsHeight / 2 - roomsThickness,
+          offsetX: 0.5,
+          offsetY: 0.0,
+        },
+        PZ: {
+          width: travelatorCorridorWidth - roomsThickness * 4,
+          height: roomsHeight / 2 - roomsThickness,
+          offsetX: 0.5,
+          offsetY: 0.0,
+        },
+      },
+      -roomsWidth / 2 - travelatorCorridorWidth / 2 - 0.005,
+      -roomsThickness + 0.03,
+      travelatorCorridorDepth / 2 - 8.55,
+      roomsThickness,
+      defaultColor,
+    );
+    progressionSpace.appendChild(corridor.meshGroup);
+  }
+
+  createProgression();
+</script>

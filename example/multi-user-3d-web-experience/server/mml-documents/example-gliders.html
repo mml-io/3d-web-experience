@@ -4,11 +4,29 @@
 <script>
   const cubesGroup = document.getElementById("cubes-group");
   const conwayFrame = document.getElementById("conway-frame");
+  const resetButton = document.createElement("m-label");
 
   let world = [];
   const worldSize = 12;
   const cellSize = 0.5;
+  const spawnChance = 0.3333334;
   let stepCount = 0;
+
+  resetButton.setAttribute("content", "💥");
+  resetButton.setAttribute("padding", 0);
+  resetButton.setAttribute("alignment", "center");
+  resetButton.setAttribute("x", 0.251);
+  resetButton.setAttribute("y", 0.25);
+  resetButton.setAttribute("ry", 90);
+  resetButton.setAttribute("width", 0.25);
+  resetButton.setAttribute("height", 0.225);
+  resetButton.setAttribute("color", "#212121");
+  resetButton.setAttribute("font-color", "#ccffcc");
+  resetButton.setAttribute("font-size", 17);
+  conwayFrame.appendChild(resetButton);
+  resetButton.addEventListener("click", () => {
+    resetSimulation();
+  });
 
   function createBorder(side) {
     const sy = side === "top" || side === "bottom" ? 0.5 : worldSize / 2;
@@ -74,12 +92,14 @@
     const cubeID = getID(x, y);
     const cube = document.getElementById(cubeID);
     cube.setAttribute("opacity", visible ? 1 : 0);
+    cube.setAttribute("cast-shadows", visible ? true : false);
   }
 
   function createCube(x, y) {
     const cubeID = getID(x, y);
     const cubeToCreate = cubesMap.get(cubeID);
     cubeToCreate.setAttribute("opacity", 1);
+    cubeToCreate.setAttribute("cast-shadows", true);
   }
 
   function deleteCube(x, y) {
@@ -87,6 +107,7 @@
     const cubeToDelete = cubesMap.get(cubeID);
     if (cubeToDelete) {
       cubeToDelete.setAttribute("opacity", 0);
+      cubeToDelete.setAttribute("cast-shadows", false);
     }
   }
 
@@ -94,20 +115,17 @@
     for (let x = 0; x < worldSize; x++) {
       world[x] = [];
       for (let y = 0; y < worldSize; y++) {
-        world[x][y] = Math.random() < 0.25 ? 1 : 0;
+        world[x][y] = Math.random() < spawnChance ? 1 : 0;
         toggleCube(x, y, world[x][y]);
       }
     }
   }
 
-  initializeCubes();
-  initWorld();
-
   function resetSimulation() {
     statesHistory.clear();
     for (let x = 0; x < worldSize; x++) {
       for (let y = 0; y < worldSize; y++) {
-        world[x][y] = Math.random() < 0.25 ? 1 : 0;
+        world[x][y] = Math.random() < spawnChance ? 1 : 0;
         toggleCube(x, y, world[x][y]);
       }
     }
@@ -169,5 +187,8 @@
     }
     return count;
   }
-  window.setInterval(update, 150);
+
+  initializeCubes();
+  initWorld();
+  window.setInterval(update, 250);
 </script>

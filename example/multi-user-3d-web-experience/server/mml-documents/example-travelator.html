@@ -1,0 +1,67 @@
+<m-group id="travelator"></m-group>
+<script>
+  const travelatorGroup = document.getElementById("travelator");
+  const width = 6;
+  const height = 0.07;
+  const depth = 50;
+  const numberOfPlatforms = 10;
+  const movementDuration = 3;
+  const stepDepth = depth / numberOfPlatforms;
+
+  function animate(element, attr, start, end, duration, startTime) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("loop", true);
+    element.appendChild(anim);
+    return anim;
+  }
+
+  function createStaticStep(zPosition) {
+    const step = document.createElement("m-cube");
+    step.setAttribute("width", width + 0.1);
+    step.setAttribute("height", height);
+    step.setAttribute("depth", stepDepth * 1.3);
+    step.setAttribute("y", height);
+    step.setAttribute("z", zPosition);
+    step.setAttribute("color", "#bbbbbb");
+    return step;
+  }
+
+  function createMovingSteps() {
+    const startingStep = createStaticStep(-depth / 2 + stepDepth / 2);
+    travelatorGroup.appendChild(startingStep);
+
+    const endingStep = createStaticStep(depth / 2 - stepDepth / 2 - 0.1);
+    travelatorGroup.appendChild(endingStep);
+
+    const now = document.timeline.currentTime;
+    for (let i = 0; i < numberOfPlatforms; i++) {
+      const zPos = -depth / 2 + stepDepth / 2 + i * stepDepth;
+      const hue = (360 / numberOfPlatforms) * i;
+      const platform = document.createElement("m-cube");
+      platform.setAttribute("width", width);
+      platform.setAttribute("height", height);
+      platform.setAttribute("depth", stepDepth);
+      platform.setAttribute("x", 0);
+      platform.setAttribute("y", height / 4);
+      platform.setAttribute("z", zPos);
+      platform.setAttribute("color", `hsl(${hue}, 90%, 80%)`);
+      const startTime = now - (movementDuration * 1000 * i) / (numberOfPlatforms - 1);
+      animate(
+        platform,
+        "z",
+        -depth / 2 + stepDepth / 2,
+        depth / 2 - stepDepth / 2,
+        movementDuration * 1000,
+        startTime,
+      );
+      travelatorGroup.appendChild(platform);
+    }
+  }
+
+  createMovingSteps();
+</script>

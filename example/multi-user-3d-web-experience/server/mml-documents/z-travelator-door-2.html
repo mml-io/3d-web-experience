@@ -1,0 +1,129 @@
+<m-group id="automatic-door-group"></m-group>
+<script>
+  const automaticDoorGroup = document.getElementById("automatic-door-group");
+  const usersColliding = new Set();
+
+  const pressurePlateWidth = 7;
+  const pressurePlateHeight = 0.05;
+  const pressurePlateDepth = 5;
+  const pressurePlateY = 0.1;
+  const pressurePlateColor = "#aaaaaa";
+
+  const openAnimDuration = 1;
+  const openAnimEasing = "easeInOutCubic";
+  const doorOpenY = 10.99;
+  const doorClosedY = 5;
+
+  let doorSound = null;
+
+  let doorOpen = false;
+
+  function createCube(width, height, depth, x, y, z, color, ry = 0) {
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("width", width);
+    cube.setAttribute("height", height);
+    cube.setAttribute("depth", depth);
+    cube.setAttribute("x", x);
+    cube.setAttribute("y", y);
+    cube.setAttribute("z", z);
+    cube.setAttribute("ry", ry);
+    cube.setAttribute("color", color);
+    return cube;
+  }
+
+  function animate(element, attr, start, end, duration, easing) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+    }, duration);
+    return anim;
+  }
+
+  function openDoor(door) {
+    if (doorOpen === true) {
+      return;
+    }
+    doorOpen = true;
+    if (doorSound) {
+      doorSound.setAttribute("start-time", document.timeline.currentTime);
+      doorSound.setAttribute("pause-time", document.timeline.currentTime + 1500);
+    }
+    animate(door, "y", doorClosedY, doorOpenY, openAnimDuration * 1000, openAnimEasing);
+  }
+
+  function closeDoor(door) {
+    if (doorOpen === false) {
+      return;
+    }
+    if (usersColliding.size > 0) {
+      return;
+    }
+    if (doorSound) {
+      doorSound.setAttribute("start-time", document.timeline.currentTime);
+      doorSound.setAttribute("pause-time", document.timeline.currentTime + 1500);
+    }
+    doorOpen = false;
+    animate(door, "y", doorOpenY, doorClosedY, openAnimDuration * 1000, openAnimEasing);
+  }
+
+  function setupPressurePlate() {
+    const door = createCube(pressurePlateWidth, 10, 0.1, 0, 5, 0, "#808080", 90);
+    doorSound = document.createElement("m-audio");
+    doorSound.setAttribute("src", "/assets/playground/door_swoosh.mp3");
+    doorSound.setAttribute("loop", false);
+    doorSound.setAttribute("start-time", document.timeline.currentTime - 1600);
+    doorSound.setAttribute("pause-time", document.timeline.currentTime - 100);
+    door.appendChild(doorSound);
+    automaticDoorGroup.appendChild(door);
+
+    const pressurePlate = createCube(
+      pressurePlateWidth,
+      pressurePlateHeight,
+      pressurePlateDepth,
+      0,
+      pressurePlateY,
+      0,
+      pressurePlateColor,
+    );
+
+    pressurePlate.setAttribute("collision-interval", 250);
+    pressurePlate.addEventListener("collisionstart", (e) => {
+      if (!usersColliding.has(e.detail.connectionId)) {
+        usersColliding.add(e.detail.connectionId);
+        openDoor(door);
+      }
+    });
+    pressurePlate.addEventListener("collisionend", (e) => {
+      if (usersColliding.has(e.detail.connectionId)) {
+        usersColliding.delete(e.detail.connectionId);
+        closeDoor(door);
+      }
+    });
+    pressurePlate.addEventListener("collisionmove", (e) => {
+      if (!usersColliding.has(e.detail.connectionId)) {
+        usersColliding.add(e.detail.connectionId);
+        openDoor(door);
+      }
+    });
+    window.addEventListener("disconnected", (e) => {
+      if (usersColliding.has(e.detail.connectionId)) {
+        usersColliding.delete(e.detail.connectionId);
+        closeDoor(door);
+      }
+    });
+
+    automaticDoorGroup.appendChild(pressurePlate);
+  }
+
+  setupPressurePlate();
+</script>

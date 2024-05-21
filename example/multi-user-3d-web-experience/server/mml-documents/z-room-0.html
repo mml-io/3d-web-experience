@@ -1,0 +1,63 @@
+<m-group id="room-content" z="5" x="7"></m-group>
+<m-frame
+  src="wss:///mml-documents/example-gliders.html"
+  sz="2"
+  sy="2"
+  x="-17.21"
+  z="1.09"
+></m-frame>
+
+<script>
+  const roomContentGroup = document.getElementById("room-content");
+  const color = "#aaaaaa";
+
+  function createSignLabel(content, width, height, x, y, z, ry, fontSize = 24) {
+    const label = document.createElement("m-label");
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "center");
+    label.setAttribute("color", color);
+    label.setAttribute("font-size", fontSize);
+    label.setAttribute("content", content);
+    label.setAttribute("width", width);
+    label.setAttribute("height", height);
+    label.setAttribute("x", x);
+    label.setAttribute("y", y);
+    label.setAttribute("z", z);
+    label.setAttribute("ry", ry);
+    return label;
+  }
+
+  function createDoubleSidedLabel(description, width, height, x, y, z, ry, fontSize = 24) {
+    const group = document.createElement("m-group");
+    const labelFront = createSignLabel(description, width, 1.5, x, y + 2, z, 180, 30);
+    group.appendChild(labelFront);
+    const labelBack = createSignLabel(description, width, 1.5, x, y + 2, z + 0.01, 0, 30);
+    group.appendChild(labelBack);
+    return group;
+  }
+
+  function createGreyBoxedElement(description, x, y, z, width) {
+    const group = document.createElement("m-group");
+
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("x", x);
+    cube.setAttribute("y", y + 0.5);
+    cube.setAttribute("z", z);
+    group.appendChild(cube);
+
+    const label = createDoubleSidedLabel(description, width, 1.5, x, y + 2, z, 180, 30);
+    group.appendChild(label);
+
+    return group;
+  }
+
+  const element = createGreyBoxedElement(
+    "This is where the MML example chosen to be the 1st contact for the user will be",
+    0,
+    0,
+    0,
+    6,
+  );
+
+  roomContentGroup.appendChild(element);
+</script>

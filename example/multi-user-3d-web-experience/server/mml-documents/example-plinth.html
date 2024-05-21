@@ -1,0 +1,212 @@
+<m-model src="/assets/playground/scifi-car-plinth.glb"></m-model>
+<m-model id="button-left" src="/assets/playground/scifi-car-plinth-left.glb"></m-model>
+<m-model id="button-right" src="/assets/playground/scifi-car-plinth-right.glb"></m-model>
+<m-label
+  id="display"
+  color="#ffffff"
+  font-color="black"
+  padding="0"
+  alignment="center"
+  content="+1"
+  rx="-90"
+  rz="-90"
+  ry="-45"
+  width="0.3"
+  height="0.2"
+  y="0.17"
+  x="-4.55"
+  font-size="18"
+></m-label>
+<m-group id="car-wrapper">
+  <m-model id="car" src="/assets/playground/scifi-car.glb" y="0.25">
+    <m-attr-anim
+      attr="y"
+      start="0.25"
+      end="0.3"
+      duration="13000"
+      ping-pong="true"
+      ping-pong-delay="1000"
+      loop="true"
+    ></m-attr-anim>
+    <m-attr-anim id="car-anim" attr="ry" start="0" end="360" loop="true"></m-attr-anim>
+  </m-model>
+</m-group>
+
+<m-group id="attributes-label-group" x="1" y="0" z="8" ry="240" sx="1.75" sy="1.75">
+  <m-group id="control-buttons-group" rx="-55" y="-0.3" z="1"></m-group>
+  <m-cube
+    id="attributes-label-frame"
+    color="#88ccff"
+    width="5.9"
+    height="3.5"
+    depth="0.09"
+    z="-0.155"
+  ></m-cube>
+  <m-cube
+    id="attributes-label-frame-border"
+    color="#212121"
+    width="6.1"
+    height="3.9"
+    depth="0.1"
+    z="-0.156"
+  ></m-cube>
+</m-group>
+
+<script>
+  const car = document.getElementById("car");
+  const carWrapper = document.getElementById("car-wrapper");
+
+  const display = document.getElementById("display");
+  const buttonLeft = document.getElementById("button-left");
+  const buttonRight = document.getElementById("button-right");
+
+  const carAnim = document.getElementById("car-anim");
+
+  let rotationSpeed = 1;
+  const minRotationSpeed = -10;
+  const maxRotationSpeed = 10;
+  const triggerEffectTime = 700;
+
+  const currentAttributeLabels = new Map();
+  const labelColor = "#ddeeff";
+  const labelWidth = 3;
+  const labelHeight = 0.26;
+  const borderWidth = 0.17;
+  const labelsYOffset = 0.1;
+  const attributesLabelGroup = document.getElementById("attributes-label-group");
+  const attributesLabelFrame = document.getElementById("attributes-label-frame");
+  const attributesLabelBorder = document.getElementById("attributes-label-frame-border");
+
+  const unitDuration = 20000;
+
+  let animationStartTime;
+  let pauseRatio = undefined;
+
+  function adjustCarAnim(delta) {
+    const newRotationSpeed = rotationSpeed + delta;
+
+    if (!(newRotationSpeed <= maxRotationSpeed && newRotationSpeed >= minRotationSpeed)) {
+      return;
+    }
+
+    const currentTime = document.timeline.currentTime;
+    let ratioThroughRotation, currentDuration, timeElapsed;
+    if (pauseRatio !== undefined) {
+      ratioThroughRotation = pauseRatio;
+      if (newRotationSpeed < 0) {
+        ratioThroughRotation = 1 - ratioThroughRotation;
+      }
+    } else {
+      currentDuration = unitDuration / Math.abs(rotationSpeed);
+      timeElapsed = currentTime - animationStartTime;
+      ratioThroughRotation = (timeElapsed % currentDuration) / currentDuration;
+    }
+
+    display.setAttribute("content", `${newRotationSpeed > 0 ? "+" : ""}${newRotationSpeed}`);
+    if (newRotationSpeed === 0) {
+      if (rotationSpeed < 0) {
+        ratioThroughRotation = 1 - ratioThroughRotation;
+      }
+      pauseRatio = ratioThroughRotation;
+      car.setAttribute("ry", 360 * ratioThroughRotation);
+      carAnim.setAttribute("pause-time", document.timeline.currentTime);
+    } else {
+      pauseRatio = undefined;
+      const newDuration = unitDuration / Math.abs(newRotationSpeed);
+      const negativeTime = ratioThroughRotation * newDuration;
+      const animationTime = currentTime - negativeTime;
+      animationStartTime = animationTime;
+
+      if (carAnim.getAttribute("pause-time")) {
+        carAnim.removeAttribute("pause-time");
+      }
+      carAnim.setAttribute("start-time", animationTime);
+      carAnim.setAttribute("start", newRotationSpeed < 0 ? 360 : 0);
+      carAnim.setAttribute("end", newRotationSpeed < 0 ? 0 : 360);
+      carAnim.setAttribute("duration", newDuration);
+    }
+
+    rotationSpeed = newRotationSpeed;
+    updateAttributesLabel();
+  }
+
+  function increaseRotation() {
+    const newRotationSpeed = rotationSpeed + 1;
+    if (newRotationSpeed <= maxRotationSpeed) {
+      adjustCarAnim(1);
+    }
+  }
+
+  function decreaseRotation() {
+    const newRotationSpeed = rotationSpeed - 1;
+    if (newRotationSpeed >= minRotationSpeed) {
+      adjustCarAnim(-1);
+    }
+  }
+
+  function createLabel(str, amount, index) {
+    const y = amount * labelHeight - index * labelHeight;
+    const frameHeight = (amount + 1) * labelHeight;
+    const frameY = y - 0.5;
+    const borderHeight = frameHeight + borderWidth;
+
+    const firstOrLast = index === amount - 1 || index === 0;
+
+    attributesLabelFrame.setAttribute("width", labelWidth);
+    attributesLabelFrame.setAttribute("height", frameHeight);
+    attributesLabelFrame.setAttribute("y", frameHeight / 2 + borderWidth + labelsYOffset + frameY);
+    attributesLabelBorder.setAttribute("width", labelWidth + borderWidth);
+    attributesLabelBorder.setAttribute("height", borderHeight);
+    attributesLabelBorder.setAttribute(
+      "y",
+      borderHeight / 2 + borderWidth / 2 + labelsYOffset + frameY,
+    );
+
+    if (str.includes("/assets/playground/")) {
+      str = str.replace("/assets/playground/", "https://mml.io/");
+    }
+
+    const label = document.createElement("m-label");
+    label.setAttribute("font-size", 22);
+    label.setAttribute("color", labelColor);
+    label.setAttribute("content", firstOrLast ? ` ${str}` : `    ${str}`);
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "left");
+    label.setAttribute("width", labelWidth);
+    label.setAttribute("height", 0.3);
+    label.setAttribute("y", y + labelsYOffset);
+    label.setAttribute("z", -0.1);
+    currentAttributeLabels.set(index, label);
+    return label;
+  }
+
+  function createLabels(attributes) {
+    currentAttributeLabels.forEach((label) => label.remove());
+    currentAttributeLabels.clear();
+    for (let i = 0; i < attributes.length; i++) {
+      const label = createLabel(attributes[i], attributes.length, i);
+      attributesLabelGroup.appendChild(label);
+    }
+  }
+
+  function updateAttributesLabel() {
+    const attributes = [];
+    for (const attr of carAnim.getAttributeNames()) {
+      let val = carAnim.getAttribute(attr);
+      const numberVal = parseFloat(val);
+      if (!isNaN(numberVal)) {
+        val = numberVal.toFixed(2);
+      }
+      attributes.push(`${attr}="${val}"`);
+    }
+    attributes.unshift("<m-attr-anim");
+    attributes.push("></m-attr-anim>");
+    createLabels(attributes);
+  }
+
+  animationStartTime = document.timeline.currentTime;
+  adjustCarAnim(1);
+  updateAttributesLabel();
+  buttonLeft.addEventListener("click", () => decreaseRotation());
+  buttonRight.addEventListener("click", () => increaseRotation());
+</script>

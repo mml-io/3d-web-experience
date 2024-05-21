@@ -1,0 +1,80 @@
+<m-group id="floor-group" rx="90" rz="90"></m-group>
+<script>
+  const floorGroup = document.getElementById("floor-group");
+  const width = 10;
+  const depth = 10;
+  const cells = 13;
+  const radius = 5;
+
+  const cubeWidth = width / cells;
+  const cubeDepth = depth / cells;
+
+  const startX = -width / 2;
+  const startZ = -depth / 2;
+
+  const movementDuration = 7;
+  const wavePeriod = 1000;
+
+  function animate(element, attr, start, end, duration, startTime) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("loop", true);
+    anim.setAttribute("ping-pong", true);
+    anim.setAttribute("ping-pong-delay", duration / 7);
+    anim.setAttribute("easing", "easeInOutCubic");
+    element.appendChild(anim);
+    return anim;
+  }
+
+  function createFloor() {
+    const now = document.timeline.currentTime;
+    const centerX = 0;
+    const centerZ = 0;
+
+    for (let x = 0; x < cells; x++) {
+      for (let z = 0; z < cells; z++) {
+        const posX = startX + x * cubeWidth + cubeWidth / 2;
+        const posZ = startZ + z * cubeDepth + cubeDepth / 2;
+
+        // Calculate the distance from the center
+        const distance = Math.sqrt(Math.pow(posX - centerX, 2) + Math.pow(posZ - centerZ, 2));
+
+        // Only place the cube if it's within the radius
+        if (distance <= radius) {
+          const cube = document.createElement("m-cube");
+          cube.setAttribute("x", posX);
+          cube.setAttribute("y", -1.5);
+          cube.setAttribute("z", posZ);
+          cube.setAttribute("width", cubeWidth);
+          cube.setAttribute("depth", cubeDepth);
+          cube.setAttribute("height", 1);
+          cube.setAttribute("color", "#aaaaaa");
+          floorGroup.appendChild(cube);
+
+          // Normalize the distance based on the maximum possible distance (hypotenuse of the grid)
+          const maxDistance = Math.sqrt(Math.pow(width / 2, 2) + Math.pow(depth / 2, 2));
+          const normalizedDistance = distance / maxDistance;
+
+          // Calculate the start time based on the normalized distance
+          const startTime = now + normalizedDistance * wavePeriod;
+
+          animate(cube, "sy", 0.0001, 1, movementDuration * 1000, startTime);
+          animate(
+            cube,
+            "color",
+            "hsl(0, 0%, 70%)",
+            "hsl(0, 12%, 70%)",
+            movementDuration * 1000,
+            startTime,
+          );
+        }
+      }
+    }
+  }
+
+  createFloor();
+</script>
