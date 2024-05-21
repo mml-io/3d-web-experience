@@ -1,11 +1,8 @@
 import {
-  AmbientLight,
-  BoxGeometry,
   Camera,
   CircleGeometry,
   GLSL3,
   Mesh,
-  MeshStandardMaterial,
   Object3D,
   RawShaderMaterial,
   Scene,

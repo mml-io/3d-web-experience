@@ -36,12 +36,11 @@ import {
   Euler,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
-import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
+import { envValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -93,11 +92,6 @@ export class Composer {
 
   private ambientLight: AmbientLight | null = null;
 
-  private sky = new Sky();
-  private skyUniforms = this.sky.material.uniforms;
-  private skyConfig: Record<string, any> = {};
-  private skySun: Vector3 = new Vector3();
-
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
@@ -133,7 +127,7 @@ export class Composer {
     this.normalPass = new NormalPass(this.scene, this.camera);
     this.normalPass.enabled = ppssaoValues.enabled;
     this.normalTextureEffect = new TextureEffect({
-      blendFunction: BlendFunction.SET,
+      blendFunction: BlendFunction.SKIP,
       texture: this.normalPass.texture,
     });
 
@@ -211,7 +205,6 @@ export class Composer {
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
-
     if (ppssaoValues.enabled) {
       this.effectComposer.addPass(this.normalPass);
       this.effectComposer.addPass(this.ppssaoPass);
@@ -221,7 +214,6 @@ export class Composer {
     }
     this.effectComposer.addPass(this.fxaaPass);
     this.effectComposer.addPass(this.bloomPass);
-
     this.effectComposer.addPass(this.toneMappingPass);
     this.effectComposer.addPass(this.bcsPass);
     this.effectComposer.addPass(this.gaussGrainPass);
@@ -306,7 +298,6 @@ export class Composer {
 
   public render(timeManager: TimeManager): void {
     this.renderer.info.reset();
-    this.setSunPosition();
     this.normalPass.texture.needsUpdate = true;
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
     this.effectComposer.render();

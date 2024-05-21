@@ -8,7 +8,7 @@ import express from "express";
 import enableWs from "express-ws";
 
 import { BasicUserAuthenticator } from "./BasicUserAuthenticator";
-import { registerDolbyVoiceRoutes, registerLiveKitVoiceRoutes } from "./voice-routes";
+import { registerDolbyVoiceRoutes } from "./voice-routes";
 
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
 
@@ -55,18 +55,6 @@ const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
 const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
 if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
   registerDolbyVoiceRoutes(app, { DOLBY_APP_KEY, DOLBY_APP_SECRET, PASS });
-}
-
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY ?? "";
-const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET ?? "";
-const LIVEKIT_WS_URL = process.env.LIVEKIT_WS_URL ?? "";
-if (LIVEKIT_API_KEY && LIVEKIT_API_SECRET && LIVEKIT_WS_URL) {
-  registerLiveKitVoiceRoutes(app, {
-    LIVEKIT_API_KEY,
-    LIVEKIT_API_SECRET,
-    LIVEKIT_WS_URL,
-    PASS,
-  });
 }
 
 const networked3dWebExperienceServer = new Networked3dWebExperienceServer({

@@ -24,7 +24,7 @@ import {
   UserNetworkingClientUpdate,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
-import { VoiceChatLiveKitManager, VoiceChatManager } from "@mml-io/3d-web-voice-chat";
+import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
 import {
   IMMLScene,
   LoadingProgressManager,
@@ -92,7 +92,7 @@ export class Networked3dWebExperienceClient {
   private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
 
-  private voiceChatManager: VoiceChatManager | VoiceChatLiveKitManager | null = null;
+  private voiceChatManager: VoiceChatManager | null = null;
   private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
   };

@@ -1,7 +1,6 @@
 import dolbyio from "@dolbyio/dolbyio-rest-apis-client";
 import * as jwtToken from "@dolbyio/dolbyio-rest-apis-client/dist/types/jwtToken";
 import express from "express";
-import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 
 import { authMiddleware } from "./auth";
 
@@ -70,40 +69,5 @@ export function registerDolbyVoiceRoutes(
       console.error(`error: ${err}`);
       res.status(500).json({ error: "Internal Server Error" });
     }
-  });
-}
-
-export function registerLiveKitVoiceRoutes(
-  app: express.Application,
-  options: {
-    LIVEKIT_API_KEY: string;
-    LIVEKIT_API_SECRET: string;
-    LIVEKIT_WS_URL: string;
-    PASS?: string;
-  },
-) {
-  if (options.PASS) {
-    app.use("/livekit-voice-token/:roomName/:id", authMiddleware(options.PASS));
-  }
-  app.get("/livekit-voice-token/:roomName/:id", async (req, res) => {
-    const { id, roomName } = req.params;
-    const apiKey = options.LIVEKIT_API_KEY;
-    const apiSecret = options.LIVEKIT_API_SECRET;
-    const wsUrl = options.LIVEKIT_WS_URL;
-
-    const at = new AccessToken(apiKey, apiSecret, {
-      identity: `participant-${id}`,
-      ttl: "30m",
-    });
-    const roomService = new RoomServiceClient(wsUrl, apiKey, apiSecret);
-    try {
-      await roomService.getParticipant(roomName, id);
-      return res.status(401).json({ error: `Username already exist in room ${roomName}` });
-    } catch {
-      // if participant doesn't exist, we can continue
-    }
-    at.addGrant({ roomJoin: true, canPublish: true, canSubscribe: true });
-    const token = await at.toJwt();
-    res.status(200).json({ token: token, ws_url: wsUrl });
   });
 }

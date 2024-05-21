@@ -6,11 +6,11 @@ import { Sun } from "../../sun/Sun";
 
 export const sunValues = {
   sunPosition: {
-    sunAzimuthalAngle: 219,
-    sunPolarAngle: -37,
+    sunAzimuthalAngle: 155, //  129, // 219,
+    sunPolarAngle: -80, // -86, // -37,
   },
-  sunIntensity: 3.7,
-  sunColor: { r: 1.0, g: 1.0, b: 1.0 },
+  sunIntensity: 5.5, //3.7,
+  sunColor: { r: 1.0, g: 0.91, b: 0.79 },
 };
 
 const sunOptions = {
@@ -22,18 +22,18 @@ const sunOptions = {
 };
 
 export const envValues = {
-  hdrAzimuthalAngle: 0,
+  hdrAzimuthalAngle: 75,
   hdrPolarAngle: 0,
   hdrIntensity: 0.8,
   hdrBlurriness: 0.0,
   ambientLight: {
-    ambientLightIntensity: 0.27,
+    ambientLightIntensity: 0.45,
     ambientLightColor: { r: 1, g: 1, b: 1 },
   },
   fog: {
     fogNear: 21,
     fogFar: 180,
-    fogColor: { r: 0.7, g: 0.7, b: 0.7 },
+    fogColor: { r: 0.06, g: 0.07, b: 0.09 },
   },
 };
 
