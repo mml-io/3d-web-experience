@@ -46,6 +46,8 @@ export class CharacterModel {
 
   public mmlCharacterDescription: MMLCharacterDescription;
 
+  private isPostDoubleJump = false;
+
   constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
@@ -53,18 +55,28 @@ export class CharacterModel {
     await this.setAnimationFromFile(
       this.config.animationConfig.idleAnimationFileUrl,
       AnimationState.idle,
+      true,
     );
     await this.setAnimationFromFile(
       this.config.animationConfig.jogAnimationFileUrl,
       AnimationState.walking,
+      true,
     );
     await this.setAnimationFromFile(
       this.config.animationConfig.sprintAnimationFileUrl,
       AnimationState.running,
+      true,
     );
     await this.setAnimationFromFile(
       this.config.animationConfig.airAnimationFileUrl,
       AnimationState.air,
+      true,
+    );
+    await this.setAnimationFromFile(
+      this.config.animationConfig.doubleJumpAnimationFileUrl,
+      AnimationState.doubleJump,
+      false,
+      1.3,
     );
     this.applyCustomMaterials();
   }
@@ -106,6 +118,15 @@ export class CharacterModel {
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
+    if (this.isPostDoubleJump) {
+      if (targetAnimation === AnimationState.doubleJump) {
+        // Double jump is requested, but we're in the post double jump state so we play air instead
+        targetAnimation = AnimationState.air;
+      } else {
+        // Reset the post double jump flag if something other than double jump is requested
+        this.isPostDoubleJump = false;
+      }
+    }
     if (this.currentAnimation !== targetAnimation) {
       this.transitionToAnimation(targetAnimation);
     }
@@ -212,6 +233,8 @@ export class CharacterModel {
   private async setAnimationFromFile(
     animationFileUrl: string,
     animationType: AnimationState,
+    loop: boolean = true,
+    playbackSpeed: number = 1.0,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       const animation = await this.config.characterModelLoader.load(animationFileUrl, "animation");
@@ -219,8 +242,13 @@ export class CharacterModel {
       if (typeof animation !== "undefined" && cleanAnimation instanceof AnimationClip) {
         this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);
         this.animations[animationType].stop();
+        this.animations[animationType].timeScale = playbackSpeed;
         if (animationType === AnimationState.idle) {
           this.animations[animationType].play();
+        }
+        if (!loop) {
+          this.animations[animationType].setLoop(LoopRepeat, 1); // Ensure non-looping
+          this.animations[animationType].clampWhenFinished = true;
         }
         resolve();
       } else {
@@ -233,22 +261,37 @@ export class CharacterModel {
     targetAnimation: AnimationState,
     transitionDuration: number = 0.15,
   ): void {
-    if (!this.mesh) return;
+    if (!this.mesh) {
+      return;
+    }
 
     const currentAction = this.animations[this.currentAnimation];
     this.currentAnimation = targetAnimation;
     const targetAction = this.animations[targetAnimation];
 
-    if (!targetAction) return;
+    if (!targetAction) {
+      return;
+    }
 
     if (currentAction) {
-      currentAction.enabled = true;
       currentAction.fadeOut(transitionDuration);
     }
 
-    if (!targetAction.isRunning()) targetAction.play();
+    targetAction.reset();
+    if (!targetAction.isRunning()) {
+      targetAction.play();
+    }
 
-    targetAction.setLoop(LoopRepeat, Infinity);
+    if (targetAnimation === AnimationState.doubleJump) {
+      targetAction.getMixer().addEventListener("finished", (_event) => {
+        if (this.currentAnimation === AnimationState.doubleJump) {
+          this.isPostDoubleJump = true;
+          // This triggers the transition to the air animation because the double jump animation is done
+          this.updateAnimation(AnimationState.doubleJump);
+        }
+      });
+    }
+
     targetAction.enabled = true;
     targetAction.fadeIn(transitionDuration);
   }

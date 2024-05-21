@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-avatar-editor-ui",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "publishConfig": {
     "access": "public"
   },
@@ -16,9 +16,11 @@
     "start": "NODE_ENV=production node build/index.js 2>error.log",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
-    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
+    "@mml-io/3d-web-avatar": "^0.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

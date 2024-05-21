@@ -33,7 +33,7 @@ import {
   WebGLRenderer,
   EquirectangularReflectionMapping,
   MathUtils,
-  Vector3,
+  Euler,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
@@ -108,7 +108,7 @@ export class Composer {
     this.spawnSun = spawnSun;
     this.renderer = new WebGLRenderer({
       powerPreference: "high-performance",
-      antialias: true,
+      antialias: false,
     });
     this.renderer.outputColorSpace = SRGBColorSpace;
     this.renderer.info.autoReset = false;
@@ -118,27 +118,8 @@ export class Composer {
     this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = rendererValues.exposure;
 
-    this.sky.scale.setScalar(450000);
-    this.skyConfig = {
-      turbidity: 0.01,
-      rayleigh: 3,
-      mieCoefficient: 0.005,
-      mieDirectionalG: 0.7,
-      elevation: 5,
-      azimuth: 180,
-      exposure: this.renderer.toneMappingExposure,
-    };
-    // this.scene.add(this.sky);
-
-    this.skyUniforms.turbidity.value = this.skyConfig.turbidity;
-    this.skyUniforms.rayleigh.value = this.skyConfig.rayleigh;
-    this.skyUniforms.mieCoefficient.value = this.skyConfig.mieCoefficient;
-    this.skyUniforms.mieDirectionalG.value = this.skyConfig.mieDirectionalG;
-
-    const phi = MathUtils.degToRad(90 - this.skyConfig.elevation);
-    const theta = MathUtils.degToRad(this.skyConfig.azimuth);
-    this.skySun.setFromSphericalCoords(1, phi, theta);
-    this.skyUniforms.sunPosition.value.copy(this.skySun);
+    this.scene.backgroundIntensity = envValues.hdrIntensity;
+    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
 
     this.setAmbientLight();
     this.setFog();
@@ -155,6 +136,7 @@ export class Composer {
       blendFunction: BlendFunction.SET,
       texture: this.normalPass.texture,
     });
+
     this.ppssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
       blendFunction: ppssaoValues.blendFunction,
       distanceScaling: ppssaoValues.distanceScaling,
@@ -223,6 +205,9 @@ export class Composer {
     this.bcs.uniforms.saturation.value = bcsValues.saturation;
 
     this.gaussGrainPass = new ShaderPass(this.gaussGrainEffect, "tDiffuse");
+    this.gaussGrainEffect.uniforms.amount.value = extrasValues.grain;
+    this.gaussGrainEffect.uniforms.alpha.value = 1.0;
+
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
@@ -235,7 +220,6 @@ export class Composer {
       this.effectComposer.addPass(this.n8aopass);
     }
     this.effectComposer.addPass(this.fxaaPass);
-    // this.effectComposer.addPass(this.smaaPass);
     this.effectComposer.addPass(this.bloomPass);
 
     this.effectComposer.addPass(this.toneMappingPass);
@@ -269,6 +253,8 @@ export class Composer {
       this.spawnSun,
       this.sun,
       this.setHDRIFromFile.bind(this),
+      this.setHDRAzimuthalAngle.bind(this),
+      this.setHDRPolarAngle.bind(this),
       this.setAmbientLight.bind(this),
       this.setFog.bind(this),
     );
@@ -314,6 +300,7 @@ export class Composer {
     this.bloomPass.setSize(this.width, this.height);
     this.toneMappingPass.setSize(this.width, this.height);
     this.gaussGrainPass.setSize(this.width, this.height);
+    this.gaussGrainEffect.uniforms.resolution.value = new Vector2(this.width, this.height);
     this.renderer.setSize(this.width, this.height);
   }
 
@@ -321,19 +308,26 @@ export class Composer {
     this.renderer.info.reset();
     this.setSunPosition();
     this.normalPass.texture.needsUpdate = true;
-    this.gaussGrainEffect.uniforms.resolution.value = this.resolution;
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
-    this.gaussGrainEffect.uniforms.alpha.value = 1.0;
     this.effectComposer.render();
     this.renderer.clearDepth();
     this.renderer.render(this.postPostScene, this.camera);
   }
 
-  public setSunPosition() {
-    const phi = MathUtils.degToRad(sunValues.sunPosition.sunPolarAngle);
-    const theta = MathUtils.degToRad(90 - sunValues.sunPosition.sunAzimuthalAngle);
-    this.skySun.setFromSphericalCoords(1, phi, theta);
-    this.skyUniforms.sunPosition.value.copy(this.skySun);
+  public setHDRAzimuthalAngle(azimuthalAngle: number) {
+    this.scene.backgroundRotation = new Euler(
+      MathUtils.degToRad(envValues.hdrPolarAngle),
+      MathUtils.degToRad(azimuthalAngle),
+      0,
+    );
+  }
+
+  public setHDRPolarAngle(polarAngle: number) {
+    this.scene.backgroundRotation = new Euler(
+      MathUtils.degToRad(polarAngle),
+      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+      0,
+    );
   }
 
   public useHDRJPG(url: string, fromFile: boolean = false): void {
@@ -349,7 +343,13 @@ export class Composer {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
         this.scene.background = envMap;
-        this.scene.backgroundIntensity = rendererValues.bgIntensity;
+        this.scene.backgroundIntensity = envValues.hdrIntensity;
+        this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+        this.scene.backgroundRotation = new Euler(
+          MathUtils.degToRad(envValues.hdrPolarAngle),
+          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          0,
+        );
         this.isEnvHDRI = true;
         hdrJpgEquirectangularMap.dispose();
         pmremGenerator!.dispose();
@@ -370,7 +370,8 @@ export class Composer {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
           this.scene.background = envMap;
-          this.scene.backgroundIntensity = rendererValues.bgIntensity;
+          this.scene.backgroundIntensity = envValues.hdrIntensity;
+          this.scene.backgroundBlurriness = envValues.hdrBlurriness;
           this.isEnvHDRI = true;
           texture.dispose();
           pmremGenerator!.dispose();

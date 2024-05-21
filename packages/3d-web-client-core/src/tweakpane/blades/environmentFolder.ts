@@ -1,4 +1,5 @@
 import { BladeController, View } from "@tweakpane/core";
+import { Scene } from "three";
 import { BladeApi, ButtonApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 import { Sun } from "../../sun/Sun";
@@ -21,18 +22,26 @@ const sunOptions = {
 };
 
 export const envValues = {
+  hdrAzimuthalAngle: 0,
+  hdrPolarAngle: 0,
+  hdrIntensity: 0.8,
+  hdrBlurriness: 0.0,
   ambientLight: {
-    ambientLightIntensity: 0.3,
+    ambientLightIntensity: 0.27,
     ambientLightColor: { r: 1, g: 1, b: 1 },
   },
   fog: {
     fogNear: 21,
     fogFar: 180,
-    fogColor: { r: 1.0, g: 1.0, b: 1.0 },
+    fogColor: { r: 0.7, g: 0.7, b: 0.7 },
   },
 };
 
 const envOptions = {
+  hdrAzimuthalAngle: { min: 0, max: 360, step: 1 },
+  hdrPolarAngle: { min: 0, max: 360, step: 1 },
+  hdrIntensity: { min: 0, max: 1.3, step: 0.01 },
+  hdrBlurriness: { min: 0, max: 0.1, step: 0.001 },
   ambientLight: {
     ambientLightIntensity: { min: 0, max: 1, step: 0.01 },
   },
@@ -45,14 +54,12 @@ const envOptions = {
 export class EnvironmentFolder {
   public folder: FolderApi;
   private sun: FolderApi;
-  private sunButton: ButtonApi;
+  private hdrButton: ButtonApi;
   private ambient: FolderApi;
 
   constructor(parentFolder: FolderApi, expand: boolean = false) {
     this.folder = parentFolder.addFolder({ title: "environment", expanded: expand });
-
     this.sun = this.folder.addFolder({ title: "sun", expanded: true });
-
     this.ambient = this.folder.addFolder({ title: "ambient", expanded: true });
 
     this.sun.addBinding(
@@ -69,8 +76,12 @@ export class EnvironmentFolder {
     this.sun.addBinding(sunValues, "sunColor", {
       color: { type: "float" },
     });
-    this.sunButton = this.sun.addButton({ title: "Set HDRI" });
 
+    this.hdrButton = this.ambient.addButton({ title: "Set HDRI" });
+    this.ambient.addBinding(envValues, "hdrIntensity", envOptions.hdrIntensity);
+    this.ambient.addBinding(envValues, "hdrBlurriness", envOptions.hdrBlurriness);
+    this.ambient.addBinding(envValues, "hdrAzimuthalAngle", envOptions.hdrAzimuthalAngle);
+    this.ambient.addBinding(envValues, "hdrPolarAngle", envOptions.hdrPolarAngle);
     this.ambient.addBinding(
       envValues.ambientLight,
       "ambientLightIntensity",
@@ -87,7 +98,10 @@ export class EnvironmentFolder {
   }
 
   public setupChangeEvent(
+    scene: Scene,
     setHDR: () => void,
+    setHDRAzimuthalAngle: (azimuthalAngle: number) => void,
+    setHDRPolarAngle: (azimuthalAngle: number) => void,
     setAmbientLight: () => void,
     setFog: () => void,
     sun: Sun | null,
@@ -125,13 +139,29 @@ export class EnvironmentFolder {
           break;
       }
     });
-    this.sunButton.on("click", () => {
+    this.hdrButton.on("click", () => {
       setHDR();
     });
     this.ambient.on("change", (e: TpChangeEvent<unknown, BladeApi<BladeController<View>>>) => {
       const target = (e.target as any).key;
       if (!target) return;
       switch (target) {
+        case "hdrAzimuthalAngle": {
+          const value = e.value as number;
+          setHDRAzimuthalAngle(value);
+          break;
+        }
+        case "hdrPolarAngle": {
+          const value = e.value as number;
+          setHDRPolarAngle(value);
+          break;
+        }
+        case "hdrIntensity":
+          scene.backgroundIntensity = e.value as number;
+          break;
+        case "hdrBlurriness":
+          scene.backgroundBlurriness = e.value as number;
+          break;
         case "ambientLightIntensity": {
           envValues.ambientLight.ambientLightIntensity = e.value as number;
           setAmbientLight();

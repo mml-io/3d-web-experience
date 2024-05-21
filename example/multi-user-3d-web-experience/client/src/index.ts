@@ -2,6 +2,7 @@ import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_4k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
 import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
@@ -21,6 +22,7 @@ const app = new Networked3dWebExperienceClient(holder, {
     idleAnimationFileUrl,
     jogAnimationFileUrl,
     sprintAnimationFileUrl,
+    doubleJumpAnimationFileUrl,
   },
   hdrJpgUrl,
   mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/guided-tour.html` }],

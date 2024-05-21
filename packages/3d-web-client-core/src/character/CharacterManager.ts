@@ -3,11 +3,11 @@ import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
-import { ease } from "../helpers/math-helpers";
 import { KeyInputManager } from "../input/KeyInputManager";
 import { VirtualJoystick } from "../input/VirtualJoystick";
 import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
+import { TweakPane } from "../tweakpane/TweakPane";
 
 import { AnimationConfig, Character, CharacterDescription } from "./Character";
 import { CharacterModelLoader } from "./CharacterModelLoader";
@@ -31,11 +31,10 @@ export type CharacterManagerConfig = {
     username: string;
     characterDescription: CharacterDescription;
   };
+  updateLocationHash?: boolean;
 };
 
 export class CharacterManager {
-  private updateLocationHash = true;
-
   public readonly headTargetOffset = new Vector3(0, 1.3, 0);
 
   private localClientId: number = 0;
@@ -44,7 +43,7 @@ export class CharacterManager {
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
 
   private localCharacterSpawned: boolean = false;
-  private localController: LocalController;
+  public localController: LocalController;
   public localCharacter: Character | null = null;
 
   private speakingCharacters: Map<number, boolean> = new Map();
@@ -101,6 +100,10 @@ export class CharacterManager {
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
     this.group.add(character);
     this.localCharacterSpawned = true;
+  }
+
+  public setupTweakPane(tweakPane: TweakPane) {
+    tweakPane.setupCharacterController(this.localController);
   }
 
   public spawnRemoteCharacter(
@@ -234,7 +237,7 @@ export class CharacterManager {
         }
       }
 
-      if (this.updateLocationHash && this.config.timeManager.frame % 60 === 0) {
+      if (this.config.updateLocationHash && this.config.timeManager.frame % 60 === 0) {
         window.location.hash = encodeCharacterAndCamera(
           this.localCharacter,
           this.config.cameraManager.camera,

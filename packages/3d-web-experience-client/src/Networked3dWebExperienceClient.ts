@@ -55,6 +55,7 @@ type MMLDocumentConfiguration = {
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
+  voiceChatAddress?: string;
   userNetworkAddress: string;
   mmlDocuments?: Array<MMLDocumentConfiguration>;
   animationConfig: AnimationConfig;
@@ -95,6 +96,7 @@ export class Networked3dWebExperienceClient {
   private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
   };
+  private characterControllerPaneSet: boolean = false;
 
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
@@ -137,6 +139,7 @@ export class Networked3dWebExperienceClient {
       this.scene,
       this.composer.effectComposer,
     );
+    this.cameraManager.setupTweakPane(this.tweakPane);
     this.composer.setupTweakPane(this.tweakPane);
 
     const resizeObserver = new ResizeObserver(() => {
@@ -207,6 +210,7 @@ export class Networked3dWebExperienceClient {
       characterResolve: (characterId: number) => {
         return this.resolveCharacterData(characterId);
       },
+      updateLocationHash: true,
     });
     this.scene.add(this.characterManager.group);
 
@@ -280,13 +284,15 @@ export class Networked3dWebExperienceClient {
   private connectToVoiceChat() {
     if (this.clientId === null) return;
 
-    if (this.voiceChatManager === null) {
-      this.voiceChatManager = new VoiceChatLiveKitManager(
-        this.element,
-        this.clientId,
-        this.remoteUserStates,
-        this.latestCharacterObject,
-      );
+    if (this.voiceChatManager === null && this.config.voiceChatAddress) {
+      this.voiceChatManager = new VoiceChatManager({
+        url: this.config.voiceChatAddress,
+        holderElement: this.element,
+        userId: this.clientId,
+        remoteUserStates: this.remoteUserStates,
+        latestCharacterObj: this.latestCharacterObject,
+        autoJoin: false,
+      });
     }
   }
 
@@ -342,6 +348,15 @@ export class Networked3dWebExperienceClient {
     this.composer.render(this.timeManager);
     if (this.tweakPane.guiVisible) {
       this.tweakPane.updateStats(this.timeManager);
+      this.tweakPane.updateCameraData(this.cameraManager);
+      if (this.characterManager.localCharacter && this.characterManager.localController) {
+        if (!this.characterControllerPaneSet) {
+          this.characterControllerPaneSet = true;
+          this.characterManager.setupTweakPane(this.tweakPane);
+        } else {
+          this.tweakPane.updateCharacterData(this.characterManager.localController);
+        }
+      }
     }
     requestAnimationFrame(() => {
       this.update();

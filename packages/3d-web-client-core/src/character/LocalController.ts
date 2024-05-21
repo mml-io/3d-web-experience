@@ -5,20 +5,12 @@ import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsM
 import { KeyInputManager } from "../input/KeyInputManager";
 import { VirtualJoystick } from "../input/VirtualJoystick";
 import { TimeManager } from "../time/TimeManager";
+import { characterControllerValues } from "../tweakpane/blades/characterControlsFolder";
 
 import { Character } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
 
 const downVector = new Vector3(0, -1, 0);
-
-const airResistance = 0.5;
-const groundResistance = 0.99999999;
-const airControlModifier = 0.05;
-const groundWalkControl = 0.75;
-const groundRunControl = 1.0;
-const baseControl = 200;
-const collisionDetectionSteps = 15;
-const minimumSurfaceAngle = 0.9;
 
 export type LocalControllerConfig = {
   id: number;
@@ -36,13 +28,30 @@ export class LocalController {
     segment: new Line3(new Vector3(), new Vector3(0, 1.05, 0)),
   };
 
-  private gravity: number = -42;
-  private jumpForce: number = 20;
-  private coyoteTimeThreshold: number = 70;
+  public gravity: number = -characterControllerValues.gravity;
+  public jumpForce: number = characterControllerValues.jumpForce;
+  public doubleJumpForce: number = characterControllerValues.doubleJumpForce;
+  public coyoteTimeThreshold: number = characterControllerValues.coyoteJump;
+  public canJump: boolean = true;
+  public canDoubleJump: boolean = true;
+  public coyoteJumped = false;
+  public doubleJumpUsed: boolean = false;
+  public jumpCounter: number = 0;
 
-  private coyoteTime: boolean = false;
-  private canJump: boolean = true;
-  private characterOnGround: boolean = false;
+  public airResistance = characterControllerValues.airResistance;
+  public groundResistance = 0.99999999 + characterControllerValues.groundResistance * 1e-7;
+  public airControlModifier = characterControllerValues.airControlModifier;
+  public groundWalkControl = characterControllerValues.groundWalkControl;
+  public groundRunControl = characterControllerValues.groundRunControl;
+  public baseControl = characterControllerValues.baseControlMultiplier;
+  public minimumSurfaceAngle = characterControllerValues.minimumSurfaceAngle;
+
+  public latestPosition: Vector3 = new Vector3();
+  public characterOnGround: boolean = false;
+  public coyoteTime: boolean = false;
+
+  private collisionDetectionSteps = 15;
+
   private characterWasOnGround: boolean = false;
   private characterAirborneSince: number = 0;
   private currentHeight: number = 0;
@@ -90,6 +99,9 @@ export class LocalController {
   private anyDirection: boolean;
   private conflictingDirections: boolean;
 
+  public jumpPressed: boolean = false; // Tracks if the jump button is pressed
+  public jumpReleased: boolean = true; // Indicates if the jump button has been released
+
   public networkState: CharacterState;
 
   constructor(private config: LocalControllerConfig) {
@@ -114,6 +126,10 @@ export class LocalController {
       this.config.virtualJoystick?.hasDirection ||
       false;
     this.conflictingDirections = this.config.keyInputManager.conflictingDirection;
+
+    if (!this.jump) {
+      this.jumpReleased = true;
+    }
   }
 
   public update(): void {
@@ -137,10 +153,10 @@ export class LocalController {
       this.updateRotation();
     }
 
-    for (let i = 0; i < collisionDetectionSteps; i++) {
+    for (let i = 0; i < this.collisionDetectionSteps; i++) {
       this.updatePosition(
         this.config.timeManager.deltaTime,
-        this.config.timeManager.deltaTime / collisionDetectionSteps,
+        this.config.timeManager.deltaTime / this.collisionDetectionSteps,
         i,
       );
     }
@@ -156,6 +172,9 @@ export class LocalController {
 
     const jumpHeight = this.characterVelocity.y > 0 ? 0.2 : 1.8;
     if (this.currentHeight > jumpHeight && !this.characterOnGround) {
+      if (this.doubleJumpUsed) {
+        return AnimationState.doubleJump;
+      }
       return AnimationState.air;
     }
     if (this.conflictingDirections) {
@@ -221,42 +240,72 @@ export class LocalController {
     this.config.character.quaternion.rotateTowards(rotationQuaternion, frameRotation);
   }
 
+  private processJump(currentAcceleration: Vector3, deltaTime: number) {
+    if (this.characterOnGround) {
+      this.coyoteJumped = false;
+      this.canDoubleJump = false;
+      this.doubleJumpUsed = false;
+      this.jumpCounter = 0;
+
+      if (!this.jump) {
+        this.canDoubleJump = !this.doubleJumpUsed && this.jumpReleased && this.jumpCounter === 1;
+        this.canJump = true;
+        this.jumpReleased = true;
+      }
+
+      if (this.jump && this.canJump && this.jumpReleased) {
+        currentAcceleration.y += this.jumpForce / deltaTime;
+        this.canJump = false;
+        this.jumpReleased = false;
+        this.jumpCounter++;
+      } else {
+        if (this.currentSurfaceAngle.y < this.minimumSurfaceAngle) {
+          currentAcceleration.y += this.gravity;
+        }
+      }
+    } else {
+      if (this.jump && !this.coyoteJumped && this.coyoteTime) {
+        this.coyoteJumped = true;
+        currentAcceleration.y += this.jumpForce / deltaTime;
+        this.canJump = false;
+        this.jumpReleased = false;
+        this.jumpCounter++;
+      } else if (this.jump && this.canDoubleJump) {
+        currentAcceleration.y += this.doubleJumpForce / deltaTime;
+        this.doubleJumpUsed = true;
+        this.jumpReleased = false;
+        this.jumpCounter++;
+      } else {
+        currentAcceleration.y += this.gravity;
+        this.canJump = false;
+      }
+    }
+
+    if (!this.jump) {
+      this.jumpReleased = true;
+      if (!this.characterOnGround) {
+        currentAcceleration.y += this.gravity;
+      }
+    }
+  }
+
   private applyControls(deltaTime: number) {
-    const resistance = this.characterOnGround ? groundResistance : airResistance;
+    const resistance = this.characterOnGround ? this.groundResistance : this.airResistance;
 
     // Dampen the velocity based on the resistance
     const speedFactor = Math.pow(1 - resistance, deltaTime);
     this.characterVelocity.multiplyScalar(speedFactor);
 
     const acceleration = this.tempVector.set(0, 0, 0);
-
-    if (this.characterOnGround) {
-      if (!this.jump) {
-        this.canJump = true;
-      }
-
-      if (this.jump && this.canJump) {
-        acceleration.y += this.jumpForce / deltaTime;
-        this.canJump = false;
-      } else {
-        if (this.currentSurfaceAngle.y < minimumSurfaceAngle) {
-          acceleration.y += this.gravity;
-        }
-      }
-    } else if (this.jump && this.coyoteTime) {
-      acceleration.y += this.jumpForce / deltaTime;
-      this.canJump = false;
-    } else {
-      acceleration.y += this.gravity;
-      this.canJump = false;
-    }
+    this.canDoubleJump = !this.doubleJumpUsed && this.jumpReleased && this.jumpCounter === 1;
+    this.processJump(acceleration, deltaTime);
 
     const control =
       (this.characterOnGround
         ? this.run
-          ? groundRunControl
-          : groundWalkControl
-        : airControlModifier) * baseControl;
+          ? this.groundRunControl
+          : this.groundWalkControl
+        : this.airControlModifier) * this.baseControl;
 
     const controlAcceleration = this.tempVector2.set(0, 0, 0);
 
@@ -331,8 +380,17 @@ export class LocalController {
 
     this.characterOnGround = deltaCollisionPosition.y > 0;
 
+    if (this.characterOnGround) {
+      this.doubleJumpUsed = false;
+      this.jumpCounter = 0;
+    }
+
     if (this.characterWasOnGround && !this.characterOnGround) {
       this.characterAirborneSince = Date.now();
+    }
+
+    if (!this.jump) {
+      this.jumpReleased = true;
     }
 
     this.coyoteTime =
@@ -340,6 +398,7 @@ export class LocalController {
       !this.characterOnGround &&
       Date.now() - this.characterAirborneSince < this.coyoteTimeThreshold;
 
+    this.latestPosition = this.config.character.position.clone();
     this.characterWasOnGround = this.characterOnGround;
   }
 
@@ -462,5 +521,8 @@ export class LocalController {
     this.characterVelocity.y = 0;
     this.config.character.position.y = 3;
     this.characterOnGround = false;
+    this.doubleJumpUsed = false;
+    this.jumpReleased = true;
+    this.jumpCounter = 0;
   }
 }

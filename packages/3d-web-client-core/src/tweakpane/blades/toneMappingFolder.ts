@@ -61,13 +61,13 @@ export class ToneMappingFolder {
       "minLuminance",
       toneMappingOptions.minLuminance,
     );
-    this.minLuminance.hidden = false; // toneMappingValues.mode === 2 ? true : false;
+    this.minLuminance.hidden = false;
     this.avgLuminance = this.folder.addBinding(
       toneMappingValues,
       "averageLuminance",
       toneMappingOptions.averageLuminance,
     );
-    this.avgLuminance.hidden = false; // FtoneMappingValues.mode === 2 ? true : false;
+    this.avgLuminance.hidden = false;
     this.folder.addBinding(toneMappingValues, "adaptationRate", toneMappingOptions.adaptationRate);
   }
 
@@ -76,8 +76,6 @@ export class ToneMappingFolder {
       const target = (e.target as any).key;
       if (!target) return;
       if (target === "mode") {
-        // this.minLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
-        // this.avgLuminance.hidden = toneMappingValues.mode === 2 ? true : false;
         setCustomToneMappingType(e.value as number);
       }
       (toneMappingEffect as any)[target] = e.value;
