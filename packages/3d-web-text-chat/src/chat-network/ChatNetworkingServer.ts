@@ -108,7 +108,9 @@ export class ChatNetworkingServer {
             return;
           }
           if (this.clientsById.has(authResponse.id)) {
-            throw new Error(`Client already connected with ID: ${authResponse.id}`);
+            // there's a client already connected with that id.
+            console.error(`Client already connected with ID: ${authResponse.id}`);
+            this.disconnectClientId(authResponse.id);
           }
           client.id = authResponse.id;
           this.clientsById.set(client.id, client);

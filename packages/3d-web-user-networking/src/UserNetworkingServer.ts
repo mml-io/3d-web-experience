@@ -41,6 +41,7 @@ export type UserNetworkingServerOptions = {
 };
 
 export class UserNetworkingServer {
+  private usedIds = new Set();
   private allClientsById = new Map<number, Client>();
   private authenticatedClientsById: Map<number, Client> = new Map();
 
@@ -70,9 +71,10 @@ export class UserNetworkingServer {
 
   private getId(): number {
     let id = 1;
-    while (this.allClientsById.has(id)) {
+    while (this.usedIds.has(id)) {
       id++;
     }
+    this.usedIds.add(id);
     return id;
   }
 
@@ -151,6 +153,7 @@ export class UserNetworkingServer {
       return;
     }
     this.allClientsById.delete(client.id);
+    this.usedIds.delete(client.id);
     if (client.authenticatedUser !== null) {
       // Only report disconnections of clients that were authenticated
       this.options.onClientDisconnect(client.id);
