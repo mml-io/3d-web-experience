@@ -219,8 +219,8 @@ export class GroundPlane extends Group {
       map: this.floorTexture,
       metalnessMap: this.floorTexture,
       normalMap: this.floorNormalTexture,
-      transparent: false,
-      opacity: 1.0,
+      transparent: true,
+      opacity: 0.0,
     });
     this.floorMesh = new Mesh(this.floorGeometry, this.floorMaterial);
     this.floorMesh.receiveShadow = true;

@@ -1,6 +1,6 @@
 import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client";
 
-import hdrJpgUrl from "../../../assets/hdr/puresky_4k.jpg";
+import hdrJpgUrl from "../../../assets/hdr/sunset_2k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
 import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
 import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
