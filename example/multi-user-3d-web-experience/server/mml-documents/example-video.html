@@ -60,13 +60,39 @@
   let lastPaused = document.timeline.currentTime;
 
   // tell me more ===================================================
-  function tellMeMore(x, y, z, buttonOffset, yRotation) {
+  function tellMeMore(x, y, z, buttonOffset, yRotation, parentGroup) {
+    const tellMeMoreGroup = document.createElement("m-group");
+    tellMeMoreGroup.setAttribute("ry", yRotation);
+
     const duration = 120;
+    let audioCanPlay = true;
 
     const transform = (element, x, y, z) => {
       element.setAttribute("x", x);
       element.setAttribute("y", y);
       element.setAttribute("z", z);
+    };
+
+    const sound = document.createElement("m-audio");
+    sound.setAttribute("y", 1.2);
+    sound.setAttribute("loop", false);
+    sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+    sound.setAttribute("volume", 2);
+    sound.setAttribute("start-time", document.timeline.currentTime - 900);
+    sound.setAttribute("pause-time", document.timeline.currentTime);
+    tellMeMoreGroup.appendChild(sound);
+
+    const playSound = () => {
+      if (!audioCanPlay) {
+        return;
+      }
+      audioCanPlay = false;
+      const now = document.timeline.currentTime;
+      sound.setAttribute("start-time", now);
+      sound.setAttribute("pause-time", now + 900);
+      setTimeout(() => {
+        audioCanPlay = true;
+      }, 1000);
     };
 
     const animate = (element, attr, start, end, duration, easing) => {
@@ -80,14 +106,12 @@
       anim.setAttribute("easing", easing);
       anim.setAttribute("loop", false);
       element.appendChild(anim);
+      playSound();
       setTimeout(() => {
         element.setAttribute(attr, end);
         element.removeChild(anim);
       }, duration);
     };
-
-    const tellMeMoreGroup = document.createElement("m-group");
-    tellMeMoreGroup.setAttribute("ry", yRotation);
 
     const base = document.createElement("m-model");
     const button = document.createElement("m-model");
@@ -106,10 +130,10 @@
 
     tellMeMoreGroup.appendChild(button);
     tellMeMoreGroup.appendChild(base);
-    videoExampleGroup.appendChild(tellMeMoreGroup);
+    parentGroup.appendChild(tellMeMoreGroup);
   }
-  tellMeMore(-4, 0, 6, 0.03, -90);
-  tellMeMore(24, 0, 6, 0.03, 90);
+  tellMeMore(-4, 0, 6, 0.03, -90, videoExampleGroup);
+  tellMeMore(24, 0, 6, 0.03, 90, videoExampleGroup);
   // ================================================================
 
   function createLabel(str, amount, index) {
