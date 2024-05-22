@@ -1,13 +1,13 @@
-<m-group ry="180" y="0.025">
+<m-group id="video-example-group" ry="180" y="0.025">
   <m-model src="/assets/playground/megadrive_gaming.glb" sx="2" sy="2" sz="2"></m-model>
   <m-video
     src="/assets/playground/sonic_ghz.mp4"
     id="my-video-player"
     x="0"
-    y="2.25"
+    y="2.3"
     z="1.082"
-    width="3.55"
-    height="2.85"
+    width="3.6"
+    height="2.95"
   ></m-video>
 </m-group>
 
@@ -32,6 +32,7 @@
 </m-group>
 
 <script>
+  const videoExampleGroup = document.getElementById("video-example-group");
   const myVideo = document.getElementById("my-video-player");
 
   const attributesLabelGroup = document.getElementById("attributes-label-group");
@@ -57,6 +58,59 @@
   let muted = true;
   let startedAt = document.timeline.currentTime;
   let lastPaused = document.timeline.currentTime;
+
+  // tell me more ===================================================
+  function tellMeMore(x, y, z, buttonOffset, yRotation) {
+    const duration = 120;
+
+    const transform = (element, x, y, z) => {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+    };
+
+    const animate = (element, attr, start, end, duration, easing) => {
+      const anim = document.createElement("m-attr-anim");
+      anim.setAttribute("attr", attr);
+      anim.setAttribute("start", start);
+      anim.setAttribute("end", end);
+      anim.setAttribute("start-time", document.timeline.currentTime);
+      anim.setAttribute("end-time", document.timeline.currentTime + duration);
+      anim.setAttribute("duration", duration);
+      anim.setAttribute("easing", easing);
+      anim.setAttribute("loop", false);
+      element.appendChild(anim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(anim);
+      }, duration);
+    };
+
+    const tellMeMoreGroup = document.createElement("m-group");
+    tellMeMoreGroup.setAttribute("ry", yRotation);
+
+    const base = document.createElement("m-model");
+    const button = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
+    button.setAttribute("src", "/assets/playground/tell_me_more_button.glb");
+    transform(tellMeMoreGroup, x, y, z);
+
+    button.addEventListener("click", () => {
+      animate(button, "z", 0, +buttonOffset, duration, "easeInOutCubic");
+      animate(button, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+      setTimeout(() => {
+        animate(button, "z", +buttonOffset, 0, duration, "easeInOutCubic");
+        animate(button, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+      }, duration + 20);
+    });
+
+    tellMeMoreGroup.appendChild(button);
+    tellMeMoreGroup.appendChild(base);
+    videoExampleGroup.appendChild(tellMeMoreGroup);
+  }
+  tellMeMore(-4, 0, 6, 0.03, -90);
+  tellMeMore(24, 0, 6, 0.03, 90);
+  // ================================================================
 
   function createLabel(str, amount, index) {
     const y = amount * labelHeight - index * labelHeight;

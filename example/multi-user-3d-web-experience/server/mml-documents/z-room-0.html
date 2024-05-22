@@ -1,4 +1,4 @@
-<m-group id="room-content" z="5" x="7"></m-group>
+<m-group id="room-content"></m-group>
 <m-frame
   src="wss:///mml-documents/example-gliders.html"
   sz="2"
@@ -7,57 +7,268 @@
   z="1.09"
 ></m-frame>
 
+<m-group id="flat-screen" x="0" y="4.5" z="22.36" ry="180" sx="1.3" sy="1.3">
+  <m-cube color="#000000" width="9.2" height="5.7" depth="0.03" z="-0.02"></m-cube>
+  <m-cube color="#212121" width="9" height="5.5" depth="0.03" z="-0.01"></m-cube>
+  <m-video
+    id="video-player-1"
+    width="8"
+    height="4.5"
+    y="0.05"
+    z="-0.01"
+    collide="true"
+    volume="0"
+    loop="false"
+    start-time="-32000"
+    pause-time="0"
+  ></m-video>
+  <m-video
+    id="video-player-2"
+    width="8"
+    height="4.5"
+    y="0.05"
+    z="-0.02"
+    collide="true"
+    volume="0"
+    loop="false"
+    start-time="-53050"
+    pause-time="0"
+  ></m-video>
+  <m-group y="-3">
+    <m-cube width="3.4" height="0.23" depth="0.01" color="#999999"></m-cube>
+    <m-label
+      id="spectators-label"
+      font-size="15"
+      color="#000000"
+      font-color="#cccccc"
+      alignment="center"
+      padding="0"
+      width="3.35"
+      height="0.2"
+      z="0.01"
+      content=""
+    ></m-label>
+  </m-group>
+</m-group>
+
 <script>
   const roomContentGroup = document.getElementById("room-content");
-  const color = "#aaaaaa";
 
-  function createSignLabel(content, width, height, x, y, z, ry, fontSize = 24) {
-    const label = document.createElement("m-label");
-    label.setAttribute("padding", 0);
-    label.setAttribute("alignment", "center");
-    label.setAttribute("color", color);
-    label.setAttribute("font-size", fontSize);
-    label.setAttribute("content", content);
-    label.setAttribute("width", width);
-    label.setAttribute("height", height);
-    label.setAttribute("x", x);
-    label.setAttribute("y", y);
-    label.setAttribute("z", z);
-    label.setAttribute("ry", ry);
-    return label;
+  const videoPlayer1 = document.getElementById("video-player-1");
+  const videoPlayer2 = document.getElementById("video-player-2");
+  const spectatorsLabel = document.getElementById("spectators-label");
+
+  const users = new Set();
+  const playedForUser = new Set();
+  const doorFrame = createDoorFrame();
+  const globalDebug = false;
+
+  let welcomeAudio = null;
+  let audioPlaying = false;
+  const welcomeAudioDuration = 5700;
+
+  // tell me more ===================================================
+  function tellMeMore(x, y, z, buttonOffset, yRotation) {
+    const duration = 120;
+
+    const transform = (element, x, y, z) => {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+    };
+
+    const animate = (element, attr, start, end, duration, easing) => {
+      const anim = document.createElement("m-attr-anim");
+      anim.setAttribute("attr", attr);
+      anim.setAttribute("start", start);
+      anim.setAttribute("end", end);
+      anim.setAttribute("start-time", document.timeline.currentTime);
+      anim.setAttribute("end-time", document.timeline.currentTime + duration);
+      anim.setAttribute("duration", duration);
+      anim.setAttribute("easing", easing);
+      anim.setAttribute("loop", false);
+      element.appendChild(anim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(anim);
+      }, duration);
+    };
+
+    const tellMeMoreGroup = document.createElement("m-group");
+    tellMeMoreGroup.setAttribute("ry", yRotation);
+
+    const base = document.createElement("m-model");
+    const button = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
+    button.setAttribute("src", "/assets/playground/tell_me_more_button.glb");
+    transform(tellMeMoreGroup, x, y, z);
+
+    button.addEventListener("click", () => {
+      animate(button, "z", 0, +buttonOffset, duration, "easeInOutCubic");
+      animate(button, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+      setTimeout(() => {
+        animate(button, "z", +buttonOffset, 0, duration, "easeInOutCubic");
+        animate(button, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+      }, duration + 20);
+    });
+
+    tellMeMoreGroup.appendChild(button);
+    tellMeMoreGroup.appendChild(base);
+    roomContentGroup.appendChild(tellMeMoreGroup);
+  }
+  tellMeMore(3, 0, 15, 0.03, 0);
+  // ================================================================
+
+  function createWelcomeAudio() {
+    welcomeAudio = document.createElement("m-audio");
+    welcomeAudio.setAttribute("debug", globalDebug);
+    welcomeAudio.setAttribute("src", "/assets/playground/welcome_to_experience.mp3");
+    welcomeAudio.setAttribute("loop", false);
+    welcomeAudio.setAttribute("start-time", document.timeline.currentTime - 5000);
+    welcomeAudio.setAttribute("pause-time", document.timeline.currentTime);
+    welcomeAudio.setAttribute("cone-angle", 180);
+    welcomeAudio.setAttribute("cone-falloff-angle", 180);
+    welcomeAudio.setAttribute("volume", 6);
+    welcomeAudio.setAttribute("ry", 180);
+    welcomeAudio.setAttribute("y", 3);
+    welcomeAudio.setAttribute("z", 22.5);
+    roomContentGroup.appendChild(welcomeAudio);
   }
 
-  function createDoubleSidedLabel(description, width, height, x, y, z, ry, fontSize = 24) {
-    const group = document.createElement("m-group");
-    const labelFront = createSignLabel(description, width, 1.5, x, y + 2, z, 180, 30);
-    group.appendChild(labelFront);
-    const labelBack = createSignLabel(description, width, 1.5, x, y + 2, z + 0.01, 0, 30);
-    group.appendChild(labelBack);
-    return group;
+  function createProbe() {
+    const probe = document.createElement("m-position-probe");
+    probe.setAttribute("range", 23);
+    probe.setAttribute("debug", globalDebug);
+    probe.setAttribute("interval", 500);
+    probe.addEventListener("positionenter", (e) => processProbeEvent(e));
+    probe.addEventListener("positionmove", (e) => processProbeEvent(e));
+    probe.addEventListener("positionleave", (e) => processProbeEvent(e, false));
+    window.addEventListener("disconnected", (e) => processProbeEvent(e, false));
+
+    const probeCube = document.createElement("m-cube");
+    probeCube.setAttribute("z", -0.1);
+    probeCube.setAttribute("sx", 0.76);
+    probeCube.setAttribute("sy", 0.45);
+    probeCube.setAttribute("sz", 0.97);
+    probeCube.setAttribute("collide", false);
+    probeCube.setAttribute("visible", globalDebug);
+    probeCube.appendChild(probe);
+    roomContentGroup.appendChild(probeCube);
   }
 
-  function createGreyBoxedElement(description, x, y, z, width) {
-    const group = document.createElement("m-group");
+  function playWelcomeAudioToPlayer(playerId) {
+    if (welcomeAudio && !playedForUser.has(playerId)) {
+      playedForUser.add(playerId);
+      const now = document.timeline.currentTime;
+      welcomeAudio.setAttribute("start-time", now);
+      welcomeAudio.setAttribute("pause-time", now + welcomeAudioDuration);
+      setTimeout(() => highlightDoorFrame(), welcomeAudioDuration / 3);
+      setTimeout(() => {
+        audioPlaying = false;
+      }, welcomeAudioDuration * 1.5);
+    }
+  }
 
+  function processProbeEvent(event, enterOrMove = true) {
+    if (enterOrMove) {
+      const { connectionId, elementRelative, documentRelative } = event.detail;
+      const { x, y, z } = documentRelative.position;
+      if (!users.has(connectionId)) {
+        users.add(connectionId);
+      }
+      if (!playedForUser.has(connectionId)) {
+        if (audioPlaying === false) {
+          audioPlaying = true;
+          playWelcomeAudioToPlayer(connectionId);
+        }
+      }
+    } else {
+      const { connectionId } = event.detail;
+      if (playedForUser.has(connectionId)) {
+        playedForUser.delete(connectionId);
+      }
+      if (users.has(connectionId)) {
+        users.delete(connectionId);
+      }
+    }
+  }
+
+  function createCube(x, y, z, width, height, depth, color) {
     const cube = document.createElement("m-cube");
     cube.setAttribute("x", x);
-    cube.setAttribute("y", y + 0.5);
+    cube.setAttribute("y", y);
     cube.setAttribute("z", z);
-    group.appendChild(cube);
-
-    const label = createDoubleSidedLabel(description, width, 1.5, x, y + 2, z, 180, 30);
-    group.appendChild(label);
-
-    return group;
+    cube.setAttribute("width", width);
+    cube.setAttribute("height", height);
+    cube.setAttribute("depth", depth);
+    cube.setAttribute("color", color);
+    cube.setAttribute("collide", false);
+    cube.setAttribute("cast-shadows", false);
+    cube.setAttribute("opacity", 0.0);
+    return cube;
   }
 
-  const element = createGreyBoxedElement(
-    "This is where the MML example chosen to be the 1st contact for the user will be",
-    0,
-    0,
-    0,
-    6,
-  );
+  function createDoorFrame() {
+    const doorFrame = new Set();
+    const thickness = 0.1;
+    const zPos = 22.3;
+    const topX = -14.6;
+    const topY = 6.12;
+    const highLightColor = "#88ff88";
+    const leftX = -12.05;
+    const rightX = -17.05;
+    const sideY = 3;
+    const top = createCube(topX, topY, zPos, 5, thickness, thickness, highLightColor);
+    const left = createCube(leftX, sideY, zPos, thickness, 6.35, thickness, highLightColor);
+    const right = createCube(rightX, sideY, zPos, thickness, 6.35, thickness, highLightColor);
+    doorFrame.add(top);
+    doorFrame.add(left);
+    doorFrame.add(right);
+    roomContentGroup.appendChild(top);
+    roomContentGroup.appendChild(left);
+    roomContentGroup.appendChild(right);
+    return doorFrame;
+  }
 
-  roomContentGroup.appendChild(element);
+  function highlightDoorFrame() {
+    doorFrame.forEach((door) => {
+      let transparent = true;
+      const interval = setInterval(() => {
+        animate(door, "opacity", 0, 1, 1000, "easeInOutCubic", true);
+      }, 1100);
+
+      setTimeout(() => {
+        clearInterval(interval);
+      }, 6600);
+    });
+  }
+
+  function animate(element, attr, start, end, duration, easing, pingPong) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("ping-pong", pingPong);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    if (pingPong === false) {
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(anim);
+      }, duration);
+    }
+    return anim;
+  }
+
+  setInterval(() => {
+    const labelText = users.size === 1 ? "user present" : "users present";
+    spectatorsLabel.setAttribute("content", `${users.size} ${labelText}`);
+  }, 750);
+
+  createWelcomeAudio();
+  createProbe();
 </script>

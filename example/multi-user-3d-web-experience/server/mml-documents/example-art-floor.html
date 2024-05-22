@@ -3,7 +3,7 @@
   const floorGroup = document.getElementById("floor-group");
   const width = 10;
   const depth = 10;
-  const cells = 13;
+  const cells = 8;
   const radius = 5;
 
   const cubeWidth = width / cells;
@@ -62,7 +62,7 @@
           // Calculate the start time based on the normalized distance
           const startTime = now + normalizedDistance * wavePeriod;
 
-          animate(cube, "sy", 0.0001, 1, movementDuration * 1000, startTime);
+          animate(cube, "sy", 0.0001, 0.5, movementDuration * 750, startTime);
           animate(
             cube,
             "color",

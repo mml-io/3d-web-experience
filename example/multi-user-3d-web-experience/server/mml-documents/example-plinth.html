@@ -1,58 +1,61 @@
-<m-model src="/assets/playground/scifi-car-plinth.glb"></m-model>
-<m-model id="button-left" src="/assets/playground/scifi-car-plinth-left.glb"></m-model>
-<m-model id="button-right" src="/assets/playground/scifi-car-plinth-right.glb"></m-model>
-<m-label
-  id="display"
-  color="#ffffff"
-  font-color="black"
-  padding="0"
-  alignment="center"
-  content="+1"
-  rx="-90"
-  rz="-90"
-  ry="-45"
-  width="0.3"
-  height="0.2"
-  y="0.17"
-  x="-4.55"
-  font-size="18"
-></m-label>
-<m-group id="car-wrapper">
-  <m-model id="car" src="/assets/playground/scifi-car.glb" y="0.25">
-    <m-attr-anim
-      attr="y"
-      start="0.25"
-      end="0.3"
-      duration="13000"
-      ping-pong="true"
-      ping-pong-delay="1000"
-      loop="true"
-    ></m-attr-anim>
-    <m-attr-anim id="car-anim" attr="ry" start="0" end="360" loop="true"></m-attr-anim>
-  </m-model>
-</m-group>
+<m-group id="plinth-demo">
+  <m-model src="/assets/playground/scifi-car-plinth.glb"></m-model>
+  <m-model id="button-left" src="/assets/playground/scifi-car-plinth-left.glb"></m-model>
+  <m-model id="button-right" src="/assets/playground/scifi-car-plinth-right.glb"></m-model>
+  <m-label
+    id="display"
+    color="#ffffff"
+    font-color="black"
+    padding="0"
+    alignment="center"
+    content="+1"
+    rx="-90"
+    rz="-90"
+    ry="-45"
+    width="0.3"
+    height="0.2"
+    y="0.17"
+    x="-4.55"
+    font-size="18"
+  ></m-label>
+  <m-group id="car-wrapper">
+    <m-model id="car" src="/assets/playground/scifi-car.glb" y="0.25">
+      <m-attr-anim
+        attr="y"
+        start="0.25"
+        end="0.3"
+        duration="13000"
+        ping-pong="true"
+        ping-pong-delay="1000"
+        loop="true"
+      ></m-attr-anim>
+      <m-attr-anim id="car-anim" attr="ry" start="0" end="360" loop="true"></m-attr-anim>
+    </m-model>
+  </m-group>
 
-<m-group id="attributes-label-group" x="1" y="0" z="8" ry="240" sx="1.75" sy="1.75">
-  <m-group id="control-buttons-group" rx="-55" y="-0.3" z="1"></m-group>
-  <m-cube
-    id="attributes-label-frame"
-    color="#88ccff"
-    width="5.9"
-    height="3.5"
-    depth="0.09"
-    z="-0.155"
-  ></m-cube>
-  <m-cube
-    id="attributes-label-frame-border"
-    color="#212121"
-    width="6.1"
-    height="3.9"
-    depth="0.1"
-    z="-0.156"
-  ></m-cube>
+  <m-group id="attributes-label-group" x="1" y="0" z="8" ry="240" sx="1.75" sy="1.75">
+    <m-group id="control-buttons-group" rx="-55" y="-0.3" z="1"></m-group>
+    <m-cube
+      id="attributes-label-frame"
+      color="#88ccff"
+      width="5.9"
+      height="3.5"
+      depth="0.09"
+      z="-0.155"
+    ></m-cube>
+    <m-cube
+      id="attributes-label-frame-border"
+      color="#212121"
+      width="6.1"
+      height="3.9"
+      depth="0.1"
+      z="-0.156"
+    ></m-cube>
+  </m-group>
 </m-group>
 
 <script>
+  const plinthDemo = document.getElementById("plinth-demo");
   const car = document.getElementById("car");
   const carWrapper = document.getElementById("car-wrapper");
 
@@ -81,6 +84,58 @@
 
   let animationStartTime;
   let pauseRatio = undefined;
+
+  // tell me more ===================================================
+  function tellMeMore(x, y, z, buttonOffset, yRotation) {
+    const duration = 120;
+
+    const transform = (element, x, y, z) => {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+    };
+
+    const animate = (element, attr, start, end, duration, easing) => {
+      const anim = document.createElement("m-attr-anim");
+      anim.setAttribute("attr", attr);
+      anim.setAttribute("start", start);
+      anim.setAttribute("end", end);
+      anim.setAttribute("start-time", document.timeline.currentTime);
+      anim.setAttribute("end-time", document.timeline.currentTime + duration);
+      anim.setAttribute("duration", duration);
+      anim.setAttribute("easing", easing);
+      anim.setAttribute("loop", false);
+      element.appendChild(anim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(anim);
+      }, duration);
+    };
+
+    const tellMeMoreGroup = document.createElement("m-group");
+    tellMeMoreGroup.setAttribute("ry", yRotation);
+
+    const base = document.createElement("m-model");
+    const button = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
+    button.setAttribute("src", "/assets/playground/tell_me_more_button.glb");
+    transform(tellMeMoreGroup, x, y, z);
+
+    button.addEventListener("click", () => {
+      animate(button, "z", 0, +buttonOffset, duration, "easeInOutCubic");
+      animate(button, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+      setTimeout(() => {
+        animate(button, "z", +buttonOffset, 0, duration, "easeInOutCubic");
+        animate(button, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+      }, duration + 20);
+    });
+
+    tellMeMoreGroup.appendChild(button);
+    tellMeMoreGroup.appendChild(base);
+    plinthDemo.appendChild(tellMeMoreGroup);
+  }
+  tellMeMore(-3, 0, -4.5, 0.03, 90);
+  // ================================================================
 
   function adjustCarAnim(delta) {
     const newRotationSpeed = rotationSpeed + delta;
