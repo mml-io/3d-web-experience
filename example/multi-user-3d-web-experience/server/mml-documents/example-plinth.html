@@ -103,7 +103,7 @@
     sound.setAttribute("y", 1.2);
     sound.setAttribute("loop", false);
     sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
-    sound.setAttribute("volume", 2);
+    sound.setAttribute("volume", 0);
     sound.setAttribute("start-time", document.timeline.currentTime - 900);
     sound.setAttribute("pause-time", document.timeline.currentTime);
     tellMeMoreGroup.appendChild(sound);
@@ -114,9 +114,11 @@
       }
       audioCanPlay = false;
       const now = document.timeline.currentTime;
+      sound.setAttribute("volume", 2);
       sound.setAttribute("start-time", now);
       sound.setAttribute("pause-time", now + 900);
       setTimeout(() => {
+        sound.setAttribute("volume", 0);
         audioCanPlay = true;
       }, 1000);
     };
@@ -139,22 +141,42 @@
       }, duration);
     };
 
+    const scale = (element, size) => {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    };
+
+    const swap = (elementA, elementB) => {
+      scale(elementB, 1.0);
+      scale(elementA, 0.001);
+    };
+
     const base = document.createElement("m-model");
-    const button = document.createElement("m-model");
+    const buttonOn = document.createElement("m-model");
+    const buttonOff = document.createElement("m-model");
     base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
-    button.setAttribute("src", "/assets/playground/tell_me_more_button.glb");
+    buttonOn.setAttribute("src", "/assets/playground/tell_me_more_button_on.glb");
+    buttonOff.setAttribute("src", "/assets/playground/tell_me_more_button_off.glb");
+    scale(buttonOff, 0.001);
     transform(tellMeMoreGroup, x, y, z);
 
-    button.addEventListener("click", () => {
-      animate(button, "z", 0, +buttonOffset, duration, "easeInOutCubic");
-      animate(button, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+    buttonOn.addEventListener("click", () => {
+      animate(buttonOn, "z", 0, +buttonOffset, duration, "easeInOutCubic");
+      animate(buttonOn, "y", 0, -buttonOffset, duration, "easeInOutCubic");
       setTimeout(() => {
-        animate(button, "z", +buttonOffset, 0, duration, "easeInOutCubic");
-        animate(button, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+        animate(buttonOn, "z", +buttonOffset, 0, duration, "easeInOutCubic");
+        animate(buttonOn, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+
+        setTimeout(() => {
+          swap(buttonOn, buttonOff);
+          setTimeout(() => swap(buttonOff, buttonOn), 3000);
+        }, duration + 20);
       }, duration + 20);
     });
 
-    tellMeMoreGroup.appendChild(button);
+    tellMeMoreGroup.appendChild(buttonOn);
+    tellMeMoreGroup.appendChild(buttonOff);
     tellMeMoreGroup.appendChild(base);
     parentGroup.appendChild(tellMeMoreGroup);
   }

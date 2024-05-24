@@ -63,6 +63,36 @@
   const doorFrame = createDoorFrame();
   const globalDebug = false;
 
+  const roomProbeUsers = new Set();
+
+  const roomProbe = document.createElement("m-position-probe");
+  roomProbe.setAttribute("range", 30);
+  roomProbe.setAttribute("debug", false);
+  roomProbe.setAttribute("interval", 500);
+  roomProbe.addEventListener("positionenter", (e) => {
+    const { connectionId } = e.detail;
+    if (!roomProbeUsers.has(connectionId)) {
+      roomProbeUsers.add(connectionId);
+    }
+  });
+  roomProbe.addEventListener("positionmove", (e) => {
+    const { connectionId } = e.detail;
+    if (!roomProbeUsers.has(connectionId)) {
+      roomProbeUsers.add(connectionId);
+    }
+  });
+  roomProbe.addEventListener("positionleave", (e) => {
+    const { connectionId } = e.detail;
+    if (roomProbeUsers.has(connectionId)) {
+      roomProbeUsers.delete(connectionId);
+    }
+    if (users.has(connectionId)) {
+      users.delete(connectionId);
+    }
+  });
+
+  roomContentGroup.appendChild(roomProbe);
+
   let welcomeAudio = null;
   let audioPlaying = false;
   const welcomeAudioDuration = 5700;
@@ -85,7 +115,7 @@
     sound.setAttribute("y", 1.2);
     sound.setAttribute("loop", false);
     sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
-    sound.setAttribute("volume", 2);
+    sound.setAttribute("volume", 0);
     sound.setAttribute("start-time", document.timeline.currentTime - 900);
     sound.setAttribute("pause-time", document.timeline.currentTime);
     tellMeMoreGroup.appendChild(sound);
@@ -96,9 +126,11 @@
       }
       audioCanPlay = false;
       const now = document.timeline.currentTime;
+      sound.setAttribute("volume", 2);
       sound.setAttribute("start-time", now);
       sound.setAttribute("pause-time", now + 900);
       setTimeout(() => {
+        sound.setAttribute("volume", 0);
         audioCanPlay = true;
       }, 1000);
     };
@@ -121,22 +153,42 @@
       }, duration);
     };
 
+    const scale = (element, size) => {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    };
+
+    const swap = (elementA, elementB) => {
+      scale(elementB, 1.0);
+      scale(elementA, 0.001);
+    };
+
     const base = document.createElement("m-model");
-    const button = document.createElement("m-model");
+    const buttonOn = document.createElement("m-model");
+    const buttonOff = document.createElement("m-model");
     base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
-    button.setAttribute("src", "/assets/playground/tell_me_more_button.glb");
+    buttonOn.setAttribute("src", "/assets/playground/tell_me_more_button_on.glb");
+    buttonOff.setAttribute("src", "/assets/playground/tell_me_more_button_off.glb");
+    scale(buttonOff, 0.001);
     transform(tellMeMoreGroup, x, y, z);
 
-    button.addEventListener("click", () => {
-      animate(button, "z", 0, +buttonOffset, duration, "easeInOutCubic");
-      animate(button, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+    buttonOn.addEventListener("click", () => {
+      animate(buttonOn, "z", 0, +buttonOffset, duration, "easeInOutCubic");
+      animate(buttonOn, "y", 0, -buttonOffset, duration, "easeInOutCubic");
       setTimeout(() => {
-        animate(button, "z", +buttonOffset, 0, duration, "easeInOutCubic");
-        animate(button, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+        animate(buttonOn, "z", +buttonOffset, 0, duration, "easeInOutCubic");
+        animate(buttonOn, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+
+        setTimeout(() => {
+          swap(buttonOn, buttonOff);
+          setTimeout(() => swap(buttonOff, buttonOn), 3000);
+        }, duration + 20);
       }, duration + 20);
     });
 
-    tellMeMoreGroup.appendChild(button);
+    tellMeMoreGroup.appendChild(buttonOn);
+    tellMeMoreGroup.appendChild(buttonOff);
     tellMeMoreGroup.appendChild(base);
     parentGroup.appendChild(tellMeMoreGroup);
   }
@@ -160,24 +212,13 @@
   }
 
   function createProbe() {
-    const probe = document.createElement("m-position-probe");
-    probe.setAttribute("range", 35);
-    probe.setAttribute("debug", globalDebug);
-    probe.setAttribute("interval", 500);
-    probe.addEventListener("positionenter", (e) => processProbeEvent(e));
-    probe.addEventListener("positionmove", (e) => processProbeEvent(e));
-    probe.addEventListener("positionleave", (e) => processProbeEvent(e, false));
-    window.addEventListener("disconnected", (e) => processProbeEvent(e, false));
-
-    const probeCube = document.createElement("m-cube");
-    probeCube.setAttribute("z", -0.1);
-    probeCube.setAttribute("sx", 1.2);
-    probeCube.setAttribute("sy", 0.7);
-    probeCube.setAttribute("sz", 1.2);
-    probeCube.setAttribute("collide", false);
-    probeCube.setAttribute("visible", globalDebug);
-    probeCube.appendChild(probe);
-    roomContentGroup.appendChild(probeCube);
+    const probe = createCube(0, 0.025, 0, 35, 0.02, 45, "#aaaaaa");
+    probe.setAttribute("collision-interval", 500);
+    probe.addEventListener("collisionstart", (e) => processProbeEvent(e));
+    probe.addEventListener("collisionmove", (e) => processProbeEvent(e));
+    probe.addEventListener("collisionend", (e) => processProbeEvent(e, false));
+    window.addEventListener("disconnected", (e) => processProbeEvent(e, false, true));
+    roomContentGroup.appendChild(probe);
   }
 
   function playWelcomeAudioToPlayer(playerId) {
@@ -193,10 +234,9 @@
     }
   }
 
-  function processProbeEvent(event, enterOrMove = true) {
+  function processProbeEvent(event, enterOrMove = true, disconnect = false) {
     if (enterOrMove) {
-      const { connectionId, elementRelative, documentRelative } = event.detail;
-      const { x, y, z } = documentRelative.position;
+      const { connectionId } = event.detail;
       if (!users.has(connectionId)) {
         users.add(connectionId);
       }
@@ -208,11 +248,22 @@
       }
     } else {
       const { connectionId } = event.detail;
-      if (playedForUser.has(connectionId)) {
+      if (playedForUser.has(connectionId) && !roomProbeUsers.has(connectionId)) {
         playedForUser.delete(connectionId);
       }
-      if (users.has(connectionId)) {
+      if (users.has(connectionId) && !roomProbeUsers.has(connectionId)) {
         users.delete(connectionId);
+      }
+      if (roomProbeUsers.has(connectionId)) {
+        roomProbeUsers.delete(connectionId);
+        if (users.has(connectionId)) {
+          users.delete(connectionId);
+        }
+      }
+      if (disconnect) {
+        if (playedForUser.has(connectionId)) {
+          playedForUser.delete(connectionId);
+        }
       }
     }
   }
@@ -226,9 +277,9 @@
     cube.setAttribute("height", height);
     cube.setAttribute("depth", depth);
     cube.setAttribute("color", color);
-    cube.setAttribute("collide", false);
-    cube.setAttribute("cast-shadows", false);
-    cube.setAttribute("opacity", 0.0);
+    cube.setAttribute("collide", true);
+    cube.setAttribute("cast-shadows", true);
+    cube.setAttribute("opacity", 1);
     return cube;
   }
 
@@ -294,5 +345,7 @@
   }, 750);
 
   createWelcomeAudio();
-  createProbe();
+  setTimeout(() => {
+    createProbe();
+  }, 2000);
 </script>
