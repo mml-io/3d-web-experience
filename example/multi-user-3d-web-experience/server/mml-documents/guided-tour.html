@@ -185,6 +185,7 @@
     z,
     thickness,
     color,
+    hasCeiling = true,
     debug = false,
   ) {
     const room = document.createElement("m-group");
@@ -196,16 +197,34 @@
     room.appendChild(floor);
 
     // Create ceiling if required
-    const ceiling = createFloorOrCeiling(
-      width,
-      depth,
-      0,
-      height + thickness * 1.5,
-      -halfDepth,
-      thickness,
-      color,
-    );
-    room.appendChild(ceiling);
+    if (hasCeiling) {
+      const ceiling = createWallWithOpening(
+        width,
+        depth,
+        thickness,
+        width - 4,
+        depth - 4,
+        0,
+        0,
+        height + thickness,
+        -halfDepth * 2,
+        0.5,
+        0.5,
+        color,
+        windowOpacity,
+      ).meshGroup;
+      ceiling.setAttribute("rx", 90);
+      // const ceiling = createFloorOrCeiling(
+      //   width,
+      //   depth,
+      //   0,
+      //   height + thickness * 1.5,
+      //   -halfDepth,
+      //   thickness,
+      //   color,
+      // );
+      room.appendChild(ceiling);
+    }
 
     const doorsData = {};
 
@@ -429,12 +448,14 @@
 
     const roomsWindows = {
       PX: {
-        width: roomsDepth - 1,
-        height: roomsHeight - 0.5,
+        width: roomsDepth - 4,
+        height: roomsHeight - 3,
         offsetX: 0.5,
         offsetY: 0.5,
       },
     };
+
+    const roomsHaveCeiling = true;
 
     for (let i = 0; i < numberOfRooms; i++) {
       const zPos = 14 + roomsDepth * i + spaceBetweenRooms * i;
@@ -461,6 +482,7 @@
         zPos,
         roomsThickness,
         defaultColor,
+        roomsHaveCeiling,
       );
       progressionSpace.appendChild(room.meshGroup);
 
@@ -531,17 +553,23 @@
 
       if (i < 4) {
         const frameURL = `wss:///mml-documents/z-room-${i}.html`;
+        const minX = i === 0 ? -roomsWidth * 2 : -roomsWidth;
+        const maxX = i === 0 ? roomsWidth * 2 : roomsWidth;
+        const minY = i === 0 ? -roomsHeight * 2 : -roomsHeight / 2;
+        const maxY = i === 0 ? roomsHeight * 2 : roomsHeight + roomsThickness;
+        const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2;
+        const maxZ = i === 0 ? roomsDepth : roomsDepth / 2;
         const roomFrame = createLoadingFrame(
           frameURL, // frameURL
           0, // x
           0, // y
           zPos, // z
-          -roomsWidth, // minX
-          roomsWidth,
-          -roomsHeight / 2,
-          roomsHeight + roomsThickness,
-          -roomsDepth / 2,
-          +roomsDepth / 2,
+          minX, // minX
+          maxX,
+          minY,
+          maxY,
+          minZ,
+          maxZ,
         );
         progressionSpace.appendChild(roomFrame);
 
@@ -652,6 +680,7 @@
       travelatorCorridorDepth / 2 - 8.55,
       roomsThickness,
       defaultColor,
+      roomsHaveCeiling,
     );
     progressionSpace.appendChild(corridor.meshGroup);
   }

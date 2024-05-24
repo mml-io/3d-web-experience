@@ -161,7 +161,7 @@
 
   function createProbe() {
     const probe = document.createElement("m-position-probe");
-    probe.setAttribute("range", 23);
+    probe.setAttribute("range", 35);
     probe.setAttribute("debug", globalDebug);
     probe.setAttribute("interval", 500);
     probe.addEventListener("positionenter", (e) => processProbeEvent(e));
@@ -171,9 +171,9 @@
 
     const probeCube = document.createElement("m-cube");
     probeCube.setAttribute("z", -0.1);
-    probeCube.setAttribute("sx", 0.76);
-    probeCube.setAttribute("sy", 0.45);
-    probeCube.setAttribute("sz", 0.97);
+    probeCube.setAttribute("sx", 1.2);
+    probeCube.setAttribute("sy", 0.7);
+    probeCube.setAttribute("sz", 1.2);
     probeCube.setAttribute("collide", false);
     probeCube.setAttribute("visible", globalDebug);
     probeCube.appendChild(probe);
