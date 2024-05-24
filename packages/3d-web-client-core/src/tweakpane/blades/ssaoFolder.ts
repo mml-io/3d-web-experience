@@ -41,9 +41,9 @@ const ppssaoOptions = {
 export const n8ssaoValues = {
   enabled: true,
   halfRes: true,
-  aoRadius: 5,
-  distanceFalloff: 3.0,
-  intensity: 1.25,
+  aoRadius: 4.4,
+  distanceFalloff: 6.2,
+  intensity: 2,
   color: { r: 0, g: 0, b: 0 },
   aoSamples: 16,
   denoiseSamples: 4,
@@ -52,9 +52,9 @@ export const n8ssaoValues = {
 };
 
 export const n8ssaoOptions = {
-  radius: { min: 0.1, max: 6, step: 0.1 },
-  distanceFalloff: { min: 1, max: 6, step: 0.1 },
-  intensity: { min: 0.1, max: 5, step: 0.1 },
+  radius: { min: 0.1, max: 15, step: 0.1 },
+  distanceFalloff: { min: 1, max: 25, step: 0.1 },
+  intensity: { min: 0.1, max: 25, step: 0.1 },
   aoSamples: [2, 4, 8, 16, 32, 64],
   denoiseSamples: [2, 4, 8, 16, 32, 64],
   denoiseRadius: [3, 6, 12],

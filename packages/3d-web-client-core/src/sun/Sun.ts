@@ -9,7 +9,7 @@ export class Sun extends Group {
     sunValues.sunPosition.sunPolarAngle * (Math.PI / 180),
     100,
   );
-  private readonly shadowResolution: number = 16384;
+  private readonly shadowResolution: number = 8192;
   private readonly shadowCamFrustum: number = 70;
   private readonly camHelper: CameraHelper | null = null;
 

@@ -1,4 +1,4 @@
-import { Color, MeshPhysicalMaterial, MeshStandardMaterial, Texture, UniformsUtils } from "three";
+import { Color, Euler, MathUtils, MeshStandardMaterial, UniformsUtils } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { ease } from "../helpers/math-helpers";
@@ -9,6 +9,7 @@ import {
   injectInsideMain,
 } from "../rendering/shaders/shader-helpers";
 import { characterValues } from "../tweakpane/blades/characterFolder";
+import { envValues } from "../tweakpane/blades/environmentFolder";
 
 type TUniform<TValue = any> = { value: TValue };
 
@@ -37,6 +38,11 @@ export class CharacterMaterial extends MeshStandardMaterial {
 
     this.color = this.config.colorOverride || this.colorsCube216[this.config.characterId];
     this.envMapIntensity = characterValues.envMapIntensity;
+    this.envMapRotation = new Euler(
+      MathUtils.degToRad(envValues.hdrPolarAngle),
+      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+      0,
+    );
     this.transparent = true;
     this.side = this.config.originalMaterial.side;
 
@@ -142,7 +148,15 @@ export class CharacterMaterial extends MeshStandardMaterial {
       characterValues.emissive.g,
       characterValues.emissive.b,
     );
+    this.envMapRotation = new Euler(
+      MathUtils.degToRad(envValues.hdrPolarAngle),
+      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+      0,
+    );
     this.emissiveIntensity = characterValues.emissiveIntensity;
-    this.envMapIntensity = characterValues.envMapIntensity;
+    if (this.envMapIntensity !== characterValues.envMapIntensity) {
+      this.envMapIntensity = characterValues.envMapIntensity;
+      this.needsUpdate = true;
+    }
   }
 }

@@ -89,7 +89,7 @@ export class TweakPane {
     styleElement.appendChild(document.createTextNode(tweakPaneStyle));
     document.head.appendChild(styleElement);
 
-    this.renderStatsFolder = new RendererStatsFolder(this.gui, false);
+    this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
     this.rendererFolder = new RendererFolder(this.gui, false);
     this.toneMappingFolder = new ToneMappingFolder(this.gui, false);
     this.ssaoFolder = new SSAOFolder(this.gui, false);
@@ -97,8 +97,8 @@ export class TweakPane {
     this.postExtrasFolder = new PostExtrasFolder(this.gui, false);
     this.character = new CharacterFolder(this.gui, false);
     this.environment = new EnvironmentFolder(this.gui, false);
-    this.camera = new CameraFolder(this.gui, true);
-    this.characterControls = new CharacterControlsFolder(this.gui, true);
+    this.camera = new CameraFolder(this.gui, false);
+    this.characterControls = new CharacterControlsFolder(this.gui, false);
 
     this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 

@@ -311,10 +311,20 @@ export class Composer {
       MathUtils.degToRad(azimuthalAngle),
       0,
     );
+    this.scene.environmentRotation = new Euler(
+      MathUtils.degToRad(envValues.hdrPolarAngle),
+      MathUtils.degToRad(azimuthalAngle),
+      0,
+    );
   }
 
   public setHDRPolarAngle(polarAngle: number) {
     this.scene.backgroundRotation = new Euler(
+      MathUtils.degToRad(polarAngle),
+      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+      0,
+    );
+    this.scene.environmentRotation = new Euler(
       MathUtils.degToRad(polarAngle),
       MathUtils.degToRad(envValues.hdrAzimuthalAngle),
       0,
@@ -334,6 +344,13 @@ export class Composer {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
         this.scene.background = envMap;
+        this.scene.environment = envMap;
+        this.scene.environmentIntensity = 0.2;
+        this.scene.environmentRotation = new Euler(
+          MathUtils.degToRad(envValues.hdrPolarAngle),
+          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          0,
+        );
         this.scene.backgroundIntensity = envValues.hdrIntensity;
         this.scene.backgroundBlurriness = envValues.hdrBlurriness;
         this.scene.backgroundRotation = new Euler(
@@ -361,6 +378,13 @@ export class Composer {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
           this.scene.background = envMap;
+          this.scene.environment = envMap;
+          this.scene.environmentIntensity = 0.2;
+          this.scene.environmentRotation = new Euler(
+            MathUtils.degToRad(envValues.hdrPolarAngle),
+            MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+            0,
+          );
           this.scene.backgroundIntensity = envValues.hdrIntensity;
           this.scene.backgroundBlurriness = envValues.hdrBlurriness;
           this.isEnvHDRI = true;

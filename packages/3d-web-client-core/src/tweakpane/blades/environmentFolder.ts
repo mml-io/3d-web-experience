@@ -7,10 +7,10 @@ import { Sun } from "../../sun/Sun";
 export const sunValues = {
   sunPosition: {
     sunAzimuthalAngle: 155, //  129, // 219,
-    sunPolarAngle: -80, // -86, // -37,
+    sunPolarAngle: -45, // -86, // -37,
   },
   sunIntensity: 5.5, //3.7,
-  sunColor: { r: 1.0, g: 0.91, b: 0.79 },
+  sunColor: { r: 0.91, g: 0.82, b: 0.7 },
 };
 
 const sunOptions = {
@@ -24,11 +24,12 @@ const sunOptions = {
 export const envValues = {
   hdrAzimuthalAngle: 75,
   hdrPolarAngle: 0,
+  hdrEnvIntensity: 0.05,
   hdrIntensity: 0.8,
   hdrBlurriness: 0.0,
   ambientLight: {
     ambientLightIntensity: 0.45,
-    ambientLightColor: { r: 1, g: 1, b: 1 },
+    ambientLightColor: { r: 0.99, g: 0.82, b: 0.72 },
   },
   fog: {
     fogNear: 21,
@@ -41,6 +42,7 @@ const envOptions = {
   hdrAzimuthalAngle: { min: 0, max: 360, step: 1 },
   hdrPolarAngle: { min: 0, max: 360, step: 1 },
   hdrIntensity: { min: 0, max: 1.3, step: 0.01 },
+  hdrEnvIntensity: { min: 0, max: 1, step: 0.01 },
   hdrBlurriness: { min: 0, max: 0.1, step: 0.001 },
   ambientLight: {
     ambientLightIntensity: { min: 0, max: 1, step: 0.01 },
@@ -80,6 +82,7 @@ export class EnvironmentFolder {
     this.hdrButton = this.ambient.addButton({ title: "Set HDRI" });
     this.ambient.addBinding(envValues, "hdrIntensity", envOptions.hdrIntensity);
     this.ambient.addBinding(envValues, "hdrBlurriness", envOptions.hdrBlurriness);
+    this.ambient.addBinding(envValues, "hdrEnvIntensity", envOptions.hdrEnvIntensity);
     this.ambient.addBinding(envValues, "hdrAzimuthalAngle", envOptions.hdrAzimuthalAngle);
     this.ambient.addBinding(envValues, "hdrPolarAngle", envOptions.hdrPolarAngle);
     this.ambient.addBinding(
@@ -148,17 +151,23 @@ export class EnvironmentFolder {
       switch (target) {
         case "hdrAzimuthalAngle": {
           const value = e.value as number;
+          envValues.hdrAzimuthalAngle = value;
           setHDRAzimuthalAngle(value);
           break;
         }
         case "hdrPolarAngle": {
           const value = e.value as number;
+          envValues.hdrPolarAngle = value;
           setHDRPolarAngle(value);
           break;
         }
         case "hdrIntensity":
           scene.backgroundIntensity = e.value as number;
           break;
+        case "hdrEnvIntensity": {
+          scene.environmentIntensity = e.value as number;
+          break;
+        }
         case "hdrBlurriness":
           scene.backgroundBlurriness = e.value as number;
           break;

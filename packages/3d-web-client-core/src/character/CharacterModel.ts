@@ -38,7 +38,7 @@ export class CharacterModel {
   public mesh: Object3D | null = null;
   public headBone: Bone | null = null;
 
-  private materials: Map<string, CharacterMaterial> = new Map();
+  public materials: Map<string, CharacterMaterial> = new Map();
 
   public animations: Record<string, AnimationAction> = {};
   public animationMixer: AnimationMixer | null = null;

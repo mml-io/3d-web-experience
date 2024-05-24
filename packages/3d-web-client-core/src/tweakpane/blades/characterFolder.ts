@@ -2,11 +2,11 @@ import { BladeController, View } from "@tweakpane/core";
 import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 export const characterValues = {
-  metalness: 0.2,
-  roughness: 0.8,
+  metalness: 1.0,
+  roughness: 0.4,
   emissive: { r: 1.0, g: 1.0, b: 1.0 },
   emissiveIntensity: 0.01,
-  envMapIntensity: 0.12,
+  envMapIntensity: 1,
 };
 
 const characterOptions = {
