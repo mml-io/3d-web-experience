@@ -105,7 +105,7 @@ export class CharacterTooltip extends Mesh {
 
     this.scale.x = width / (100 * fontScale);
     this.scale.y = height / (100 * fontScale);
-    this.position.y = 1.4;
+    this.position.y = 1.5;
   }
 
   setText(text: string, temporary: boolean = false) {
