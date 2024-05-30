@@ -20,7 +20,7 @@ const sunOptions = {
     sunPolarAngle: { min: -90, max: 90, step: 1 },
   },
   sunIntensity: { min: 0, max: 20, step: 0.01 },
-  shadowRadius: { min: 0, max: 10, step: 0.1 },
+  shadowRadius: { min: 0, max: 5, step: 0.01 },
 };
 
 export const envValues = {
