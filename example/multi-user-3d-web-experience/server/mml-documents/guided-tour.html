@@ -174,6 +174,111 @@
     return floor;
   }
 
+  function createFloorOrCeilingWithOpening(
+    width,
+    depth,
+    height,
+    openingWidth,
+    openingDepth,
+    angle,
+    x,
+    y,
+    z,
+    openingOffsetX = 0.5,
+    openingOffsetZ = 0.5,
+    color,
+    hasWindowGlass = false,
+    windowOpacity = 0.8,
+    debug = false,
+  ) {
+    const adjustedWidth = width - height;
+    const adjustedDepth = depth - height;
+    const group = document.createElement("m-group");
+
+    // Calculate opening positions
+    const openingCenterX = (adjustedWidth - openingWidth) * (openingOffsetX - 0.5);
+    const openingCenterZ = (adjustedDepth - openingDepth) * (openingOffsetZ - 0.5);
+
+    // Create the left part
+    const leftPartWidth = adjustedWidth / 2 + openingCenterX - openingWidth / 2;
+    if (leftPartWidth > 0) {
+      const leftPart = document.createElement("m-cube");
+      leftPart.setAttribute("width", leftPartWidth);
+      leftPart.setAttribute("depth", adjustedDepth);
+      leftPart.setAttribute("height", height);
+      leftPart.setAttribute("x", -(adjustedWidth / 2 - leftPartWidth / 2));
+      leftPart.setAttribute("y", height / 2);
+      leftPart.setAttribute("z", 0);
+      leftPart.setAttribute("color", debug ? "#aabbcc" : color);
+      group.appendChild(leftPart);
+    }
+
+    // Create the right part
+    const rightPartWidth = adjustedWidth / 2 - openingCenterX - openingWidth / 2;
+    if (rightPartWidth > 0) {
+      const rightPart = document.createElement("m-cube");
+      rightPart.setAttribute("width", rightPartWidth);
+      rightPart.setAttribute("depth", adjustedDepth);
+      rightPart.setAttribute("height", height);
+      rightPart.setAttribute("x", adjustedWidth / 2 - rightPartWidth / 2);
+      rightPart.setAttribute("y", height / 2);
+      rightPart.setAttribute("z", 0);
+      rightPart.setAttribute("color", debug ? "#ccbbaa" : color);
+      group.appendChild(rightPart);
+    }
+
+    // Create the front part
+    const frontPartDepth = adjustedDepth / 2 + openingCenterZ - openingDepth / 2;
+    if (frontPartDepth > 0) {
+      const frontPart = document.createElement("m-cube");
+      frontPart.setAttribute("width", openingWidth);
+      frontPart.setAttribute("depth", frontPartDepth);
+      frontPart.setAttribute("height", height);
+      frontPart.setAttribute("x", openingCenterX);
+      frontPart.setAttribute("y", height / 2);
+      frontPart.setAttribute("z", -(adjustedDepth / 2 - frontPartDepth / 2));
+      frontPart.setAttribute("color", debug ? "#ffffaa" : color);
+      group.appendChild(frontPart);
+    }
+
+    // Create the back part
+    const backPartDepth = adjustedDepth / 2 - openingCenterZ - openingDepth / 2;
+    if (backPartDepth > 0) {
+      const backPart = document.createElement("m-cube");
+      backPart.setAttribute("width", openingWidth);
+      backPart.setAttribute("depth", backPartDepth);
+      backPart.setAttribute("height", height);
+      backPart.setAttribute("x", openingCenterX);
+      backPart.setAttribute("y", height / 2);
+      backPart.setAttribute("z", adjustedDepth / 2 - backPartDepth / 2);
+      backPart.setAttribute("color", debug ? "#ffaaaa" : color);
+      group.appendChild(backPart);
+    }
+
+    if (hasWindowGlass) {
+      const windowPane = document.createElement("m-cube");
+      windowPane.setAttribute("width", openingWidth);
+      windowPane.setAttribute("depth", openingDepth);
+      windowPane.setAttribute("height", height);
+      windowPane.setAttribute("x", openingCenterX);
+      windowPane.setAttribute("y", height / 2);
+      windowPane.setAttribute("z", openingCenterZ);
+      windowPane.setAttribute("collide", true);
+      windowPane.setAttribute("color", "#000000");
+      windowPane.setAttribute("opacity", windowOpacity);
+      windowPane.setAttribute("cast-shadows", false);
+      group.appendChild(windowPane);
+    }
+
+    // Set the group's rotation and position
+    group.setAttribute("ry", angle);
+    group.setAttribute("x", x);
+    group.setAttribute("y", y);
+    group.setAttribute("z", z);
+
+    return group;
+  }
+
   function createRoom(
     width,
     depth,
@@ -192,37 +297,27 @@
     const halfWidth = width / 2;
     const halfDepth = depth / 2;
 
-    // Create floor centered under the room
     const floor = createFloorOrCeiling(width, depth, 0, 0, -halfDepth, thickness, color);
     room.appendChild(floor);
 
-    // Create ceiling if required
     if (hasCeiling) {
-      const ceiling = createWallWithOpening(
+      const ceiling = createFloorOrCeilingWithOpening(
         width,
         depth,
         thickness,
         width - 4,
         depth - 4,
-        0,
-        0,
-        height + thickness,
-        -halfDepth * 2,
+        0, // angle
+        0, // x
+        height + thickness * 1.5, // y
+        -halfDepth, // z
         0.5,
         0.5,
         color,
         windowOpacity,
-      ).meshGroup;
-      ceiling.setAttribute("rx", 90);
-      // const ceiling = createFloorOrCeiling(
-      //   width,
-      //   depth,
-      //   0,
-      //   height + thickness * 1.5,
-      //   -halfDepth,
-      //   thickness,
-      //   color,
-      // );
+        0.8,
+        debug,
+      );
       room.appendChild(ceiling);
     }
 
