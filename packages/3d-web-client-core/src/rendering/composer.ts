@@ -99,7 +99,7 @@ export class Composer {
   constructor(
     scene: Scene,
     camera: PerspectiveCamera,
-    spawnSun: boolean = false,
+    spawnSun: boolean,
     environmentConfiguration: EnvironmentConfiguration,
   ) {
     this.scene = scene;
