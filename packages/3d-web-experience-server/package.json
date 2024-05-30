@@ -22,7 +22,7 @@
     "@mml-io/3d-web-text-chat": "^0.16.0",
     "@mml-io/3d-web-user-networking": "^0.16.0",
     "@mml-io/3d-web-voice-chat": "^0.16.0",
-    "networked-dom-server": "0.14.0",
+    "networked-dom-server": "0.15.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "express-ws": "^5.0.2",
