@@ -165,6 +165,7 @@ export class CameraManager {
   }
 
   private onMouseWheel(event: WheelEvent): void {
+    if (getTweakpaneActive()) return;
     const scrollAmount = event.deltaY * this.zoomScale * 0.1;
     this.targetDistance += scrollAmount;
     this.targetDistance = Math.max(
