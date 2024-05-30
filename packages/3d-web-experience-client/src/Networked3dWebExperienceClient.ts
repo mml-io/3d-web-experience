@@ -52,6 +52,24 @@ type MMLDocumentConfiguration = {
   };
 };
 
+export type EnvironmentConfiguration = {
+  enableTweakPane?: boolean;
+  hdr?: {
+    intensity?: number;
+    blurriness?: number;
+    azimuthalAngle?: number;
+    polarAngle?: number;
+  },
+  sun?: {
+    intensity?: number;
+    polarAngle?: number;
+    azimuthalAngle?: number;
+  },
+  postProcessing?: {
+    bloomIntensity?: number;
+  },
+}
+
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
@@ -59,6 +77,7 @@ export type Networked3dWebExperienceClientConfig = {
   userNetworkAddress: string;
   mmlDocuments?: Array<MMLDocumentConfiguration>;
   animationConfig: AnimationConfig;
+  environmentConfiguration?: EnvironmentConfiguration;
   hdrJpgUrl: string;
 };
 
@@ -67,7 +86,7 @@ export class Networked3dWebExperienceClient {
 
   private scene = new Scene();
   private composer: Composer;
-  private tweakPane: TweakPane;
+  private tweakPane?: TweakPane;
   private audioListener = new AudioListener();
 
   private cameraManager: CameraManager;
@@ -129,18 +148,20 @@ export class Networked3dWebExperienceClient {
       mouse_support: false,
     });
 
-    this.composer = new Composer(this.scene, this.cameraManager.camera, true);
+    this.composer = new Composer(this.scene, this.cameraManager.camera, true, this.config.environmentConfiguration);
     this.composer.useHDRJPG(this.config.hdrJpgUrl);
     this.element.appendChild(this.composer.renderer.domElement);
 
-    this.tweakPane = new TweakPane(
-      this.element,
-      this.composer.renderer,
-      this.scene,
-      this.composer.effectComposer,
-    );
-    this.cameraManager.setupTweakPane(this.tweakPane);
-    this.composer.setupTweakPane(this.tweakPane);
+    if (this.config.environmentConfiguration?.enableTweakPane !== false) {
+      this.tweakPane = new TweakPane(
+        this.element,
+        this.composer.renderer,
+        this.scene,
+        this.composer.effectComposer,
+      );
+      this.cameraManager.setupTweakPane(this.tweakPane);
+      this.composer.setupTweakPane(this.tweakPane);
+    }
 
     const resizeObserver = new ResizeObserver(() => {
       this.composer.fitContainer();
@@ -346,7 +367,7 @@ export class Networked3dWebExperienceClient {
     this.cameraManager.update();
     this.composer.sun?.updateCharacterPosition(this.characterManager.localCharacter?.position);
     this.composer.render(this.timeManager);
-    if (this.tweakPane.guiVisible) {
+    if (this.tweakPane?.guiVisible) {
       this.tweakPane.updateStats(this.timeManager);
       this.tweakPane.updateCameraData(this.cameraManager);
       if (this.characterManager.localCharacter && this.characterManager.localController) {

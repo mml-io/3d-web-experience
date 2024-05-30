@@ -1,3 +1,4 @@
+import { EnvironmentConfiguration } from "@mml-io/3d-web-experience-client";
 import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
   EffectComposer,
@@ -40,7 +41,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues } from "../tweakpane/blades/environmentFolder";
+import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -55,7 +56,6 @@ export class Composer {
   private width: number = 1;
   private height: number = 1;
   private resizeListener: () => void;
-
   public resolution: Vector2 = new Vector2(this.width, this.height);
 
   private isEnvHDRI: boolean = false;
@@ -91,11 +91,17 @@ export class Composer {
   private readonly gaussGrainPass: ShaderPass;
 
   private ambientLight: AmbientLight | null = null;
+  private environmentConfiguration: EnvironmentConfiguration;
 
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
-  constructor(scene: Scene, camera: PerspectiveCamera, spawnSun: boolean = false) {
+  constructor(
+    scene: Scene,
+    camera: PerspectiveCamera,
+    spawnSun: boolean = false,
+    environmentConfiguration: EnvironmentConfiguration,
+  ) {
     this.scene = scene;
     this.postPostScene = new Scene();
     this.camera = camera;
@@ -112,9 +118,9 @@ export class Composer {
     this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = rendererValues.exposure;
 
-    this.scene.backgroundIntensity = envValues.hdrIntensity;
-    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+    this.environmentConfiguration = environmentConfiguration;
 
+    this.updateHDRValues();
     this.setAmbientLight();
     this.setFog();
 
@@ -153,6 +159,11 @@ export class Composer {
     this.ppssaoPass.enabled = ppssaoValues.enabled;
 
     this.fxaaEffect = new FXAAEffect();
+
+    if (environmentConfiguration.postProcessing?.bloomIntensity) {
+      extrasValues.bloom = environmentConfiguration.postProcessing.bloomIntensity;
+    }
+
     this.bloomEffect = new BloomEffect({
       intensity: extrasValues.bloom,
     });
@@ -222,6 +233,8 @@ export class Composer {
       this.sun = new Sun();
       this.scene.add(this.sun);
     }
+
+    this.updateSunValues();
 
     this.resizeListener = () => {
       this.fitContainer();
@@ -428,5 +441,39 @@ export class Composer {
       envValues.ambientLight.ambientLightIntensity,
     );
     this.scene.add(this.ambientLight);
+  }
+
+  private updateSunValues() {
+    if (typeof this.environmentConfiguration?.sun?.intensity === "number") {
+      sunValues.sunIntensity = this.environmentConfiguration.sun.intensity;
+      this.sun?.setIntensity(this.environmentConfiguration.sun.intensity);
+    }
+    if (typeof this.environmentConfiguration?.sun?.azimuthalAngle === "number") {
+      sunValues.sunPosition.sunAzimuthalAngle = this.environmentConfiguration.sun.azimuthalAngle;
+      this.sun?.setAzimuthalAngle(this.environmentConfiguration.sun.azimuthalAngle);
+    }
+    if (typeof this.environmentConfiguration?.sun?.polarAngle === "number") {
+      sunValues.sunPosition.sunPolarAngle = this.environmentConfiguration.sun.polarAngle;
+      this.sun?.setPolarAngle(this.environmentConfiguration.sun.polarAngle);
+    }
+  }
+
+  private updateHDRValues() {
+    if (typeof this.environmentConfiguration?.hdr?.intensity === "number") {
+      envValues.hdrIntensity = this.environmentConfiguration.hdr.intensity;
+    }
+    this.scene.backgroundIntensity = envValues.hdrIntensity;
+    if (typeof this.environmentConfiguration?.hdr?.blurriness === "number") {
+      envValues.hdrBlurriness = this.environmentConfiguration.hdr.blurriness;
+    }
+    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+    if (typeof this.environmentConfiguration?.hdr?.azimuthalAngle === "number") {
+      envValues.hdrAzimuthalAngle = this.environmentConfiguration.hdr.azimuthalAngle;
+      this.setHDRAzimuthalAngle(this.environmentConfiguration.hdr.azimuthalAngle);
+    }
+    if (typeof this.environmentConfiguration?.hdr?.polarAngle === "number") {
+      envValues.hdrPolarAngle = this.environmentConfiguration.hdr.polarAngle;
+      this.setHDRPolarAngle(this.environmentConfiguration.hdr.polarAngle);
+    }
   }
 }
