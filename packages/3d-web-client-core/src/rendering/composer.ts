@@ -152,7 +152,13 @@ export class Composer {
     this.ppssaoPass = new EffectPass(this.camera, this.ppssaoEffect, this.normalTextureEffect);
     this.ppssaoPass.enabled = ppssaoValues.enabled;
 
-    this.fxaaEffect = new FXAAEffect();
+    this.fxaaEffect = new FXAAEffect({
+      blendFunction: BlendFunction.SRC,
+    });
+    this.fxaaEffect.minEdgeThreshold = 0.0312;
+    this.fxaaEffect.maxEdgeThreshold = 0.125;
+    this.fxaaEffect.subpixelQuality = 0.75;
+
     this.bloomEffect = new BloomEffect({
       intensity: extrasValues.bloom,
     });
@@ -184,7 +190,7 @@ export class Composer {
       adaptationRate: toneMappingValues.adaptationRate,
     });
     this.smaaEffect = new SMAAEffect({
-      preset: SMAAPreset.ULTRA,
+      preset: SMAAPreset.MEDIUM,
       edgeDetectionMode: EdgeDetectionMode.COLOR,
       predicationMode: PredicationMode.DEPTH,
     });
@@ -205,6 +211,8 @@ export class Composer {
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
+    this.effectComposer.addPass(this.smaaPass);
+    this.effectComposer.addPass(this.fxaaPass);
     if (ppssaoValues.enabled) {
       this.effectComposer.addPass(this.normalPass);
       this.effectComposer.addPass(this.ppssaoPass);
@@ -212,7 +220,6 @@ export class Composer {
     if (n8ssaoValues.enabled) {
       this.effectComposer.addPass(this.n8aopass);
     }
-    this.effectComposer.addPass(this.fxaaPass);
     this.effectComposer.addPass(this.bloomPass);
     this.effectComposer.addPass(this.toneMappingPass);
     this.effectComposer.addPass(this.bcsPass);
@@ -287,7 +294,9 @@ export class Composer {
     if (n8ssaoValues.enabled) {
       this.n8aopass.setSize(this.width, this.height);
     }
+    this.fxaaEffect.setSize(this.width, this.height);
     this.fxaaPass.setSize(this.width, this.height);
+    this.smaaEffect.setSize(this.width, this.height);
     this.smaaPass.setSize(this.width, this.height);
     this.bloomPass.setSize(this.width, this.height);
     this.toneMappingPass.setSize(this.width, this.height);
@@ -345,7 +354,7 @@ export class Composer {
         envMap.needsUpdate = true;
         this.scene.background = envMap;
         this.scene.environment = envMap;
-        this.scene.environmentIntensity = 0.2;
+        this.scene.environmentIntensity = envValues.hdrEnvIntensity;
         this.scene.environmentRotation = new Euler(
           MathUtils.degToRad(envValues.hdrPolarAngle),
           MathUtils.degToRad(envValues.hdrAzimuthalAngle),
@@ -379,7 +388,7 @@ export class Composer {
           envMap.needsUpdate = true;
           this.scene.background = envMap;
           this.scene.environment = envMap;
-          this.scene.environmentIntensity = 0.2;
+          this.scene.environmentIntensity = envValues.hdrEnvIntensity;
           this.scene.environmentRotation = new Euler(
             MathUtils.degToRad(envValues.hdrPolarAngle),
             MathUtils.degToRad(envValues.hdrAzimuthalAngle),
