@@ -3,9 +3,9 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 export const characterValues = {
   metalness: 1.0,
-  roughness: 0.4,
+  roughness: 0.45,
   emissive: { r: 1.0, g: 1.0, b: 1.0 },
-  emissiveIntensity: 0.01,
+  emissiveIntensity: 0.0,
   envMapIntensity: 1,
 };
 

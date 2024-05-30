@@ -6,11 +6,12 @@ import { Sun } from "../../sun/Sun";
 
 export const sunValues = {
   sunPosition: {
-    sunAzimuthalAngle: 155, //  129, // 219,
-    sunPolarAngle: -45, // -86, // -37,
+    sunAzimuthalAngle: 155,
+    sunPolarAngle: -45,
   },
-  sunIntensity: 5.5, //3.7,
+  sunIntensity: 5.5,
   sunColor: { r: 0.91, g: 0.82, b: 0.7 },
+  shadowRadius: 2.1,
 };
 
 const sunOptions = {
@@ -18,13 +19,14 @@ const sunOptions = {
     sunAzimuthalAngle: { min: 0, max: 360, step: 1 },
     sunPolarAngle: { min: -90, max: 90, step: 1 },
   },
-  sunIntensity: { min: 0, max: 10, step: 0.1 },
+  sunIntensity: { min: 0, max: 20, step: 0.01 },
+  shadowRadius: { min: 0, max: 10, step: 0.1 },
 };
 
 export const envValues = {
   hdrAzimuthalAngle: 75,
   hdrPolarAngle: 0,
-  hdrEnvIntensity: 0.05,
+  hdrEnvIntensity: 0.07,
   hdrIntensity: 0.8,
   hdrBlurriness: 0.0,
   ambientLight: {
@@ -78,6 +80,7 @@ export class EnvironmentFolder {
     this.sun.addBinding(sunValues, "sunColor", {
       color: { type: "float" },
     });
+    this.sun.addBinding(sunValues, "shadowRadius", sunOptions.shadowRadius);
 
     this.hdrButton = this.ambient.addButton({ title: "Set HDRI" });
     this.ambient.addBinding(envValues, "hdrIntensity", envOptions.hdrIntensity);
@@ -137,6 +140,10 @@ export class EnvironmentFolder {
           };
           sun?.setColor();
           break;
+        }
+        case "shadowRadius": {
+          const value = e.value as number;
+          sun?.setShadowRadius(value);
         }
         default:
           break;

@@ -5,8 +5,8 @@ import { BrightnessContrastSaturation } from "../../rendering/post-effects/brigh
 
 export const bcsValues = {
   brightness: 0.06,
-  contrast: 1.2,
-  saturation: 1,
+  contrast: 1.15,
+  saturation: 1.0,
 };
 
 const bcsOptions = {
