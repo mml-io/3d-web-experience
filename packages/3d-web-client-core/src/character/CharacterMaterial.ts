@@ -37,7 +37,7 @@ export class CharacterMaterial extends MeshStandardMaterial {
     this.generateColorCube();
 
     this.color = this.config.colorOverride || this.colorsCube216[this.config.characterId];
-    this.envMapIntensity = characterValues.envMapIntensity;
+    this.envMapIntensity = envValues.hdrEnvIntensity;
     this.envMapRotation = new Euler(
       MathUtils.degToRad(envValues.hdrPolarAngle),
       MathUtils.degToRad(envValues.hdrAzimuthalAngle),
