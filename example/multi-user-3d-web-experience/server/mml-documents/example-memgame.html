@@ -1,0 +1,335 @@
+<m-group id="game-group"></m-group>
+<script>
+  const gameGroup = document.getElementById("game-group");
+
+  const columns = 4;
+  const animDuration = 650;
+  const colorOff = "#424242";
+  const colorOn = "#eeeeee";
+  const colorMatch = "#ccffcc";
+  const defaultEasing = "easeInOutCubic";
+  const imgPrefix = "memgame_image_";
+  const numberOfAvailableImages = 21;
+  const numberOfImages = 8;
+
+  const imageScale = 1.5;
+  const cubeScale = 1.6;
+  const gap = 1.7;
+
+  const blocks = new Map();
+
+  let availableImages = [];
+  let images = [];
+  let imagesDuplicated = [];
+
+  let animating = false;
+  let firstIndexSelected = null;
+  let secondIndexSelected = null;
+
+  let soundYes = null;
+  let soundNo = null;
+  let soundWin = null;
+
+  function setupAudioTag(element, url) {
+    element.setAttribute("src", url);
+    element.setAttribute("loop", false);
+    element.setAttribute("volume", 0);
+    element.setAttribute("start-time", document.timeline.currentTime - 1500);
+    element.setAttribute("pause-time", document.timeline.currentTime);
+    element.setAttribute("z", 0.5);
+    element.setAttribute("x", (columns * cubeScale) / 2 - cubeScale / 2);
+    element.setAttribute("y", 5);
+    element.setAttribute("rx", 65);
+    element.setAttribute("cone-angle", 60);
+    element.setAttribute("cone-falloff-angle", 90);
+    element.setAttribute("debug", false);
+  }
+
+  function createSFX() {
+    soundYes = document.createElement("m-audio");
+    setupAudioTag(soundYes, "/assets/playground/game_yes.mp3");
+    soundNo = document.createElement("m-audio");
+    setupAudioTag(soundNo, "/assets/playground/game_no.mp3");
+    soundWin = document.createElement("m-audio");
+    setupAudioTag(soundWin, "/assets/playground/game_win.mp3");
+    gameGroup.appendChild(soundYes);
+    gameGroup.appendChild(soundNo);
+    gameGroup.appendChild(soundWin);
+  }
+
+  function playSound(sound, volume) {
+    sound.setAttribute("volume", volume);
+    sound.setAttribute("start-time", document.timeline.currentTime);
+    sound.setAttribute("pause-time", document.timeline.currentTime + 1500);
+    setTimeout(() => sound.setAttribute("volume", 0), 1500);
+  }
+
+  function playYes() {
+    playSound(soundYes, 4);
+  }
+
+  function playNo() {
+    playSound(soundNo, 2);
+  }
+
+  function playWin() {
+    playSound(soundWin, 3);
+  }
+
+  function prepareImages() {
+    availableImages = [];
+    images = [];
+    imagesDuplicated = [];
+    for (let i = 0; i < numberOfAvailableImages; i++) {
+      availableImages.push(`${imgPrefix}${i.toString().padStart(2, "0")}.jpg`);
+    }
+    while (images.length < numberOfImages) {
+      const imageName = getRandomImage(availableImages);
+      const url = `/assets/playground/${imageName}`;
+      if (!images.includes(url)) {
+        images.push(url);
+      }
+    }
+    imagesDuplicated = images.concat(images);
+    shuffleArray(imagesDuplicated);
+  }
+
+  function getRandomImage(arr) {
+    const randomIndex = Math.floor(Math.random() * arr.length);
+    return arr[randomIndex];
+  }
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  function createFrame() {
+    const totalBlocks = numberOfImages * 2;
+    const rows = Math.ceil(totalBlocks / columns);
+    const frameWidth = columns * gap;
+    const frameHeight = rows * gap;
+    const frameGroup = document.createElement("m-group");
+    const backCube = document.createElement("m-cube");
+    backCube.setAttribute("color", "black");
+    backCube.setAttribute("sx", frameWidth + 0.5);
+    backCube.setAttribute("sy", frameHeight + 0.5);
+    backCube.setAttribute("sz", 0.5);
+    backCube.setAttribute("x", frameWidth / 2 - gap / 2);
+    backCube.setAttribute("y", frameHeight / 2 - gap / 2);
+    backCube.setAttribute("z", -0.35);
+    frameGroup.appendChild(backCube);
+    gameGroup.appendChild(frameGroup);
+  }
+
+  function createBlock(index) {
+    const blockMeshGroup = document.createElement("m-group");
+
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("color", colorOff);
+    cube.setAttribute("sx", cubeScale);
+    cube.setAttribute("sy", cubeScale);
+    cube.setAttribute("sz", 0.3334);
+    cube.addEventListener("click", () => handleBlockClick(index));
+
+    blockMeshGroup.appendChild(cube);
+
+    const textureSrc = imagesDuplicated[index];
+    const texture = document.createElement("m-image");
+    texture.setAttribute("src", textureSrc);
+    texture.setAttribute("z", 0.168);
+    texture.setAttribute("sx", imageScale);
+    texture.setAttribute("sy", imageScale);
+    blockMeshGroup.appendChild(texture);
+
+    blockMeshGroup.setAttribute("x", column * gap);
+    blockMeshGroup.setAttribute("y", row * gap);
+    blockMeshGroup.setAttribute("z", 0.1);
+    blockMeshGroup.setAttribute("ry", 180);
+
+    const block = {
+      id: index,
+      group: blockMeshGroup,
+      texture: texture,
+      mesh: cube,
+      hidden: true,
+      src: textureSrc,
+      pair: null,
+      matched: false,
+    };
+
+    return block;
+  }
+
+  function createAllBlocks() {
+    for (let i = 0; i < imagesDuplicated.length; i++) {
+      const block = createBlock(i);
+      blocks.set(i, block);
+      gameGroup.appendChild(block.group);
+    }
+  }
+
+  function resetAllBlocks() {
+    if (blocks.size > 0) {
+      blocks.forEach((block) => {
+        block.texture.remove();
+        block.mesh.remove();
+        block.group.remove();
+      });
+    }
+    blocks.clear();
+    createAllBlocks();
+    findPairs();
+  }
+
+  function findPairs() {
+    blocks.forEach((block, index) => {
+      blocks.forEach((otherBlock, otherIndex) => {
+        if (index !== otherIndex && block.src === otherBlock.src) {
+          block.pair = otherIndex;
+        }
+      });
+    });
+  }
+
+  function animate(element, attr, start, end, duration, easing) {
+    animating = true;
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+      animating = false;
+    }, duration);
+  }
+
+  function revealAllBlocks(revealDuration) {
+    blocks.forEach((block, index) => {
+      animate(block.group, "ry", 180, 0, animDuration, defaultEasing);
+      setTimeout(() => {
+        animate(block.group, "ry", 0, 180, animDuration, defaultEasing);
+      }, revealDuration);
+    });
+  }
+
+  function hideAllBlocks() {
+    blocks.forEach((block, index) => {
+      animate(block.mesh, "color", colorMatch, colorOff, animDuration, defaultEasing);
+      animate(block.group, "ry", 0, 180, animDuration, defaultEasing);
+    });
+  }
+
+  function revealBlock(index) {
+    const blockObject = blocks.get(index);
+    if (blockObject.hidden === false) {
+      return;
+    }
+
+    animate(blockObject.group, "ry", 180, 0, animDuration, defaultEasing);
+    animate(blockObject.mesh, "color", colorOff, colorOn, animDuration, defaultEasing);
+
+    setTimeout(() => {
+      blockObject.hidden = false;
+      blockObject.mesh.setAttribute("color", colorOn);
+    }, animDuration);
+
+    if (firstIndexSelected === null) {
+      firstIndexSelected = index;
+    } else if (secondIndexSelected === null) {
+      secondIndexSelected = index;
+      const match = checkForMatch();
+    }
+  }
+
+  function hideBlock(index) {
+    const blockObject = blocks.get(index);
+    animate(blockObject.group, "ry", 0, 180, animDuration, defaultEasing);
+    animate(blockObject.mesh, "color", colorOn, colorOff, animDuration, defaultEasing);
+    setTimeout(() => {
+      blockObject.hidden = true;
+    }, animDuration);
+  }
+
+  function hideBlocks(indexA, indexB) {
+    const blockObjectA = blocks.get(indexA);
+    const blockObjectB = blocks.get(indexB);
+    animate(blockObjectA.group, "ry", 0, 180, animDuration, defaultEasing);
+    animate(blockObjectA.mesh, "color", colorOn, colorOff, animDuration, defaultEasing);
+    animate(blockObjectB.group, "ry", 0, 180, animDuration, defaultEasing);
+    animate(blockObjectB.mesh, "color", colorOn, colorOff, animDuration, defaultEasing);
+    setTimeout(() => {
+      blockObjectA.hidden = true;
+      blockObjectB.hidden = true;
+      firstIndexSelected = null;
+      secondIndexSelected = null;
+    }, animDuration);
+  }
+
+  function checkIfGameOver() {
+    let matchedBlocks = 0;
+    blocks.forEach((block) => {
+      if (block.matched === true) {
+        matchedBlocks++;
+      }
+    });
+    if (matchedBlocks === numberOfImages * 2) {
+      setTimeout(() => playWin(), 1000);
+      setTimeout(() => hideAllBlocks(), 2000);
+      setTimeout(() => reStartGame(), 5000);
+    }
+  }
+
+  function checkForMatch() {
+    if (firstIndexSelected === null || secondIndexSelected === null) {
+      return false;
+    }
+    const firstBlockObject = blocks.get(firstIndexSelected);
+    const secondBlockObject = blocks.get(secondIndexSelected);
+    if (firstBlockObject.pair === secondBlockObject.id) {
+      firstBlockObject.matched = true;
+      secondBlockObject.matched = true;
+      animate(firstBlockObject.mesh, "color", colorOn, colorMatch, animDuration, defaultEasing);
+      animate(secondBlockObject.mesh, "color", colorOn, colorMatch, animDuration, defaultEasing);
+      firstIndexSelected = null;
+      secondIndexSelected = null;
+      playYes();
+      checkIfGameOver();
+      return true;
+    } else {
+      playNo();
+      setTimeout(() => hideBlocks(firstIndexSelected, secondIndexSelected), 1500);
+    }
+  }
+
+  function handleBlockClick(index) {
+    const bothIndexSelected = firstIndexSelected !== null && secondIndexSelected !== null;
+    if (!animating && !bothIndexSelected) {
+      const blockObject = blocks.get(index);
+      if (blockObject && !blockObject.matched) {
+        revealBlock(index);
+      }
+    }
+  }
+
+  function reStartGame() {
+    prepareImages();
+    resetAllBlocks();
+    setTimeout(() => revealAllBlocks(4000), 1000);
+  }
+
+  createFrame();
+  createSFX();
+  reStartGame();
+</script>
