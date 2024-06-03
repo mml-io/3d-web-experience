@@ -1,40 +1,39 @@
-import { EnvironmentConfiguration } from "@mml-io/3d-web-experience-client";
 import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
+  BlendFunction,
+  BloomEffect,
+  EdgeDetectionMode,
   EffectComposer,
-  RenderPass,
   EffectPass,
   FXAAEffect,
+  NormalPass,
+  PredicationMode,
+  RenderPass,
   ShaderPass,
-  BloomEffect,
-  SSAOEffect,
-  BlendFunction,
-  TextureEffect,
-  ToneMappingEffect,
   SMAAEffect,
   SMAAPreset,
-  EdgeDetectionMode,
-  PredicationMode,
-  NormalPass,
+  SSAOEffect,
+  TextureEffect,
+  ToneMappingEffect,
 } from "postprocessing";
 import {
   AmbientLight,
   Color,
+  EquirectangularReflectionMapping,
+  Euler,
   Fog,
   HalfFloatType,
   LinearSRGBColorSpace,
   LoadingManager,
-  PMREMGenerator,
+  MathUtils,
   PerspectiveCamera,
-  SRGBColorSpace,
+  PMREMGenerator,
   Scene,
   ShadowMapType,
+  SRGBColorSpace,
   ToneMapping,
   Vector2,
   WebGLRenderer,
-  EquirectangularReflectionMapping,
-  MathUtils,
-  Euler,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
@@ -51,6 +50,30 @@ import { TweakPane } from "../tweakpane/TweakPane";
 import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat";
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
 import { N8SSAOPass } from "./post-effects/n8-ssao/N8SSAOPass";
+
+type ComposerContructorArgs = {
+  scene: Scene;
+  camera: PerspectiveCamera;
+  spawnSun: boolean;
+  environmentConfiguration?: EnvironmentConfiguration;
+};
+
+export type EnvironmentConfiguration = {
+  hdr?: {
+    intensity?: number;
+    blurriness?: number;
+    azimuthalAngle?: number;
+    polarAngle?: number;
+  };
+  sun?: {
+    intensity?: number;
+    polarAngle?: number;
+    azimuthalAngle?: number;
+  };
+  postProcessing?: {
+    bloomIntensity?: number;
+  };
+};
 
 export class Composer {
   private width: number = 1;
@@ -91,17 +114,17 @@ export class Composer {
   private readonly gaussGrainPass: ShaderPass;
 
   private ambientLight: AmbientLight | null = null;
-  private environmentConfiguration: EnvironmentConfiguration;
+  private environmentConfiguration?: EnvironmentConfiguration;
 
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
-  constructor(
-    scene: Scene,
-    camera: PerspectiveCamera,
-    spawnSun: boolean,
-    environmentConfiguration: EnvironmentConfiguration,
-  ) {
+  constructor({
+    scene,
+    camera,
+    spawnSun = false,
+    environmentConfiguration,
+  }: ComposerContructorArgs) {
     this.scene = scene;
     this.postPostScene = new Scene();
     this.camera = camera;
@@ -160,7 +183,7 @@ export class Composer {
 
     this.fxaaEffect = new FXAAEffect();
 
-    if (environmentConfiguration.postProcessing?.bloomIntensity) {
+    if (environmentConfiguration?.postProcessing?.bloomIntensity) {
       extrasValues.bloom = environmentConfiguration.postProcessing.bloomIntensity;
     }
 

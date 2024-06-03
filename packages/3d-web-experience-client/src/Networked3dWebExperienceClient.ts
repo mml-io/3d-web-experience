@@ -8,13 +8,14 @@ import {
   CollisionsManager,
   Composer,
   decodeCharacterAndCamera,
+  EnvironmentConfiguration,
   getSpawnPositionInsideCircle,
+  GroundPlane,
   KeyInputManager,
+  LoadingScreen,
   MMLCompositionScene,
   TimeManager,
   TweakPane,
-  GroundPlane,
-  LoadingScreen,
   VirtualJoystick,
 } from "@mml-io/3d-web-client-core";
 import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
@@ -52,24 +53,6 @@ type MMLDocumentConfiguration = {
   };
 };
 
-export type EnvironmentConfiguration = {
-  enableTweakPane?: boolean;
-  hdr?: {
-    intensity?: number;
-    blurriness?: number;
-    azimuthalAngle?: number;
-    polarAngle?: number;
-  },
-  sun?: {
-    intensity?: number;
-    polarAngle?: number;
-    azimuthalAngle?: number;
-  },
-  postProcessing?: {
-    bloomIntensity?: number;
-  },
-}
-
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
@@ -79,6 +62,7 @@ export type Networked3dWebExperienceClientConfig = {
   animationConfig: AnimationConfig;
   environmentConfiguration?: EnvironmentConfiguration;
   hdrJpgUrl: string;
+  enableTweakPane?: boolean;
 };
 
 export class Networked3dWebExperienceClient {
@@ -148,11 +132,17 @@ export class Networked3dWebExperienceClient {
       mouse_support: false,
     });
 
-    this.composer = new Composer(this.scene, this.cameraManager.camera, true, this.config.environmentConfiguration);
+    this.composer = new Composer({
+      scene: this.scene,
+      camera: this.cameraManager.camera,
+      spawnSun: true,
+      environmentConfiguration: this.config.environmentConfiguration,
+    });
+
     this.composer.useHDRJPG(this.config.hdrJpgUrl);
     this.element.appendChild(this.composer.renderer.domElement);
 
-    if (this.config.environmentConfiguration?.enableTweakPane !== false) {
+    if (this.config.enableTweakPane !== false) {
       this.tweakPane = new TweakPane(
         this.element,
         this.composer.renderer,

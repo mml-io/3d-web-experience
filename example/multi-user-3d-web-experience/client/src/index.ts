@@ -26,5 +26,7 @@ const app = new Networked3dWebExperienceClient(holder, {
   },
   hdrJpgUrl,
   mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/example-mml.html` }],
+  environmentConfiguration: {},
 });
+
 app.update();
