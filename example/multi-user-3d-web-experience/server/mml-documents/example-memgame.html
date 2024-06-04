@@ -1,9 +1,13 @@
-<m-group id="game-group"></m-group>
+<m-group id="demo-group">
+  <m-group id="game-group" y="1.45"></m-group>
+</m-group>
+
 <script>
+  const demoGroup = document.getElementById("demo-group");
   const gameGroup = document.getElementById("game-group");
 
   const columns = 4;
-  const animDuration = 650;
+  const animDuration = 550;
   const colorOff = "#424242";
   const colorOn = "#eeeeee";
   const colorMatch = "#ccffcc";
@@ -18,6 +22,8 @@
 
   const blocks = new Map();
 
+  let playButton = null;
+
   let availableImages = [];
   let images = [];
   let imagesDuplicated = [];
@@ -26,9 +32,130 @@
   let firstIndexSelected = null;
   let secondIndexSelected = null;
 
+  let soundPlay = null;
   let soundYes = null;
   let soundNo = null;
   let soundWin = null;
+
+  let isReseting = true;
+  let isReset = false;
+  let gameInProgress = false;
+  let lastReset = document.timeline.currentTime;
+
+  // tell me more ===================================================
+  function tellMeMore(x, y, z, buttonOffset, yRotation, parentGroup) {
+    const tellMeMoreGroup = document.createElement("m-group");
+    tellMeMoreGroup.setAttribute("ry", yRotation);
+
+    const duration = 120;
+    const infoSoundDuration = 22000;
+    let audioCanPlay = true;
+    let infoAudioCanPlay = true;
+
+    const transform = (element, x, y, z) => {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+    };
+
+    const sound = document.createElement("m-audio");
+    sound.setAttribute("y", 1.2);
+    sound.setAttribute("loop", false);
+    sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+    sound.setAttribute("volume", 0);
+    sound.setAttribute("start-time", document.timeline.currentTime - 900);
+    sound.setAttribute("pause-time", document.timeline.currentTime);
+    tellMeMoreGroup.appendChild(sound);
+
+    const infoSound = document.createElement("m-audio");
+    infoSound.setAttribute("y", 1.2);
+    infoSound.setAttribute("loop", false);
+    infoSound.setAttribute("src", "/assets/playground/memory_game.mp3");
+    infoSound.setAttribute("volume", 0);
+    infoSound.setAttribute("start-time", document.timeline.currentTime - 22000);
+    infoSound.setAttribute("pause-time", document.timeline.currentTime);
+    tellMeMoreGroup.appendChild(infoSound);
+
+    const playSound = () => {
+      if (!audioCanPlay) {
+        return;
+      }
+      audioCanPlay = false;
+
+      const now = document.timeline.currentTime;
+      sound.setAttribute("volume", 2);
+      sound.setAttribute("start-time", now);
+      sound.setAttribute("pause-time", now + 900);
+      setTimeout(() => sound.setAttribute("volume", 0), 1000);
+
+      infoSound.setAttribute("volume", 3);
+      infoSound.setAttribute("start-time", now + 1000);
+      infoSound.setAttribute("pause-time", now + infoSoundDuration + 1000);
+      setTimeout(() => {
+        infoSound.setAttribute("volume", 0);
+        audioCanPlay = true;
+      }, infoSoundDuration);
+    };
+
+    const animate = (element, attr, start, end, duration, easing) => {
+      const anim = document.createElement("m-attr-anim");
+      anim.setAttribute("attr", attr);
+      anim.setAttribute("start", start);
+      anim.setAttribute("end", end);
+      anim.setAttribute("start-time", document.timeline.currentTime);
+      anim.setAttribute("end-time", document.timeline.currentTime + duration);
+      anim.setAttribute("duration", duration);
+      anim.setAttribute("easing", easing);
+      anim.setAttribute("loop", false);
+      element.appendChild(anim);
+      playSound();
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(anim);
+      }, duration);
+    };
+
+    const scale = (element, size) => {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    };
+
+    const swap = (elementA, elementB) => {
+      scale(elementB, 1.0);
+      scale(elementA, 0.001);
+    };
+
+    const base = document.createElement("m-model");
+    const buttonOn = document.createElement("m-model");
+    const buttonOff = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
+    buttonOn.setAttribute("src", "/assets/playground/tell_me_more_question_button_on.glb");
+    buttonOff.setAttribute("src", "/assets/playground/tell_me_more_question_button_off.glb");
+    scale(buttonOff, 0.001);
+    transform(tellMeMoreGroup, x, y, z);
+
+    buttonOn.addEventListener("click", () => {
+      animate(buttonOn, "z", 0, +buttonOffset, duration, "easeInOutCubic");
+      animate(buttonOn, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+      setTimeout(() => {
+        animate(buttonOn, "z", +buttonOffset, 0, duration, "easeInOutCubic");
+        animate(buttonOn, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+
+        setTimeout(() => {
+          swap(buttonOn, buttonOff);
+          setTimeout(() => swap(buttonOff, buttonOn), infoSoundDuration);
+        }, duration + 20);
+      }, duration + 20);
+    });
+
+    tellMeMoreGroup.appendChild(buttonOn);
+    tellMeMoreGroup.appendChild(buttonOff);
+    tellMeMoreGroup.appendChild(base);
+    parentGroup.appendChild(tellMeMoreGroup);
+  }
+  tellMeMore(-1, 0, 2, 0.03, 180, demoGroup);
+  // ================================================================
 
   function setupAudioTag(element, url) {
     element.setAttribute("src", url);
@@ -40,18 +167,21 @@
     element.setAttribute("x", (columns * cubeScale) / 2 - cubeScale / 2);
     element.setAttribute("y", 5);
     element.setAttribute("rx", 65);
-    element.setAttribute("cone-angle", 60);
-    element.setAttribute("cone-falloff-angle", 90);
+    element.setAttribute("cone-angle", 90);
+    element.setAttribute("cone-falloff-angle", 120);
     element.setAttribute("debug", false);
   }
 
   function createSFX() {
+    soundPlay = document.createElement("m-audio");
+    setupAudioTag(soundPlay, "/assets/playground/game_play.mp3");
     soundYes = document.createElement("m-audio");
     setupAudioTag(soundYes, "/assets/playground/game_yes.mp3");
     soundNo = document.createElement("m-audio");
     setupAudioTag(soundNo, "/assets/playground/game_no.mp3");
     soundWin = document.createElement("m-audio");
     setupAudioTag(soundWin, "/assets/playground/game_win.mp3");
+    gameGroup.appendChild(soundPlay);
     gameGroup.appendChild(soundYes);
     gameGroup.appendChild(soundNo);
     gameGroup.appendChild(soundWin);
@@ -60,8 +190,13 @@
   function playSound(sound, volume) {
     sound.setAttribute("volume", volume);
     sound.setAttribute("start-time", document.timeline.currentTime);
-    sound.setAttribute("pause-time", document.timeline.currentTime + 1500);
-    setTimeout(() => sound.setAttribute("volume", 0), 1500);
+    sound.setAttribute("pause-time", document.timeline.currentTime + 1200);
+    setTimeout(() => sound.setAttribute("volume", 0), 1200);
+  }
+
+  // :)
+  function playPlay() {
+    playSound(soundPlay, 4);
   }
 
   function playYes() {
@@ -106,6 +241,13 @@
     }
   }
 
+  function highlightElement(element) {
+    const color = element.getAttribute("color");
+    const hue = parseInt(color.replace("hsl(", "").split(",")[0]);
+    element.setAttribute("color", `hsl(${hue}, 90%, 50%)`);
+    setTimeout(() => element.setAttribute("color", color), 160);
+  }
+
   function createFrame() {
     const totalBlocks = numberOfImages * 2;
     const rows = Math.ceil(totalBlocks / columns);
@@ -121,6 +263,40 @@
     backCube.setAttribute("y", frameHeight / 2 - gap / 2);
     backCube.setAttribute("z", -0.35);
     frameGroup.appendChild(backCube);
+
+    const playCube = document.createElement("m-cube");
+    playCube.setAttribute("color", "black");
+    playCube.setAttribute("sx", frameWidth + 0.5);
+    playCube.setAttribute("sy", 1);
+    playCube.setAttribute("sz", 0.5);
+    playCube.setAttribute("x", frameWidth / 2 - gap / 2);
+    playCube.setAttribute("y", -1.25);
+    playCube.setAttribute("z", -0.08);
+    playCube.setAttribute("rx", -45);
+    frameGroup.appendChild(playCube);
+
+    playButton = document.createElement("m-label");
+    playButton.setAttribute("content", "PLAY");
+    playButton.setAttribute("padding", 0);
+    playButton.setAttribute("alignment", "center");
+    playButton.setAttribute("color", "hsl(150, 50%, 40%)");
+    playButton.setAttribute("width", 3);
+    playButton.setAttribute("height", 0.45);
+    playButton.setAttribute("font-size", 33);
+    playButton.setAttribute("font-color", "#ffffff");
+    playButton.setAttribute("x", frameWidth / 2 - gap / 2);
+    playButton.setAttribute("y", -1.2);
+    playButton.setAttribute("z", 0.225);
+    playButton.setAttribute("rx", -45);
+    playButton.addEventListener("click", () => {
+      if (gameInProgress === false && isReseting === false) {
+        playPlay();
+        highlightElement(playButton);
+        reStartGame();
+      }
+    });
+    frameGroup.appendChild(playButton);
+
     gameGroup.appendChild(frameGroup);
   }
 
@@ -212,7 +388,7 @@
       element.setAttribute(attr, end);
       element.removeChild(anim);
       animating = false;
-    }, duration);
+    }, duration + 50);
   }
 
   function revealAllBlocks(revealDuration) {
@@ -222,6 +398,7 @@
         animate(block.group, "ry", 0, 180, animDuration, defaultEasing);
       }, revealDuration);
     });
+    isReset = true;
   }
 
   function hideAllBlocks() {
@@ -285,9 +462,11 @@
       }
     });
     if (matchedBlocks === numberOfImages * 2) {
+      isReseting = true;
+      gameInProgress = false;
       setTimeout(() => playWin(), 1000);
       setTimeout(() => hideAllBlocks(), 2000);
-      setTimeout(() => reStartGame(), 5000);
+      setTimeout(() => reStartGame(), 4000);
     }
   }
 
@@ -314,6 +493,11 @@
   }
 
   function handleBlockClick(index) {
+    if (isReseting) {
+      return;
+    }
+    isReset = false;
+    gameInProgress = true;
     const bothIndexSelected = firstIndexSelected !== null && secondIndexSelected !== null;
     if (!animating && !bothIndexSelected) {
       const blockObject = blocks.get(index);
@@ -324,10 +508,54 @@
   }
 
   function reStartGame() {
-    prepareImages();
-    resetAllBlocks();
-    setTimeout(() => revealAllBlocks(4000), 1000);
+    if (isReset === false) {
+      prepareImages();
+      resetAllBlocks();
+      setTimeout(() => revealAllBlocks(4000), 1500);
+      setTimeout(() => {
+        lastReset = document.timeline.currentTime;
+        isReseting = false;
+      }, 5500);
+    } else {
+      revealAllBlocks(4000);
+      setTimeout(() => {
+        lastReset = document.timeline.currentTime;
+        isReseting = false;
+      }, 5500);
+    }
   }
+
+  function formatTime(ms) {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    const secondsPart = (seconds % 60).toString().padStart(2, "0");
+    const minutesPart = (minutes % 60).toString().padStart(2, "0");
+    const hoursPart = hours.toString().padStart(2, "0");
+
+    if (hours > 0) {
+      return `${hoursPart}h ${minutesPart}m ${secondsPart}s`;
+    } else if (minutes > 0) {
+      return `${minutesPart}m ${secondsPart}s`;
+    } else {
+      return `${secondsPart}s`;
+    }
+  }
+
+  setInterval(() => {
+    if (gameInProgress === true && isReseting === false) {
+      if (playButton) {
+        playButton.setAttribute("content", formatTime(document.timeline.currentTime - lastReset));
+      }
+    } else {
+      if (playButton) {
+        if (playButton.getAttribute("content") !== "PLAY") {
+          playButton.setAttribute("content", "PLAY");
+        }
+      }
+    }
+  }, 1000);
 
   createFrame();
   createSFX();
