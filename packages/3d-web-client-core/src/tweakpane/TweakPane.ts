@@ -21,6 +21,7 @@ import { BrightnessContrastSaturationFolder } from "./blades/bcsFolder";
 import { CameraFolder } from "./blades/cameraFolder";
 import { CharacterControlsFolder } from "./blades/characterControlsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
+import { CollisionsStatsFolder } from "./blades/collisionsStatsFolder";
 import { EnvironmentFolder } from "./blades/environmentFolder";
 import { PostExtrasFolder } from "./blades/postExtrasFolder";
 import { RendererFolder, rendererValues } from "./blades/rendererFolder";
@@ -34,6 +35,7 @@ export class TweakPane {
   private gui: Pane;
 
   private renderStatsFolder: RendererStatsFolder;
+  private collisionsStatsFolder: CollisionsStatsFolder;
   private rendererFolder: RendererFolder;
   private toneMappingFolder: ToneMappingFolder;
   private ssaoFolder: SSAOFolder;
@@ -55,6 +57,7 @@ export class TweakPane {
     private renderer: WebGLRenderer,
     private scene: Scene,
     private composer: EffectComposer,
+    private toggleCollisionsDebug: () => void,
   ) {
     const tweakPaneWrapper = document.createElement("div");
     tweakPaneWrapper.style.position = "fixed";
@@ -90,6 +93,7 @@ export class TweakPane {
     document.head.appendChild(styleElement);
 
     this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
+    this.collisionsStatsFolder = new CollisionsStatsFolder(this.gui, false);
     this.rendererFolder = new RendererFolder(this.gui, false);
     this.toneMappingFolder = new ToneMappingFolder(this.gui, false);
     this.ssaoFolder = new SSAOFolder(this.gui, false);
@@ -103,6 +107,8 @@ export class TweakPane {
     this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
+
+    this.collisionsStatsFolder.setupChangeEvent(this.toggleCollisionsDebug);
 
     window.addEventListener("keydown", this.processKey.bind(this));
     this.setupRenderPane = this.setupRenderPane.bind(this);
