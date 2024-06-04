@@ -73,6 +73,9 @@ export type EnvironmentConfiguration = {
   postProcessing?: {
     bloomIntensity?: number;
   };
+  ambientLight?: {
+    intensity?: number;
+  };
 };
 
 export class Composer {
@@ -144,7 +147,7 @@ export class Composer {
     this.environmentConfiguration = environmentConfiguration;
 
     this.updateHDRValues();
-    this.setAmbientLight();
+    this.updateAmbientLightValues();
     this.setFog();
 
     this.effectComposer = new EffectComposer(this.renderer, {
@@ -497,6 +500,13 @@ export class Composer {
     if (typeof this.environmentConfiguration?.hdr?.polarAngle === "number") {
       envValues.hdrPolarAngle = this.environmentConfiguration.hdr.polarAngle;
       this.setHDRPolarAngle(this.environmentConfiguration.hdr.polarAngle);
+    }
+  }
+
+  private updateAmbientLightValues() {
+    if (typeof this.environmentConfiguration?.ambientLight?.intensity === "number") {
+      envValues.ambientLight.ambientLightIntensity = this.environmentConfiguration.ambientLight.intensity;
+      this.setAmbientLight();
     }
   }
 }
