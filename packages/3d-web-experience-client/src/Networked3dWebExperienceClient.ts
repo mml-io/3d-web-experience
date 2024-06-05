@@ -61,7 +61,7 @@ export type Networked3dWebExperienceClientConfig = {
   mmlDocuments?: Array<MMLDocumentConfiguration>;
   animationConfig: AnimationConfig;
   environmentConfiguration?: EnvironmentConfiguration;
-  hdrJpgUrl: string;
+  skyboxHdrJpgUrl: string;
   enableTweakPane?: boolean;
 };
 
@@ -139,7 +139,7 @@ export class Networked3dWebExperienceClient {
       environmentConfiguration: this.config.environmentConfiguration,
     });
 
-    this.composer.useHDRJPG(this.config.hdrJpgUrl);
+    this.composer.useHDRJPG(this.config.skyboxHdrJpgUrl);
     this.element.appendChild(this.composer.renderer.domElement);
 
     if (this.config.enableTweakPane !== false) {

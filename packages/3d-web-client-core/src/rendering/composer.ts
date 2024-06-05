@@ -60,11 +60,14 @@ type ComposerContructorArgs = {
 
 export type EnvironmentConfiguration = {
   groundPlane?: boolean;
-  hdr?: {
+  skybox?: {
     intensity?: number;
     blurriness?: number;
     azimuthalAngle?: number;
     polarAngle?: number;
+  };
+  envMap?: {
+    intensity?: number;
   };
   sun?: {
     intensity?: number;
@@ -373,6 +376,13 @@ export class Composer {
       if (envMap) {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
+        this.scene.environment = envMap;
+        this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+        this.scene.environmentRotation = new Euler(
+          MathUtils.degToRad(envValues.hdrPolarAngle),
+          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          0,
+        );
         this.scene.background = envMap;
         this.scene.backgroundIntensity = envValues.hdrIntensity;
         this.scene.backgroundBlurriness = envValues.hdrBlurriness;
@@ -400,6 +410,13 @@ export class Composer {
         if (envMap) {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
+          this.scene.environment = envMap;
+          this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+          this.scene.environmentRotation = new Euler(
+            MathUtils.degToRad(envValues.hdrPolarAngle),
+            MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+            0,
+          );
           this.scene.background = envMap;
           this.scene.backgroundIntensity = envValues.hdrIntensity;
           this.scene.backgroundBlurriness = envValues.hdrBlurriness;
@@ -486,21 +503,26 @@ export class Composer {
   }
 
   private updateHDRValues() {
-    if (typeof this.environmentConfiguration?.hdr?.intensity === "number") {
-      envValues.hdrIntensity = this.environmentConfiguration.hdr.intensity;
+    if (typeof this.environmentConfiguration?.skybox?.intensity === "number") {
+      envValues.hdrIntensity = this.environmentConfiguration?.skybox.intensity;
     }
     this.scene.backgroundIntensity = envValues.hdrIntensity;
-    if (typeof this.environmentConfiguration?.hdr?.blurriness === "number") {
-      envValues.hdrBlurriness = this.environmentConfiguration.hdr.blurriness;
+
+    if (typeof this.environmentConfiguration?.envMap?.intensity === "number") {
+      envValues.hdrEnvIntensity = this.environmentConfiguration?.envMap.intensity;
+    }
+    this.scene.backgroundIntensity = envValues.hdrEnvIntensity;
+    if (typeof this.environmentConfiguration?.skybox?.blurriness === "number") {
+      envValues.hdrBlurriness = this.environmentConfiguration?.skybox.blurriness;
     }
     this.scene.backgroundBlurriness = envValues.hdrBlurriness;
-    if (typeof this.environmentConfiguration?.hdr?.azimuthalAngle === "number") {
-      envValues.hdrAzimuthalAngle = this.environmentConfiguration.hdr.azimuthalAngle;
-      this.setHDRAzimuthalAngle(this.environmentConfiguration.hdr.azimuthalAngle);
+    if (typeof this.environmentConfiguration?.skybox?.azimuthalAngle === "number") {
+      envValues.hdrAzimuthalAngle = this.environmentConfiguration?.skybox.azimuthalAngle;
+      this.setHDRAzimuthalAngle(this.environmentConfiguration?.skybox.azimuthalAngle);
     }
-    if (typeof this.environmentConfiguration?.hdr?.polarAngle === "number") {
-      envValues.hdrPolarAngle = this.environmentConfiguration.hdr.polarAngle;
-      this.setHDRPolarAngle(this.environmentConfiguration.hdr.polarAngle);
+    if (typeof this.environmentConfiguration?.skybox?.polarAngle === "number") {
+      envValues.hdrPolarAngle = this.environmentConfiguration?.skybox.polarAngle;
+      this.setHDRPolarAngle(this.environmentConfiguration?.skybox.polarAngle);
     }
   }
 

@@ -161,8 +161,8 @@ export class LocalController {
       );
     }
 
-    // Changing this to allow some users to create underground tunnels etc
-    // Might want to make this a configurable value
+    // Allow the user to fall far below zero before resetting
+    // TODO - Might want to make this a configurable value
     if (this.config.character.position.y < -100) {
       this.resetPosition();
     }
