@@ -91,7 +91,11 @@ export class LocalAvatarClient {
     );
     this.cameraManager.camera.add(this.audioListener);
 
-    this.composer = new Composer(this.scene, this.cameraManager.camera, true);
+    this.composer = new Composer({
+      scene: this.scene,
+      camera: this.cameraManager.camera,
+      spawnSun: true,
+    });
     this.composer.useHDRJPG(hdrJpgUrl);
     this.element.appendChild(this.composer.renderer.domElement);
 

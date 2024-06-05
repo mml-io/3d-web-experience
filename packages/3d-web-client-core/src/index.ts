@@ -15,3 +15,4 @@ export { CollisionsManager } from "./collisions/CollisionsManager";
 export { Sun } from "./sun/Sun";
 export { GroundPlane } from "./ground-plane/GroundPlane";
 export { LoadingScreen } from "./loading-screen/LoadingScreen";
+export { EnvironmentConfiguration } from "./rendering/composer";

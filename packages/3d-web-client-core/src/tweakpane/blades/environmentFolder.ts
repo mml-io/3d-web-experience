@@ -24,6 +24,7 @@ const sunOptions = {
 export const envValues = {
   hdrAzimuthalAngle: 0,
   hdrPolarAngle: 0,
+  hdrEnvIntensity: 0.07,
   hdrIntensity: 0.8,
   hdrBlurriness: 0.0,
   ambientLight: {

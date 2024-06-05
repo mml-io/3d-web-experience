@@ -1,46 +1,46 @@
 import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
+  BlendFunction,
+  BloomEffect,
+  EdgeDetectionMode,
   EffectComposer,
-  RenderPass,
   EffectPass,
   FXAAEffect,
+  NormalPass,
+  PredicationMode,
+  RenderPass,
   ShaderPass,
-  BloomEffect,
-  SSAOEffect,
-  BlendFunction,
-  TextureEffect,
-  ToneMappingEffect,
   SMAAEffect,
   SMAAPreset,
-  EdgeDetectionMode,
-  PredicationMode,
-  NormalPass,
+  SSAOEffect,
+  TextureEffect,
+  ToneMappingEffect,
 } from "postprocessing";
 import {
   AmbientLight,
   Color,
+  EquirectangularReflectionMapping,
+  Euler,
   Fog,
   HalfFloatType,
   LinearSRGBColorSpace,
   LoadingManager,
-  PMREMGenerator,
+  MathUtils,
   PerspectiveCamera,
-  SRGBColorSpace,
+  PMREMGenerator,
   Scene,
   ShadowMapType,
+  SRGBColorSpace,
   ToneMapping,
   Vector2,
   WebGLRenderer,
-  EquirectangularReflectionMapping,
-  MathUtils,
-  Euler,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues } from "../tweakpane/blades/environmentFolder";
+import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -51,11 +51,41 @@ import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
 import { N8SSAOPass } from "./post-effects/n8-ssao/N8SSAOPass";
 
+type ComposerContructorArgs = {
+  scene: Scene;
+  camera: PerspectiveCamera;
+  spawnSun: boolean;
+  environmentConfiguration?: EnvironmentConfiguration;
+};
+
+export type EnvironmentConfiguration = {
+  groundPlane?: boolean;
+  skybox?: {
+    intensity?: number;
+    blurriness?: number;
+    azimuthalAngle?: number;
+    polarAngle?: number;
+  };
+  envMap?: {
+    intensity?: number;
+  };
+  sun?: {
+    intensity?: number;
+    polarAngle?: number;
+    azimuthalAngle?: number;
+  };
+  postProcessing?: {
+    bloomIntensity?: number;
+  };
+  ambientLight?: {
+    intensity?: number;
+  };
+};
+
 export class Composer {
   private width: number = 1;
   private height: number = 1;
   private resizeListener: () => void;
-
   public resolution: Vector2 = new Vector2(this.width, this.height);
 
   private isEnvHDRI: boolean = false;
@@ -91,11 +121,17 @@ export class Composer {
   private readonly gaussGrainPass: ShaderPass;
 
   private ambientLight: AmbientLight | null = null;
+  private environmentConfiguration?: EnvironmentConfiguration;
 
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
-  constructor(scene: Scene, camera: PerspectiveCamera, spawnSun: boolean = false) {
+  constructor({
+    scene,
+    camera,
+    spawnSun = false,
+    environmentConfiguration,
+  }: ComposerContructorArgs) {
     this.scene = scene;
     this.postPostScene = new Scene();
     this.camera = camera;
@@ -112,10 +148,10 @@ export class Composer {
     this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = rendererValues.exposure;
 
-    this.scene.backgroundIntensity = envValues.hdrIntensity;
-    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+    this.environmentConfiguration = environmentConfiguration;
 
-    this.setAmbientLight();
+    this.updateHDRValues();
+    this.updateAmbientLightValues();
     this.setFog();
 
     this.effectComposer = new EffectComposer(this.renderer, {
@@ -153,6 +189,11 @@ export class Composer {
     this.ppssaoPass.enabled = ppssaoValues.enabled;
 
     this.fxaaEffect = new FXAAEffect();
+
+    if (environmentConfiguration?.postProcessing?.bloomIntensity) {
+      extrasValues.bloom = environmentConfiguration.postProcessing.bloomIntensity;
+    }
+
     this.bloomEffect = new BloomEffect({
       intensity: extrasValues.bloom,
     });
@@ -222,6 +263,8 @@ export class Composer {
       this.sun = new Sun();
       this.scene.add(this.sun);
     }
+
+    this.updateSunValues();
 
     this.resizeListener = () => {
       this.fitContainer();
@@ -333,6 +376,13 @@ export class Composer {
       if (envMap) {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
+        this.scene.environment = envMap;
+        this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+        this.scene.environmentRotation = new Euler(
+          MathUtils.degToRad(envValues.hdrPolarAngle),
+          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          0,
+        );
         this.scene.background = envMap;
         this.scene.backgroundIntensity = envValues.hdrIntensity;
         this.scene.backgroundBlurriness = envValues.hdrBlurriness;
@@ -360,6 +410,13 @@ export class Composer {
         if (envMap) {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
+          this.scene.environment = envMap;
+          this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+          this.scene.environmentRotation = new Euler(
+            MathUtils.degToRad(envValues.hdrPolarAngle),
+            MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+            0,
+          );
           this.scene.background = envMap;
           this.scene.backgroundIntensity = envValues.hdrIntensity;
           this.scene.backgroundBlurriness = envValues.hdrBlurriness;
@@ -428,5 +485,52 @@ export class Composer {
       envValues.ambientLight.ambientLightIntensity,
     );
     this.scene.add(this.ambientLight);
+  }
+
+  private updateSunValues() {
+    if (typeof this.environmentConfiguration?.sun?.intensity === "number") {
+      sunValues.sunIntensity = this.environmentConfiguration.sun.intensity;
+      this.sun?.setIntensity(this.environmentConfiguration.sun.intensity);
+    }
+    if (typeof this.environmentConfiguration?.sun?.azimuthalAngle === "number") {
+      sunValues.sunPosition.sunAzimuthalAngle = this.environmentConfiguration.sun.azimuthalAngle;
+      this.sun?.setAzimuthalAngle(this.environmentConfiguration.sun.azimuthalAngle);
+    }
+    if (typeof this.environmentConfiguration?.sun?.polarAngle === "number") {
+      sunValues.sunPosition.sunPolarAngle = this.environmentConfiguration.sun.polarAngle;
+      this.sun?.setPolarAngle(this.environmentConfiguration.sun.polarAngle);
+    }
+  }
+
+  private updateHDRValues() {
+    if (typeof this.environmentConfiguration?.skybox?.intensity === "number") {
+      envValues.hdrIntensity = this.environmentConfiguration?.skybox.intensity;
+    }
+    this.scene.backgroundIntensity = envValues.hdrIntensity;
+
+    if (typeof this.environmentConfiguration?.envMap?.intensity === "number") {
+      envValues.hdrEnvIntensity = this.environmentConfiguration?.envMap.intensity;
+    }
+    this.scene.backgroundIntensity = envValues.hdrEnvIntensity;
+    if (typeof this.environmentConfiguration?.skybox?.blurriness === "number") {
+      envValues.hdrBlurriness = this.environmentConfiguration?.skybox.blurriness;
+    }
+    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+    if (typeof this.environmentConfiguration?.skybox?.azimuthalAngle === "number") {
+      envValues.hdrAzimuthalAngle = this.environmentConfiguration?.skybox.azimuthalAngle;
+      this.setHDRAzimuthalAngle(this.environmentConfiguration?.skybox.azimuthalAngle);
+    }
+    if (typeof this.environmentConfiguration?.skybox?.polarAngle === "number") {
+      envValues.hdrPolarAngle = this.environmentConfiguration?.skybox.polarAngle;
+      this.setHDRPolarAngle(this.environmentConfiguration?.skybox.polarAngle);
+    }
+  }
+
+  private updateAmbientLightValues() {
+    if (typeof this.environmentConfiguration?.ambientLight?.intensity === "number") {
+      envValues.ambientLight.ambientLightIntensity =
+        this.environmentConfiguration.ambientLight.intensity;
+      this.setAmbientLight();
+    }
   }
 }
