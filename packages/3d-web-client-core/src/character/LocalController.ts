@@ -161,7 +161,9 @@ export class LocalController {
       );
     }
 
-    if (this.config.character.position.y < 0) {
+    // Changing this to allow some users to create underground tunnels etc
+    // Might want to make this a configurable value
+    if (this.config.character.position.y < -100) {
       this.resetPosition();
     }
     this.updateNetworkState();

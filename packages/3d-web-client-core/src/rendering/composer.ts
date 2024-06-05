@@ -59,6 +59,7 @@ type ComposerContructorArgs = {
 };
 
 export type EnvironmentConfiguration = {
+  groundPlane?: boolean;
   hdr?: {
     intensity?: number;
     blurriness?: number;

@@ -225,9 +225,11 @@ export class Networked3dWebExperienceClient {
     });
     this.scene.add(this.characterManager.group);
 
-    const groundPlane = new GroundPlane();
-    this.collisionsManager.addMeshesGroup(groundPlane);
-    this.scene.add(groundPlane);
+    if (this.config.environmentConfiguration?.groundPlane !== false) {
+      const groundPlane = new GroundPlane();
+      this.collisionsManager.addMeshesGroup(groundPlane);
+      this.scene.add(groundPlane);
+    }
 
     this.setupMMLScene();
 
