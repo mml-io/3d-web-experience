@@ -1,0 +1,155 @@
+<m-group id="weather-group" ry="180">
+  <m-cube width="10.2" height="4.65" depth="0.1" y="1.85" z="-0.07" color="#ffffff"></m-cube>
+  <m-group id="icon-group"></m-group>
+  <m-group id="labels-group"></m-group>
+</m-group>
+
+<script>
+  const iconGroup = document.getElementById("icon-group");
+  const labelsGroup = document.getElementById("labels-group");
+
+  const fontSize = 50;
+  const color = "#303030";
+  const fontColor = "#ffffff";
+  const height = 0.7;
+
+  const locationLabel = getLabel("location", 0, 3.6, 10, 0.9, color, fontColor, fontSize + 10);
+  const windLabel = getLabel("wind speed", 0, 2.7, 10, height, color, fontColor, fontSize);
+  const tempLabel = getLabel("temperature", 0, 2, 10, height, color, fontColor, fontSize);
+  const weatherLabel = getLabel("weather", 0, 1.3, 10, height, color, fontColor, fontSize);
+  const sunriseLabel = getLabel("sunrise", -2.5, 0.6, 5, height, color, fontColor, fontSize - 10);
+  const sunsetLabel = getLabel("sunset", 2.5, 0.6, 5, height, color, fontColor, fontSize - 10);
+  const updatedLabel = getLabel("updated", 0, 0, 10, height, color, fontColor, fontSize);
+
+  labelsGroup.appendChild(locationLabel);
+  labelsGroup.appendChild(windLabel);
+  labelsGroup.appendChild(tempLabel);
+  labelsGroup.appendChild(weatherLabel);
+  labelsGroup.appendChild(sunriseLabel);
+  labelsGroup.appendChild(sunsetLabel);
+  labelsGroup.appendChild(updatedLabel);
+
+  const APIKey = "82aef78e06d78a4ebd4a9363382c3991";
+
+  const baseAPIURL = "https://api.openweathermap.org/data/2.5/weather";
+  const iconBaseURL = "https://openweathermap.org/img/wn";
+  const iconBaseURLSuffix = "@4x.png";
+
+  const geocodingAPIURL = "http://api.openweathermap.org/geo/1.0/direct";
+  const defaultPlace = "Leeds";
+
+  async function fetchData(url) {
+    return new Promise((resolve, reject) => {
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url, true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              const json = JSON.parse(xhr.responseText);
+              resolve(json);
+            } else {
+              reject(`Failed to fetch data: status ${xhr.status}`);
+            }
+          }
+        };
+        xhr.send();
+      } catch (e) {
+        reject(`Error fetching data: ${e}`);
+      }
+    });
+  }
+
+  async function fetchAPIData(cityName) {
+    try {
+      const geocodingURL = `${geocodingAPIURL}?q=${cityName}&limit=1&appid=${APIKey}`;
+      const geocodingJSON = await fetchData(geocodingURL);
+      const { lat, lon, state } = geocodingJSON[0];
+
+      if (lat && lon) {
+        locationLabel.setAttribute("content", cityName);
+        const requestURL = `${baseAPIURL}?lat=${lat}&lon=${lon}&units=metric&appid=${APIKey}`;
+        const weatherJSON = await fetchData(requestURL);
+
+        const { temp, feels_like, temp_min, temp_max, pressure, humidity } = weatherJSON.main;
+        const { visibility, timezone } = weatherJSON;
+        const { speed, deg, gust } = weatherJSON.wind;
+        const { type, country, sunrise, sunset } = weatherJSON.sys;
+        const { id, main, description, icon } = weatherJSON.weather[0];
+
+        sunriseLabel.setAttribute("content", `sunrise: ${formatTimestamp(sunrise)}`);
+        sunsetLabel.setAttribute("content", `sunset: ${formatTimestamp(sunset)}`);
+
+        const iconURL = `${iconBaseURL}/${icon}${iconBaseURLSuffix}`;
+        const iconImage = document.createElement("m-image");
+        iconImage.setAttribute("width", 2.75);
+        iconImage.setAttribute("height", 2.75);
+        iconImage.setAttribute("src", iconURL);
+        iconImage.setAttribute("x", -3.65);
+        iconImage.setAttribute("y", 2.25);
+        iconImage.setAttribute("z", 0.03);
+        iconGroup.appendChild(iconImage);
+
+        const color = temp > 15 ? (temp > 25 ? "#ffcccc" : "#ccffcc") : "#ccccff";
+        const temperature = `${temp}°C`;
+        tempLabel.setAttribute("content", `Temp: ${temperature}`);
+        tempLabel.setAttribute("font-color", color);
+
+        const windSpeed = `${speed} km/h`;
+        windLabel.setAttribute("content", `Wind: ${windSpeed} ${deg}°`);
+        weatherLabel.setAttribute("content", description);
+
+        updatedLabel.setAttribute("content", `last updated at ${getCurrentFormattedTime()}`);
+      } else {
+        console.error(`Error: can't get lat and lon for location ${cityName}`);
+      }
+    } catch (e) {
+      console.error(`Error: ${e}`);
+    }
+  }
+
+  function formatTimestamp(timestamp) {
+    const date = new Date(timestamp * 1000);
+    let hours = date.getHours();
+    let minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    minutes = minutes < 10 ? "0" + minutes : minutes;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+
+  function getCurrentFormattedTime() {
+    const date = new Date();
+    let hours = date.getHours();
+    let minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    minutes = minutes < 10 ? "0" + minutes : minutes;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+
+  function getLabel(content, x, y, width, height, color, fontColor, fontSize) {
+    const label = document.createElement("m-label");
+    label.setAttribute("content", content);
+    label.setAttribute("x", x);
+    label.setAttribute("y", y);
+    label.setAttribute("width", width);
+    label.setAttribute("height", height);
+    label.setAttribute("alignment", "center");
+    label.setAttribute("padding", 0);
+    label.setAttribute("color", color);
+    label.setAttribute("font-color", fontColor);
+    label.setAttribute("font-size", fontSize);
+    return label;
+  }
+
+  fetchAPIData(defaultPlace);
+  setInterval(
+    () => {
+      fetchAPIData(defaultPlace);
+    },
+    5 * 60 * 1000,
+  );
+</script>
