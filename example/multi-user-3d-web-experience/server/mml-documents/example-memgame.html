@@ -22,8 +22,6 @@
 
   const blocks = new Map();
 
-  let playButton = null;
-
   let availableImages = [];
   let images = [];
   let imagesDuplicated = [];
@@ -37,124 +35,209 @@
   let soundNo = null;
   let soundWin = null;
 
+  let gamesPlayed = 0;
   let isReseting = true;
   let isReset = false;
   let gameInProgress = false;
   let lastReset = document.timeline.currentTime;
 
-  // tell me more ===================================================
-  function tellMeMore(x, y, z, buttonOffset, yRotation, parentGroup) {
-    const tellMeMoreGroup = document.createElement("m-group");
-    tellMeMoreGroup.setAttribute("ry", yRotation);
+  // interaction buttons ============================================
+  class InteractionButton {
+    baseModelURL = "/assets/playground/button_base.glb";
+    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
+    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
+    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
+    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
+    buttonSoundURL = "/assets/playground/button_sfx.mp3";
 
-    const duration = 120;
-    const infoSoundDuration = 22000;
-    let audioCanPlay = true;
-    let infoAudioCanPlay = true;
+    animDuration = 210;
+    buttonSoundDuration = 1200;
+    offset = 0.03;
+    easing = "easeInOutCubic";
 
-    const transform = (element, x, y, z) => {
+    infoSound = null;
+    infoSoundDuration = 0;
+    infoSoundCanPlay = true;
+    buttonSoundCanPlay = true;
+
+    group = document.createElement("m-group");
+    base = document.createElement("m-model");
+    buttonOn = document.createElement("m-model");
+    buttonOff = document.createElement("m-model");
+    buttonSound = document.createElement("m-audio");
+
+    constructor(x, y, z, yRotation, parentGroup) {
+      this.base.setAttribute("src", this.baseModelURL);
+      this.transform(this.group, x, y, z, yRotation);
+      this.group.appendChild(this.base);
+      parentGroup.appendChild(this.group);
+      this.setupButtonSound();
+      return this;
+    }
+
+    setupPlay(callBackFunction) {
+      this.buttonOn.setAttribute("src", this.playButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.playButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            callBackFunction();
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+      });
+    }
+
+    setupInfo(infoSoundURL, infoSoundDuration, infoSoundVolume) {
+      this.buttonOn.setAttribute("src", this.questionButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.questionButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.infoSound = document.createElement("m-audio");
+      this.infoSound.setAttribute("y", 12);
+      this.infoSound.setAttribute("rx", 90);
+      this.infoSound.setAttribute("cone-angle", 90);
+      this.infoSound.setAttribute("cone-falloff-angle", 120);
+      this.infoSound.setAttribute("loop", false);
+      this.infoSound.setAttribute("debug", false);
+      this.infoSound.setAttribute("src", infoSoundURL);
+      this.infoSound.setAttribute("volume", 0);
+      this.infoSound.setAttribute("start-time", document.timeline.currentTime - infoSoundDuration);
+      this.infoSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.infoSound);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            setTimeout(() => this.turnOn(), infoSoundDuration);
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+        setTimeout(() => {
+          this.playInfoSound(infoSoundDuration, infoSoundVolume);
+        }, this.buttonSoundDuration * 0.6667);
+      });
+    }
+
+    turnOff() {
+      this.swap(this.buttonOn, this.buttonOff);
+    }
+
+    turnOn() {
+      this.swap(this.buttonOff, this.buttonOn);
+    }
+
+    pushButtonAnim() {
+      this.animateButton(this.buttonOn, "y", 0, -this.offset, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", 0, this.offset, this.animDuration, this.easing);
+    }
+
+    releaseButtonAnim() {
+      this.animateButton(this.buttonOn, "y", -this.offset, 0, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", this.offset, 0, this.animDuration, this.easing);
+    }
+
+    playInfoSound(infoSoundDuration, infoSoundVolume) {
+      if (this.infoSoundCanPlay === false || this.infoSound === null) {
+        return;
+      }
+      this.infoSoundCanPlay = false;
+      const now = document.timeline.currentTime;
+      this.infoSound.setAttribute("volume", infoSoundVolume);
+      this.infoSound.setAttribute("start-time", now);
+      this.infoSound.setAttribute("pause-time", now + infoSoundDuration);
+      setTimeout(() => {
+        this.infoSound.setAttribute("volume", 0);
+        this.infoSoundCanPlay = true;
+      }, infoSoundDuration);
+    }
+
+    playButtonSound() {
+      if (this.buttonSoundCanPlay === false) {
+        return;
+      }
+      this.buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      this.buttonSound.setAttribute("volume", 2);
+      this.buttonSound.setAttribute("start-time", now);
+      this.buttonSound.setAttribute("pause-time", now + this.buttonSoundDuration);
+      setTimeout(() => {
+        this.buttonSound.setAttribute("volume", 0);
+        this.buttonSoundCanPlay === true;
+      }, this.buttonSoundDuration);
+    }
+
+    transform(element, x, y, z, ry) {
       element.setAttribute("x", x);
       element.setAttribute("y", y);
       element.setAttribute("z", z);
-    };
+      element.setAttribute("ry", ry);
+    }
 
-    const sound = document.createElement("m-audio");
-    sound.setAttribute("y", 1.2);
-    sound.setAttribute("loop", false);
-    sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
-    sound.setAttribute("volume", 0);
-    sound.setAttribute("start-time", document.timeline.currentTime - 900);
-    sound.setAttribute("pause-time", document.timeline.currentTime);
-    tellMeMoreGroup.appendChild(sound);
-
-    const infoSound = document.createElement("m-audio");
-    infoSound.setAttribute("y", 1.2);
-    infoSound.setAttribute("loop", false);
-    infoSound.setAttribute("src", "/assets/playground/memory_game.mp3");
-    infoSound.setAttribute("volume", 0);
-    infoSound.setAttribute("start-time", document.timeline.currentTime - 22000);
-    infoSound.setAttribute("pause-time", document.timeline.currentTime);
-    tellMeMoreGroup.appendChild(infoSound);
-
-    const playSound = () => {
-      if (!audioCanPlay) {
-        return;
-      }
-      audioCanPlay = false;
-
-      const now = document.timeline.currentTime;
-      sound.setAttribute("volume", 2);
-      sound.setAttribute("start-time", now);
-      sound.setAttribute("pause-time", now + 900);
-      setTimeout(() => sound.setAttribute("volume", 0), 1000);
-
-      infoSound.setAttribute("volume", 3);
-      infoSound.setAttribute("start-time", now + 1000);
-      infoSound.setAttribute("pause-time", now + infoSoundDuration + 1000);
-      setTimeout(() => {
-        infoSound.setAttribute("volume", 0);
-        audioCanPlay = true;
-      }, infoSoundDuration);
-    };
-
-    const animate = (element, attr, start, end, duration, easing) => {
-      const anim = document.createElement("m-attr-anim");
-      anim.setAttribute("attr", attr);
-      anim.setAttribute("start", start);
-      anim.setAttribute("end", end);
-      anim.setAttribute("start-time", document.timeline.currentTime);
-      anim.setAttribute("end-time", document.timeline.currentTime + duration);
-      anim.setAttribute("duration", duration);
-      anim.setAttribute("easing", easing);
-      anim.setAttribute("loop", false);
-      element.appendChild(anim);
-      playSound();
-      setTimeout(() => {
-        element.setAttribute(attr, end);
-        element.removeChild(anim);
-      }, duration);
-    };
-
-    const scale = (element, size) => {
+    scale(element, size) {
       element.setAttribute("sx", size);
       element.setAttribute("sy", size);
       element.setAttribute("sz", size);
-    };
+    }
 
-    const swap = (elementA, elementB) => {
-      scale(elementB, 1.0);
-      scale(elementA, 0.001);
-    };
+    swap(elementA, elementB) {
+      this.scale(elementB, 1.0);
+      this.scale(elementA, 0.001);
+    }
 
-    const base = document.createElement("m-model");
-    const buttonOn = document.createElement("m-model");
-    const buttonOff = document.createElement("m-model");
-    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
-    buttonOn.setAttribute("src", "/assets/playground/tell_me_more_question_button_on.glb");
-    buttonOff.setAttribute("src", "/assets/playground/tell_me_more_question_button_off.glb");
-    scale(buttonOff, 0.001);
-    transform(tellMeMoreGroup, x, y, z);
+    setupButtonSound() {
+      this.buttonSound.setAttribute("y", 1.2);
+      this.buttonSound.setAttribute("loop", false);
+      this.buttonSound.setAttribute("debug", false);
+      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute("volume", 0);
+      this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
+      this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.buttonSound);
+    }
 
-    buttonOn.addEventListener("click", () => {
-      animate(buttonOn, "z", 0, +buttonOffset, duration, "easeInOutCubic");
-      animate(buttonOn, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+    animateButton(element, attr, start, end, duration, easing) {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
       setTimeout(() => {
-        animate(buttonOn, "z", +buttonOffset, 0, duration, "easeInOutCubic");
-        animate(buttonOn, "y", -buttonOffset, 0, duration, "easeInOutCubic");
-
-        setTimeout(() => {
-          swap(buttonOn, buttonOff);
-          setTimeout(() => swap(buttonOff, buttonOn), infoSoundDuration);
-        }, duration + 20);
-      }, duration + 20);
-    });
-
-    tellMeMoreGroup.appendChild(buttonOn);
-    tellMeMoreGroup.appendChild(buttonOff);
-    tellMeMoreGroup.appendChild(base);
-    parentGroup.appendChild(tellMeMoreGroup);
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    }
   }
-  tellMeMore(-1, 0, 2, 0.03, 180, demoGroup);
+
+  const infoButton = new InteractionButton(-1.4, 0, 2, 180, demoGroup);
+  infoButton.setupInfo("/assets/playground/memory_game.mp3", 22000, 3);
+
+  const playButton = new InteractionButton(-0.95, 0, 2, 180, demoGroup);
+  playButton.setupPlay(() => {
+    if (gameInProgress === false && isReseting === false) {
+      playSound(soundPlay, 4);
+      reStartGame();
+    }
+  });
   // ================================================================
 
   function setupAudioTag(element, url) {
@@ -194,23 +277,6 @@
     setTimeout(() => sound.setAttribute("volume", 0), 1200);
   }
 
-  // :)
-  function playPlay() {
-    playSound(soundPlay, 4);
-  }
-
-  function playYes() {
-    playSound(soundYes, 4);
-  }
-
-  function playNo() {
-    playSound(soundNo, 2);
-  }
-
-  function playWin() {
-    playSound(soundWin, 3);
-  }
-
   function prepareImages() {
     availableImages = [];
     images = [];
@@ -241,13 +307,6 @@
     }
   }
 
-  function highlightElement(element) {
-    const color = element.getAttribute("color");
-    const hue = parseInt(color.replace("hsl(", "").split(",")[0]);
-    element.setAttribute("color", `hsl(${hue}, 90%, 50%)`);
-    setTimeout(() => element.setAttribute("color", color), 160);
-  }
-
   function createFrame() {
     const totalBlocks = numberOfImages * 2;
     const rows = Math.ceil(totalBlocks / columns);
@@ -275,27 +334,19 @@
     playCube.setAttribute("rx", -45);
     frameGroup.appendChild(playCube);
 
-    playButton = document.createElement("m-label");
-    playButton.setAttribute("content", "PLAY");
-    playButton.setAttribute("padding", 0);
-    playButton.setAttribute("alignment", "center");
-    playButton.setAttribute("color", "hsl(150, 50%, 40%)");
-    playButton.setAttribute("width", 3);
-    playButton.setAttribute("height", 0.45);
-    playButton.setAttribute("font-size", 33);
-    playButton.setAttribute("font-color", "#ffffff");
-    playButton.setAttribute("x", frameWidth / 2 - gap / 2);
-    playButton.setAttribute("y", -1.2);
-    playButton.setAttribute("z", 0.225);
-    playButton.setAttribute("rx", -45);
-    playButton.addEventListener("click", () => {
-      if (gameInProgress === false && isReseting === false) {
-        playPlay();
-        highlightElement(playButton);
-        reStartGame();
-      }
-    });
-    frameGroup.appendChild(playButton);
+    const frameLabel = document.createElement("m-label");
+    frameLabel.setAttribute("content", "PLAY");
+    frameLabel.setAttribute("padding", 0);
+    frameLabel.setAttribute("alignment", "center");
+    frameLabel.setAttribute("color", "hsl(150, 50%, 40%)");
+    frameLabel.setAttribute("width", 3);
+    frameLabel.setAttribute("height", 0.45);
+    frameLabel.setAttribute("font-size", 33);
+    frameLabel.setAttribute("font-color", "#ffffff");
+    frameLabel.setAttribute("x", frameWidth / 2 - gap / 2);
+    frameLabel.setAttribute("y", -1.2);
+    frameLabel.setAttribute("z", 0.225);
+    frameLabel.setAttribute("rx", -45);
 
     gameGroup.appendChild(frameGroup);
   }
@@ -310,9 +361,6 @@
     cube.setAttribute("sx", cubeScale);
     cube.setAttribute("sy", cubeScale);
     cube.setAttribute("sz", 0.3334);
-    cube.addEventListener("click", () => handleBlockClick(index));
-
-    blockMeshGroup.appendChild(cube);
 
     const textureSrc = imagesDuplicated[index];
     const texture = document.createElement("m-image");
@@ -338,7 +386,42 @@
       matched: false,
     };
 
+    block.handleClick = () => handleBlockClick(block.id);
+    cube.addEventListener("click", block.handleClick);
+    blockMeshGroup.appendChild(cube);
+
     return block;
+  }
+
+  function shuffleMapValuesInPlace(map) {
+    const entries = Array.from(map.entries());
+    const values = entries.map((entry) => entry[1]);
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [values[i], values[j]] = [values[j], values[i]];
+    }
+    entries.forEach((entry, index) => {
+      const block = values[index];
+      const newId = entry[0];
+      const oldId = block.id;
+      block.mesh.removeEventListener("click", block.handleClick);
+      block.id = newId;
+      block.matched = false;
+      block.hidden = true;
+      block.handleClick = () => handleBlockClick(newId);
+      block.mesh.addEventListener("click", block.handleClick);
+      map.set(newId, block);
+    });
+  }
+
+  function repositionAllBlocks() {
+    shuffleMapValuesInPlace(blocks);
+    blocks.forEach((block, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      block.group.setAttribute("x", column * gap);
+      block.group.setAttribute("y", row * gap);
+    });
   }
 
   function createAllBlocks() {
@@ -350,16 +433,21 @@
   }
 
   function resetAllBlocks() {
-    if (blocks.size > 0) {
-      blocks.forEach((block) => {
-        block.texture.remove();
-        block.mesh.remove();
-        block.group.remove();
-      });
+    // if (blocks.size > 0) {
+    //   blocks.forEach((block) => {
+    //     block.texture.remove();
+    //     block.mesh.remove();
+    //     block.group.remove();
+    //   });
+    // }
+    // blocks.clear();
+    if (gamesPlayed === 0) {
+      createAllBlocks();
+      findPairs();
+    } else {
+      repositionAllBlocks();
+      findPairs();
     }
-    blocks.clear();
-    createAllBlocks();
-    findPairs();
   }
 
   function findPairs() {
@@ -464,7 +552,8 @@
     if (matchedBlocks === numberOfImages * 2) {
       isReseting = true;
       gameInProgress = false;
-      setTimeout(() => playWin(), 1000);
+      gamesPlayed++;
+      setTimeout(() => playSound(soundWin, 3), 1000);
       setTimeout(() => hideAllBlocks(), 2000);
       setTimeout(() => reStartGame(), 4000);
     }
@@ -483,11 +572,11 @@
       animate(secondBlockObject.mesh, "color", colorOn, colorMatch, animDuration, defaultEasing);
       firstIndexSelected = null;
       secondIndexSelected = null;
-      playYes();
+      playSound(soundYes, 4);
       checkIfGameOver();
       return true;
     } else {
-      playNo();
+      playSound(soundNo, 2);
       setTimeout(() => hideBlocks(firstIndexSelected, secondIndexSelected), 1500);
     }
   }
@@ -544,16 +633,19 @@
   }
 
   setInterval(() => {
-    if (gameInProgress === true && isReseting === false) {
+    if (gameInProgress === true || isReseting === true) {
       if (playButton) {
-        playButton.setAttribute("content", formatTime(document.timeline.currentTime - lastReset));
+        playButton.turnOff();
       }
     } else {
       if (playButton) {
-        if (playButton.getAttribute("content") !== "PLAY") {
-          playButton.setAttribute("content", "PLAY");
-        }
+        playButton.turnOn();
       }
+      // if (playButton) {
+      //   if (playButton.getAttribute("content") !== "PLAY") {
+      //     playButton.setAttribute("content", "PLAY");
+      //   }
+      // }
     }
   }, 1000);
 
