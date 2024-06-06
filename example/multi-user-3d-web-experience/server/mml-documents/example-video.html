@@ -18,17 +18,25 @@
     color="#88ccff"
     width="5.9"
     height="3.5"
-    depth="0.09"
+    depth="0.01"
     z="-0.155"
   ></m-cube>
-  <m-cube
+  <m-model
+    id="attributes-label-frame-border"
+    src="/assets/playground/metallic_cube.glb"
+    width="6.1"
+    height="3.9"
+    depth="0.1"
+    z="-0.156"
+  ></m-model>
+  <!-- <m-cube
     id="attributes-label-frame-border"
     color="#212121"
     width="6.1"
     height="3.9"
     depth="0.1"
     z="-0.156"
-  ></m-cube>
+  ></m-cube> -->
 </m-group>
 
 <script>
@@ -169,8 +177,8 @@
     attributesLabelFrame.setAttribute("width", labelWidth);
     attributesLabelFrame.setAttribute("height", frameHeight);
     attributesLabelFrame.setAttribute("y", frameHeight / 2 + borderWidth + labelsYOffset + frameY);
-    attributesLabelBorder.setAttribute("width", labelWidth + borderWidth);
-    attributesLabelBorder.setAttribute("height", borderHeight);
+    attributesLabelBorder.setAttribute("sx", labelWidth + borderWidth);
+    attributesLabelBorder.setAttribute("sy", borderHeight);
     attributesLabelBorder.setAttribute(
       "y",
       borderHeight / 2 + borderWidth / 2 + labelsYOffset + frameY,
