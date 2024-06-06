@@ -1,69 +1,69 @@
-<m-group id="race-track-group"></m-group>
+<m-group id="race-track-group" x="-2.5"></m-group>
 
-<m-group id="controller" y="0.2" z="-1.3" rx="70">
-  <m-cube color="#505050" width="2.1" height="0.65" depth="0.1" z="0.06"></m-cube>
-  <m-label
-    id="play-button"
-    content="PLAY"
-    ry="180"
-    padding="0"
-    alignment="center"
-    font-color="#eeeeee"
-    color="hsl(150, 50%, 40%)"
-    width="2"
-    height="0.5"
-    font-size="33"
-  ></m-label>
-</m-group>
-
-<m-group id="winner" y="0.53" z="4.2" rx="45">
-  <m-cube color="#505050" width="4.5" height="0.65" depth="0.1" z="0.06"></m-cube>
-  <m-label
-    id="winner-label"
-    content=""
-    ry="180"
-    padding="0"
-    alignment="center"
-    font-color="#eeeeee"
-    color="hsl(150, 0%, 30%)"
-    width="4.4"
-    height="0.5"
-    font-size="33"
-  ></m-label>
-</m-group>
-
-<m-group id="attributes-label-group" x="0" y="0" z="4.3" ry="180">
-  <m-cube
-    id="attributes-label-frame"
-    color="#88ccff"
-    width="4.4"
-    height="3.0"
-    depth="0.09"
-    z="-0.155"
-  ></m-cube>
-  <m-cube
-    id="attributes-label-frame-border"
-    color="#212121"
-    width="4.5"
-    height="3.4"
-    depth="0.1"
-    z="-0.156"
-  ></m-cube>
+<m-group id="info-group" x="-10.5">
+  <m-group id="winner" y="0.53" z="4.2" rx="45">
+    <m-cube color="#505050" width="4.5" height="0.65" depth="0.1" z="0.06"></m-cube>
+    <m-label
+      id="winner-label"
+      content=""
+      ry="180"
+      padding="0"
+      alignment="center"
+      font-color="#eeeeee"
+      color="hsl(150, 0%, 30%)"
+      width="4.4"
+      height="0.5"
+      font-size="33"
+    ></m-label>
+  </m-group>
+  <m-group id="attributes-label-group" y="0" z="4.3" ry="180">
+    <m-cube
+      id="attributes-label-frame"
+      color="#88ccff"
+      width="4.4"
+      height="3.0"
+      depth="0.09"
+      z="-0.155"
+    ></m-cube>
+    <m-cube
+      id="attributes-label-frame-border"
+      color="#212121"
+      width="4.5"
+      height="7.35"
+      depth="0.1"
+      z="-0.156"
+    ></m-cube>
+    <m-label
+      id="countdown-label"
+      content=""
+      padding="0"
+      alignment="center"
+      font-color="#eeeeee"
+      color="hsl(150, 0%, 30%)"
+      width="4.4"
+      height="2.65"
+      font-size="200"
+      x="0"
+      y="2.23"
+      z="-0.099"
+      visible="false"
+    ></m-label>
+  </m-group>
 </m-group>
 
 <script>
   const raceTrackGroup = document.getElementById("race-track-group");
   const winnerLabel = document.getElementById("winner-label");
+  const countdownLabel = document.getElementById("countdown-label");
 
   let countDownSound = null;
   let racing = false;
-  const playButton = document.getElementById("play-button");
 
   const raceCars = new Map();
   const raceCarsSound = new Map();
 
   const carScale = 0.5;
-  const trackLength = 30;
+  const trackLength = 25;
 
   const raceDuration = 3900;
   const raceSoundDuration = 4000;
@@ -81,8 +81,6 @@
     `hsl(380, ${sat}, ${light})`,
   ];
 
-  playButton.addEventListener("click", play);
-
   let carIndex = 0;
   let winner = "";
   let winnerIndex = 0;
@@ -97,6 +95,200 @@
   const labelsYOffset = 0.8;
 
   let winnerAnimation = null;
+
+  // interaction buttons ============================================
+  class InteractionButton {
+    baseModelURL = "/assets/playground/button_base.glb";
+    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
+    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
+    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
+    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
+    buttonSoundURL = "/assets/playground/button_sfx.mp3";
+
+    animDuration = 210;
+    buttonSoundDuration = 1200;
+    offset = 0.03;
+    easing = "easeInOutCubic";
+
+    infoSound = null;
+    infoSoundDuration = 0;
+    infoSoundCanPlay = true;
+    buttonSoundCanPlay = true;
+
+    group = document.createElement("m-group");
+    base = document.createElement("m-model");
+    buttonOn = document.createElement("m-model");
+    buttonOff = document.createElement("m-model");
+    buttonSound = document.createElement("m-audio");
+
+    constructor(x, y, z, yRotation, parentGroup) {
+      this.base.setAttribute("src", this.baseModelURL);
+      this.transform(this.group, x, y, z, yRotation);
+      this.group.appendChild(this.base);
+      parentGroup.appendChild(this.group);
+      this.setupButtonSound();
+      return this;
+    }
+
+    setupPlay(callBackFunction) {
+      this.buttonOn.setAttribute("src", this.playButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.playButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            callBackFunction();
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+      });
+    }
+
+    setupInfo(infoSoundURL, infoSoundDuration, infoSoundVolume) {
+      this.buttonOn.setAttribute("src", this.questionButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.questionButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.infoSound = document.createElement("m-audio");
+      this.infoSound.setAttribute("y", 12);
+      this.infoSound.setAttribute("rx", 90);
+      this.infoSound.setAttribute("cone-angle", 90);
+      this.infoSound.setAttribute("cone-falloff-angle", 120);
+      this.infoSound.setAttribute("loop", false);
+      this.infoSound.setAttribute("debug", false);
+      this.infoSound.setAttribute("src", infoSoundURL);
+      this.infoSound.setAttribute("volume", 0);
+      this.infoSound.setAttribute("start-time", document.timeline.currentTime - infoSoundDuration);
+      this.infoSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.infoSound);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            setTimeout(() => this.turnOn(), infoSoundDuration);
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+        setTimeout(() => {
+          this.playInfoSound(infoSoundDuration, infoSoundVolume);
+        }, this.buttonSoundDuration * 0.6667);
+      });
+    }
+
+    turnOff() {
+      this.swap(this.buttonOn, this.buttonOff);
+    }
+
+    turnOn() {
+      this.swap(this.buttonOff, this.buttonOn);
+    }
+
+    pushButtonAnim() {
+      this.animateButton(this.buttonOn, "y", 0, -this.offset, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", 0, this.offset, this.animDuration, this.easing);
+    }
+
+    releaseButtonAnim() {
+      this.animateButton(this.buttonOn, "y", -this.offset, 0, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", this.offset, 0, this.animDuration, this.easing);
+    }
+
+    playInfoSound(infoSoundDuration, infoSoundVolume) {
+      if (this.infoSoundCanPlay === false || this.infoSound === null) {
+        return;
+      }
+      this.infoSoundCanPlay = false;
+      const now = document.timeline.currentTime;
+      this.infoSound.setAttribute("volume", infoSoundVolume);
+      this.infoSound.setAttribute("start-time", now);
+      this.infoSound.setAttribute("pause-time", now + infoSoundDuration);
+      setTimeout(() => {
+        this.infoSound.setAttribute("volume", 0);
+        this.infoSoundCanPlay = true;
+      }, infoSoundDuration);
+    }
+
+    playButtonSound() {
+      if (this.buttonSoundCanPlay === false) {
+        return;
+      }
+      this.buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      this.buttonSound.setAttribute("volume", 2);
+      this.buttonSound.setAttribute("start-time", now);
+      this.buttonSound.setAttribute("pause-time", now + this.buttonSoundDuration);
+      setTimeout(() => {
+        this.buttonSound.setAttribute("volume", 0);
+        this.buttonSoundCanPlay === true;
+      }, this.buttonSoundDuration);
+    }
+
+    transform(element, x, y, z, ry) {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+      element.setAttribute("ry", ry);
+    }
+
+    scale(element, size) {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    }
+
+    swap(elementA, elementB) {
+      this.scale(elementB, 1.0);
+      this.scale(elementA, 0.001);
+    }
+
+    setupButtonSound() {
+      this.buttonSound.setAttribute("y", 1.2);
+      this.buttonSound.setAttribute("loop", false);
+      this.buttonSound.setAttribute("debug", false);
+      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute("volume", 0);
+      this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
+      this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.buttonSound);
+    }
+
+    animateButton(element, attr, start, end, duration, easing) {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    }
+  }
+
+  const infoButton = new InteractionButton(-8, 0, -1.5, 0, raceTrackGroup);
+  infoButton.setupInfo("/assets/playground/placeholder_info_audio.mp3", 4500, 3);
+
+  const playButton = new InteractionButton(-8.5, 0, -1.5, 0, raceTrackGroup);
+  playButton.setupPlay(play);
+  // ================================================================
 
   // auxiliary functions ======================================================
   function getRandomInt(min, max) {
@@ -216,6 +408,7 @@
   }
 
   function playCountdownSound() {
+    countdownLabel.setAttribute("visible", true);
     const now = document.timeline.currentTime;
     countDownSound.setAttribute("start-time", now);
     countDownSound.removeAttribute("pause-time");
@@ -224,6 +417,12 @@
       countDownSound.setAttribute("pause-time", now);
       countDownSound.setAttribute("volume", 0);
     }, countdownSoundDuration);
+    setTimeout(() => {
+      countdownLabel.setAttribute("content", "3");
+      setTimeout(() => countdownLabel.setAttribute("content", "2"), 1000);
+      setTimeout(() => countdownLabel.setAttribute("content", "1"), 2000);
+      setTimeout(() => countdownLabel.setAttribute("content", "GO"), 3000);
+    }, 500);
   }
 
   function playCarSound(carIndex, time) {
@@ -324,7 +523,6 @@
       playCarSound(index, time);
       setTimeout(() => {
         racing = false;
-        playButton.setAttribute("content", "PLAY");
         car.setAttribute("anim-enabled", false);
         car.setAttribute("anim-loop", false);
         car.setAttribute("anim-start-time", document.timeline.currentTime - 1000);
@@ -335,6 +533,11 @@
         if (winnerLabelContent !== winner) {
           winnerLabel.setAttribute("content", winner);
           updateAttributesLabel(carColors[winnerIndex]);
+          countdownLabel.setAttribute("content", "");
+          countdownLabel.setAttribute("visible", false);
+        }
+        if (playButton) {
+          playButton.turnOn();
         }
       }, time);
     });
@@ -347,8 +550,6 @@
   function play() {
     if (racing) return;
     racing = true;
-    playButton.setAttribute("content", "RUNNING");
-    highlightElement(playButton);
     winnerLabel.setAttribute("content", "");
     raceCars.forEach((car) => {
       car.setAttribute("x", -trackLength / 2 + 1);
