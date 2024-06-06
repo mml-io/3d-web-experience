@@ -1,0 +1,82 @@
+<m-group id="room-content" z="5" x="7"></m-group>
+
+<script>
+  const roomContentGroup = document.getElementById("room-content");
+  const color = "#bbbbff";
+
+  function createSignLabel(content, width, height, x, y, z, ry, fontSize) {
+    const label = document.createElement("m-label");
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "center");
+    label.setAttribute("color", color);
+    label.setAttribute("font-size", fontSize);
+    label.setAttribute("content", content);
+    label.setAttribute("width", width);
+    label.setAttribute("height", height);
+    label.setAttribute("x", x);
+    label.setAttribute("y", y);
+    label.setAttribute("z", z);
+    label.setAttribute("ry", ry);
+    return label;
+  }
+
+  function createDoubleSidedLabel(description, width, height, x, y, z, ry, fontSize) {
+    const group = document.createElement("m-group");
+    const labelFront = createSignLabel(description, width, height, x, y + 1.5, z, 180, fontSize);
+    group.appendChild(labelFront);
+    const labelBack = createSignLabel(
+      description,
+      width,
+      height,
+      x,
+      y + 1.5,
+      z + 0.01,
+      0,
+      fontSize,
+    );
+    group.appendChild(labelBack);
+    return group;
+  }
+
+  function createGreyBoxedElement(description, x, y, z, width, height, ry) {
+    const group = document.createElement("m-group");
+    group.setAttribute("ry", ry);
+
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("x", x);
+    cube.setAttribute("y", y + 0.5);
+    cube.setAttribute("z", z);
+    group.appendChild(cube);
+
+    const label = createDoubleSidedLabel(description, width, height, x, y + 2, z, 180, 35);
+    group.appendChild(label);
+
+    return group;
+  }
+
+  const messageA = `This is the Call to Action room.
+Here, we'll have 3D elements properly themed that, when clicked, will link to the continuance of the journey.`;
+  const elementA = createGreyBoxedElement(messageA, 9, 0, -12, 6, 2, 10);
+
+  const messageB = `Element that links to the MML editor or the hosted platform.`;
+  const elementB = createGreyBoxedElement(messageB, 5, 0, 5, 6, 1.5, 20);
+
+  const messageC = `Element that links to the documentation.`;
+  const elementC = createGreyBoxedElement(messageC, -2, 0, 6, 6, 1.5, 15);
+
+  const messageD = `Element that links to our discord.`;
+  const elementD = createGreyBoxedElement(messageD, -8, 0, 6, 6, 1.5, 0);
+
+  const messageE = `Element that leads to another area so the player can keep exploring.
+
+  Potentially an extra space with a curated and constantly updated/expanded collection of MML examples and games.
+
+We can use them to entice the community to create their own MML documents and submit them to us on Discord).`;
+  const elementE = createGreyBoxedElement(messageE, -15, 0, 6, 6, 4.5, -15);
+
+  roomContentGroup.appendChild(elementA);
+  roomContentGroup.appendChild(elementB);
+  roomContentGroup.appendChild(elementC);
+  roomContentGroup.appendChild(elementD);
+  roomContentGroup.appendChild(elementE);
+</script>

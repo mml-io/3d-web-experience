@@ -14,7 +14,7 @@
   const roomsThickness = 0.25;
 
   const spaceBetweenRooms = 8;
-  const numberOfRooms = 4;
+  const numberOfRooms = 5;
 
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -646,60 +646,58 @@
         progressionSpace.appendChild(travelatorNZ);
       }
 
-      if (i < 4) {
-        const frameURL = `wss:///mml-documents/z-room-${i}.html`;
-        const minX = i === 0 ? -roomsWidth * 2 : -roomsWidth;
-        const maxX = i === 0 ? roomsWidth * 2 : roomsWidth;
-        const minY = i === 0 ? -roomsHeight * 2 : -roomsHeight / 2;
-        const maxY = i === 0 ? roomsHeight * 2 : roomsHeight + roomsThickness;
-        const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2;
-        const maxZ = i === 0 ? roomsDepth : roomsDepth / 2;
-        const roomFrame = createLoadingFrame(
-          frameURL, // frameURL
-          0, // x
-          0, // y
-          zPos, // z
-          minX, // minX
-          maxX,
-          minY,
-          maxY,
-          minZ,
-          maxZ,
-        );
-        progressionSpace.appendChild(roomFrame);
+      const frameURL = `wss:///mml-documents/z-room-${i}.html`;
+      const minX = i === 0 ? -roomsWidth * 2 : -roomsWidth;
+      const maxX = i === 0 ? roomsWidth * 2 : roomsWidth;
+      const minY = i === 0 ? -roomsHeight * 2 : -roomsHeight / 2;
+      const maxY = i === 0 ? roomsHeight * 2 : roomsHeight + roomsThickness;
+      const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2;
+      const maxZ = i === 0 ? roomsDepth : roomsDepth / 2;
+      const roomFrame = createLoadingFrame(
+        frameURL, // frameURL
+        0, // x
+        0, // y
+        zPos, // z
+        minX, // minX
+        maxX,
+        minY,
+        maxY,
+        minZ,
+        maxZ,
+      );
+      progressionSpace.appendChild(roomFrame);
 
-        const debugToggle = document.createElement("m-label");
-        debugToggle.setAttribute("x", roomsWidth / 2 + roomsThickness / 2 + 0.01);
-        debugToggle.setAttribute("y", 0.15);
-        debugToggle.setAttribute("z", zPos);
-        debugToggle.setAttribute("content", "debug bounds");
-        debugToggle.setAttribute("padding", 0);
-        debugToggle.setAttribute("alignment", "center");
-        debugToggle.setAttribute("width", 2);
-        debugToggle.setAttribute("height", 0.3);
-        debugToggle.setAttribute("color", "#888888");
-        // debugToggle.setAttribute("rx", -90);
-        // debugToggle.setAttribute("rz", 90);
-        debugToggle.setAttribute("ry", 90);
+      const debugToggle = document.createElement("m-label");
+      debugToggle.setAttribute("x", roomsWidth / 2 + roomsThickness / 2 + 0.01);
+      debugToggle.setAttribute("y", 0.15);
+      debugToggle.setAttribute("z", zPos);
+      debugToggle.setAttribute("content", "debug bounds");
+      debugToggle.setAttribute("padding", 0);
+      debugToggle.setAttribute("alignment", "center");
+      debugToggle.setAttribute("width", 2);
+      debugToggle.setAttribute("height", 0.3);
+      debugToggle.setAttribute("color", "#888888");
+      // debugToggle.setAttribute("rx", -90);
+      // debugToggle.setAttribute("rz", 90);
+      debugToggle.setAttribute("ry", 90);
 
-        debugToggle.addEventListener("click", () => {
-          const debugOn = roomFrame.getAttribute("class") === "debug-on";
-          if (debugOn) {
-            roomFrame.setAttribute("class", "debug-off");
-            roomFrame.setAttribute("debug", false);
-          } else {
-            roomFrame.setAttribute("class", "debug-on");
-            roomFrame.setAttribute("debug", true);
-          }
-        });
-        progressionSpace.appendChild(debugToggle);
+      debugToggle.addEventListener("click", () => {
+        const debugOn = roomFrame.getAttribute("class") === "debug-on";
+        if (debugOn) {
+          roomFrame.setAttribute("class", "debug-off");
+          roomFrame.setAttribute("debug", false);
+        } else {
+          roomFrame.setAttribute("class", "debug-on");
+          roomFrame.setAttribute("debug", true);
+        }
+      });
+      progressionSpace.appendChild(debugToggle);
 
-        const automaticDoor = document.createElement("m-frame");
-        automaticDoor.setAttribute("src", `wss:///mml-documents/z-travelator-door-${i}.html`);
-        automaticDoor.setAttribute("x", -roomsWidth / 2);
-        automaticDoor.setAttribute("z", zPos - 15.71);
-        progressionSpace.appendChild(automaticDoor);
-      }
+      const automaticDoor = document.createElement("m-frame");
+      automaticDoor.setAttribute("src", `wss:///mml-documents/z-travelator-door-${i}.html`);
+      automaticDoor.setAttribute("x", -roomsWidth / 2);
+      automaticDoor.setAttribute("z", zPos - 15.71);
+      progressionSpace.appendChild(automaticDoor);
 
       // create the travelator shortcut labels
       const nxExitPos =
