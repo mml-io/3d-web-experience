@@ -4,7 +4,8 @@
   <m-model id="button-right" src="/assets/playground/scifi-car-plinth-right.glb"></m-model>
   <m-label
     id="display"
-    color="#ffffff"
+    color="#505050"
+    font-color="#ffffff"
     font-color="black"
     padding="0"
     alignment="center"
@@ -85,102 +86,195 @@
   let animationStartTime;
   let pauseRatio = undefined;
 
-  // tell me more ===================================================
-  function tellMeMore(x, y, z, buttonOffset, yRotation, parentGroup) {
-    const tellMeMoreGroup = document.createElement("m-group");
-    tellMeMoreGroup.setAttribute("ry", yRotation);
+  // interaction buttons ============================================
+  class InteractionButton {
+    baseModelURL = "/assets/playground/button_base.glb";
+    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
+    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
+    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
+    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
+    buttonSoundURL = "/assets/playground/button_sfx.mp3";
 
-    const duration = 120;
-    let audioCanPlay = true;
+    animDuration = 210;
+    buttonSoundDuration = 1200;
+    offset = 0.03;
+    easing = "easeInOutCubic";
 
-    const transform = (element, x, y, z) => {
+    infoSound = null;
+    infoSoundDuration = 0;
+    infoSoundCanPlay = true;
+    buttonSoundCanPlay = true;
+
+    group = document.createElement("m-group");
+    base = document.createElement("m-model");
+    buttonOn = document.createElement("m-model");
+    buttonOff = document.createElement("m-model");
+    buttonSound = document.createElement("m-audio");
+
+    constructor(x, y, z, yRotation, parentGroup) {
+      this.base.setAttribute("src", this.baseModelURL);
+      this.transform(this.group, x, y, z, yRotation);
+      this.group.appendChild(this.base);
+      parentGroup.appendChild(this.group);
+      this.setupButtonSound();
+      return this;
+    }
+
+    setupPlay(callBackFunction) {
+      this.buttonOn.setAttribute("src", this.playButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.playButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            callBackFunction();
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+      });
+    }
+
+    setupInfo(infoSoundURL, infoSoundDuration, infoSoundVolume) {
+      this.buttonOn.setAttribute("src", this.questionButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.questionButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.infoSound = document.createElement("m-audio");
+      this.infoSound.setAttribute("y", 12);
+      this.infoSound.setAttribute("rx", 90);
+      this.infoSound.setAttribute("cone-angle", 90);
+      this.infoSound.setAttribute("cone-falloff-angle", 120);
+      this.infoSound.setAttribute("loop", false);
+      this.infoSound.setAttribute("debug", false);
+      this.infoSound.setAttribute("src", infoSoundURL);
+      this.infoSound.setAttribute("volume", 0);
+      this.infoSound.setAttribute("start-time", document.timeline.currentTime - infoSoundDuration);
+      this.infoSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.infoSound);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            setTimeout(() => this.turnOn(), infoSoundDuration);
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+        setTimeout(() => {
+          this.playInfoSound(infoSoundDuration, infoSoundVolume);
+        }, this.buttonSoundDuration * 0.6667);
+      });
+    }
+
+    turnOff() {
+      this.swap(this.buttonOn, this.buttonOff);
+    }
+
+    turnOn() {
+      this.swap(this.buttonOff, this.buttonOn);
+    }
+
+    pushButtonAnim() {
+      this.animateButton(this.buttonOn, "y", 0, -this.offset, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", 0, this.offset, this.animDuration, this.easing);
+    }
+
+    releaseButtonAnim() {
+      this.animateButton(this.buttonOn, "y", -this.offset, 0, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", this.offset, 0, this.animDuration, this.easing);
+    }
+
+    playInfoSound(infoSoundDuration, infoSoundVolume) {
+      if (this.infoSoundCanPlay === false || this.infoSound === null) {
+        return;
+      }
+      this.infoSoundCanPlay = false;
+      const now = document.timeline.currentTime;
+      this.infoSound.setAttribute("volume", infoSoundVolume);
+      this.infoSound.setAttribute("start-time", now);
+      this.infoSound.setAttribute("pause-time", now + infoSoundDuration);
+      setTimeout(() => {
+        this.infoSound.setAttribute("volume", 0);
+        this.infoSoundCanPlay = true;
+      }, infoSoundDuration);
+    }
+
+    playButtonSound() {
+      if (this.buttonSoundCanPlay === false) {
+        return;
+      }
+      this.buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      this.buttonSound.setAttribute("volume", 2);
+      this.buttonSound.setAttribute("start-time", now);
+      this.buttonSound.setAttribute("pause-time", now + this.buttonSoundDuration);
+      setTimeout(() => {
+        this.buttonSound.setAttribute("volume", 0);
+        this.buttonSoundCanPlay === true;
+      }, this.buttonSoundDuration);
+    }
+
+    transform(element, x, y, z, ry) {
       element.setAttribute("x", x);
       element.setAttribute("y", y);
       element.setAttribute("z", z);
-    };
+      element.setAttribute("ry", ry);
+    }
 
-    const sound = document.createElement("m-audio");
-    sound.setAttribute("y", 1.2);
-    sound.setAttribute("loop", false);
-    sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
-    sound.setAttribute("volume", 0);
-    sound.setAttribute("start-time", document.timeline.currentTime - 900);
-    sound.setAttribute("pause-time", document.timeline.currentTime);
-    tellMeMoreGroup.appendChild(sound);
-
-    const playSound = () => {
-      if (!audioCanPlay) {
-        return;
-      }
-      audioCanPlay = false;
-      const now = document.timeline.currentTime;
-      sound.setAttribute("volume", 2);
-      sound.setAttribute("start-time", now);
-      sound.setAttribute("pause-time", now + 900);
-      setTimeout(() => {
-        sound.setAttribute("volume", 0);
-        audioCanPlay = true;
-      }, 1000);
-    };
-
-    const animate = (element, attr, start, end, duration, easing) => {
-      const anim = document.createElement("m-attr-anim");
-      anim.setAttribute("attr", attr);
-      anim.setAttribute("start", start);
-      anim.setAttribute("end", end);
-      anim.setAttribute("start-time", document.timeline.currentTime);
-      anim.setAttribute("end-time", document.timeline.currentTime + duration);
-      anim.setAttribute("duration", duration);
-      anim.setAttribute("easing", easing);
-      anim.setAttribute("loop", false);
-      element.appendChild(anim);
-      playSound();
-      setTimeout(() => {
-        element.setAttribute(attr, end);
-        element.removeChild(anim);
-      }, duration);
-    };
-
-    const scale = (element, size) => {
+    scale(element, size) {
       element.setAttribute("sx", size);
       element.setAttribute("sy", size);
       element.setAttribute("sz", size);
-    };
+    }
 
-    const swap = (elementA, elementB) => {
-      scale(elementB, 1.0);
-      scale(elementA, 0.001);
-    };
+    swap(elementA, elementB) {
+      this.scale(elementB, 1.0);
+      this.scale(elementA, 0.001);
+    }
 
-    const base = document.createElement("m-model");
-    const buttonOn = document.createElement("m-model");
-    const buttonOff = document.createElement("m-model");
-    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
-    buttonOn.setAttribute("src", "/assets/playground/tell_me_more_button_on.glb");
-    buttonOff.setAttribute("src", "/assets/playground/tell_me_more_button_off.glb");
-    scale(buttonOff, 0.001);
-    transform(tellMeMoreGroup, x, y, z);
+    setupButtonSound() {
+      this.buttonSound.setAttribute("y", 1.2);
+      this.buttonSound.setAttribute("loop", false);
+      this.buttonSound.setAttribute("debug", false);
+      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute("volume", 0);
+      this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
+      this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.buttonSound);
+    }
 
-    buttonOn.addEventListener("click", () => {
-      animate(buttonOn, "z", 0, +buttonOffset, duration, "easeInOutCubic");
-      animate(buttonOn, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+    animateButton(element, attr, start, end, duration, easing) {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
       setTimeout(() => {
-        animate(buttonOn, "z", +buttonOffset, 0, duration, "easeInOutCubic");
-        animate(buttonOn, "y", -buttonOffset, 0, duration, "easeInOutCubic");
-
-        setTimeout(() => {
-          swap(buttonOn, buttonOff);
-          setTimeout(() => swap(buttonOff, buttonOn), 3000);
-        }, duration + 20);
-      }, duration + 20);
-    });
-
-    tellMeMoreGroup.appendChild(buttonOn);
-    tellMeMoreGroup.appendChild(buttonOff);
-    tellMeMoreGroup.appendChild(base);
-    parentGroup.appendChild(tellMeMoreGroup);
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    }
   }
-  tellMeMore(-3, 0, -4.5, 0.03, 90, plinthDemo);
+
+  const infoButton = new InteractionButton(-3, 0, -4.5, 90, plinthDemo);
+  infoButton.setupInfo("/assets/playground/placeholder_info_audio.mp3", 4500, 3);
   // ================================================================
 
   function adjustCarAnim(delta) {
