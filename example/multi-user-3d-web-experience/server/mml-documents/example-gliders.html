@@ -12,22 +12,6 @@
   const spawnChance = 0.3333334;
   let stepCount = 0;
 
-  resetButton.setAttribute("content", "💥");
-  resetButton.setAttribute("padding", 0);
-  resetButton.setAttribute("alignment", "center");
-  resetButton.setAttribute("x", 0.251);
-  resetButton.setAttribute("y", 0.25);
-  resetButton.setAttribute("ry", 90);
-  resetButton.setAttribute("width", 0.25);
-  resetButton.setAttribute("height", 0.225);
-  resetButton.setAttribute("color", "#212121");
-  resetButton.setAttribute("font-color", "#ccffcc");
-  resetButton.setAttribute("font-size", 17);
-  conwayFrame.appendChild(resetButton);
-  resetButton.addEventListener("click", () => {
-    resetSimulation();
-  });
-
   function createBorder(side) {
     const sy = side === "top" || side === "bottom" ? 0.5 : worldSize / 2;
     const sz = sy === 0.5 ? worldSize / 2 + 1 : 0.5;

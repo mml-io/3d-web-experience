@@ -1,6 +1,14 @@
-<m-group id="sequencer-group"></m-group>
+<m-group id="sequencer-group" y="2"></m-group>
 
 <script>
+  // Replace these with your own audio files
+  const audioSrcs = [
+    "/assets/playground/Kick-808-12.wav",
+    "/assets/playground/Krs-cymbol-4.wav",
+    "/assets/playground/medasin-hi-hat.wav",
+    "/assets/playground/Stretched-808-Snare.wav",
+  ];
+
   const sequencerGroup = document.getElementById("sequencer-group");
 
   const channels = new Map();
@@ -50,6 +58,14 @@
     return cube;
   }
 
+  function createAudio(src) {
+    const audio = document.createElement("m-audio");
+    audio.setAttribute("src", src);
+    audio.setAttribute("loop", true);
+    audio.setAttribute("enabled", false);
+    return audio;
+  }
+
   function bpmToMS(bpm) {
     return 60000 / bpm;
   }
@@ -72,7 +88,6 @@
       animations.clear();
     }
     const beatDuration = bpmToMS(bpm);
-    const now = document.timeline.currentTime - beatDuration * bars;
     const posStart = buttonSize * 0.1 + 0.1 - 10;
     const posEnd = buttonSize * 0.1 + 0.1;
     channels.forEach((channel) => {
@@ -82,12 +97,14 @@
           "z",
           posStart,
           posEnd,
-          now + i * beatDuration,
+          (i + 0.5) * beatDuration,
           beatDuration * bars,
           beatDuration,
         );
         animations.add(anim);
         channel[i].borderMesh.appendChild(anim);
+        channel[i].audio.setAttribute("start-time", i * beatDuration - (beatDuration * bars) / 2);
+        channel[i].audio.setAttribute("loop-duration", beatDuration * bars);
       }
     });
   }
@@ -112,8 +129,10 @@
     const on = button.getAttribute("class");
     if (on === "on") {
       turnButtonLedOff(button);
+      return false;
     } else {
       turnButtonLedOn(button);
+      return true;
     }
   }
 
@@ -279,11 +298,14 @@
 
     const barsArray = [];
 
+    const src = audioSrcs[channelIndex];
+
     for (let i = 0; i < bars; i++) {
       const bar = {};
       const hue = (360 / bars) * i;
       const color = `hsl(${hue}, ${offSatLight})`;
       const border = createCube(borderSize, borderSize, borderDepth, "#ffffff", xPos, yPos, zPos);
+      const audio = createAudio(src);
       const button = createCube(
         buttonSize,
         buttonSize,
@@ -294,14 +316,18 @@
         zPos + 0.03,
       );
       button.setAttribute("class", "off");
+
       button.addEventListener("click", () => {
-        toggleButtonLed(button);
+        const active = toggleButtonLed(button);
+        audio.setAttribute("enabled", active);
       });
       bar.channel = channelIndex;
       bar.borderMesh = border;
       bar.buttonMesh = button;
+      bar.audio = audio;
       barsArray.push(bar);
       channelGroupFrame.appendChild(border);
+      button.appendChild(audio);
       channelGroupFrame.appendChild(button);
       xPos += buttonSize + buttonsGap;
     }

@@ -457,7 +457,7 @@
     frame.setAttribute("max-y", maxY);
     frame.setAttribute("min-z", minZ);
     frame.setAttribute("max-z", maxZ);
-    frame.setAttribute("load-range", spaceBetweenRooms - roomsThickness * 4);
+    frame.setAttribute("load-range", spaceBetweenRooms + roomsThickness * 4);
     frame.setAttribute("unload-range", roomsThickness);
     frame.setAttribute("debug", false);
     return frame;
@@ -651,8 +651,8 @@
       const maxX = i === 0 ? roomsWidth * 2 : roomsWidth;
       const minY = i === 0 ? -roomsHeight * 2 : -roomsHeight / 2;
       const maxY = i === 0 ? roomsHeight * 2 : roomsHeight + roomsThickness;
-      const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2;
-      const maxZ = i === 0 ? roomsDepth : roomsDepth / 2;
+      const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2 - 0.5;
+      const maxZ = i === 0 ? roomsDepth : roomsDepth / 2 + 0.5;
       const roomFrame = createLoadingFrame(
         frameURL, // frameURL
         0, // x
@@ -677,8 +677,6 @@
       debugToggle.setAttribute("width", 2);
       debugToggle.setAttribute("height", 0.3);
       debugToggle.setAttribute("color", "#888888");
-      // debugToggle.setAttribute("rx", -90);
-      // debugToggle.setAttribute("rz", 90);
       debugToggle.setAttribute("ry", 90);
 
       debugToggle.addEventListener("click", () => {

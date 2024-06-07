@@ -1,8 +1,212 @@
-<m-frame src="wss:///mml-documents/example-weather.html" x="9" y="1.5" z="22.27"></m-frame>
-<m-frame
-  src="wss:///mml-documents/example-days-without-incident.html"
-  x="-3"
-  y="0.9"
-  z="19.6"
-  ry="180"
-></m-frame>
+<m-group id="room-content">
+  <m-frame src="wss:///mml-documents/example-weather.html" x="9" y="1.5" z="22.27"></m-frame>
+  <m-frame
+    src="wss:///mml-documents/example-days-without-incident.html"
+    x="-3"
+    y="0.9"
+    z="19.6"
+    ry="180"
+  ></m-frame>
+</m-group>
+
+<script>
+  const roomContentGroup = document.getElementById("room-content");
+  function createDoor(width, height, x, y, z, parentElement) {
+    const doorGroup = document.createElement("m-group");
+    const offset = -0.045;
+    const doorAnimDuration = 1200;
+    const doorSoundDuration = 1500;
+    const buttonAnimDuration = 210;
+    const buttonSoundDuration = 1200;
+    const easing = "easeInOutCubic";
+
+    let doorIsOpen = false;
+    let buttonSoundCanPlay = true;
+
+    const door = document.createElement("m-cube");
+    door.setAttribute("z", 0.035);
+    door.setAttribute("y", height / 2);
+    door.setAttribute("width", width);
+    door.setAttribute("height", height);
+    door.setAttribute("depth", 0.1);
+    door.setAttribute("color", "#707070");
+    doorGroup.appendChild(door);
+
+    const buttonSound = document.createElement("m-audio");
+
+    const doorSound = document.createElement("m-audio");
+    doorSound.setAttribute("volume", 0);
+    doorSound.setAttribute("src", "/assets/playground/door_swoosh.mp3");
+    doorSound.setAttribute("loop", false);
+    doorSound.setAttribute("start-time", document.timeline.currentTime - (doorSoundDuration + 100));
+    doorSound.setAttribute("pause-time", document.timeline.currentTime - 100);
+    door.appendChild(doorSound);
+
+    const createModel = (url, x, y, z, yRotation) => {
+      const model = document.createElement("m-model");
+      model.setAttribute("src", url);
+      model.setAttribute("x", x);
+      model.setAttribute("y", y);
+      model.setAttribute("z", z);
+      if (yRotation) {
+        model.setAttribute("ry", yRotation);
+      }
+      return model;
+    };
+
+    const scale = (element, size) => {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    };
+
+    const swap = (elementA, elementB) => {
+      scale(elementB, 1.0);
+      scale(elementA, 0.001);
+    };
+
+    const animateElement = (element, attr, start, end, duration, easing) => {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    };
+
+    const buttonBaseURL = "/assets/playground/open_button_base.glb";
+    const buttonOnURL = "/assets/playground/open_button_on.glb";
+    const buttonOffURL = "/assets/playground/open_button_off.glb";
+
+    const doorButtonBase = createModel(buttonBaseURL, 2.75, 1.5, -0.1);
+    const doorButtonOn = createModel(buttonOnURL, 2.75, 1.5, -0.1);
+    const doorButtonOff = createModel(buttonOffURL, 2.75, 1.5, -0.1);
+    scale(doorButtonOff, 0.001);
+
+    const doorBackButtonBase = createModel(buttonBaseURL, 2.75, 1.5, 0.3, 180);
+    const doorBackButtonOn = createModel(buttonOnURL, 2.75, 1.5, 0.3, 180);
+    const doorBackButtonOff = createModel(buttonOffURL, 2.75, 1.5, 0.3, 180);
+    scale(doorBackButtonOff, 0.001);
+
+    doorGroup.appendChild(doorButtonBase);
+    doorGroup.appendChild(doorButtonOn);
+    doorGroup.appendChild(doorButtonOff);
+    doorGroup.appendChild(doorBackButtonBase);
+    doorGroup.appendChild(doorBackButtonOn);
+    doorGroup.appendChild(doorBackButtonOff);
+
+    const pushButtonAnim = () => {
+      animateElement(doorButtonOn, "z", -0.1, -0.045, buttonAnimDuration, easing);
+    };
+
+    const pushBackButtonAnim = () => {
+      animateElement(doorBackButtonOn, "z", 0.3, 0.265, buttonAnimDuration, easing);
+    };
+
+    const releaseButtonAnim = () => {
+      animateElement(doorButtonOn, "z", -0.045, -0.1, buttonAnimDuration, easing);
+    };
+
+    const releaseBackButtonAnim = () => {
+      animateElement(doorBackButtonOn, "z", 0.265, 0.3, buttonAnimDuration, easing);
+    };
+
+    const setupButtonSound = () => {
+      buttonSound.setAttribute("y", 1.2);
+      buttonSound.setAttribute("loop", false);
+      buttonSound.setAttribute("debug", false);
+      buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      buttonSound.setAttribute("volume", 0);
+      buttonSound.setAttribute("start-time", document.timeline.currentTime - buttonSoundDuration);
+      buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      doorButtonBase.appendChild(buttonSound);
+    };
+
+    const playButtonSound = () => {
+      if (buttonSoundCanPlay === false) {
+        return;
+      }
+      buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      buttonSound.setAttribute("volume", 2);
+      buttonSound.setAttribute("start-time", now);
+      buttonSound.setAttribute("pause-time", now + buttonSoundDuration);
+      setTimeout(() => {
+        buttonSound.setAttribute("volume", 0);
+        buttonSoundCanPlay === true;
+      }, buttonSoundDuration);
+    };
+
+    const playDoorSound = () => {
+      doorSound.setAttribute("volume", 3);
+      doorSound.setAttribute("start-time", document.timeline.currentTime);
+      doorSound.setAttribute("pause-time", document.timeline.currentTime + doorSoundDuration);
+      setTimeout(() => doorSound.setAttribute("volume", 0), doorSoundDuration);
+    };
+
+    const openDoor = () => {
+      if (doorIsOpen) return;
+      doorIsOpen = true;
+      playDoorSound();
+      animateElement(door, "y", height / 2, height / 2 + height, doorAnimDuration, easing);
+    };
+
+    const closeDoor = () => {
+      if (!doorIsOpen) return;
+      doorIsOpen = false;
+      playDoorSound();
+      animateElement(door, "y", height / 2 + height, height / 2, doorAnimDuration, easing);
+    };
+
+    doorButtonOn.addEventListener("click", () => {
+      pushButtonAnim();
+      openDoor();
+      setTimeout(() => {
+        releaseButtonAnim();
+        setTimeout(() => {
+          swap(doorButtonOn, doorButtonOff);
+          swap(doorBackButtonOn, doorBackButtonOff);
+        }, buttonAnimDuration + 20);
+        setTimeout(() => {
+          closeDoor();
+          swap(doorButtonOff, doorButtonOn);
+          swap(doorBackButtonOff, doorBackButtonOn);
+        }, 5000);
+      }, buttonAnimDuration + 20);
+      playButtonSound();
+    });
+
+    doorBackButtonOn.addEventListener("click", () => {
+      pushBackButtonAnim();
+      openDoor();
+      setTimeout(() => {
+        releaseBackButtonAnim();
+        setTimeout(() => {
+          swap(doorButtonOn, doorButtonOff);
+          swap(doorBackButtonOn, doorBackButtonOff);
+        }, buttonAnimDuration + 20);
+        setTimeout(() => {
+          closeDoor();
+          swap(doorButtonOff, doorButtonOn);
+          swap(doorBackButtonOff, doorBackButtonOn);
+        }, 5000);
+      }, buttonAnimDuration + 20);
+      playButtonSound();
+    });
+
+    doorGroup.setAttribute("x", x);
+    doorGroup.setAttribute("y", y);
+    doorGroup.setAttribute("z", z);
+    setupButtonSound();
+    parentElement.appendChild(doorGroup);
+  }
+  createDoor(5, 6, -14.62, 0, 22.4, roomContentGroup);
+</script>

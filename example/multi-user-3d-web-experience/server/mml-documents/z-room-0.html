@@ -58,60 +58,47 @@
   const videoPlayer2 = document.getElementById("video-player-2");
   const spectatorsLabel = document.getElementById("spectators-label");
 
-  // tell me more ===================================================
-  function tellMeMore(x, y, z, buttonOffset, yRotation, parentGroup) {
-    const tellMeMoreGroup = document.createElement("m-group");
-    tellMeMoreGroup.setAttribute("ry", yRotation);
+  function createDoor(width, height, x, y, z, parentElement) {
+    const doorGroup = document.createElement("m-group");
+    const offset = -0.045;
+    const doorAnimDuration = 1200;
+    const doorSoundDuration = 1500;
+    const buttonAnimDuration = 210;
+    const buttonSoundDuration = 1200;
+    const easing = "easeInOutCubic";
 
-    const duration = 120;
-    let audioCanPlay = true;
+    let doorIsOpen = false;
+    let buttonSoundCanPlay = true;
 
-    const transform = (element, x, y, z) => {
-      element.setAttribute("x", x);
-      element.setAttribute("y", y);
-      element.setAttribute("z", z);
-    };
+    const door = document.createElement("m-cube");
+    door.setAttribute("z", 0.035);
+    door.setAttribute("y", height / 2);
+    door.setAttribute("width", width);
+    door.setAttribute("height", height);
+    door.setAttribute("depth", 0.1);
+    door.setAttribute("color", "#707070");
+    doorGroup.appendChild(door);
 
-    const sound = document.createElement("m-audio");
-    sound.setAttribute("y", 1.2);
-    sound.setAttribute("loop", false);
-    sound.setAttribute("src", "/assets/playground/button_sfx.mp3");
-    sound.setAttribute("volume", 0);
-    sound.setAttribute("start-time", document.timeline.currentTime - 900);
-    sound.setAttribute("pause-time", document.timeline.currentTime);
-    tellMeMoreGroup.appendChild(sound);
+    const buttonSound = document.createElement("m-audio");
 
-    const playSound = () => {
-      if (!audioCanPlay) {
-        return;
+    const doorSound = document.createElement("m-audio");
+    doorSound.setAttribute("volume", 0);
+    doorSound.setAttribute("src", "/assets/playground/door_swoosh.mp3");
+    doorSound.setAttribute("loop", false);
+    doorSound.setAttribute("start-time", document.timeline.currentTime - (doorSoundDuration + 100));
+    doorSound.setAttribute("pause-time", document.timeline.currentTime - 100);
+    door.appendChild(doorSound);
+
+    const createModel = (url, x, y, z, yRotation) => {
+      const model = document.createElement("m-model");
+      model.setAttribute("src", url);
+      model.setAttribute("x", x);
+      model.setAttribute("y", y);
+      model.setAttribute("z", z);
+      if (yRotation) {
+        model.setAttribute("ry", yRotation);
       }
-      audioCanPlay = false;
-      const now = document.timeline.currentTime;
-      sound.setAttribute("volume", 2);
-      sound.setAttribute("start-time", now);
-      sound.setAttribute("pause-time", now + 900);
-      setTimeout(() => {
-        sound.setAttribute("volume", 0);
-        audioCanPlay = true;
-      }, 1000);
-    };
-
-    const animate = (element, attr, start, end, duration, easing) => {
-      const anim = document.createElement("m-attr-anim");
-      anim.setAttribute("attr", attr);
-      anim.setAttribute("start", start);
-      anim.setAttribute("end", end);
-      anim.setAttribute("start-time", document.timeline.currentTime);
-      anim.setAttribute("end-time", document.timeline.currentTime + duration);
-      anim.setAttribute("duration", duration);
-      anim.setAttribute("easing", easing);
-      anim.setAttribute("loop", false);
-      element.appendChild(anim);
-      playSound();
-      setTimeout(() => {
-        element.setAttribute(attr, end);
-        element.removeChild(anim);
-      }, duration);
+      return model;
     };
 
     const scale = (element, size) => {
@@ -125,34 +112,148 @@
       scale(elementA, 0.001);
     };
 
-    const base = document.createElement("m-model");
-    const buttonOn = document.createElement("m-model");
-    const buttonOff = document.createElement("m-model");
-    base.setAttribute("src", "/assets/playground/tell_me_more_base.glb");
-    buttonOn.setAttribute("src", "/assets/playground/tell_me_more_button_on.glb");
-    buttonOff.setAttribute("src", "/assets/playground/tell_me_more_button_off.glb");
-    scale(buttonOff, 0.001);
-    transform(tellMeMoreGroup, x, y, z);
-
-    buttonOn.addEventListener("click", () => {
-      animate(buttonOn, "z", 0, +buttonOffset, duration, "easeInOutCubic");
-      animate(buttonOn, "y", 0, -buttonOffset, duration, "easeInOutCubic");
+    const animateElement = (element, attr, start, end, duration, easing) => {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
       setTimeout(() => {
-        animate(buttonOn, "z", +buttonOffset, 0, duration, "easeInOutCubic");
-        animate(buttonOn, "y", -buttonOffset, 0, duration, "easeInOutCubic");
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    };
 
+    const buttonBaseURL = "/assets/playground/open_button_base.glb";
+    const buttonOnURL = "/assets/playground/open_button_on.glb";
+    const buttonOffURL = "/assets/playground/open_button_off.glb";
+
+    const doorButtonBase = createModel(buttonBaseURL, 2.75, 1.5, -0.1);
+    const doorButtonOn = createModel(buttonOnURL, 2.75, 1.5, -0.1);
+    const doorButtonOff = createModel(buttonOffURL, 2.75, 1.5, -0.1);
+    scale(doorButtonOff, 0.001);
+
+    const doorBackButtonBase = createModel(buttonBaseURL, 2.75, 1.5, 0.3, 180);
+    const doorBackButtonOn = createModel(buttonOnURL, 2.75, 1.5, 0.3, 180);
+    const doorBackButtonOff = createModel(buttonOffURL, 2.75, 1.5, 0.3, 180);
+    scale(doorBackButtonOff, 0.001);
+
+    doorGroup.appendChild(doorButtonBase);
+    doorGroup.appendChild(doorButtonOn);
+    doorGroup.appendChild(doorButtonOff);
+    doorGroup.appendChild(doorBackButtonBase);
+    doorGroup.appendChild(doorBackButtonOn);
+    doorGroup.appendChild(doorBackButtonOff);
+
+    const pushButtonAnim = () => {
+      animateElement(doorButtonOn, "z", -0.1, -0.045, buttonAnimDuration, easing);
+    };
+
+    const pushBackButtonAnim = () => {
+      animateElement(doorBackButtonOn, "z", 0.3, 0.265, buttonAnimDuration, easing);
+    };
+
+    const releaseButtonAnim = () => {
+      animateElement(doorButtonOn, "z", -0.045, -0.1, buttonAnimDuration, easing);
+    };
+
+    const releaseBackButtonAnim = () => {
+      animateElement(doorBackButtonOn, "z", 0.265, 0.3, buttonAnimDuration, easing);
+    };
+
+    const setupButtonSound = () => {
+      buttonSound.setAttribute("y", 1.2);
+      buttonSound.setAttribute("loop", false);
+      buttonSound.setAttribute("debug", false);
+      buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      buttonSound.setAttribute("volume", 0);
+      buttonSound.setAttribute("start-time", document.timeline.currentTime - buttonSoundDuration);
+      buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      doorButtonBase.appendChild(buttonSound);
+    };
+
+    const playButtonSound = () => {
+      if (buttonSoundCanPlay === false) {
+        return;
+      }
+      buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      buttonSound.setAttribute("volume", 2);
+      buttonSound.setAttribute("start-time", now);
+      buttonSound.setAttribute("pause-time", now + buttonSoundDuration);
+      setTimeout(() => {
+        buttonSound.setAttribute("volume", 0);
+        buttonSoundCanPlay === true;
+      }, buttonSoundDuration);
+    };
+
+    const playDoorSound = () => {
+      doorSound.setAttribute("volume", 3);
+      doorSound.setAttribute("start-time", document.timeline.currentTime);
+      doorSound.setAttribute("pause-time", document.timeline.currentTime + doorSoundDuration);
+      setTimeout(() => doorSound.setAttribute("volume", 0), doorSoundDuration);
+    };
+
+    const openDoor = () => {
+      if (doorIsOpen) return;
+      doorIsOpen = true;
+      playDoorSound();
+      animateElement(door, "y", height / 2, height / 2 + height, doorAnimDuration, easing);
+    };
+
+    const closeDoor = () => {
+      if (!doorIsOpen) return;
+      doorIsOpen = false;
+      playDoorSound();
+      animateElement(door, "y", height / 2 + height, height / 2, doorAnimDuration, easing);
+    };
+
+    doorButtonOn.addEventListener("click", () => {
+      pushButtonAnim();
+      openDoor();
+      setTimeout(() => {
+        releaseButtonAnim();
         setTimeout(() => {
-          swap(buttonOn, buttonOff);
-          setTimeout(() => swap(buttonOff, buttonOn), 3000);
-        }, duration + 20);
-      }, duration + 20);
+          swap(doorButtonOn, doorButtonOff);
+          swap(doorBackButtonOn, doorBackButtonOff);
+        }, buttonAnimDuration + 20);
+        setTimeout(() => {
+          closeDoor();
+          swap(doorButtonOff, doorButtonOn);
+          swap(doorBackButtonOff, doorBackButtonOn);
+        }, 5000);
+      }, buttonAnimDuration + 20);
+      playButtonSound();
     });
 
-    tellMeMoreGroup.appendChild(buttonOn);
-    tellMeMoreGroup.appendChild(buttonOff);
-    tellMeMoreGroup.appendChild(base);
-    parentGroup.appendChild(tellMeMoreGroup);
+    doorBackButtonOn.addEventListener("click", () => {
+      pushBackButtonAnim();
+      openDoor();
+      setTimeout(() => {
+        releaseBackButtonAnim();
+        setTimeout(() => {
+          swap(doorButtonOn, doorButtonOff);
+          swap(doorBackButtonOn, doorBackButtonOff);
+        }, buttonAnimDuration + 20);
+        setTimeout(() => {
+          closeDoor();
+          swap(doorButtonOff, doorButtonOn);
+          swap(doorBackButtonOff, doorBackButtonOn);
+        }, 5000);
+      }, buttonAnimDuration + 20);
+      playButtonSound();
+    });
+
+    doorGroup.setAttribute("x", x);
+    doorGroup.setAttribute("y", y);
+    doorGroup.setAttribute("z", z);
+    setupButtonSound();
+    parentElement.appendChild(doorGroup);
   }
-  tellMeMore(3, 0, 15, 0.03, 0, roomContentGroup);
-  // ================================================================
+  createDoor(5, 6, -14.62, 0, 22.4, roomContentGroup);
 </script>
