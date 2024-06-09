@@ -63,6 +63,7 @@ export type Networked3dWebExperienceClientConfig = {
   environmentConfiguration?: EnvironmentConfiguration;
   skyboxHdrJpgUrl: string;
   enableTweakPane?: boolean;
+  updateURLLocation?: boolean;
 };
 
 export class Networked3dWebExperienceClient {
@@ -221,7 +222,7 @@ export class Networked3dWebExperienceClient {
       characterResolve: (characterId: number) => {
         return this.resolveCharacterData(characterId);
       },
-      updateLocationHash: true,
+      updateURLLocation: this.config.updateURLLocation !== false,
     });
     this.scene.add(this.characterManager.group);
 
