@@ -104,9 +104,10 @@ export class TweakPane {
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
-    window.addEventListener("keydown", this.processKey.bind(this));
-    this.setupRenderPane = this.setupRenderPane.bind(this);
-    this.setupGUIListeners.bind(this)();
+    window.addEventListener("keydown", (e) => {
+      this.processKey(e);
+    });
+    this.setupGUIListeners();
   }
 
   private setupGUIListeners(): void {
@@ -137,8 +138,8 @@ export class TweakPane {
     hasLighting: boolean,
     sun: Sun | null,
     setHDR: () => void,
-    setHDRAzimuthalAngle: (azimuthalAngle: number) => void,
-    setHDRPolarAngle: (azimuthalAngle: number) => void,
+    setSkyboxAzimuthalAngle: (azimuthalAngle: number) => void,
+    setSkyboxPolarAngle: (azimuthalAngle: number) => void,
     setAmbientLight: () => void,
     setFog: () => void,
   ): void {
@@ -156,8 +157,8 @@ export class TweakPane {
     this.environment.setupChangeEvent(
       this.scene,
       setHDR,
-      setHDRAzimuthalAngle,
-      setHDRPolarAngle,
+      setSkyboxAzimuthalAngle,
+      setSkyboxPolarAngle,
       setAmbientLight,
       setFog,
       sun,

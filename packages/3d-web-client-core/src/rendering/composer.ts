@@ -150,7 +150,7 @@ export class Composer {
 
     this.environmentConfiguration = environmentConfiguration;
 
-    this.updateHDRValues();
+    this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
     this.setFog();
 
@@ -288,8 +288,14 @@ export class Composer {
       this.spawnSun,
       this.sun,
       this.setHDRIFromFile.bind(this),
-      this.setHDRAzimuthalAngle.bind(this),
-      this.setHDRPolarAngle.bind(this),
+      (azimuthalAngle: number) => {
+        envValues.skyboxAzimuthalAngle = azimuthalAngle;
+        this.updateSkyboxRotation();
+      },
+      (polarAngle: number) => {
+        envValues.skyboxPolarAngle = polarAngle;
+        this.updateSkyboxRotation();
+      },
       this.setAmbientLight.bind(this),
       this.setFog.bind(this),
     );
@@ -348,18 +354,15 @@ export class Composer {
     this.renderer.render(this.postPostScene, this.camera);
   }
 
-  public setHDRAzimuthalAngle(azimuthalAngle: number) {
+  public updateSkyboxRotation() {
     this.scene.backgroundRotation = new Euler(
-      MathUtils.degToRad(envValues.hdrPolarAngle),
-      MathUtils.degToRad(azimuthalAngle),
+      MathUtils.degToRad(envValues.skyboxPolarAngle),
+      MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
       0,
     );
-  }
-
-  public setHDRPolarAngle(polarAngle: number) {
-    this.scene.backgroundRotation = new Euler(
-      MathUtils.degToRad(polarAngle),
-      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+    this.scene.environmentRotation = new Euler(
+      MathUtils.degToRad(envValues.skyboxPolarAngle),
+      MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
       0,
     );
   }
@@ -377,18 +380,18 @@ export class Composer {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
         this.scene.environment = envMap;
-        this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+        this.scene.environmentIntensity = envValues.envMapIntensity;
         this.scene.environmentRotation = new Euler(
-          MathUtils.degToRad(envValues.hdrPolarAngle),
-          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          MathUtils.degToRad(envValues.skyboxPolarAngle),
+          MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
           0,
         );
         this.scene.background = envMap;
-        this.scene.backgroundIntensity = envValues.hdrIntensity;
-        this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+        this.scene.backgroundIntensity = envValues.skyboxIntensity;
+        this.scene.backgroundBlurriness = envValues.skyboxBlurriness;
         this.scene.backgroundRotation = new Euler(
-          MathUtils.degToRad(envValues.hdrPolarAngle),
-          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          MathUtils.degToRad(envValues.skyboxPolarAngle),
+          MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
           0,
         );
         this.isEnvHDRI = true;
@@ -401,7 +404,9 @@ export class Composer {
   }
 
   public useHDRI(url: string, fromFile: boolean = false): void {
-    if ((this.isEnvHDRI && fromFile === false) || !this.renderer) return;
+    if ((this.isEnvHDRI && fromFile === false) || !this.renderer) {
+      return;
+    }
     const pmremGenerator = new PMREMGenerator(this.renderer);
     new RGBELoader(new LoadingManager()).load(
       url,
@@ -411,15 +416,15 @@ export class Composer {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
           this.scene.environment = envMap;
-          this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+          this.scene.environmentIntensity = envValues.envMapIntensity;
           this.scene.environmentRotation = new Euler(
-            MathUtils.degToRad(envValues.hdrPolarAngle),
-            MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+            MathUtils.degToRad(envValues.skyboxPolarAngle),
+            MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
             0,
           );
           this.scene.background = envMap;
-          this.scene.backgroundIntensity = envValues.hdrIntensity;
-          this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+          this.scene.backgroundIntensity = envValues.skyboxIntensity;
+          this.scene.backgroundBlurriness = envValues.skyboxBlurriness;
           this.isEnvHDRI = true;
           texture.dispose();
           pmremGenerator!.dispose();
@@ -502,27 +507,30 @@ export class Composer {
     }
   }
 
-  private updateHDRValues() {
-    if (typeof this.environmentConfiguration?.skybox?.intensity === "number") {
-      envValues.hdrIntensity = this.environmentConfiguration?.skybox.intensity;
-    }
-    this.scene.backgroundIntensity = envValues.hdrIntensity;
-
+  private updateSkyboxAndEnvValues() {
     if (typeof this.environmentConfiguration?.envMap?.intensity === "number") {
-      envValues.hdrEnvIntensity = this.environmentConfiguration?.envMap.intensity;
+      envValues.envMapIntensity = this.environmentConfiguration?.envMap.intensity;
     }
-    this.scene.backgroundIntensity = envValues.hdrEnvIntensity;
+    this.scene.environmentIntensity = envValues.envMapIntensity;
+
+    if (typeof this.environmentConfiguration?.skybox?.intensity === "number") {
+      envValues.skyboxIntensity = this.environmentConfiguration?.skybox.intensity;
+    }
+    this.scene.backgroundIntensity = envValues.skyboxIntensity;
+
     if (typeof this.environmentConfiguration?.skybox?.blurriness === "number") {
-      envValues.hdrBlurriness = this.environmentConfiguration?.skybox.blurriness;
+      envValues.skyboxBlurriness = this.environmentConfiguration?.skybox.blurriness;
     }
-    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+    this.scene.backgroundBlurriness = envValues.skyboxBlurriness;
+
     if (typeof this.environmentConfiguration?.skybox?.azimuthalAngle === "number") {
-      envValues.hdrAzimuthalAngle = this.environmentConfiguration?.skybox.azimuthalAngle;
-      this.setHDRAzimuthalAngle(this.environmentConfiguration?.skybox.azimuthalAngle);
+      envValues.skyboxAzimuthalAngle = this.environmentConfiguration?.skybox.azimuthalAngle;
+      this.updateSkyboxRotation();
     }
+
     if (typeof this.environmentConfiguration?.skybox?.polarAngle === "number") {
-      envValues.hdrPolarAngle = this.environmentConfiguration?.skybox.polarAngle;
-      this.setHDRPolarAngle(this.environmentConfiguration?.skybox.polarAngle);
+      envValues.skyboxPolarAngle = this.environmentConfiguration?.skybox.polarAngle;
+      this.updateSkyboxRotation();
     }
   }
 
