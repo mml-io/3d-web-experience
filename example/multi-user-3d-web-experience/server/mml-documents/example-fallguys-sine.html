@@ -1,0 +1,60 @@
+<m-group id="sine-group"></m-group>
+<script>
+  const sineGroup = document.getElementById("sine-group");
+  const now = document.timeline.currentTime;
+  const totalPlatforms = 10;
+  const sineTime = 10000;
+
+  function createCube(x, y, z, width, height, depth, color = defaultColor) {
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("x", x);
+    cube.setAttribute("y", y);
+    cube.setAttribute("z", z);
+    cube.setAttribute("width", width);
+    cube.setAttribute("depth", depth);
+    cube.setAttribute("height", height);
+    cube.setAttribute("color", color);
+    return cube;
+  }
+
+  function createHexagon(x, y, z) {
+    const hexagon = document.createElement("m-model");
+    hexagon.setAttribute("src", "/assets/playground/fg_hexagon.glb");
+    hexagon.setAttribute("x", x);
+    hexagon.setAttribute("y", y);
+    hexagon.setAttribute("z", z);
+    return hexagon;
+  }
+
+  function createPingPongAnim(attr, start, end, startTime, duration, pingPongDelay) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("ping-pong", true);
+    anim.setAttribute("ping-pong-delay", pingPongDelay);
+    anim.setAttribute("easing", "easeInOutSine");
+    return anim;
+  }
+
+  for (let i = 0; i < totalPlatforms; i++) {
+    // const sinePlatforms = createCube(0, -0.75, 0 - i * 11, 6, 1.5, 6, "#ccddff");
+    const sinePlatforms = createHexagon(0, 0, i * 11);
+    if (i < totalPlatforms - 1) {
+      const sineAnim = createPingPongAnim("x", -6, 6, now - i * 1000, sineTime, sineTime * 0.1);
+      sinePlatforms.appendChild(sineAnim);
+      const yAnim = createPingPongAnim(
+        "y",
+        0,
+        -0.5,
+        now - i * 1000,
+        sineTime * 0.5,
+        sineAnim * 0.5 * 0.1,
+      );
+      sinePlatforms.appendChild(yAnim);
+    }
+    sineGroup.appendChild(sinePlatforms);
+  }
+</script>

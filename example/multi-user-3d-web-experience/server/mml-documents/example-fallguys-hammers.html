@@ -1,0 +1,77 @@
+<m-group id="hammers-group" y="-3.5"></m-group>
+<script>
+  const hammersGroup = document.getElementById("hammers-group");
+  const hammersLeft = document.createElement("m-group");
+  const hammersRight = document.createElement("m-group");
+
+  function rotate(element, startTime, fullRevoTime, clockWise = true) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", "rz");
+    anim.setAttribute("start", clockWise ? 0 : 360);
+    anim.setAttribute("end", clockWise ? 360 : 0);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("loop", true);
+    anim.setAttribute("duration", fullRevoTime);
+    element.appendChild(anim);
+  }
+
+  function createBase() {
+    const base = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/fg_hammers_base.glb");
+    base.setAttribute("sx", 1);
+    base.setAttribute("sy", 1);
+    base.setAttribute("sz", 2);
+
+    for (let i = 0; i < 4; i++) {
+      const edge = document.createElement("m-model");
+      edge.setAttribute("src", "/assets/playground/fg_hammers_edge.glb");
+      edge.setAttribute("z", i % 3 === 0 ? 30 : -30);
+      edge.setAttribute("x", i % 2 === 0 ? -6 : 6);
+      hammersGroup.appendChild(edge);
+    }
+    return base;
+  }
+
+  function createHammer(z) {
+    const hammer = document.createElement("m-model");
+    hammer.setAttribute("src", "/assets/playground/fg_hammers.glb");
+    hammer.setAttribute("z", z);
+    hammer.setAttribute("sx", 1);
+    hammer.setAttribute("sy", 0.95);
+    hammer.setAttribute("sz", 2.5);
+    return hammer;
+  }
+
+  function createHammers() {
+    const now = document.timeline.currentTime;
+    const hammersCount = 13;
+    const hammersInitialOffset = -22.25;
+    const hammersOffset = 3.75;
+    const speedOffsetMult = 600;
+
+    const baseLeft = createBase();
+    const baseRight = createBase();
+    hammersLeft.appendChild(baseLeft);
+    hammersRight.appendChild(baseRight);
+
+    for (let i = 0; i < hammersCount; i++) {
+      const speedOffset = Math.random() * speedOffsetMult * (Math.random() < 0.5 ? -1 : 1);
+      const hammer = createHammer(hammersInitialOffset + hammersOffset * i);
+      rotate(hammer, now - i * 300, 2100 + speedOffset, Math.random() < 0.5);
+      hammersLeft.appendChild(hammer);
+    }
+    for (let i = 0; i < hammersCount; i++) {
+      const speedOffset = Math.random() * speedOffsetMult * (Math.random() < 0.5 ? -1 : 1);
+      const hammer = createHammer(hammersInitialOffset + hammersOffset * i);
+      rotate(hammer, now - i * 300, 2100 + speedOffset, Math.random() < 0.5);
+      hammersRight.appendChild(hammer);
+    }
+
+    hammersLeft.setAttribute("x", 6);
+    hammersRight.setAttribute("x", -6);
+    hammersGroup.appendChild(hammersLeft);
+    hammersGroup.appendChild(hammersRight);
+  }
+
+  createHammers();
+</script>

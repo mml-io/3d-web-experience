@@ -1,82 +1,71 @@
-<m-group id="room-content" z="5" x="7"></m-group>
+<m-group id="game-room-group"></m-group>
+<m-frame src="wss:///mml-documents/example-fallguys.html" y="200"></m-frame>
 
 <script>
-  const roomContentGroup = document.getElementById("room-content");
-  const color = "#bbbbff";
+  const gameRoomGroup = document.getElementById("game-room-group");
 
-  function createSignLabel(content, width, height, x, y, z, ry, fontSize) {
-    const label = document.createElement("m-label");
-    label.setAttribute("padding", 0);
-    label.setAttribute("alignment", "center");
-    label.setAttribute("color", color);
-    label.setAttribute("font-size", fontSize);
-    label.setAttribute("content", content);
-    label.setAttribute("width", width);
-    label.setAttribute("height", height);
-    label.setAttribute("x", x);
-    label.setAttribute("y", y);
-    label.setAttribute("z", z);
-    label.setAttribute("ry", ry);
-    return label;
+  function animate(element, attr, start, end, duration, easing) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+    }, duration);
+    return anim;
   }
 
-  function createDoubleSidedLabel(description, width, height, x, y, z, ry, fontSize) {
-    const group = document.createElement("m-group");
-    const labelFront = createSignLabel(description, width, height, x, y + 1.5, z, 180, fontSize);
-    group.appendChild(labelFront);
-    const labelBack = createSignLabel(
-      description,
-      width,
-      height,
-      x,
-      y + 1.5,
-      z + 0.01,
-      0,
-      fontSize,
-    );
-    group.appendChild(labelBack);
-    return group;
+  function createTeleporter(posX, posY, posZ, targetY) {
+    const usersColliding = new Set();
+
+    const teleporterStart = document.createElement("m-model");
+    teleporterStart.setAttribute("src", "/assets/playground/teleporter_base.glb")
+    teleporterStart.setAttribute("x", posX);
+    teleporterStart.setAttribute("y", posY);
+    teleporterStart.setAttribute("z", posZ);
+
+    const transporter = document.createElement("m-model");
+    transporter.setAttribute("src", "/assets/playground/teleporter_platform_emissive.glb");
+    transporter.setAttribute("opacity", 0.0);
+    teleporterStart.appendChild(transporter)
+
+    const teleporterEnd = document.createElement("m-model");
+    teleporterEnd.setAttribute("src", "/assets/playground/teleporter_base.glb")
+    teleporterEnd.setAttribute("x", posX);
+    teleporterEnd.setAttribute("y", posY + targetY);
+    teleporterEnd.setAttribute("z", posZ + 10);
+    teleporterStart.appendChild(teleporterEnd);
+
+    const teleport = () => {
+      setTimeout(() => {
+        transporter.setAttribute("x", posX);
+        transporter.setAttribute("y", targetY);
+        transporter.setAttribute("z", posZ + 10);
+        setTimeout(() => {
+          animate(transporter, "y", targetY, targetY - 0.1, 2100, "EaseInOutCubic");
+        }, 300);
+        setTimeout(() => {
+          transporter.setAttribute("x", 0);
+          transporter.setAttribute("y", -0.1);
+          transporter.setAttribute("z", 0);
+          animate(transporter, "y", -0.1, 0, 2900, "EaseInOutCubic");
+        }, 3000)
+      }, 3000);
+    }
+
+    teleport();
+    setInterval(() => {
+      teleport();
+    }, 6000)
+
+    gameRoomGroup.appendChild(teleporterStart)
   }
-
-  function createGreyBoxedElement(description, x, y, z, width, height, ry) {
-    const group = document.createElement("m-group");
-    group.setAttribute("ry", ry);
-
-    const cube = document.createElement("m-cube");
-    cube.setAttribute("x", x);
-    cube.setAttribute("y", y + 0.5);
-    cube.setAttribute("z", z);
-    group.appendChild(cube);
-
-    const label = createDoubleSidedLabel(description, width, height, x, y + 2, z, 180, 35);
-    group.appendChild(label);
-
-    return group;
-  }
-
-  const messageA = `This is the Call to Action room.
-Here, we'll have 3D elements properly themed that, when clicked, will link to the continuance of the journey.`;
-  const elementA = createGreyBoxedElement(messageA, 9, 0, -12, 6, 2, 10);
-
-  const messageB = `Element that links to the MML editor or the hosted platform.`;
-  const elementB = createGreyBoxedElement(messageB, 5, 0, 5, 6, 1.5, 20);
-
-  const messageC = `Element that links to the documentation.`;
-  const elementC = createGreyBoxedElement(messageC, -2, 0, 6, 6, 1.5, 15);
-
-  const messageD = `Element that links to our discord.`;
-  const elementD = createGreyBoxedElement(messageD, -8, 0, 6, 6, 1.5, 0);
-
-  const messageE = `Element that leads to another area so the player can keep exploring.
-
-  Potentially an extra space with a curated and constantly updated/expanded collection of MML examples and games.
-
-We can use them to entice the community to create their own MML documents and submit them to us on Discord).`;
-  const elementE = createGreyBoxedElement(messageE, -15, 0, 6, 6, 4.5, -15);
-
-  roomContentGroup.appendChild(elementA);
-  roomContentGroup.appendChild(elementB);
-  roomContentGroup.appendChild(elementC);
-  roomContentGroup.appendChild(elementD);
-  roomContentGroup.appendChild(elementE);
+  createTeleporter(0, 0, -7, 589.98);
 </script>

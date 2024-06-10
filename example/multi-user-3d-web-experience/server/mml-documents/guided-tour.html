@@ -14,7 +14,7 @@
   const roomsThickness = 0.25;
 
   const spaceBetweenRooms = 8;
-  const numberOfRooms = 5;
+  const numberOfRooms = 6;
 
   function randomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -463,6 +463,15 @@
     return frame;
   }
 
+  function createFrame(frameUrl, x, y, z) {
+    const frame = document.createElement("m-frame");
+    frame.setAttribute("x", x);
+    frame.setAttribute("y", y);
+    frame.setAttribute("z", z);
+    frame.setAttribute("src", frameUrl);
+    return frame;
+  }
+
   function setBoundingFrame(frame, x, y, z, minX, maxX, minY, maxY, minZ, maxZ) {
     frame.setAttribute("x", x);
     frame.setAttribute("y", y);
@@ -653,7 +662,12 @@
       const maxY = i === 0 ? roomsHeight * 2 : roomsHeight + roomsThickness;
       const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2 - 0.5;
       const maxZ = i === 0 ? roomsDepth : roomsDepth / 2 + 0.5;
-      const roomFrame = createLoadingFrame(
+
+      let roomFrame = null;
+      if (i === 4) {
+        roomFrame = createFrame(frameURL, 0, 0, zPos)
+      } else {
+        roomFrame = createLoadingFrame(
         frameURL, // frameURL
         0, // x
         0, // y
@@ -665,6 +679,8 @@
         minZ,
         maxZ,
       );
+      }
+
       progressionSpace.appendChild(roomFrame);
 
       const debugToggle = document.createElement("m-label");
