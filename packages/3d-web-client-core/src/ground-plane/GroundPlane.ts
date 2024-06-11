@@ -1,12 +1,12 @@
 import {
   CanvasTexture,
-  CircleGeometry,
   FrontSide,
   Group,
   LinearMipMapLinearFilter,
   Mesh,
   MeshStandardMaterial,
   NearestFilter,
+  PlaneGeometry,
   RepeatWrapping,
   Texture,
 } from "three";
@@ -25,7 +25,7 @@ ctx.fillRect(1, 1, 1, 1);
 export class GroundPlane extends Group {
   private readonly floorSize = 210;
   private readonly floorTexture: Texture | null = null;
-  private readonly floorGeometry = new CircleGeometry(this.floorSize, this.floorSize);
+  private readonly floorGeometry = new PlaneGeometry(this.floorSize, this.floorSize, 1, 1);
   private readonly floorMaterial: MeshStandardMaterial;
   private readonly floorMesh: Mesh | null = null;
 

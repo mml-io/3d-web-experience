@@ -76,7 +76,7 @@ export class CharacterModel {
       this.config.animationConfig.doubleJumpAnimationFileUrl,
       AnimationState.doubleJump,
       false,
-      1.3,
+      1.45,
     );
     this.applyCustomMaterials();
   }
