@@ -539,6 +539,8 @@ export class Composer {
       envValues.ambientLight.ambientLightIntensity =
         this.environmentConfiguration.ambientLight.intensity;
       this.setAmbientLight();
+    } else {
+      this.setAmbientLight();
     }
   }
 }
