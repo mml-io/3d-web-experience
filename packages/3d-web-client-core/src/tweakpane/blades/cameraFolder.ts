@@ -6,15 +6,15 @@ import { CameraManager } from "../../camera/CameraManager";
 export const camValues = {
   initialDistance: 3.3,
   minDistance: 0.1,
-  maxDistance: 8,
+  maxDistance: 5,
   initialFOV: 60,
-  maxFOV: 85,
+  maxFOV: 70,
   minFOV: 60,
   invertFOVMapping: false,
-  damping: 0.091,
-  dampingScale: 0.01,
-  zoomScale: 0.05,
-  zoomDamping: 0.3,
+  damping: 0.15,
+  dampingScale: 0.005,
+  zoomScale: 0.088,
+  zoomDamping: 0.16,
 };
 
 export const camOptions = {
