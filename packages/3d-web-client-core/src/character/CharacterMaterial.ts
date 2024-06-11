@@ -1,4 +1,4 @@
-import { Color, MeshPhysicalMaterial, MeshStandardMaterial, Texture, UniformsUtils } from "three";
+import { Color, MeshStandardMaterial, UniformsUtils } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { ease } from "../helpers/math-helpers";
