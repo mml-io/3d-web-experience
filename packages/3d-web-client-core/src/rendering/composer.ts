@@ -538,9 +538,7 @@ export class Composer {
     if (typeof this.environmentConfiguration?.ambientLight?.intensity === "number") {
       envValues.ambientLight.ambientLightIntensity =
         this.environmentConfiguration.ambientLight.intensity;
-      this.setAmbientLight();
-    } else {
-      this.setAmbientLight();
     }
+    this.setAmbientLight();
   }
 }
