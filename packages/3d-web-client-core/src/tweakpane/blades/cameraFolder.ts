@@ -8,7 +8,7 @@ export const camValues = {
   minDistance: 0.1,
   maxDistance: 5,
   initialFOV: 60,
-  maxFOV: 60,
+  maxFOV: 70,
   minFOV: 60,
   invertFOVMapping: false,
   damping: 0.15,

@@ -161,7 +161,9 @@ export class LocalController {
       );
     }
 
-    if (this.config.character.position.y < 0) {
+    // Allow the user to fall far below zero before resetting
+    // TODO - Might want to make this a configurable value
+    if (this.config.character.position.y < -100) {
       this.resetPosition();
     }
     this.updateNetworkState();

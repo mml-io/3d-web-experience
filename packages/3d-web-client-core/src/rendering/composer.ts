@@ -1,46 +1,46 @@
 import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
+  BlendFunction,
+  BloomEffect,
+  EdgeDetectionMode,
   EffectComposer,
-  RenderPass,
   EffectPass,
   FXAAEffect,
+  NormalPass,
+  PredicationMode,
+  RenderPass,
   ShaderPass,
-  BloomEffect,
-  SSAOEffect,
-  BlendFunction,
-  TextureEffect,
-  ToneMappingEffect,
   SMAAEffect,
   SMAAPreset,
-  EdgeDetectionMode,
-  PredicationMode,
-  NormalPass,
+  SSAOEffect,
+  TextureEffect,
+  ToneMappingEffect,
 } from "postprocessing";
 import {
   AmbientLight,
   Color,
+  EquirectangularReflectionMapping,
+  Euler,
   Fog,
   HalfFloatType,
   LinearSRGBColorSpace,
   LoadingManager,
-  PMREMGenerator,
+  MathUtils,
   PerspectiveCamera,
-  SRGBColorSpace,
+  PMREMGenerator,
   Scene,
   ShadowMapType,
+  SRGBColorSpace,
   ToneMapping,
   Vector2,
   WebGLRenderer,
-  EquirectangularReflectionMapping,
-  MathUtils,
-  Euler,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
-import { envValues } from "../tweakpane/blades/environmentFolder";
+import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
 import { extrasValues } from "../tweakpane/blades/postExtrasFolder";
 import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { n8ssaoValues, ppssaoValues } from "../tweakpane/blades/ssaoFolder";
@@ -51,11 +51,41 @@ import { BrightnessContrastSaturation } from "./post-effects/bright-contrast-sat
 import { GaussGrainEffect } from "./post-effects/gauss-grain";
 import { N8SSAOPass } from "./post-effects/n8-ssao/N8SSAOPass";
 
+type ComposerContructorArgs = {
+  scene: Scene;
+  camera: PerspectiveCamera;
+  spawnSun: boolean;
+  environmentConfiguration?: EnvironmentConfiguration;
+};
+
+export type EnvironmentConfiguration = {
+  groundPlane?: boolean;
+  skybox?: {
+    intensity?: number;
+    blurriness?: number;
+    azimuthalAngle?: number;
+    polarAngle?: number;
+  };
+  envMap?: {
+    intensity?: number;
+  };
+  sun?: {
+    intensity?: number;
+    polarAngle?: number;
+    azimuthalAngle?: number;
+  };
+  postProcessing?: {
+    bloomIntensity?: number;
+  };
+  ambientLight?: {
+    intensity?: number;
+  };
+};
+
 export class Composer {
   private width: number = 1;
   private height: number = 1;
   private resizeListener: () => void;
-
   public resolution: Vector2 = new Vector2(this.width, this.height);
 
   private isEnvHDRI: boolean = false;
@@ -91,11 +121,17 @@ export class Composer {
   private readonly gaussGrainPass: ShaderPass;
 
   private ambientLight: AmbientLight | null = null;
+  private environmentConfiguration?: EnvironmentConfiguration;
 
   public sun: Sun | null = null;
   public spawnSun: boolean;
 
-  constructor(scene: Scene, camera: PerspectiveCamera, spawnSun: boolean = false) {
+  constructor({
+    scene,
+    camera,
+    spawnSun = false,
+    environmentConfiguration,
+  }: ComposerContructorArgs) {
     this.scene = scene;
     this.postPostScene = new Scene();
     this.camera = camera;
@@ -112,10 +148,10 @@ export class Composer {
     this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
     this.renderer.toneMappingExposure = rendererValues.exposure;
 
-    this.scene.backgroundIntensity = envValues.hdrIntensity;
-    this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+    this.environmentConfiguration = environmentConfiguration;
 
-    this.setAmbientLight();
+    this.updateSkyboxAndEnvValues();
+    this.updateAmbientLightValues();
     this.setFog();
 
     this.effectComposer = new EffectComposer(this.renderer, {
@@ -152,12 +188,11 @@ export class Composer {
     this.ppssaoPass = new EffectPass(this.camera, this.ppssaoEffect, this.normalTextureEffect);
     this.ppssaoPass.enabled = ppssaoValues.enabled;
 
-    this.fxaaEffect = new FXAAEffect({
-      blendFunction: BlendFunction.SRC,
-    });
-    this.fxaaEffect.minEdgeThreshold = 0.0312;
-    this.fxaaEffect.maxEdgeThreshold = 0.125;
-    this.fxaaEffect.subpixelQuality = 0.75;
+    this.fxaaEffect = new FXAAEffect();
+
+    if (environmentConfiguration?.postProcessing?.bloomIntensity) {
+      extrasValues.bloom = environmentConfiguration.postProcessing.bloomIntensity;
+    }
 
     this.bloomEffect = new BloomEffect({
       intensity: extrasValues.bloom,
@@ -190,7 +225,7 @@ export class Composer {
       adaptationRate: toneMappingValues.adaptationRate,
     });
     this.smaaEffect = new SMAAEffect({
-      preset: SMAAPreset.MEDIUM,
+      preset: SMAAPreset.ULTRA,
       edgeDetectionMode: EdgeDetectionMode.COLOR,
       predicationMode: PredicationMode.DEPTH,
     });
@@ -230,6 +265,8 @@ export class Composer {
       this.scene.add(this.sun);
     }
 
+    this.updateSunValues();
+
     this.resizeListener = () => {
       this.fitContainer();
     };
@@ -252,8 +289,14 @@ export class Composer {
       this.spawnSun,
       this.sun,
       this.setHDRIFromFile.bind(this),
-      this.setHDRAzimuthalAngle.bind(this),
-      this.setHDRPolarAngle.bind(this),
+      (azimuthalAngle: number) => {
+        envValues.skyboxAzimuthalAngle = azimuthalAngle;
+        this.updateSkyboxRotation();
+      },
+      (polarAngle: number) => {
+        envValues.skyboxPolarAngle = polarAngle;
+        this.updateSkyboxRotation();
+      },
       this.setAmbientLight.bind(this),
       this.setFog.bind(this),
     );
@@ -294,9 +337,7 @@ export class Composer {
     if (n8ssaoValues.enabled) {
       this.n8aopass.setSize(this.width, this.height);
     }
-    this.fxaaEffect.setSize(this.width, this.height);
     this.fxaaPass.setSize(this.width, this.height);
-    this.smaaEffect.setSize(this.width, this.height);
     this.smaaPass.setSize(this.width, this.height);
     this.bloomPass.setSize(this.width, this.height);
     this.toneMappingPass.setSize(this.width, this.height);
@@ -314,28 +355,15 @@ export class Composer {
     this.renderer.render(this.postPostScene, this.camera);
   }
 
-  public setHDRAzimuthalAngle(azimuthalAngle: number) {
+  public updateSkyboxRotation() {
     this.scene.backgroundRotation = new Euler(
-      MathUtils.degToRad(envValues.hdrPolarAngle),
-      MathUtils.degToRad(azimuthalAngle),
+      MathUtils.degToRad(envValues.skyboxPolarAngle),
+      MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
       0,
     );
     this.scene.environmentRotation = new Euler(
-      MathUtils.degToRad(envValues.hdrPolarAngle),
-      MathUtils.degToRad(azimuthalAngle),
-      0,
-    );
-  }
-
-  public setHDRPolarAngle(polarAngle: number) {
-    this.scene.backgroundRotation = new Euler(
-      MathUtils.degToRad(polarAngle),
-      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
-      0,
-    );
-    this.scene.environmentRotation = new Euler(
-      MathUtils.degToRad(polarAngle),
-      MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+      MathUtils.degToRad(envValues.skyboxPolarAngle),
+      MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
       0,
     );
   }
@@ -352,19 +380,19 @@ export class Composer {
       if (envMap) {
         envMap.colorSpace = LinearSRGBColorSpace;
         envMap.needsUpdate = true;
-        this.scene.background = envMap;
         this.scene.environment = envMap;
-        this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+        this.scene.environmentIntensity = envValues.envMapIntensity;
         this.scene.environmentRotation = new Euler(
-          MathUtils.degToRad(envValues.hdrPolarAngle),
-          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          MathUtils.degToRad(envValues.skyboxPolarAngle),
+          MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
           0,
         );
-        this.scene.backgroundIntensity = envValues.hdrIntensity;
-        this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+        this.scene.background = envMap;
+        this.scene.backgroundIntensity = envValues.skyboxIntensity;
+        this.scene.backgroundBlurriness = envValues.skyboxBlurriness;
         this.scene.backgroundRotation = new Euler(
-          MathUtils.degToRad(envValues.hdrPolarAngle),
-          MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+          MathUtils.degToRad(envValues.skyboxPolarAngle),
+          MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
           0,
         );
         this.isEnvHDRI = true;
@@ -377,7 +405,9 @@ export class Composer {
   }
 
   public useHDRI(url: string, fromFile: boolean = false): void {
-    if ((this.isEnvHDRI && fromFile === false) || !this.renderer) return;
+    if ((this.isEnvHDRI && fromFile === false) || !this.renderer) {
+      return;
+    }
     const pmremGenerator = new PMREMGenerator(this.renderer);
     new RGBELoader(new LoadingManager()).load(
       url,
@@ -386,16 +416,16 @@ export class Composer {
         if (envMap) {
           envMap.colorSpace = LinearSRGBColorSpace;
           envMap.needsUpdate = true;
-          this.scene.background = envMap;
           this.scene.environment = envMap;
-          this.scene.environmentIntensity = envValues.hdrEnvIntensity;
+          this.scene.environmentIntensity = envValues.envMapIntensity;
           this.scene.environmentRotation = new Euler(
-            MathUtils.degToRad(envValues.hdrPolarAngle),
-            MathUtils.degToRad(envValues.hdrAzimuthalAngle),
+            MathUtils.degToRad(envValues.skyboxPolarAngle),
+            MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
             0,
           );
-          this.scene.backgroundIntensity = envValues.hdrIntensity;
-          this.scene.backgroundBlurriness = envValues.hdrBlurriness;
+          this.scene.background = envMap;
+          this.scene.backgroundIntensity = envValues.skyboxIntensity;
+          this.scene.backgroundBlurriness = envValues.skyboxBlurriness;
           this.isEnvHDRI = true;
           texture.dispose();
           pmremGenerator!.dispose();
@@ -461,5 +491,55 @@ export class Composer {
       envValues.ambientLight.ambientLightIntensity,
     );
     this.scene.add(this.ambientLight);
+  }
+
+  private updateSunValues() {
+    if (typeof this.environmentConfiguration?.sun?.intensity === "number") {
+      sunValues.sunIntensity = this.environmentConfiguration.sun.intensity;
+      this.sun?.setIntensity(this.environmentConfiguration.sun.intensity);
+    }
+    if (typeof this.environmentConfiguration?.sun?.azimuthalAngle === "number") {
+      sunValues.sunPosition.sunAzimuthalAngle = this.environmentConfiguration.sun.azimuthalAngle;
+      this.sun?.setAzimuthalAngle(this.environmentConfiguration.sun.azimuthalAngle);
+    }
+    if (typeof this.environmentConfiguration?.sun?.polarAngle === "number") {
+      sunValues.sunPosition.sunPolarAngle = this.environmentConfiguration.sun.polarAngle;
+      this.sun?.setPolarAngle(this.environmentConfiguration.sun.polarAngle);
+    }
+  }
+
+  private updateSkyboxAndEnvValues() {
+    if (typeof this.environmentConfiguration?.envMap?.intensity === "number") {
+      envValues.envMapIntensity = this.environmentConfiguration?.envMap.intensity;
+    }
+    this.scene.environmentIntensity = envValues.envMapIntensity;
+
+    if (typeof this.environmentConfiguration?.skybox?.intensity === "number") {
+      envValues.skyboxIntensity = this.environmentConfiguration?.skybox.intensity;
+    }
+    this.scene.backgroundIntensity = envValues.skyboxIntensity;
+
+    if (typeof this.environmentConfiguration?.skybox?.blurriness === "number") {
+      envValues.skyboxBlurriness = this.environmentConfiguration?.skybox.blurriness;
+    }
+    this.scene.backgroundBlurriness = envValues.skyboxBlurriness;
+
+    if (typeof this.environmentConfiguration?.skybox?.azimuthalAngle === "number") {
+      envValues.skyboxAzimuthalAngle = this.environmentConfiguration?.skybox.azimuthalAngle;
+      this.updateSkyboxRotation();
+    }
+
+    if (typeof this.environmentConfiguration?.skybox?.polarAngle === "number") {
+      envValues.skyboxPolarAngle = this.environmentConfiguration?.skybox.polarAngle;
+      this.updateSkyboxRotation();
+    }
+  }
+
+  private updateAmbientLightValues() {
+    if (typeof this.environmentConfiguration?.ambientLight?.intensity === "number") {
+      envValues.ambientLight.ambientLightIntensity =
+        this.environmentConfiguration.ambientLight.intensity;
+    }
+    this.setAmbientLight();
   }
 }

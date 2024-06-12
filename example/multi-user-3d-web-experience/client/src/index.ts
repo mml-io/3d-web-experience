@@ -24,7 +24,9 @@ const app = new Networked3dWebExperienceClient(holder, {
     sprintAnimationFileUrl,
     doubleJumpAnimationFileUrl,
   },
-  hdrJpgUrl,
+  skyboxHdrJpgUrl: hdrJpgUrl,
   mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/guided-tour.html` }],
+  environmentConfiguration: {},
 });
+
 app.update();

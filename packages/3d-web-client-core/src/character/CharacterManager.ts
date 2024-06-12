@@ -31,7 +31,7 @@ export type CharacterManagerConfig = {
     username: string;
     characterDescription: CharacterDescription;
   };
-  updateLocationHash?: boolean;
+  updateURLLocation?: boolean;
 };
 
 export class CharacterManager {
@@ -237,11 +237,18 @@ export class CharacterManager {
         }
       }
 
-      if (this.config.updateLocationHash && this.config.timeManager.frame % 60 === 0) {
-        window.location.hash = encodeCharacterAndCamera(
+      if (
+        this.config.updateURLLocation &&
+        this.config.timeManager.frame % 60 === 0 &&
+        document.hasFocus()
+      ) {
+        const hash = encodeCharacterAndCamera(
           this.localCharacter,
           this.config.cameraManager.camera,
         );
+        const url = new URL(window.location.href);
+        url.hash = hash;
+        window.history.replaceState({}, "", url);
       }
     }
   }

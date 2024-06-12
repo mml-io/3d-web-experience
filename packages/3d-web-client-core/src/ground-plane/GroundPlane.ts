@@ -1,5 +1,4 @@
 import {
-  CircleGeometry,
   DataTexture,
   FrontSide,
   Group,
@@ -8,6 +7,7 @@ import {
   MeshStandardMaterial,
   MeshStandardMaterialParameters,
   NearestFilter,
+  PlaneGeometry,
   RGBAFormat,
   RepeatWrapping,
   Texture,
@@ -204,7 +204,7 @@ export class GroundPlane extends Group {
   private readonly textureFactory = new CheckerTexture(this.tileXSize, this.tileYSize, 2, 30, 8);
   private readonly floorTexture: Texture = this.textureFactory.texture;
   private readonly floorNormalTexture: Texture = this.textureFactory.normalMapTexture;
-  private readonly floorGeometry = new CircleGeometry(this.floorSize, this.floorSize);
+  private readonly floorGeometry = new PlaneGeometry(this.floorSize, this.floorSize, 1, 1);
   private readonly floorMaterial: MeshStandardMaterial;
   private readonly floorMesh: Mesh | null = null;
 
