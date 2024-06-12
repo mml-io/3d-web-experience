@@ -17,6 +17,7 @@ const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
   userNetworkAddress,
   chatNetworkAddress,
+  chatVisibleByDefault: true,
   animationConfig: {
     airAnimationFileUrl,
     idleAnimationFileUrl,

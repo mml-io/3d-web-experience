@@ -20,6 +20,7 @@ import styles from "./TextChatUIComponent.module.css";
 type ChatUIProps = {
   clientName: string;
   sendMessageToServer: (message: string) => void;
+  visibleByDefault?: boolean;
 };
 
 const MAX_MESSAGES = 50;
@@ -31,8 +32,8 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
 ) => {
   const [messages, setMessages] = useState<Array<{ username: string; message: string }>>([]);
 
-  const [isVisible, setIsVisible] = useState(false);
-  const [isSticky, setSticky] = useState(false);
+  const [isVisible, setIsVisible] = useState(props.visibleByDefault);
+  const [isSticky, setSticky] = useState(props.visibleByDefault);
   const [isFocused, setIsFocused] = useState(false);
   const [isOpenHovered, setOpenHovered] = useState(false);
 
@@ -108,6 +109,9 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
   });
 
   useEffect(() => {
+    if (isVisible && isSticky) {
+      if (chatPanelRef.current) chatPanelRef.current.style.zIndex = "100";
+    }
     setPanelStyle(isVisible || isFocused || isSticky ? styles.fadeIn : styles.fadeOut);
     setStickyStyle(
       isSticky

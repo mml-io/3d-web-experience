@@ -10,6 +10,13 @@ export type ChatUIInstance = {
   addMessage: (username: string, message: string) => void;
 };
 
+export type TextChatUIProps = {
+  holderElement: HTMLElement;
+  clientname: string;
+  sendMessageToServerMethod: (message: string) => void;
+  visibleByDefault?: boolean;
+};
+
 export class TextChatUI {
   private root: Root;
   private appRef: React.RefObject<ChatUIInstance> = createRef<ChatUIInstance>();
@@ -22,14 +29,9 @@ export class TextChatUI {
 
   private wrapper = document.createElement("div");
 
-  constructor(
-    private holderElement: HTMLElement,
-    private clientname: string,
-    private sendMessageToServerMethod: (message: string) => void,
-  ) {
-    this.holderElement.appendChild(this.wrapper);
+  constructor(private config: TextChatUIProps) {
+    this.config.holderElement.appendChild(this.wrapper);
     this.root = createRoot(this.wrapper);
-    this.sendMessageToServerMethod = sendMessageToServerMethod;
   }
 
   init() {
@@ -37,8 +39,9 @@ export class TextChatUI {
       this.root.render(
         <ForwardedChatUIComponent
           ref={this.appRef}
-          clientName={this.clientname}
-          sendMessageToServer={this.sendMessageToServerMethod}
+          clientName={this.config.clientname}
+          sendMessageToServer={this.config.sendMessageToServerMethod}
+          visibleByDefault={this.config.visibleByDefault === true}
         />,
       ),
     );
