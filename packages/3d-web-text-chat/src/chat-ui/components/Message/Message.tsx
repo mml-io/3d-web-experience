@@ -38,17 +38,17 @@ function hslForString(
 
   const lightness = options.lightnessThresholds
     ? generateValueFromThresholds(hash, options.lightnessThresholds)
-    : hash % 99;
+    : generateValueFromThresholds(hash, DEFAULT_HSL_OPTIONS.lightnessThresholds!);
 
   hash = Math.abs(ReverseHash("saturation:" + input));
   const saturation = options.saturationThresholds
     ? generateValueFromThresholds(hash, options.saturationThresholds)
-    : hash % 99;
+    : generateValueFromThresholds(hash, DEFAULT_HSL_OPTIONS.saturationThresholds!);
 
   hash = Math.abs(ReverseHash("hue:" + input));
   const hue = options.hueThresholds
     ? generateValueFromThresholds(hash, options.hueThresholds)
-    : hash % 359;
+    : generateValueFromThresholds(hash, DEFAULT_HSL_OPTIONS.hueThresholds!);
 
   return [hue, saturation, lightness];
 }
