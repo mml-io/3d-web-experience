@@ -63,7 +63,7 @@ export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
   chatVisibleByDefault?: boolean;
-  chatStringToHslOptions?: StringToHslOptions;
+  userNameToColorOptions?: StringToHslOptions;
   voiceChatAddress?: string;
   userNetworkAddress: string;
   mmlDocuments?: Array<MMLDocumentConfiguration>;
@@ -334,7 +334,7 @@ export class Networked3dWebExperienceClient {
           clientname: user.username,
           sendMessageToServerMethod: this.sendChatMessageToServer.bind(this),
           visibleByDefault: this.config.chatVisibleByDefault,
-          stringToHslOptions: this.config.chatStringToHslOptions,
+          stringToHslOptions: this.config.userNameToColorOptions,
         };
         this.textChatUI = new TextChatUI(textChatUISettings);
         this.textChatUI.init();
