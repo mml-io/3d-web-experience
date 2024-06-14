@@ -7,6 +7,8 @@ import {
   FromServerMessage,
   IDENTITY_MESSAGE_TYPE,
   PING_MESSAGE_TYPE,
+  SERVER_ERROR_MESSAGE_TYPE,
+  ServerErrorType,
   USER_AUTHENTICATE_MESSAGE_TYPE,
   USER_PROFILE_MESSAGE_TYPE,
 } from "./UserNetworkingMessages";
@@ -23,6 +25,7 @@ export type UserNetworkingClientConfig = {
     username: string,
     characterDescription: CharacterDescription,
   ) => void;
+  onServerError: (error: { message: string; errorType: ServerErrorType }) => void;
 };
 
 export class UserNetworkingClient extends ReconnectingWebSocket {
@@ -51,6 +54,10 @@ export class UserNetworkingClient extends ReconnectingWebSocket {
     if (typeof message.data === "string") {
       const parsed = JSON.parse(message.data) as FromServerMessage;
       switch (parsed.type) {
+        case SERVER_ERROR_MESSAGE_TYPE:
+          console.error(`Server error: ${parsed.message}. errorType: ${parsed.errorType}`);
+          this.config.onServerError(parsed);
+          break;
         case DISCONNECTED_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} left`);
           this.config.clientUpdate(parsed.id, null);

@@ -9,6 +9,7 @@ import {
   Composer,
   decodeCharacterAndCamera,
   EnvironmentConfiguration,
+  ErrorScreen,
   getSpawnPositionInsideCircle,
   GroundPlane,
   KeyInputManager,
@@ -20,6 +21,9 @@ import {
 } from "@mml-io/3d-web-client-core";
 import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
 import {
+  AUTHENTICATION_FAILED_ERROR_TYPE,
+  CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+  ServerErrorType,
   UserData,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
@@ -87,6 +91,7 @@ export class Networked3dWebExperienceClient {
   private virtualJoystick: VirtualJoystick;
 
   private mmlCompositionScene: MMLCompositionScene;
+  private mmlFrames: Array<HTMLElement> = [];
 
   private clientId: number | null = null;
   private networkClient: UserNetworkingClient;
@@ -105,6 +110,8 @@ export class Networked3dWebExperienceClient {
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
   private loadingScreen: LoadingScreen;
+  private errorScreen?: ErrorScreen;
+  private currentRequestAnimationFrame: number | null = null;
 
   constructor(
     private holderElement: HTMLElement,
@@ -203,6 +210,16 @@ export class Networked3dWebExperienceClient {
           characterDescription,
         });
       },
+      onServerError: (error: { message: string; errorType: ServerErrorType }) => {
+        switch (error.errorType) {
+          case AUTHENTICATION_FAILED_ERROR_TYPE:
+            this.disposeWithError(error.message);
+            break;
+          case CONNECTION_LIMIT_REACHED_ERROR_TYPE:
+            this.disposeWithError(error.message);
+            break;
+        }
+      },
     });
 
     this.characterManager = new CharacterManager({
@@ -235,7 +252,7 @@ export class Networked3dWebExperienceClient {
     this.setupMMLScene();
 
     this.loadingScreen = new LoadingScreen(this.loadingProgressManager);
-    document.body.append(this.loadingScreen.element);
+    this.element.append(this.loadingScreen.element);
 
     this.loadingProgressManager.addProgressCallback(() => {
       const [, completed] = this.loadingProgressManager.toRatio();
@@ -372,7 +389,7 @@ export class Networked3dWebExperienceClient {
         }
       }
     }
-    requestAnimationFrame(() => {
+    this.currentRequestAnimationFrame = requestAnimationFrame(() => {
       this.update();
     });
   }
@@ -409,6 +426,31 @@ export class Networked3dWebExperienceClient {
       );
       this.cameraManager.reverseUpdateFromPositions();
     }
+  }
+
+  private disposeWithError(message: string) {
+    this.dispose();
+    this.errorScreen = new ErrorScreen("An error occurred", message);
+    this.element.append(this.errorScreen.element);
+  }
+
+  public dispose() {
+    this.networkClient.stop();
+    this.networkChat?.stop();
+    for (const mmlFrame of this.mmlFrames) {
+      mmlFrame.remove();
+    }
+    this.mmlFrames = [];
+    this.mmlCompositionScene.dispose();
+    this.composer.dispose();
+    this.tweakPane?.dispose();
+    if (this.currentRequestAnimationFrame !== null) {
+      cancelAnimationFrame(this.currentRequestAnimationFrame);
+      this.currentRequestAnimationFrame = null;
+    }
+    this.cameraManager.dispose();
+    this.loadingScreen.dispose();
+    this.errorScreen?.dispose();
   }
 
   private setupMMLScene() {
@@ -453,6 +495,7 @@ export class Networked3dWebExperienceClient {
           }
         }
         document.body.appendChild(frameElement);
+        this.mmlFrames.push(frameElement);
       }
     }
 
