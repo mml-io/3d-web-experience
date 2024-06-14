@@ -21,6 +21,7 @@ import {
 import {
   ChatNetworkingClient,
   FromClientChatMessage,
+  StringToHslOptions,
   TextChatUI,
   TextChatUIProps,
 } from "@mml-io/3d-web-text-chat";
@@ -62,6 +63,7 @@ export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
   chatVisibleByDefault?: boolean;
+  userNameToColorOptions?: StringToHslOptions;
   voiceChatAddress?: string;
   userNetworkAddress: string;
   mmlDocuments?: Array<MMLDocumentConfiguration>;
@@ -332,6 +334,7 @@ export class Networked3dWebExperienceClient {
           clientname: user.username,
           sendMessageToServerMethod: this.sendChatMessageToServer.bind(this),
           visibleByDefault: this.config.chatVisibleByDefault,
+          stringToHslOptions: this.config.userNameToColorOptions,
         };
         this.textChatUI = new TextChatUI(textChatUISettings);
         this.textChatUI.init();

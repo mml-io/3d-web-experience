@@ -80,13 +80,6 @@ const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
 });
 networked3dWebExperienceServer.registerExpressRoutes(app);
 
-app.use((req, res, next) => {
-  if (req.path.endsWith(".ttf")) {
-    return res.redirect(`../../../assets/fonts${req.path}`);
-  }
-  next();
-});
-
 // Start listening
 console.log("Listening on port", PORT);
 app.listen(PORT);
