@@ -63,6 +63,18 @@ type MMLDocumentConfiguration = {
   };
 };
 
+type AvatarConfig = {
+  availableAvatars: Array<{
+    avatarFileType: "glb" | "html";
+    thumbnailUrl?: string;
+    isDefaultAvatar?: boolean;
+    avatarFileUrl: string;
+    avatarName?: string;
+  }>;
+  allowCustomAvatars?: boolean;
+  customAvatarWebhookUrl?: string;
+};
+
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
@@ -76,6 +88,7 @@ export type Networked3dWebExperienceClientConfig = {
   skyboxHdrJpgUrl: string;
   enableTweakPane?: boolean;
   updateURLLocation?: boolean;
+  avatarConfig?: AvatarConfig;
 };
 
 export class Networked3dWebExperienceClient {
@@ -423,10 +436,24 @@ export class Networked3dWebExperienceClient {
       throw new Error("Own identity not found");
     }
 
+    const defaultAvatar =
+      this.config.avatarConfig?.availableAvatars.find((avatar) => avatar.isDefaultAvatar) ??
+      this.config.avatarConfig?.availableAvatars[0];
+
+    const characterDescription = defaultAvatar
+      ? ({
+          meshFileUrl:
+            defaultAvatar.avatarFileType === "glb" ? defaultAvatar.avatarFileUrl : undefined,
+          mmlCharacterUrl:
+            defaultAvatar.avatarFileType === "html" ? defaultAvatar.avatarFileUrl : undefined,
+          mmlCharacterString: undefined,
+        } as CharacterDescription)
+      : ownIdentity.characterDescription;
+
     this.characterManager.spawnLocalCharacter(
       this.clientId!,
       ownIdentity.username,
-      ownIdentity.characterDescription,
+      characterDescription,
       spawnPosition,
       spawnRotation,
     );
