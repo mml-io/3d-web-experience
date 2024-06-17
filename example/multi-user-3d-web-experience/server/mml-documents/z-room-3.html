@@ -11,7 +11,7 @@
 
 <script>
   const roomContentGroup = document.getElementById("room-content");
-  function createDoor(width, height, x, y, z, parentElement) {
+  function createDoor(width, height, x, y, z, thickness, parentElement) {
     const doorGroup = document.createElement("m-group");
     const offset = -0.045;
     const doorAnimDuration = 1200;
@@ -91,9 +91,9 @@
     const doorButtonOff = createModel(buttonOffURL, 2.75, 1.5, -0.1);
     scale(doorButtonOff, 0.001);
 
-    const doorBackButtonBase = createModel(buttonBaseURL, 2.75, 1.5, 0.3, 180);
-    const doorBackButtonOn = createModel(buttonOnURL, 2.75, 1.5, 0.3, 180);
-    const doorBackButtonOff = createModel(buttonOffURL, 2.75, 1.5, 0.3, 180);
+    const doorBackButtonBase = createModel(buttonBaseURL, 2.75, 1.5, thickness, 180);
+    const doorBackButtonOn = createModel(buttonOnURL, 2.75, 1.5, thickness, 180);
+    const doorBackButtonOff = createModel(buttonOffURL, 2.75, 1.5, thickness, 180);
     scale(doorBackButtonOff, 0.001);
 
     doorGroup.appendChild(doorButtonBase);
@@ -108,7 +108,7 @@
     };
 
     const pushBackButtonAnim = () => {
-      animateElement(doorBackButtonOn, "z", 0.3, 0.265, buttonAnimDuration, easing);
+      animateElement(doorBackButtonOn, "z", thickness, thickness - 0.045, buttonAnimDuration, easing);
     };
 
     const releaseButtonAnim = () => {
@@ -116,7 +116,7 @@
     };
 
     const releaseBackButtonAnim = () => {
-      animateElement(doorBackButtonOn, "z", 0.265, 0.3, buttonAnimDuration, easing);
+      animateElement(doorBackButtonOn, "z", thickness - 0.045, thickness, buttonAnimDuration, easing);
     };
 
     const setupButtonSound = () => {
@@ -208,5 +208,5 @@
     setupButtonSound();
     parentElement.appendChild(doorGroup);
   }
-  createDoor(5, 6, -14.62, 0, 22.4, roomContentGroup);
+  createDoor(5, 6, -12.6, 0.03, 22.55, 0.39, roomContentGroup);
 </script>

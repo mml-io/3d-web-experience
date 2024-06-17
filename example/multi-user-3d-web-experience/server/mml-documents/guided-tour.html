@@ -499,147 +499,23 @@
   }
 
   function createProgression() {
-    const roomsDoors = {
-      NX: {
-        width: 5,
-        height: 6,
-        offsetX: 0.9,
-        offsetY: 0.0,
-      },
-      NZ: {
-        width: 5,
-        height: 6,
-        offsetX: 0.9,
-        offsetY: 0.0,
-      },
-      PZ: {
-        width: 5,
-        height: 6,
-        offsetX: 0.0,
-        offsetY: 0.0,
-      },
-    };
-
-    const roomDoorsNoEntrance = {
-      NX: {
-        width: 5,
-        height: 6,
-        offsetX: 0.9,
-        offsetY: 0.0,
-      },
-      PZ: {
-        width: 5,
-        height: 6,
-        offsetX: 0.0,
-        offsetY: 0.0,
-      },
-    };
-
-    const roomDoorsNoExit = {
-      NX: {
-        width: 5,
-        height: 6,
-        offsetX: 0.9,
-        offsetY: 0.0,
-      },
-      NZ: {
-        width: 5,
-        height: 6,
-        offsetX: 0.9,
-        offsetY: 0.0,
-      },
-    };
-
-    const roomsWindows = {
-      PX: {
-        width: roomsDepth - 4,
-        height: roomsHeight - 3,
-        offsetX: 0.5,
-        offsetY: 0.5,
-      },
-    };
-
-    const roomsHaveCeiling = true;
-
     for (let i = 0; i < numberOfRooms; i++) {
       const zPos = 14 + roomsDepth * i + spaceBetweenRooms * i;
-
       const exampleXPos = roomsWidth / 2;
 
       // create the room ======================================================
-      let roomDoorsType = roomsDoors;
-      if (i === 0) {
-        roomDoorsType = roomDoorsNoEntrance;
-      }
-
-      if (i === numberOfRooms - 1) {
-        roomDoorsType = roomDoorsNoExit;
-      }
-      const room = createRoom(
-        roomsWidth,
-        roomsDepth,
-        roomsHeight,
-        roomDoorsType,
-        roomsWindows,
-        0,
-        -roomsThickness + 0.03,
-        zPos,
-        roomsThickness,
-        defaultColor,
-        roomsHaveCeiling,
-      );
-      progressionSpace.appendChild(room.meshGroup);
+      const roomModel = document.createElement("m-model");
+      roomModel.setAttribute("src", "/assets/playground/building_module.glb");
+      roomModel.setAttribute("z", zPos);
+      progressionSpace.appendChild(roomModel);
 
       // create the curves for the passages between rooms (loading) ===========
       if (i < numberOfRooms - 1) {
-        const corridorWallNX = createWallWithOpening(
-          spaceBetweenRooms + spaceBetweenRooms / 4 - roomsThickness, // width
-          roomsHeight, //                         height
-          roomsThickness, //                      thickness
-          spaceBetweenRooms - 0.25, //            opening width
-          roomsHeight - roomsThickness - 1, //    opening height
-          -57, //                                 angle
-          -roomsWidth / 2 + spaceBetweenRooms / 3 + roomsThickness, // x
-          -roomsThickness + 0.03, //              y
-          zPos + roomsDepth / 2 + spaceBetweenRooms / 2, //         z
-          0.5, //                                 offsetX
-          0.5, //                                 offsetY,
-          defaultColor, //                        color
-          true, //                                place glass
-          1,
-          globalDebug, //                          debug
-        );
-        progressionSpace.appendChild(corridorWallNX.meshGroup);
-
-        const corridorWallPX = createWallWithOpening(
-          spaceBetweenRooms,
-          roomsHeight + 0.125,
-          roomsThickness,
-          spaceBetweenRooms - 1,
-          roomsHeight - roomsThickness - 0.25,
-          90,
-          roomsWidth / 2,
-          -roomsThickness + 0.03,
-          zPos + roomsDepth / 2 + spaceBetweenRooms / 2,
-          0.5,
-          0.5,
-          defaultColor,
-          true,
-          0.8,
-          globalDebug,
-        );
-        progressionSpace.appendChild(corridorWallPX.meshGroup);
-
-        const corridorFloor = createFloorOrCeiling(
-          roomsWidth,
-          spaceBetweenRooms,
-          0,
-          -roomsThickness + 0.03,
-          zPos + roomsDepth / 2 + spaceBetweenRooms / 2,
-          0.25,
-          defaultColor,
-        );
-        progressionSpace.appendChild(corridorFloor);
+        const hallway = document.createElement("m-model");
+        hallway.setAttribute("src", "/assets/playground/hallway_module.glb")
+        hallway.setAttribute("z", zPos + roomsDepth / 2 + 4.2);
+        progressionSpace.appendChild(hallway)
+        
 
         const travelatorPZ = document.createElement("m-frame");
         travelatorPZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
@@ -710,40 +586,26 @@
       const automaticDoor = document.createElement("m-frame");
       automaticDoor.setAttribute("src", `wss:///mml-documents/z-travelator-door-${i}.html`);
       automaticDoor.setAttribute("x", -roomsWidth / 2);
-      automaticDoor.setAttribute("z", zPos - 15.71);
+      automaticDoor.setAttribute("z", zPos - 17.6);
       progressionSpace.appendChild(automaticDoor);
 
       // create the travelator shortcut labels
       const nxExitPos =
         zPos -
         roomsDepth / 2 +
-        roomDoorsType.NX.width / 2 +
-        roomsDepth * (1 - roomDoorsType.NX.offsetX) -
-        roomsThickness;
+        2.5 +
+        roomsDepth * 0.1 -
+        roomsThickness - 2;
       const travelatorExitLabel = createSignLabel(
         "shortcut to travellators",
-        2, // label width
-        0.6, // label height
-        -roomsWidth / 2 + 0.126, // label x pos
-        roomDoorsType.NX.height + 0.6, // label y pos
-        nxExitPos, // label z pos
+        2,
+        0.6,
+        -roomsWidth / 2 + 0.126,
+        6.6,
+        nxExitPos,
         90,
       );
       progressionSpace.appendChild(travelatorExitLabel);
-
-      // create the next step label
-      if (i !== numberOfRooms - 1) {
-        const nextStepLabel = createSignLabel(
-          "passage to the next stage",
-          2, // label width
-          0.6, // label height
-          -roomsWidth / 2 + (roomsDoors.PZ.width / 2 - roomsThickness) + 0.5, // x
-          roomsDoors.PZ.height + 0.6, // y
-          zPos + (roomsDepth / 2 - roomsThickness + 0.12), // z
-          180,
-        );
-        progressionSpace.appendChild(nextStepLabel);
-      }
     }
 
     const travelatorCorridorDepth =
@@ -782,12 +644,12 @@
           offsetY: 0.0,
         },
       },
-      -roomsWidth / 2 - travelatorCorridorWidth / 2 - 0.005,
+      -roomsWidth / 2 - travelatorCorridorWidth / 2 - 0.03,
       -roomsThickness + 0.03,
       travelatorCorridorDepth / 2 - 8.55,
       roomsThickness,
       defaultColor,
-      roomsHaveCeiling,
+      true,
     );
     progressionSpace.appendChild(corridor.meshGroup);
   }
