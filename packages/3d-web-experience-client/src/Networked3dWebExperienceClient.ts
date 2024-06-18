@@ -63,14 +63,33 @@ type MMLDocumentConfiguration = {
   };
 };
 
+type AvatarType = | {
+      thumbnailUrl?: string;
+      name?: string;
+      meshFileUrl: string;
+      mmlCharacterString?: null;
+      mmlCharacterUrl?: null;
+      isDefaultAvatar?: boolean;
+    }
+  | {
+      thumbnailUrl?: string;
+      name?: string;
+      meshFileUrl?: null;
+      mmlCharacterString: string;
+      mmlCharacterUrl?: null;
+      isDefaultAvatar?: boolean;
+    }
+  | {
+      thumbnailUrl?: string;
+      name?: string;
+      meshFileUrl?: null;
+      mmlCharacterString?: null;
+      mmlCharacterUrl: string;
+      isDefaultAvatar?: boolean;
+    };
+
 type AvatarConfig = {
-  availableAvatars: Array<{
-    avatarFileType: "glb" | "html";
-    thumbnailUrl?: string;
-    isDefaultAvatar?: boolean;
-    avatarFileUrl: string;
-    avatarName?: string;
-  }>;
+  availableAvatars: Array<AvatarType>;
   allowCustomAvatars?: boolean;
   customAvatarWebhookUrl?: string;
 };
@@ -443,10 +462,10 @@ export class Networked3dWebExperienceClient {
     const characterDescription = defaultAvatar
       ? ({
           meshFileUrl:
-            defaultAvatar.avatarFileType === "glb" ? defaultAvatar.avatarFileUrl : undefined,
+            defaultAvatar.meshFileUrl ?? undefined,
           mmlCharacterUrl:
-            defaultAvatar.avatarFileType === "html" ? defaultAvatar.avatarFileUrl : undefined,
-          mmlCharacterString: undefined,
+            defaultAvatar.mmlCharacterUrl ?? undefined,
+          mmlCharacterString: defaultAvatar.mmlCharacterString ?? undefined,
         } as CharacterDescription)
       : ownIdentity.characterDescription;
 
