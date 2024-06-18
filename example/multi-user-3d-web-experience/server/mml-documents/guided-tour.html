@@ -512,10 +512,11 @@
       // create the curves for the passages between rooms (loading) ===========
       if (i < numberOfRooms - 1) {
         const hallway = document.createElement("m-model");
-        hallway.setAttribute("src", "/assets/playground/hallway_module.glb")
+        hallway.setAttribute("src", "/assets/playground/hallway_module_bright.glb");
         hallway.setAttribute("z", zPos + roomsDepth / 2 + 4.2);
-        progressionSpace.appendChild(hallway)
-        
+        hallway.setAttribute("x", 0.015);
+        hallway.setAttribute("y", 0.015);
+        progressionSpace.appendChild(hallway);
 
         const travelatorPZ = document.createElement("m-frame");
         travelatorPZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
@@ -532,29 +533,29 @@
       }
 
       const frameURL = `wss:///mml-documents/z-room-${i}.html`;
-      const minX = i === 0 ? -roomsWidth * 2 : -roomsWidth;
-      const maxX = i === 0 ? roomsWidth * 2 : roomsWidth;
-      const minY = i === 0 ? -roomsHeight * 2 : -roomsHeight / 2;
-      const maxY = i === 0 ? roomsHeight * 2 : roomsHeight + roomsThickness;
-      const minZ = i === 0 ? -roomsDepth : -roomsDepth / 2 - 0.5;
-      const maxZ = i === 0 ? roomsDepth : roomsDepth / 2 + 0.5;
+      const minX = -roomsWidth;
+      const maxX = roomsWidth;
+      const minY = -roomsHeight / 2;
+      const maxY = roomsHeight + roomsThickness;
+      const minZ = -roomsDepth / 2 - spaceBetweenRooms / 2;
+      const maxZ = roomsDepth / 2 + spaceBetweenRooms / 2;
 
       let roomFrame = null;
       if (i === 4) {
-        roomFrame = createFrame(frameURL, 0, 0, zPos)
+        roomFrame = createFrame(frameURL, 0, 0, zPos);
       } else {
         roomFrame = createLoadingFrame(
-        frameURL, // frameURL
-        0, // x
-        0, // y
-        zPos, // z
-        minX, // minX
-        maxX,
-        minY,
-        maxY,
-        minZ,
-        maxZ,
-      );
+          frameURL, // frameURL
+          0, // x
+          0, // y
+          zPos, // z
+          minX, // minX
+          maxX,
+          minY,
+          maxY,
+          minZ,
+          maxZ,
+        );
       }
 
       progressionSpace.appendChild(roomFrame);
@@ -590,12 +591,7 @@
       progressionSpace.appendChild(automaticDoor);
 
       // create the travelator shortcut labels
-      const nxExitPos =
-        zPos -
-        roomsDepth / 2 +
-        2.5 +
-        roomsDepth * 0.1 -
-        roomsThickness - 2;
+      const nxExitPos = zPos - roomsDepth / 2 + 2.5 + roomsDepth * 0.1 - roomsThickness - 2;
       const travelatorExitLabel = createSignLabel(
         "shortcut to travellators",
         2,

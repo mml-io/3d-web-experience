@@ -41,6 +41,68 @@
   let gameInProgress = false;
   let lastReset = document.timeline.currentTime;
 
+  // reset detection ================================================
+  class ResetDetector {
+    playersInRange = new Set();
+    probe = document.createElement("m-position-probe");
+    lastTimeEmpty = document.timeline.currentTime;
+    constructor(x, y, z, range, minsToReset, callbackToReset, parentGroup, debug = false) {
+      this.probe.setAttribute("x", x);
+      this.probe.setAttribute("y", y);
+      this.probe.setAttribute("z", z);
+      this.probe.setAttribute("range", range);
+      this.probe.setAttribute("interval", 1000);
+      this.probe.setAttribute("debug", debug);
+      this.probe.addEventListener("positionenter", (event) => {
+        const { connectionId } = event.detail;
+        if (!this.playersInRange.has(connectionId)) {
+          this.playersInRange.add(connectionId);
+        }
+      });
+      this.probe.addEventListener("positionmove", (event) => {
+        const { connectionId } = event.detail;
+        if (!this.playersInRange.has(connectionId)) {
+          this.playersInRange.add(connectionId);
+        }
+      });
+      this.probe.addEventListener("positionleave", (event) => {
+        const { connectionId } = event.detail;
+        if (this.playersInRange.has(connectionId)) {
+          this.playersInRange.delete(connectionId);
+        }
+        if (this.playersInRange.size === 0) {
+          this.lastTimeEmpty = document.timeline.currentTime;
+        }
+      });
+      window.addEventListener("disconnected", (event) => {
+        const { connectionId } = event.detail;
+        if (this.playersInRange.has(connectionId)) {
+          this.playersInRange.delete(connectionId);
+        }
+        if (this.playersInRange.size === 0) {
+          this.lastTimeEmpty = document.timeline.currentTime;
+        }
+      });
+      setInterval(() => {
+        if (this.playersInRange.size === 0) {
+          const timeToReset = minsToReset * 60 * 1000;
+          if (this.lastTimeEmpty + timeToReset < document.timeline.currentTime) {
+            callbackToReset();
+          }
+        }
+      }, 1000);
+      parentGroup.appendChild(this.probe);
+    }
+    get playersInProbeRange() {
+      return this.playersInRange;
+    }
+    get hasPlayersInRange() {
+      return this.playersInRange.size > 0;
+    }
+  }
+  const resetDetector = new ResetDetector(2, 1, 8, 12, 0.5, resetGame, gameGroup);
+  // ================================================================
+
   // interaction buttons ============================================
   class InteractionButton {
     baseModelURL = "/assets/playground/button_base.glb";
@@ -365,7 +427,7 @@
     const textureSrc = imagesDuplicated[index];
     const texture = document.createElement("m-image");
     texture.setAttribute("src", textureSrc);
-    texture.setAttribute("z", 0.168);
+    texture.setAttribute("z", 0.1699);
     texture.setAttribute("sx", imageScale);
     texture.setAttribute("sy", imageScale);
     blockMeshGroup.appendChild(texture);
@@ -386,7 +448,7 @@
       matched: false,
     };
 
-    block.handleClick = () => handleBlockClick(block.id);
+    block.handleClick = (event) => handleBlockClick(block.id, event);
     cube.addEventListener("click", block.handleClick);
     blockMeshGroup.appendChild(cube);
 
@@ -408,7 +470,7 @@
       block.id = newId;
       block.matched = false;
       block.hidden = true;
-      block.handleClick = () => handleBlockClick(newId);
+      block.handleClick = (event) => handleBlockClick(newId, event);
       block.mesh.addEventListener("click", block.handleClick);
       map.set(newId, block);
     });
@@ -433,14 +495,6 @@
   }
 
   function resetAllBlocks() {
-    // if (blocks.size > 0) {
-    //   blocks.forEach((block) => {
-    //     block.texture.remove();
-    //     block.mesh.remove();
-    //     block.group.remove();
-    //   });
-    // }
-    // blocks.clear();
     if (gamesPlayed === 0) {
       createAllBlocks();
       findPairs();
@@ -581,8 +635,11 @@
     }
   }
 
-  function handleBlockClick(index) {
+  function handleBlockClick(index, event) {
     if (isReseting) {
+      return;
+    }
+    if (!resetDetector.playersInProbeRange.has(event.detail.connectionId)) {
       return;
     }
     isReset = false;
@@ -594,6 +651,19 @@
         revealBlock(index);
       }
     }
+  }
+
+  function resetGame() {
+    if (isReset === true || isReseting === true) {
+      return;
+    }
+    gamesPlayed++;
+    isReseting = true;
+    gameInProgress = false;
+    lastReset = document.timeline.currentTime;
+    setTimeout(() => hideAllBlocks(), 100);
+    setTimeout(() => resetAllBlocks(), 1500);
+    setTimeout(() => reStartGame(), 2500);
   }
 
   function reStartGame() {
@@ -618,7 +688,6 @@
     const seconds = Math.floor(ms / 1000);
     const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
-
     const secondsPart = (seconds % 60).toString().padStart(2, "0");
     const minutesPart = (minutes % 60).toString().padStart(2, "0");
     const hoursPart = hours.toString().padStart(2, "0");
@@ -634,18 +703,9 @@
 
   setInterval(() => {
     if (gameInProgress === true || isReseting === true) {
-      if (playButton) {
-        playButton.turnOff();
-      }
+      if (playButton) playButton.turnOff();
     } else {
-      if (playButton) {
-        playButton.turnOn();
-      }
-      // if (playButton) {
-      //   if (playButton.getAttribute("content") !== "PLAY") {
-      //     playButton.setAttribute("content", "PLAY");
-      //   }
-      // }
+      if (playButton) playButton.turnOn();
     }
   }, 1000);
 
