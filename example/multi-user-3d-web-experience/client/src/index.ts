@@ -29,7 +29,7 @@ const app = new Networked3dWebExperienceClient(holder, {
   environmentConfiguration: {},
   avatarConfig: {
     availableAvatars: [],
-  },
+  }
 });
 
 app.update();
