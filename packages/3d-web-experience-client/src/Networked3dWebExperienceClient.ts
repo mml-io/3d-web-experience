@@ -63,7 +63,8 @@ type MMLDocumentConfiguration = {
   };
 };
 
-type AvatarType = | {
+type AvatarType =
+  | {
       thumbnailUrl?: string;
       name?: string;
       meshFileUrl: string;
@@ -461,10 +462,8 @@ export class Networked3dWebExperienceClient {
 
     const characterDescription = defaultAvatar
       ? ({
-          meshFileUrl:
-            defaultAvatar.meshFileUrl ?? undefined,
-          mmlCharacterUrl:
-            defaultAvatar.mmlCharacterUrl ?? undefined,
+          meshFileUrl: defaultAvatar.meshFileUrl ?? undefined,
+          mmlCharacterUrl: defaultAvatar.mmlCharacterUrl ?? undefined,
           mmlCharacterString: defaultAvatar.mmlCharacterString ?? undefined,
         } as CharacterDescription)
       : ownIdentity.characterDescription;
