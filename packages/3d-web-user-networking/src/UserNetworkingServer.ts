@@ -4,11 +4,14 @@ import { heartBeatRate, packetsUpdateRate, pingPongRate } from "./user-networkin
 import { UserData } from "./UserData";
 import { UserNetworkingClientUpdate, UserNetworkingCodec } from "./UserNetworkingCodec";
 import {
+  AUTHENTICATION_FAILED_ERROR_TYPE,
+  CONNECTION_LIMIT_REACHED_ERROR_TYPE,
   DISCONNECTED_MESSAGE_TYPE,
   FromClientMessage,
   FromServerMessage,
   IDENTITY_MESSAGE_TYPE,
   PONG_MESSAGE_TYPE,
+  SERVER_ERROR_MESSAGE_TYPE,
   USER_AUTHENTICATE_MESSAGE_TYPE,
   USER_PROFILE_MESSAGE_TYPE,
   USER_UPDATE_MESSAGE_TYPE as USER_UPDATE_MESSAGE_TYPE,
@@ -28,6 +31,7 @@ export type Client = {
 const WebSocketOpenStatus = 1;
 
 export type UserNetworkingServerOptions = {
+  connectionLimit?: number;
   onClientConnect: (
     clientId: number,
     sessionToken: string,
@@ -80,7 +84,7 @@ export class UserNetworkingServer {
     const id = this.getId();
     console.log(`Client ID: ${id} joined, waiting for user-identification`);
 
-    // Create a client but without user-information
+    // Create a client but without user information
     const client: Client = {
       id,
       lastPong: Date.now(),
@@ -114,8 +118,73 @@ export class UserNetworkingServer {
             this.handleUserAuth(client, parsed).then((authResult) => {
               if (!authResult) {
                 // If the user is not authorized, disconnect the client
+                const serverError = JSON.stringify({
+                  type: SERVER_ERROR_MESSAGE_TYPE,
+                  errorType: AUTHENTICATION_FAILED_ERROR_TYPE,
+                  message: "Authentication failed",
+                } as FromServerMessage);
+                socket.send(serverError);
                 socket.close();
               } else {
+                if (
+                  this.options.connectionLimit !== undefined &&
+                  this.authenticatedClientsById.size >= this.options.connectionLimit
+                ) {
+                  // There is a connection limit and it has been met - disconnect the user
+                  const serverError = JSON.stringify({
+                    type: SERVER_ERROR_MESSAGE_TYPE,
+                    errorType: CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+                    message: "Connection limit reached",
+                  } as FromServerMessage);
+                  socket.send(serverError);
+                  socket.close();
+                  return;
+                }
+
+                const userData = authResult;
+
+                // Give the client its own profile
+                const userProfileMessage = JSON.stringify({
+                  id: client.id,
+                  type: USER_PROFILE_MESSAGE_TYPE,
+                  username: userData.username,
+                  characterDescription: userData.characterDescription,
+                } as FromServerMessage);
+                client.socket.send(userProfileMessage);
+
+                // Give the client its own identity
+                const identityMessage = JSON.stringify({
+                  id: client.id,
+                  type: IDENTITY_MESSAGE_TYPE,
+                } as FromServerMessage);
+                client.socket.send(identityMessage);
+
+                const userUpdateMessage = UserNetworkingCodec.encodeUpdate(client.update);
+
+                // Send information about all other clients to the freshly connected client and vice versa
+                for (const [, otherClient] of this.authenticatedClientsById) {
+                  if (
+                    otherClient.socket.readyState !== WebSocketOpenStatus ||
+                    otherClient === client
+                  ) {
+                    // Do not send updates for any clients which have not yet authenticated or not yet connected
+                    continue;
+                  }
+                  // Send the character information
+                  client.socket.send(
+                    JSON.stringify({
+                      id: otherClient.update.id,
+                      type: USER_PROFILE_MESSAGE_TYPE,
+                      username: otherClient.authenticatedUser?.username,
+                      characterDescription: otherClient.authenticatedUser?.characterDescription,
+                    } as FromServerMessage),
+                  );
+                  client.socket.send(UserNetworkingCodec.encodeUpdate(otherClient.update));
+
+                  otherClient.socket.send(userProfileMessage);
+                  otherClient.socket.send(userUpdateMessage);
+                }
+
                 this.authenticatedClientsById.set(id, client);
               }
             });
@@ -170,7 +239,7 @@ export class UserNetworkingServer {
   private async handleUserAuth(
     client: Client,
     credentials: UserAuthenticateMessage,
-  ): Promise<boolean> {
+  ): Promise<false | UserData> {
     const userData = this.options.onClientConnect(
       client.id,
       credentials.sessionToken,
@@ -190,47 +259,7 @@ export class UserNetworkingServer {
     console.log("Client authenticated", client.id, resolvedUserData);
     client.authenticatedUser = resolvedUserData;
 
-    const identityMessage = JSON.stringify({
-      id: client.id,
-      type: IDENTITY_MESSAGE_TYPE,
-    } as FromServerMessage);
-
-    const userProfileMessage = JSON.stringify({
-      id: client.id,
-      type: USER_PROFILE_MESSAGE_TYPE,
-      username: resolvedUserData.username,
-      characterDescription: resolvedUserData.characterDescription,
-    } as FromServerMessage);
-
-    client.socket.send(userProfileMessage);
-    client.socket.send(identityMessage);
-
-    const userUpdateMessage = UserNetworkingCodec.encodeUpdate(client.update);
-
-    // Send information about all other clients to the freshly connected client and vice versa
-    for (const [, otherClient] of this.authenticatedClientsById) {
-      if (otherClient.socket.readyState !== WebSocketOpenStatus || otherClient === client) {
-        // Do not send updates for any clients which have not yet authenticated or not yet connected
-        continue;
-      }
-      // Send the character information
-      client.socket.send(
-        JSON.stringify({
-          id: otherClient.update.id,
-          type: USER_PROFILE_MESSAGE_TYPE,
-          username: otherClient.authenticatedUser?.username,
-          characterDescription: otherClient.authenticatedUser?.characterDescription,
-        } as FromServerMessage),
-      );
-      client.socket.send(UserNetworkingCodec.encodeUpdate(otherClient.update));
-
-      otherClient.socket.send(userProfileMessage);
-      otherClient.socket.send(userUpdateMessage);
-    }
-
-    console.log("Client authenticated", client.id);
-
-    return true;
+    return resolvedUserData;
   }
 
   public updateUserCharacter(clientId: number, userData: UserData) {

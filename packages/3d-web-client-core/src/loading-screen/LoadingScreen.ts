@@ -19,6 +19,7 @@ export class LoadingScreen {
 
   private hasCompleted = false;
   private loadingCallback: () => void;
+  private disposed: boolean = false;
 
   constructor(private loadingProgressManager: LoadingProgressManager) {
     this.element = document.createElement("div");
@@ -168,6 +169,10 @@ export class LoadingScreen {
   }
 
   public dispose() {
+    if (this.disposed) {
+      return;
+    }
+    this.disposed = true;
     this.loadingProgressManager.removeProgressCallback(this.loadingCallback);
     this.element.remove();
   }

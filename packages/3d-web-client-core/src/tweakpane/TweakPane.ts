@@ -49,6 +49,7 @@ export class TweakPane {
 
   private saveVisibilityInLocalStorage: boolean = true;
   public guiVisible: boolean = false;
+  private tweakPaneWrapper: HTMLDivElement;
 
   constructor(
     private holderElement: HTMLElement,
@@ -56,21 +57,21 @@ export class TweakPane {
     private scene: Scene,
     private composer: EffectComposer,
   ) {
-    const tweakPaneWrapper = document.createElement("div");
-    tweakPaneWrapper.style.position = "fixed";
-    tweakPaneWrapper.style.width = "400px";
-    tweakPaneWrapper.style.height = "100%";
-    tweakPaneWrapper.style.top = "0px";
-    tweakPaneWrapper.style.right = "calc(-50vw)";
-    tweakPaneWrapper.style.zIndex = "99";
-    tweakPaneWrapper.style.overflow = "auto";
-    tweakPaneWrapper.style.backgroundColor = "rgba(0, 0, 0, 0.66)";
-    tweakPaneWrapper.style.paddingLeft = "5px";
-    tweakPaneWrapper.style.boxShadow = "-7px 0px 12px rgba(0, 0, 0, 0.5)";
-    tweakPaneWrapper.style.transition = "right cubic-bezier(0.83, 0, 0.17, 1) 0.7s";
-    holderElement.appendChild(tweakPaneWrapper);
+    this.tweakPaneWrapper = document.createElement("div");
+    this.tweakPaneWrapper.style.position = "fixed";
+    this.tweakPaneWrapper.style.width = "400px";
+    this.tweakPaneWrapper.style.height = "100%";
+    this.tweakPaneWrapper.style.top = "0px";
+    this.tweakPaneWrapper.style.right = "calc(-50vw)";
+    this.tweakPaneWrapper.style.zIndex = "99";
+    this.tweakPaneWrapper.style.overflow = "auto";
+    this.tweakPaneWrapper.style.backgroundColor = "rgba(0, 0, 0, 0.66)";
+    this.tweakPaneWrapper.style.paddingLeft = "5px";
+    this.tweakPaneWrapper.style.boxShadow = "-7px 0px 12px rgba(0, 0, 0, 0.5)";
+    this.tweakPaneWrapper.style.transition = "right cubic-bezier(0.83, 0, 0.17, 1) 0.7s";
+    holderElement.appendChild(this.tweakPaneWrapper);
 
-    this.gui = new Pane({ container: tweakPaneWrapper! });
+    this.gui = new Pane({ container: this.tweakPaneWrapper! });
     this.gui.registerPlugin(EssentialsPlugin);
 
     if (this.saveVisibilityInLocalStorage) {
@@ -104,10 +105,10 @@ export class TweakPane {
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
+    this.setupGUIListeners();
     window.addEventListener("keydown", (e) => {
       this.processKey(e);
     });
-    this.setupGUIListeners();
   }
 
   private setupGUIListeners(): void {
@@ -115,9 +116,10 @@ export class TweakPane {
     const paneElement: HTMLElement = gui.containerElem_;
     paneElement.style.right = this.guiVisible ? "0px" : "-450px";
     this.gui.element.addEventListener("mouseenter", () => setTweakpaneActive(true));
+    this.gui.element.addEventListener("mousemove", () => setTweakpaneActive(true));
     this.gui.element.addEventListener("mousedown", () => setTweakpaneActive(true));
-    this.gui.element.addEventListener("mouseup", () => setTweakpaneActive(false));
     this.gui.element.addEventListener("mouseleave", () => setTweakpaneActive(false));
+    this.gui.element.addEventListener("mouseup", () => setTweakpaneActive(false));
   }
 
   private processKey(e: KeyboardEvent): void {
@@ -175,6 +177,11 @@ export class TweakPane {
         this.gui.importState(settings);
       });
     });
+  }
+
+  public dispose() {
+    this.gui.dispose();
+    this.tweakPaneWrapper.remove();
   }
 
   public setupCamPane(cameraManager: CameraManager) {

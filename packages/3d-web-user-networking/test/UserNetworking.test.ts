@@ -86,6 +86,9 @@ describe("UserNetworking", () => {
       clientProfileUpdated: (id, username, characterDescription) => {
         user1Profiles.set(id, { username, characterDescription });
       },
+      onServerError: (error) => {
+        console.error("Received server error", error);
+      },
     });
     await user1ConnectPromise;
     expect(await user1IdentityPromise).toEqual(1);
@@ -131,6 +134,9 @@ describe("UserNetworking", () => {
       },
       clientProfileUpdated: (id, username, characterDescription) => {
         user2Profiles.set(id, { username, characterDescription });
+      },
+      onServerError: (error) => {
+        console.error("Received server error", error);
       },
     });
 

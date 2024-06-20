@@ -25,6 +25,7 @@ type UserAuthenticator = {
 export const defaultSessionTokenPlaceholder = "SESSION.TOKEN.PLACEHOLDER";
 
 export type Networked3dWebExperienceServerConfig = {
+  connectionLimit?: number;
   networkPath: string;
   webClientServing: {
     indexUrl: string;
@@ -68,6 +69,7 @@ export class Networked3dWebExperienceServer {
     }
 
     this.userNetworkingServer = new UserNetworkingServer({
+      connectionLimit: config.connectionLimit,
       onClientConnect: (
         clientId: number,
         sessionToken: string,
