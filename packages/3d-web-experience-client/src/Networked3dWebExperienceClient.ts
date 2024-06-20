@@ -19,7 +19,13 @@ import {
   TweakPane,
   VirtualJoystick,
 } from "@mml-io/3d-web-client-core";
-import { ChatNetworkingClient, FromClientChatMessage, TextChatUI } from "@mml-io/3d-web-text-chat";
+import {
+  ChatNetworkingClient,
+  FromClientChatMessage,
+  StringToHslOptions,
+  TextChatUI,
+  TextChatUIProps,
+} from "@mml-io/3d-web-text-chat";
 import {
   AUTHENTICATION_FAILED_ERROR_TYPE,
   CONNECTION_LIMIT_REACHED_ERROR_TYPE,
@@ -60,6 +66,8 @@ type MMLDocumentConfiguration = {
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
+  chatVisibleByDefault?: boolean;
+  userNameToColorOptions?: StringToHslOptions;
   voiceChatAddress?: string;
   userNetworkAddress: string;
   mmlDocuments?: Array<MMLDocumentConfiguration>;
@@ -338,11 +346,14 @@ export class Networked3dWebExperienceClient {
       }
 
       if (this.textChatUI === null) {
-        this.textChatUI = new TextChatUI(
-          this.element,
-          user.username,
-          this.sendChatMessageToServer.bind(this),
-        );
+        const textChatUISettings: TextChatUIProps = {
+          holderElement: this.element,
+          clientname: user.username,
+          sendMessageToServerMethod: this.sendChatMessageToServer.bind(this),
+          visibleByDefault: this.config.chatVisibleByDefault,
+          stringToHslOptions: this.config.userNameToColorOptions,
+        };
+        this.textChatUI = new TextChatUI(textChatUISettings);
         this.textChatUI.init();
       }
 
