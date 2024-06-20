@@ -105,10 +105,10 @@ export class TweakPane {
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
+    this.setupGUIListeners();
     window.addEventListener("keydown", (e) => {
       this.processKey(e);
     });
-    this.setupGUIListeners();
   }
 
   private setupGUIListeners(): void {
@@ -116,9 +116,10 @@ export class TweakPane {
     const paneElement: HTMLElement = gui.containerElem_;
     paneElement.style.right = this.guiVisible ? "0px" : "-450px";
     this.gui.element.addEventListener("mouseenter", () => setTweakpaneActive(true));
+    this.gui.element.addEventListener("mousemove", () => setTweakpaneActive(true));
     this.gui.element.addEventListener("mousedown", () => setTweakpaneActive(true));
-    this.gui.element.addEventListener("mouseup", () => setTweakpaneActive(false));
     this.gui.element.addEventListener("mouseleave", () => setTweakpaneActive(false));
+    this.gui.element.addEventListener("mouseup", () => setTweakpaneActive(false));
   }
 
   private processKey(e: KeyboardEvent): void {

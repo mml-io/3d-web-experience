@@ -154,7 +154,9 @@ export class CameraManager {
   }
 
   private onMouseMove(event: MouseEvent): void {
-    if (getTweakpaneActive()) return;
+    if (getTweakpaneActive()) {
+      return;
+    }
     if (this.dragging) {
       if (this.targetTheta === null || this.targetPhi === null) return;
       this.targetTheta += event.movementX * this.dampingScale;
@@ -165,6 +167,9 @@ export class CameraManager {
   }
 
   private onMouseWheel(event: WheelEvent): void {
+    if (getTweakpaneActive()) {
+      return;
+    }
     const scrollAmount = event.deltaY * this.zoomScale * 0.1;
     this.targetDistance += scrollAmount;
     this.targetDistance = Math.max(
