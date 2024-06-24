@@ -302,6 +302,7 @@ export class UserNetworkingServer {
       clientId,
       message.userIdentity,
     );
+
     let resolvedAuthorizedUserData;
     if (authorizedUserData instanceof Promise) {
       resolvedAuthorizedUserData = await authorizedUserData;

@@ -1,0 +1,88 @@
+.menuButton {
+  width: 70px;
+  min-height: 70px;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 102;
+}
+
+
+.avatarSelectionContainer {
+  position: absolute;
+  display: flex;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  justify-content: center;
+  align-items: center;
+}
+
+.avatarSelectionUi {
+  width: 95%;
+  height: 90%;
+  max-width: 1200px;
+  border-radius: 10px;
+  background: #000;
+  padding: 7px;
+  opacity: 0.7;
+  overflow-y: scroll;
+}
+
+.avatarSelectionUiHeader {
+  color: #ffffff;
+  text-align: center;
+  position: relative;
+}
+
+.avatarSelectionUiCloseButton {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+}
+
+.avatarSelectionUiContent {
+  padding: 10px;
+  margin-top: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.avatarSelectionUiAvatar {
+  flex: 0 0 32%;
+  aspect-ratio: 1;
+  position: relative;
+  color: #ffffff;
+  text-align: center;
+  cursor: pointer;
+}
+
+.avatarSelectionUiAvatar img {
+  aspect-ratio: 1;
+  width: 100%
+}
+
+.selectedAvatar {
+  border: 2px solid #00ff00;
+  box-sizing: border-box;
+}
+
+.avatarSelectionUiAvatar img:hover {
+  opacity: 0.7;
+}
+
+.customAvatarSection {
+  justify-content: center;
+  margin-top: 20px;
+  color: white;
+}
+
+.customAvatarSection h2 {
+  text-align: center;
+}
+
+.customAvatarInput {
+  display: block;
+  width: 20%;
+}

@@ -32,6 +32,7 @@ const characterDescription: CharacterDescription = {
   // </m-character>
   // `,
 };
+
 const userAuthenticator = new BasicUserAuthenticator(characterDescription, {
   /*
    This option allows sessions that are reconnecting from a previous run of the server to connect even if the present a
