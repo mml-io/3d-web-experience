@@ -30,7 +30,9 @@ import {
   AUTHENTICATION_FAILED_ERROR_TYPE,
   CONNECTION_LIMIT_REACHED_ERROR_TYPE,
   ServerErrorType,
+  USER_UPDATE_MESSAGE_TYPE,
   UserData,
+  UserIdentity,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
   WebsocketStatus,
@@ -43,6 +45,7 @@ import {
   setGlobalMMLScene,
 } from "mml-web";
 import { AudioListener, Euler, Scene, Vector3 } from "three";
+import { AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
 
 type MMLDocumentConfiguration = {
   url: string;
@@ -63,7 +66,7 @@ type MMLDocumentConfiguration = {
   };
 };
 
-type AvatarType =
+export type AvatarType =
   | {
       thumbnailUrl?: string;
       name?: string;
@@ -71,7 +74,7 @@ type AvatarType =
       mmlCharacterString?: null;
       mmlCharacterUrl?: null;
       isDefaultAvatar?: boolean;
-    }
+  }
   | {
       thumbnailUrl?: string;
       name?: string;
@@ -142,6 +145,8 @@ export class Networked3dWebExperienceClient {
   private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
 
+  private avatarSelectionUI: AvatarSelectionUI | null = null;
+
   private voiceChatManager: VoiceChatManager | null = null;
   private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
@@ -153,6 +158,7 @@ export class Networked3dWebExperienceClient {
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
   private currentRequestAnimationFrame: number | null = null;
+
 
   constructor(
     private holderElement: HTMLElement,
@@ -305,6 +311,7 @@ export class Networked3dWebExperienceClient {
         */
         this.connectToVoiceChat();
         this.connectToTextChat();
+        this.mountAvatarSelectionUI();
         this.spawnCharacter();
       }
     });
@@ -329,6 +336,7 @@ export class Networked3dWebExperienceClient {
     characterDescription: CharacterDescription;
   } {
     const user = this.userProfiles.get(clientId)!;
+
     if (!user) {
       throw new Error(`Failed to resolve user for clientId ${clientId}`);
     }
@@ -347,10 +355,56 @@ export class Networked3dWebExperienceClient {
     this.characterManager.respawnIfPresent(id);
   }
 
+  private updateUserAvatar(avatar: AvatarType) {
+    if (this.clientId === null) {
+      throw new Error("Client ID not set");
+    }
+    const user = this.userProfiles.get(this.clientId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const newUser = {
+      ...user,
+      characterDescription: {
+        meshFileUrl: avatar.meshFileUrl ?? undefined,
+        mmlCharacterUrl: avatar.mmlCharacterUrl ?? undefined,
+        mmlCharacterString: avatar.mmlCharacterString ?? undefined,
+      },
+    } as UserData;
+
+    this.userProfiles.set(this.clientId, newUser);
+    this.updateUserProfile(this.clientId, newUser);
+  }
+
   private sendChatMessageToServer(message: string): void {
     this.mmlCompositionScene.onChatMessage(message);
     if (this.clientId === null || this.networkChat === null) return;
     this.networkChat.sendChatMessage(message);
+  }
+
+  private sendIdentityUpdateToServer(avatar: AvatarType) {
+    if (!this.clientId) {
+      throw new Error("Client ID not set");
+    }
+
+    const userProfile = this.userProfiles.get(this.clientId);
+
+    if (!userProfile) {
+      throw new Error("User profile not found");
+    }
+
+    this.networkClient.sendMessage({
+      type: USER_UPDATE_MESSAGE_TYPE,
+      userIdentity: {
+        username: userProfile.username,
+        characterDescription: {
+          mmlCharacterString: avatar.mmlCharacterString,
+          mmlCharacterUrl: avatar.mmlCharacterUrl,
+          meshFileUrl: avatar.meshFileUrl,
+        } as CharacterDescription,
+      },
+    });
   }
 
   private connectToVoiceChat() {
@@ -412,6 +466,27 @@ export class Networked3dWebExperienceClient {
     }
   }
 
+  private mountAvatarSelectionUI() {
+    if (this.clientId === null) {
+      throw new Error("Client ID not set");
+    }
+    const ownIdentity = this.userProfiles.get(this.clientId);
+    if (!ownIdentity) {
+      throw new Error("Own identity not found");
+    }
+
+    this.avatarSelectionUI = new AvatarSelectionUI({
+      holderElement: this.element,
+      clientId: this.clientId,
+      visibleByDefault: false,
+      stringToHslOptions: this.config.userNameToColorOptions,
+      availableAvatars: this.config.avatarConfig?.availableAvatars ?? [],
+      sendMessageToServerMethod: this.sendIdentityUpdateToServer.bind(this),
+      enableCustomAvatar: this.config.avatarConfig?.allowCustomAvatars,
+    });
+    this.avatarSelectionUI.init();
+  }
+
   public update(): void {
     this.timeManager.update();
     this.characterManager.update();
@@ -456,25 +531,14 @@ export class Networked3dWebExperienceClient {
       throw new Error("Own identity not found");
     }
 
-    const defaultAvatar =
-      this.config.avatarConfig?.availableAvatars.find((avatar) => avatar.isDefaultAvatar) ??
-      this.config.avatarConfig?.availableAvatars[0];
-
-    const characterDescription = defaultAvatar
-      ? ({
-          meshFileUrl: defaultAvatar.meshFileUrl ?? undefined,
-          mmlCharacterUrl: defaultAvatar.mmlCharacterUrl ?? undefined,
-          mmlCharacterString: defaultAvatar.mmlCharacterString ?? undefined,
-        } as CharacterDescription)
-      : ownIdentity.characterDescription;
-
     this.characterManager.spawnLocalCharacter(
       this.clientId!,
       ownIdentity.username,
-      characterDescription,
+      ownIdentity.characterDescription,
       spawnPosition,
       spawnRotation,
     );
+
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.copy(cameraPosition);
       this.cameraManager.setTarget(

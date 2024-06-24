@@ -93,12 +93,28 @@ export class BasicUserAuthenticator {
   }
 
   public onClientUserIdentityUpdate(clientId: number, msg: UserIdentity): UserData | null {
-    // This implementation does not allow updating user data after initial connect.
-
     // To allow updating user data after initial connect, return the UserData object that reflects the requested change.
-
     // Returning null will not update the user data.
-    return null;
+
+    const user = this.usersByClientId.get(clientId);
+
+    if (!user) {
+      console.error(`onClientUserIdentityUpdate - unknown clientId ${clientId}`);
+      return null;
+    }
+
+    if (!user.userData) {
+      console.error(`onClientUserIdentityUpdate - no user data for clientId ${clientId}`);
+      return null;
+    }
+
+    const newUserData: UserData = {
+      username: msg.username ?? user.userData.username,
+      characterDescription: msg.characterDescription ?? user.userData.characterDescription,
+    };
+
+    this.usersByClientId.set(clientId, { ...user, userData: newUserData });
+    return newUserData;
   }
 
   public onClientDisconnect(clientId: number) {
