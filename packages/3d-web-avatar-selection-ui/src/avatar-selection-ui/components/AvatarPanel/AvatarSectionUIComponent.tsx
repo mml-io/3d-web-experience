@@ -7,7 +7,7 @@ import React, {
   MouseEvent,
 } from "react";
 
-import { StringToHslOptions } from "../../AvatarSelectionUI";
+import { CustomAvatarType } from "../../AvatarSelectionUI";
 import AvatarIcon from "../../icons/Avatar.svg";
 
 import styles from "./AvatarSelectionUIComponent.module.css";
@@ -15,13 +15,8 @@ import styles from "./AvatarSelectionUIComponent.module.css";
 type AvatarSelectionUIProps = {
   onUpdateUserAvatar: (avatar: AvatarType) => void;
   visibleByDefault?: boolean;
-  stringToHslOptions?: StringToHslOptions;
   availableAvatars: AvatarType[];
   enableCustomAvatar?: boolean;
-};
-
-type CustomAvatarType = AvatarType & {
-  isCustomAvatar?: boolean;
 };
 
 export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSelectionUIProps> = (
