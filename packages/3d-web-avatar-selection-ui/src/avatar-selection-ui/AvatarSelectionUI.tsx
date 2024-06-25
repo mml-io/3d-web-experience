@@ -1,4 +1,4 @@
-import { AvatarType, CustomAvatarType } from "@mml-io/3d-web-experience-client";
+import { AvatarType } from "@mml-io/3d-web-experience-client";
 import { createRef, forwardRef } from "react";
 import * as React from "react";
 import { flushSync } from "react-dom";
@@ -6,29 +6,16 @@ import { createRoot, Root } from "react-dom/client";
 
 import { AvatarSelectionUIComponent } from "./components/AvatarPanel/AvatarSectionUIComponent";
 
-export type StringToHslOptions = {
-  hueThresholds?: [number, number][];
-  saturationThresholds?: [number, number][];
-  lightnessThresholds?: [number, number][];
-};
-
-const DEFAULT_HUE_RANGES: [number, number][] = [[10, 350]];
-const DEFAULT_SATURATION_RANGES: [number, number][] = [[60, 100]];
-const DEFAULT_LIGHTNESS_RANGES: [number, number][] = [[65, 75]];
-
-export const DEFAULT_HSL_OPTIONS: StringToHslOptions = {
-  hueThresholds: DEFAULT_HUE_RANGES,
-  saturationThresholds: DEFAULT_SATURATION_RANGES,
-  lightnessThresholds: DEFAULT_LIGHTNESS_RANGES,
-};
-
 const ForwardedAvatarSelectionUIComponent = forwardRef(AvatarSelectionUIComponent);
+
+export type CustomAvatarType = AvatarType & {
+  isCustomAvatar?: boolean;
+};
 
 export type AvatarSelectionUIProps = {
   holderElement: HTMLElement;
   clientId: number;
   visibleByDefault?: boolean;
-  stringToHslOptions?: StringToHslOptions;
   availableAvatars: AvatarType[];
   sendMessageToServerMethod: (avatar: CustomAvatarType) => void;
   enableCustomAvatar?: boolean;
@@ -56,7 +43,6 @@ export class AvatarSelectionUI {
           ref={this.appRef}
           onUpdateUserAvatar={this.onUpdateUserAvatar}
           visibleByDefault={false}
-          stringToHslOptions={this.config.stringToHslOptions}
           availableAvatars={this.config.availableAvatars}
           enableCustomAvatar={this.config.enableCustomAvatar}
         />,
