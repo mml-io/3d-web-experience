@@ -1,9 +1,10 @@
+import { AvatarType, CustomAvatarType } from "@mml-io/3d-web-experience-client";
 import { createRef, forwardRef } from "react";
+import * as React from "react";
 import { flushSync } from "react-dom";
 import { createRoot, Root } from "react-dom/client";
-import * as React from "react";
+
 import { AvatarSelectionUIComponent } from "./components/AvatarPanel/AvatarSectionUIComponent";
-import { AvatarType, CustomAvatarType } from "@mml-io/3d-web-experience-client";
 
 export type StringToHslOptions = {
   hueThresholds?: [number, number][];
@@ -29,7 +30,6 @@ export type AvatarSelectionUIProps = {
   visibleByDefault?: boolean;
   stringToHslOptions?: StringToHslOptions;
   availableAvatars: AvatarType[];
-  selectedAvatar?: CustomAvatarType;
   sendMessageToServerMethod: (avatar: CustomAvatarType) => void;
   enableCustomAvatar?: boolean;
 };
