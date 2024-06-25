@@ -1,3 +1,4 @@
+import { AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
 import {
   AnimationConfig,
   CameraManager,
@@ -45,7 +46,6 @@ import {
   setGlobalMMLScene,
 } from "mml-web";
 import { AudioListener, Euler, Scene, Vector3 } from "three";
-import { AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
 
 type MMLDocumentConfiguration = {
   url: string;
@@ -74,7 +74,7 @@ export type AvatarType =
       mmlCharacterString?: null;
       mmlCharacterUrl?: null;
       isDefaultAvatar?: boolean;
-  }
+    }
   | {
       thumbnailUrl?: string;
       name?: string;
@@ -93,7 +93,7 @@ export type AvatarType =
     };
 
 type AvatarConfig = {
-  availableAvatars: Array<AvatarType>;
+  availableAvatars?: Array<AvatarType>;
   allowCustomAvatars?: boolean;
   customAvatarWebhookUrl?: string;
 };
@@ -158,7 +158,6 @@ export class Networked3dWebExperienceClient {
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
   private currentRequestAnimationFrame: number | null = null;
-
 
   constructor(
     private holderElement: HTMLElement,

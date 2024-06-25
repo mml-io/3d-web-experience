@@ -1,12 +1,16 @@
-import React from "react";
-import { useRef, useState, ForwardRefRenderFunction, MouseEvent } from "react";
+import { AvatarType } from "@mml-io/3d-web-experience-client";
+import React, {
+  KeyboardEvent,
+  useRef,
+  useState,
+  ForwardRefRenderFunction,
+  MouseEvent,
+} from "react";
 
-import { useClickOutside } from "../../helpers";
-import ChatIcon from "../../icons/Chat.svg";
 import { StringToHslOptions } from "../../AvatarSelectionUI";
+import AvatarIcon from "../../icons/Avatar.svg";
 
 import styles from "./AvatarSelectionUIComponent.module.css";
-import { AvatarType } from "@mml-io/3d-web-experience-client";
 
 type AvatarSelectionUIProps = {
   onUpdateUserAvatar: (avatar: AvatarType) => void;
@@ -28,18 +32,19 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatarType | undefined>(undefined);
   const [customAvatarType, setCustomAvatarType] = useState<"glb" | "html" | "mml">("glb");
   const [customAvatarValue, setCustomAvatarValue] = useState<string>("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleRootClick = (e: MouseEvent) => {
     e.stopPropagation();
   };
 
-  const avatarPanelRef = useClickOutside(() => {
-    setIsVisible(false);
-  });
-
   const selectAvatar = (avatar: CustomAvatarType) => {
     setSelectedAvatar(avatar);
     props.onUpdateUserAvatar(avatar);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCustomAvatarValue(e.target.value);
   };
 
   const addCustomAvatar = () => {
@@ -47,61 +52,66 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
       return;
     }
 
-    const selectedAvatar = {
+    const newSelectedAvatar = {
       mmlCharacterString: customAvatarType === "mml" ? customAvatarValue : undefined,
       mmlCharacterUrl: customAvatarType === "html" ? customAvatarValue : undefined,
       meshFileUrl: customAvatarType === "glb" ? customAvatarValue : undefined,
       isCustomAvatar: true,
     } as CustomAvatarType;
 
-    setSelectedAvatar(selectedAvatar);
-    props.onUpdateUserAvatar(selectedAvatar);
+    setSelectedAvatar(newSelectedAvatar);
+    props.onUpdateUserAvatar(newSelectedAvatar);
+  };
+
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+    e.stopPropagation();
   };
 
   return (
     <>
       <div className={styles.menuButton} onClick={handleRootClick}>
-        <div className={styles.openTab} onClick={() => setIsVisible(true)}>
-          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
-        </div>
-      </div>
-      <div style={{ zIndex: isVisible ? 1 : -1 }} className={`${styles.avatarSelectionContainer}`}>
-        <div className={styles.avatarSelectionUi} ref={avatarPanelRef}>
-          <div className={styles.avatarSelectionUiHeader}>
-            <h1>Choose your avatar</h1>
-            <button
-              className={styles.avatarSelectionUiCloseButton}
-              onClick={() => setIsVisible(false)}
-            >
-              Close
-            </button>
+        {!isVisible && (
+          <div className={styles.openTab} onClick={() => setIsVisible(true)}>
+            <img src={`data:image/svg+xml;utf8,${encodeURIComponent(AvatarIcon)}`} />
           </div>
-          <div className={styles.avatarSelectionUiContent}>
-            {props.availableAvatars.map((avatar, index) => {
-              const isSelected =
-                !selectedAvatar?.isCustomAvatar &&
-                ((selectedAvatar?.meshFileUrl &&
-                  selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
-                  (selectedAvatar?.mmlCharacterUrl &&
-                    selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
-                  (selectedAvatar?.mmlCharacterString &&
-                    selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
+        )}
+      </div>
+      {isVisible && (
+        <div className={`${styles.avatarSelectionContainer}`}>
+          <div className={styles.avatarSelectionUi}>
+            <div className={styles.avatarSelectionUiHeader}>
+              <h2>Choose your avatar</h2>
+              <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
+                X
+              </button>
+            </div>
+            <div className={styles.avatarSelectionUiContent}>
+              {props.availableAvatars.map((avatar, index) => {
+                const isSelected =
+                  !selectedAvatar?.isCustomAvatar &&
+                  ((selectedAvatar?.meshFileUrl &&
+                    selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
+                    (selectedAvatar?.mmlCharacterUrl &&
+                      selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
+                    (selectedAvatar?.mmlCharacterString &&
+                      selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
 
-              return (
-                <div
-                  key={index}
-                  className={styles.avatarSelectionUiAvatar}
-                  onClick={() => selectAvatar(avatar)}
-                >
-                  <img
-                    className={isSelected ? styles.selectedAvatar : ""}
-                    src={avatar.thumbnailUrl}
-                    alt={avatar.name}
-                  />
-                  <h2>{avatar.name}</h2>
-                </div>
-              );
-            })}
+                return (
+                  <div
+                    key={index}
+                    className={styles.avatarSelectionUiAvatar}
+                    onClick={() => selectAvatar(avatar)}
+                  >
+                    <img
+                      className={isSelected ? styles.selectedAvatar : ""}
+                      src={avatar.thumbnailUrl}
+                      alt={avatar.name}
+                    />
+                    <h2>{avatar.name}</h2>
+                  </div>
+                );
+              })}
+            </div>
           </div>
           {props.enableCustomAvatar && (
             <div className={styles.customAvatarSection}>
@@ -133,14 +143,18 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 checked={customAvatarType === "mml"}
               />
               <label htmlFor="mml">MML</label>
-              <input
-                className={styles.customAvatarInput}
-                value={customAvatarValue}
-                onChange={({ target: { value } }) => setCustomAvatarValue(value)}
-              />
-              <button disabled={!customAvatarValue} type="button" onClick={addCustomAvatar}>
-                Set
-              </button>
+              <div className={styles.customAvatarInputSection}>
+                <input
+                  ref={inputRef}
+                  className={styles.customAvatarInput}
+                  value={customAvatarValue}
+                  onKeyDown={handleKeyPress}
+                  onChange={handleInputChange}
+                />
+                <button disabled={!customAvatarValue} type="button" onClick={addCustomAvatar}>
+                  Set
+                </button>
+              </div>
               {selectedAvatar?.isCustomAvatar && (
                 <div>
                   <h2 className={styles.selectedAvatar}>Custom Avatar Selected</h2>
@@ -149,7 +163,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
             </div>
           )}
         </div>
-      </div>
+      )}
     </>
   );
 };
