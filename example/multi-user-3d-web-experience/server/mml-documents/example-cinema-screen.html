@@ -1,0 +1,27 @@
+<m-video
+  id="cinema-screen"
+  x="50"
+  y="15"
+  width="45"
+  ry="-90"
+  start-time="0"
+  loop="true"
+  volume="0"
+  src="https://public.mml.io/charge.mp4"
+></m-video>
+
+<script>
+  const cinemaScreen = document.getElementById("cinema-screen");
+  const allowToggleMute = false;
+
+  if (allowToggleMute) {
+    cinemaScreen.addEventListener("click", () => {
+      const muted = cinemaScreen.getAttribute("volume") === "0";
+      if (muted) {
+        cinemaScreen.setAttribute("volume", 1);
+      } else {
+        cinemaScreen.setAttribute("volume", 0);
+      }
+    });
+  }
+</script>

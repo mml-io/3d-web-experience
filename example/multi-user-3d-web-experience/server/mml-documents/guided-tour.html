@@ -511,7 +511,18 @@
         progressionSpace.appendChild(externalElement);
         break;
       }
-      default: break;
+      case 2: {
+        externalElement = createFrame(
+          "wss:///mml-documents/example-cinema-screen.html",
+          10,
+          0,
+          zPos,
+        );
+        progressionSpace.appendChild(externalElement);
+        break;
+      }
+      default:
+        break;
     }
   }
 
@@ -520,7 +531,7 @@
       const zPos = 14 + roomsDepth * i + spaceBetweenRooms * i;
       const exampleXPos = roomsWidth / 2;
 
-      createExternalElement(i, zPos)
+      createExternalElement(i, zPos);
 
       // create the room ======================================================
       const roomModel = document.createElement("m-model");
