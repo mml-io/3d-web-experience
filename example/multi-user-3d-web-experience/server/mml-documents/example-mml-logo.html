@@ -1,0 +1,137 @@
+<m-group x="50" y="20" z="0" ry="-90" sx="3" sy="3" sz="3">
+  <m-group id="logo">
+    <m-group id="letters-holder">
+      <m-group id="left-m" x="-5">
+        <m-cube depth="0.25" color="white" x="-1.6" width="0.8" height="4"></m-cube>
+        <m-cube depth="0.25" color="white" x="1.6" width="0.8" height="4"></m-cube>
+        <m-cube
+          depth="0.25"
+          color="white"
+          rz="45"
+          x="-0.60"
+          y="0.833"
+          height="2.5"
+          width="0.8"
+        ></m-cube>
+        <m-cube
+          depth="0.25"
+          color="white"
+          rz="-45"
+          x="0.60"
+          y="0.833"
+          height="2.5"
+          width="0.8"
+        ></m-cube>
+      </m-group>
+      <m-group id="middle-m">
+        <m-cube depth="0.25" color="white" x="-1.6" width="0.8" height="4"></m-cube>
+        <m-cube depth="0.25" color="white" x="1.6" width="0.8" height="4"></m-cube>
+        <m-cube
+          depth="0.25"
+          color="white"
+          rz="45"
+          x="-0.60"
+          y="0.833"
+          height="2.5"
+          width="0.8"
+        ></m-cube>
+        <m-cube
+          depth="0.25"
+          color="white"
+          rz="-45"
+          x="0.60"
+          y="0.833"
+          height="2.5"
+          width="0.8"
+        ></m-cube>
+      </m-group>
+      <m-group id="right-l" x="5">
+        <m-cube depth="0.25" color="white" x="-1.6" width="0.8" height="4"></m-cube>
+        <m-cube depth="0.25" color="white" y="-1.6" x="-0.4" height="0.8" width="3.2"></m-cube>
+      </m-group>
+    </m-group>
+
+    <m-group id="left-bracket-holder">
+      <m-group id="left-bracket-wrapper">
+        <m-group id="left-bracket" width="5" height="5">
+          <m-cube depth="0.25" color="white" x="-2" height="5"></m-cube>
+          <m-cube depth="0.25" color="white" y="2" width="5"></m-cube>
+        </m-group>
+      </m-group>
+    </m-group>
+
+    <m-group id="slash-holder">
+      <m-group id="slash-wrapper">
+        <m-cube id="slash" width="5" height="0.5" depth="0.5" color="white"> </m-cube>
+      </m-group>
+    </m-group>
+
+    <m-group id="right-bracket-holder">
+      <m-group id="right-bracket-wrapper">
+        <m-group id="right-bracket" width="5" height="5">
+          <m-cube depth="0.25" color="white" x="2" height="5"></m-cube>
+          <m-cube depth="0.25" color="white" y="-2" width="5"></m-cube>
+        </m-group>
+      </m-group>
+    </m-group>
+  </m-group>
+</m-group>
+
+<script>
+  function appendAnim(attr, start, end, duration, delay, parentElement) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("ping-pong", true);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("ping-pong-delay", delay);
+    anim.setAttribute("loop", true);
+    anim.setAttribute("easing", "easeInOutQuart");
+    parentElement.appendChild(anim);
+  }
+
+  const duration = 21000;
+  const delay = 7000;
+
+  const lettersHolderGroup = document.getElementById("letters-holder");
+  appendAnim("z", -5, 0, duration, delay, lettersHolderGroup);
+  appendAnim("x", 4, -1.7, duration, delay, lettersHolderGroup);
+  appendAnim("sx", 0, 1, duration, delay, lettersHolderGroup);
+  appendAnim("sy", 0, 1, duration, delay, lettersHolderGroup);
+
+  const leftBracketHolderGroup = document.getElementById("left-bracket-holder");
+  appendAnim("x", 0, -9.5, duration, delay, leftBracketHolderGroup);
+  appendAnim("rx", 35.25, 0, duration, delay, leftBracketHolderGroup);
+
+  const leftBracketWrapperGroup = document.getElementById("left-bracket-wrapper");
+  appendAnim("sx", 1, 0.75, duration, delay, leftBracketWrapperGroup);
+  appendAnim("ry", 45, 0, duration, delay, leftBracketWrapperGroup);
+
+  const leftBracketGroup = document.getElementById("left-bracket");
+  appendAnim("rz", 0, 45, duration, delay, leftBracketGroup);
+  appendAnim("z", -2.5, 0, duration, delay, leftBracketGroup);
+
+  const slashHolderGroup = document.getElementById("slash-holder");
+  appendAnim("rx", 35.25, 0, duration, delay, slashHolderGroup);
+  appendAnim("x", 0, 7, duration, delay, slashHolderGroup);
+
+  const slashWrapperGroup = document.getElementById("slash-wrapper");
+  appendAnim("ry", 45, 0, duration, delay, slashWrapperGroup);
+  appendAnim("rz", 0, 60, duration, delay, slashWrapperGroup);
+
+  const slashGroup = document.getElementById("slash");
+  appendAnim("rx", 0, 45, duration, delay, slashGroup);
+
+  const rightBracketHolderGroup = document.getElementById("right-bracket-holder");
+  appendAnim("sx", 1, 0.75, duration, delay, rightBracketHolderGroup);
+  appendAnim("x", 0, 9.5, duration, delay, rightBracketHolderGroup);
+  appendAnim("rx", 35.25, 0, duration, delay, rightBracketHolderGroup);
+
+  const rightBracketWrapperGroup = document.getElementById("right-bracket-wrapper");
+  appendAnim("ry", 45, 0, duration, delay, rightBracketWrapperGroup);
+
+  const rightBracketGroup = document.getElementById("right-bracket");
+  appendAnim("rz", 0, 45, duration, delay, rightBracketGroup);
+  appendAnim("z", 2.5, 0, duration, delay, rightBracketGroup);
+</script>

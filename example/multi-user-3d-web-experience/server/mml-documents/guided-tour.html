@@ -498,10 +498,29 @@
     return anim;
   }
 
+  function createExternalElement(index, zPos) {
+    let externalElement = null;
+    switch (index) {
+      case 0: {
+        externalElement = createFrame("wss:///mml-documents/example-mml-logo.html", 10, 0, zPos);
+        progressionSpace.appendChild(externalElement);
+        break;
+      }
+      case 1: {
+        externalElement = createFrame("wss:///mml-documents/example-duck.html", 10, 0, zPos);
+        progressionSpace.appendChild(externalElement);
+        break;
+      }
+      default: break;
+    }
+  }
+
   function createProgression() {
     for (let i = 0; i < numberOfRooms; i++) {
       const zPos = 14 + roomsDepth * i + spaceBetweenRooms * i;
       const exampleXPos = roomsWidth / 2;
+
+      createExternalElement(i, zPos)
 
       // create the room ======================================================
       const roomModel = document.createElement("m-model");
