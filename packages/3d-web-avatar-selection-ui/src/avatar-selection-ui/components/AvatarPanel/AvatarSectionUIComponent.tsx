@@ -1,4 +1,4 @@
-import { AvatarType } from "@mml-io/3d-web-experience-client";
+import { Avatar } from "@mml-io/3d-web-experience-client";
 import React, {
   KeyboardEvent,
   useRef,
@@ -7,38 +7,41 @@ import React, {
   MouseEvent,
 } from "react";
 
-import { CustomAvatarType } from "../../AvatarSelectionUI";
+import { CustomAvatar } from "../../AvatarSelectionUI";
 import AvatarIcon from "../../icons/Avatar.svg";
 
 import styles from "./AvatarSelectionUIComponent.module.css";
 
 type AvatarSelectionUIProps = {
-  onUpdateUserAvatar: (avatar: AvatarType) => void;
+  onUpdateUserAvatar: (avatar: Avatar) => void;
   visibleByDefault?: boolean;
-  availableAvatars: AvatarType[];
+  availableAvatars: Avatar[];
   enableCustomAvatar?: boolean;
 };
+
+type CustomAvatarType = "glb" | "html" | "mml";
 
 export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSelectionUIProps> = (
   props: AvatarSelectionUIProps,
 ) => {
   const visibleByDefault: boolean = props.visibleByDefault ?? false;
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
-  const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatarType | undefined>(undefined);
-  const [customAvatarType, setCustomAvatarType] = useState<"glb" | "html" | "mml">("glb");
+  const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatar | undefined>(undefined);
+  const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>("glb");
   const [customAvatarValue, setCustomAvatarValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleRootClick = (e: MouseEvent) => {
     e.stopPropagation();
   };
 
-  const selectAvatar = (avatar: CustomAvatarType) => {
+  const selectAvatar = (avatar: CustomAvatar) => {
     setSelectedAvatar(avatar);
     props.onUpdateUserAvatar(avatar);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setCustomAvatarValue(e.target.value);
   };
 
@@ -52,14 +55,30 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
       mmlCharacterUrl: customAvatarType === "html" ? customAvatarValue : undefined,
       meshFileUrl: customAvatarType === "glb" ? customAvatarValue : undefined,
       isCustomAvatar: true,
-    } as CustomAvatarType;
+    } as CustomAvatar;
 
     setSelectedAvatar(newSelectedAvatar);
     props.onUpdateUserAvatar(newSelectedAvatar);
   };
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.stopPropagation();
+  };
+
+  const handleTypeSwitch = (type: CustomAvatarType) => {
+    setCustomAvatarType(type);
+    setCustomAvatarValue("");
+  }
+
+  const getPlaceholderByType = (type: CustomAvatarType) => {
+    switch (type) {
+      case "glb":
+        return "https://example.com/avatar.glb";
+      case "html":
+        return "https://example.com/avatar.html";
+      case "mml":
+        return '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n</m-character';
+    }
   };
 
   return (
@@ -115,7 +134,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 type="radio"
                 id="glb"
                 name="customAvatarType"
-                onChange={() => setCustomAvatarType("glb")}
+                onChange={() => handleTypeSwitch("glb")}
                 defaultChecked={customAvatarType === "glb"}
                 checked={customAvatarType === "glb"}
               />
@@ -124,7 +143,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 type="radio"
                 id="html"
                 name="customAvatarType"
-                onChange={() => setCustomAvatarType("html")}
+                onChange={() => handleTypeSwitch("html")}
                 defaultChecked={customAvatarType === "html"}
                 checked={customAvatarType === "html"}
               />
@@ -133,19 +152,32 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 type="radio"
                 id="mml"
                 name="customAvatarType"
-                onChange={() => setCustomAvatarType("mml")}
+                onChange={() => handleTypeSwitch("mml")}
                 defaultChecked={customAvatarType === "mml"}
                 checked={customAvatarType === "mml"}
               />
               <label htmlFor="mml">MML</label>
               <div className={styles.customAvatarInputSection}>
-                <input
-                  ref={inputRef}
-                  className={styles.customAvatarInput}
-                  value={customAvatarValue}
-                  onKeyDown={handleKeyPress}
-                  onChange={handleInputChange}
-                />
+                {customAvatarType === "mml" ? (
+                  <textarea
+                    ref={textareaRef}
+                    className={styles.customAvatarInput}
+                    value={customAvatarValue}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyPress}
+                    placeholder={getPlaceholderByType(customAvatarType)}
+                    rows={4}
+                  />
+                ) : (
+                  <input
+                    ref={inputRef}
+                    className={styles.customAvatarInput}
+                    value={customAvatarValue}
+                    onKeyDown={handleKeyPress}
+                    onChange={handleInputChange}
+                    placeholder={getPlaceholderByType(customAvatarType)}
+                  />
+                )}
                 <button disabled={!customAvatarValue} type="button" onClick={addCustomAvatar}>
                   Set
                 </button>

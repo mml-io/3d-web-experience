@@ -1,4 +1,4 @@
-import { AvatarType } from "@mml-io/3d-web-experience-client";
+import { Avatar } from "@mml-io/3d-web-experience-client";
 import { createRef, forwardRef } from "react";
 import * as React from "react";
 import { flushSync } from "react-dom";
@@ -8,7 +8,7 @@ import { AvatarSelectionUIComponent } from "./components/AvatarPanel/AvatarSecti
 
 const ForwardedAvatarSelectionUIComponent = forwardRef(AvatarSelectionUIComponent);
 
-export type CustomAvatarType = AvatarType & {
+export type CustomAvatar = Avatar & {
   isCustomAvatar?: boolean;
 };
 
@@ -16,8 +16,8 @@ export type AvatarSelectionUIProps = {
   holderElement: HTMLElement;
   clientId: number;
   visibleByDefault?: boolean;
-  availableAvatars: AvatarType[];
-  sendMessageToServerMethod: (avatar: CustomAvatarType) => void;
+  availableAvatars: Avatar[];
+  sendMessageToServerMethod: (avatar: CustomAvatar) => void;
   enableCustomAvatar?: boolean;
 };
 
@@ -32,7 +32,7 @@ export class AvatarSelectionUI {
     this.root = createRoot(this.wrapper);
   }
 
-  private onUpdateUserAvatar = (avatar: CustomAvatarType) => {
+  private onUpdateUserAvatar = (avatar: CustomAvatar) => {
     this.config.sendMessageToServerMethod(avatar);
   };
 
