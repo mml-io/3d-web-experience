@@ -23,6 +23,10 @@
     let doorIsOpen = false;
     let buttonSoundCanPlay = true;
 
+    const doorFrame = document.createElement("m-model");
+    doorFrame.setAttribute("src", "/assets/playground/doorframe.glb");
+    doorGroup.appendChild(doorFrame);
+
     const door = document.createElement("m-cube");
     door.setAttribute("z", 0.035);
     door.setAttribute("y", height / 2);
@@ -86,14 +90,17 @@
     const buttonOnURL = "/assets/playground/open_button_on.glb";
     const buttonOffURL = "/assets/playground/open_button_off.glb";
 
-    const doorButtonBase = createModel(buttonBaseURL, 2.75, 1.5, -0.1);
-    const doorButtonOn = createModel(buttonOnURL, 2.75, 1.5, -0.1);
-    const doorButtonOff = createModel(buttonOffURL, 2.75, 1.5, -0.1);
+    const buttonX = 3.19;
+    const buttonY = 1.7;
+
+    const doorButtonBase = createModel(buttonBaseURL, buttonX, buttonY, -0.1);
+    const doorButtonOn = createModel(buttonOnURL, buttonX, buttonY, -0.1);
+    const doorButtonOff = createModel(buttonOffURL, buttonX, buttonY, -0.1);
     scale(doorButtonOff, 0.001);
 
-    const doorBackButtonBase = createModel(buttonBaseURL, 2.75, 1.5, thickness, 180);
-    const doorBackButtonOn = createModel(buttonOnURL, 2.75, 1.5, thickness, 180);
-    const doorBackButtonOff = createModel(buttonOffURL, 2.75, 1.5, thickness, 180);
+    const doorBackButtonBase = createModel(buttonBaseURL, buttonX, buttonY, thickness, 180);
+    const doorBackButtonOn = createModel(buttonOnURL, buttonX, buttonY, thickness, 180);
+    const doorBackButtonOff = createModel(buttonOffURL, buttonX, buttonY, thickness, 180);
     scale(doorBackButtonOff, 0.001);
 
     doorGroup.appendChild(doorButtonBase);
@@ -108,7 +115,14 @@
     };
 
     const pushBackButtonAnim = () => {
-      animateElement(doorBackButtonOn, "z", thickness, thickness - 0.045, buttonAnimDuration, easing);
+      animateElement(
+        doorBackButtonOn,
+        "z",
+        thickness,
+        thickness - 0.045,
+        buttonAnimDuration,
+        easing,
+      );
     };
 
     const releaseButtonAnim = () => {
@@ -116,7 +130,14 @@
     };
 
     const releaseBackButtonAnim = () => {
-      animateElement(doorBackButtonOn, "z", thickness - 0.045, thickness, buttonAnimDuration, easing);
+      animateElement(
+        doorBackButtonOn,
+        "z",
+        thickness - 0.045,
+        thickness,
+        buttonAnimDuration,
+        easing,
+      );
     };
 
     const setupButtonSound = () => {
