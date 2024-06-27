@@ -1,0 +1,372 @@
+<m-group id="sequencer-group" y="2"></m-group>
+
+<script>
+  const audioSrcs = [
+    "/assets/playground/Kick-808-12.wav",
+    "/assets/playground/Krs-cymbol-4.wav",
+    "/assets/playground/medasin-hi-hat.wav",
+    "/assets/playground/Stretched-808-Snare.wav",
+  ];
+
+  const sequencerGroup = document.getElementById("sequencer-group");
+
+  const channels = new Map();
+
+  const bars = 16;
+  const instruments = 4;
+  const minBPM = 60;
+  const maxBPM = 360;
+
+  const buttonsGap = 0.1;
+  const buttonSize = 0.5;
+
+  const offSatLight = "20%, 40%";
+  const onSatLight = "100%, 80%";
+
+  let intervalId = null;
+  let initialBPM = 210;
+  let bpmStep = 5;
+  let currentBar = 0;
+  let bpmDisplay = null;
+
+  let cursor = null;
+  let cursorAnim = null;
+
+  function createLabel(width, height, color, fontColor, x = 0, y = 0, z = 0, initialContent) {
+    const label = document.createElement("m-label");
+    label.setAttribute("content", initialContent);
+    label.setAttribute("padding", 0);
+    label.setAttribute("alignment", "center");
+    label.setAttribute("width", width);
+    label.setAttribute("height", height);
+    label.setAttribute("color", color);
+    label.setAttribute("font-color", fontColor);
+    label.setAttribute("x", x);
+    label.setAttribute("y", y);
+    label.setAttribute("z", z);
+    return label;
+  }
+
+  function createCube(width, height, depth, color, x = 0, y = 0, z = 0) {
+    const cube = document.createElement("m-cube");
+    cube.setAttribute("width", width);
+    cube.setAttribute("height", height);
+    cube.setAttribute("depth", depth);
+    cube.setAttribute("color", color);
+    cube.setAttribute("x", x);
+    cube.setAttribute("y", y);
+    cube.setAttribute("z", z);
+    return cube;
+  }
+
+  function createAudio(src) {
+    const audio = document.createElement("m-audio");
+    audio.setAttribute("src", src);
+    audio.setAttribute("loop", true);
+    audio.setAttribute("enabled", false);
+    return audio;
+  }
+
+  function bpmToMS(bpm) {
+    return 60000 / bpm;
+  }
+
+  function createCursorAnim(attr, start, end, startTime, duration) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("ping-pong", false);
+    anim.setAttribute("loop", true);
+    return anim;
+  }
+
+  function animateCursor(bpm) {
+    const beatDuration = bpmToMS(bpm);
+    const posStart = buttonSize * 0.1 + 0.1 - 10;
+    const posEnd = buttonSize * 0.1 + 0.1;
+
+    const channelXSize = bars * buttonSize + (bars - 1) * buttonsGap;
+    const cursorX = -channelXSize / 2 + buttonSize / 2;
+    const cursorXEnd = cursorX + buttonSize * (bars - 1) + buttonsGap * (bars - 1);
+
+    channels.forEach((channel) => {
+      const barsAmount = channel.length;
+      for (let i = 0; i < bars; i++) {
+        channel[i].audio.setAttribute("start-time", i * beatDuration - (beatDuration * bars) / 2);
+        channel[i].audio.setAttribute("loop-duration", beatDuration * bars);
+      }
+    });
+
+    if (cursorAnim !== null && cursor !== null) {
+      cursor.removeChild(cursorAnim);
+    }
+    cursorAnim = createCursorAnim(
+      "x",
+      cursorX,
+      cursorXEnd,
+      beatDuration - (beatDuration * bars) / 2,
+      beatDuration * bars,
+    );
+    cursor.appendChild(cursorAnim);
+  }
+
+  function turnButtonLedOn(button) {
+    button.setAttribute("class", "on");
+    const color = button.getAttribute("color");
+    const hue = parseInt(color.replace("hsl(", "").split(",")[0]);
+    const newColor = `hsl(${hue}, ${onSatLight})`;
+    button.setAttribute("color", newColor);
+  }
+
+  function turnButtonLedOff(button) {
+    button.setAttribute("class", "off");
+    const color = button.getAttribute("color");
+    const hue = parseInt(color.replace("hsl(", "").split(",")[0]);
+    const newColor = `hsl(${hue}, ${offSatLight})`;
+    button.setAttribute("color", newColor);
+  }
+
+  function toggleButtonLed(button) {
+    const on = button.getAttribute("class");
+    if (on === "on") {
+      turnButtonLedOff(button);
+      return false;
+    } else {
+      turnButtonLedOn(button);
+      return true;
+    }
+  }
+
+  function turnBorderOn(border) {
+    border.setAttribute("color", "#ffffff");
+  }
+
+  function turnBorderOff(border) {
+    border.setAttribute("color", "#000000");
+  }
+
+  function createBPMControls() {
+    const width = 0.5;
+    const height = 0.3;
+    const x = -4.5;
+    const y = -1.5;
+    const z = 0.1;
+    const labelZOffset = 0.11;
+    const buttonColor = "#888888";
+    const bpmDecreaseButton = createCube(0.5, 0.3, 0.2, "#888888", x, -1.5, 0.1);
+    const bpmDecreaseButtonLabel = createLabel(
+      width,
+      height,
+      buttonColor,
+      "#ddaaaa",
+      x,
+      y,
+      z + labelZOffset,
+      "-",
+    );
+    const bpmIncreaseButton = createCube(
+      0.5,
+      0.3,
+      0.2,
+      "#888888",
+      x + width + buttonsGap,
+      -1.5,
+      0.1,
+    );
+    const bpmIncreaseButtonLabel = createLabel(
+      width,
+      height,
+      buttonColor,
+      "#aaddaa",
+      x + width + buttonsGap,
+      y,
+      z + labelZOffset,
+      "+",
+    );
+
+    const bpmDisplayBorder = createCube(1.13, 0.33, 0.2, "#000000", -3, -1.5, 0.05);
+    bpmDisplay = createLabel(1.1, 0.3, "#121212", "#ccffcc", -3, -1.5, 0.16, `${initialBPM} BPM`);
+
+    const prompt = document.createElement("m-prompt");
+    prompt.setAttribute("id", "bpm-prompt");
+    prompt.setAttribute("message", "Enter the desired BPM");
+    prompt.setAttribute("placeholder", "120");
+    prompt.setAttribute("prefill", "");
+    prompt.addEventListener("prompt", (e) => {
+      if (!isNaN(parseFloat(e.detail.value))) {
+        initialBPM = parseFloat(e.detail.value);
+        if (initialBPM > maxBPM) {
+          initialBPM = maxBPM;
+        }
+        if (initialBPM < minBPM) {
+          initialBPM = minBPM;
+        }
+        if (bpmDisplay) {
+          prompt.setAttribute("placeholder", initialBPM);
+          bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
+        }
+        animateCursor(initialBPM);
+      } else {
+        console.log(`NAN: ${e.detail.value}`);
+      }
+    });
+
+    prompt.appendChild(bpmDisplay);
+    sequencerGroup.appendChild(prompt);
+
+    bpmDecreaseButtonLabel.addEventListener("click", () => {
+      decreaseBPM();
+    });
+    bpmIncreaseButtonLabel.addEventListener("click", () => {
+      increaseBPM();
+    });
+
+    sequencerGroup.appendChild(bpmDecreaseButton);
+    sequencerGroup.appendChild(bpmDecreaseButtonLabel);
+    sequencerGroup.appendChild(bpmIncreaseButton);
+    sequencerGroup.appendChild(bpmIncreaseButtonLabel);
+    sequencerGroup.appendChild(bpmDisplayBorder);
+  }
+
+  function createBody() {
+    const body = createCube(12, 4, 0.25, "#212121");
+    const texture = document.createElement("m-image");
+    texture.setAttribute("src", "/assets/playground/808.jpg");
+    texture.setAttribute("width", 12);
+    texture.setAttribute("height", 4);
+    texture.setAttribute("z", 0.13);
+    texture.setAttribute("opacity", 0.12);
+    body.appendChild(texture);
+    sequencerGroup.appendChild(body);
+  }
+
+  function increaseBPM() {
+    if (initialBPM < maxBPM) {
+      const newValue = initialBPM + bpmStep;
+      const remainder = newValue % 5;
+      initialBPM = remainder === 0 ? newValue : newValue - remainder;
+      if (bpmDisplay) {
+        bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
+      }
+      const prompt = document.getElementById("bpm-prompt");
+      if (prompt) {
+        prompt.setAttribute("placeholder", initialBPM);
+      }
+      animateCursor(initialBPM);
+    }
+  }
+
+  function decreaseBPM() {
+    if (initialBPM > minBPM) {
+      const newValue = initialBPM - bpmStep;
+      const remainder = newValue % 5;
+      initialBPM = remainder === 0 ? newValue : newValue - remainder;
+      if (initialBPM < newValue) {
+        initialBPM += 5;
+      }
+      if (bpmDisplay) {
+        bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
+      }
+      const prompt = document.getElementById("bpm-prompt");
+      if (prompt) {
+        prompt.setAttribute("placeholder", initialBPM);
+      }
+      animateCursor(initialBPM);
+    }
+  }
+
+  function createChannel(bars) {
+    const channelIndex = channels.size;
+
+    const channelGroupFrame = document.createElement("m-frame");
+    channelGroupFrame.setAttribute("min-x", -6);
+    channelGroupFrame.setAttribute("max-x", 6);
+    channelGroupFrame.setAttribute("min-y", -2);
+    channelGroupFrame.setAttribute("max-y", 2);
+    channelGroupFrame.setAttribute("min-z", 0);
+    channelGroupFrame.setAttribute("max-z", 0.25);
+    channelGroupFrame.setAttribute("debug", false);
+
+    const borderSize = buttonSize + buttonSize * 0.12;
+    const borderDepth = buttonSize * 0.2;
+    const channelXSize = bars * buttonSize + (bars - 1) * buttonsGap;
+    const channelsYSize = instruments * buttonSize + (instruments - 1) * buttonsGap;
+
+    const yIdx = channelIndex + 1;
+    let xPos = -channelXSize / 2 + buttonSize / 2;
+    const yPos = (buttonSize + buttonsGap) * yIdx - channelsYSize / 2 - buttonSize / 2 - buttonsGap;
+    const zPos = buttonSize * 0.1 + 0.1;
+
+    const barsArray = [];
+
+    const src = audioSrcs[channelIndex];
+
+    for (let i = 0; i < bars; i++) {
+      const bar = {};
+      const hue = (360 / bars) * i;
+      const color = `hsl(${hue}, ${offSatLight})`;
+      const audio = createAudio(src);
+      const button = createCube(
+        buttonSize,
+        buttonSize,
+        borderDepth,
+        color,
+        xPos,
+        yPos,
+        zPos + 0.03,
+      );
+      button.setAttribute("class", "off");
+
+      button.addEventListener("click", () => {
+        const active = toggleButtonLed(button);
+        audio.setAttribute("enabled", active);
+      });
+      bar.channel = channelIndex;
+      bar.buttonMesh = button;
+      bar.audio = audio;
+      barsArray.push(bar);
+      button.appendChild(audio);
+      channelGroupFrame.appendChild(button);
+      xPos += buttonSize + buttonsGap;
+    }
+    sequencerGroup.appendChild(channelGroupFrame);
+    return barsArray;
+  }
+
+  function createChannels() {
+    const channelXSize = bars * buttonSize + (bars - 1) * buttonsGap;
+    const cursorX = -channelXSize / 2 + buttonSize / 2;
+    cursor = createCube(
+      buttonSize,
+      0.1,
+      0.27,
+      "#ffffff",
+      cursorX,
+      (instruments * buttonSize) / 2 - buttonSize / 2 - buttonsGap * 1.5,
+      0,
+    );
+    cursor.appendChild(
+      createCube(buttonSize, 0.1, 0.27, "#ffffff", 0, -buttonSize - buttonsGap, 0),
+    );
+    cursor.appendChild(
+      createCube(buttonSize, 0.1, 0.27, "#ffffff", 0, (-buttonSize - buttonsGap) * 2, 0),
+    );
+    sequencerGroup.appendChild(cursor);
+    for (let i = 0; i < instruments; i++) {
+      const channelArray = createChannel(bars);
+      channels.set(i, channelArray);
+    }
+  }
+
+  function createSequencer() {
+    createBody();
+    createBPMControls();
+    createChannels();
+  }
+
+  createSequencer();
+  animateCursor(initialBPM);
+</script>
