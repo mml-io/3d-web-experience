@@ -20,7 +20,7 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/model-loader": "0.15.0",
+    "@mml-io/model-loader": "0.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "three": "0.163.0"
