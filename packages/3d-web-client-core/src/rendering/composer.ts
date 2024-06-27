@@ -304,6 +304,7 @@ export class Composer {
 
   public dispose() {
     window.removeEventListener("resize", this.resizeListener);
+    this.renderer.dispose();
   }
 
   public fitContainer() {

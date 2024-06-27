@@ -139,7 +139,7 @@ export abstract class ReconnectingWebSocket {
             console.warn("Ignoring websocket close event because it is no longer current");
             return;
           }
-          console.log("NetworkedDOMWebsocket close", e);
+          console.log("ReconnectingWebSocket close", e);
           onWebsocketClose();
         });
         websocket.addEventListener("error", (e) => {
@@ -147,7 +147,7 @@ export abstract class ReconnectingWebSocket {
             console.log("Ignoring websocket error event because it is no longer current");
             return;
           }
-          console.error("NetworkedDOMWebsocket error", e);
+          console.error("ReconnectingWebSocket error", e);
           onWebsocketClose();
         });
 

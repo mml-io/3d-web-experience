@@ -3,6 +3,7 @@ export const IDENTITY_MESSAGE_TYPE = "identity";
 export const USER_AUTHENTICATE_MESSAGE_TYPE = "user_auth";
 export const USER_PROFILE_MESSAGE_TYPE = "user_profile";
 export const USER_UPDATE_MESSAGE_TYPE = "user_update";
+export const SERVER_ERROR_MESSAGE_TYPE = "error";
 export const PING_MESSAGE_TYPE = "ping";
 export const PONG_MESSAGE_TYPE = "pong";
 
@@ -39,6 +40,19 @@ export type DisconnectedMessage = {
   id: number;
 };
 
+export const CONNECTION_LIMIT_REACHED_ERROR_TYPE = "CONNECTION_LIMIT_REACHED";
+export const AUTHENTICATION_FAILED_ERROR_TYPE = "AUTHENTICATION_FAILED";
+
+export type ServerErrorType =
+  | typeof CONNECTION_LIMIT_REACHED_ERROR_TYPE
+  | typeof AUTHENTICATION_FAILED_ERROR_TYPE;
+
+export type ServerError = {
+  type: typeof SERVER_ERROR_MESSAGE_TYPE;
+  errorType: ServerErrorType;
+  message: string;
+};
+
 export type FromServerPingMessage = {
   type: typeof PING_MESSAGE_TYPE;
 };
@@ -47,7 +61,8 @@ export type FromServerMessage =
   | IdentityMessage
   | UserProfileMessage
   | DisconnectedMessage
-  | FromServerPingMessage;
+  | FromServerPingMessage
+  | ServerError;
 
 export type FromClientPongMessage = {
   type: typeof PONG_MESSAGE_TYPE;
