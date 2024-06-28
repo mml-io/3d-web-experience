@@ -535,7 +535,7 @@
 
       // create the room ======================================================
       const roomModel = document.createElement("m-model");
-      roomModel.setAttribute("src", "/assets/playground/building_module.glb");
+      roomModel.setAttribute("src", "/assets/playground/building_module_bright_2.glb");
       roomModel.setAttribute("z", zPos);
       progressionSpace.appendChild(roomModel);
 
@@ -550,13 +550,14 @@
 
         const travelatorPZ = document.createElement("m-frame");
         travelatorPZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
+        travelatorPZ.setAttribute("ry", 180);
         travelatorPZ.setAttribute("x", -roomsWidth + 3);
         travelatorPZ.setAttribute("z", zPos + 10);
         progressionSpace.appendChild(travelatorPZ);
 
         const travelatorNZ = document.createElement("m-frame");
         travelatorNZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
-        travelatorNZ.setAttribute("ry", 180);
+        travelatorNZ.setAttribute("ry", 0);
         travelatorNZ.setAttribute("x", -roomsWidth + 10);
         travelatorNZ.setAttribute("z", zPos + 10);
         progressionSpace.appendChild(travelatorNZ);
@@ -679,6 +680,14 @@
     );
     progressionSpace.appendChild(corridor.meshGroup);
   }
+
+  const dunes = document.createElement("m-model");
+  dunes.setAttribute("src", "/assets/playground/sanddunes.glb");
+  dunes.setAttribute("sx", "2");
+  dunes.setAttribute("sy", "2");
+  dunes.setAttribute("sz", "2");
+  dunes.setAttribute("y", "-1");
+  progressionSpace.appendChild(dunes);
 
   createProgression();
 </script>
