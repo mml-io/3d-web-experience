@@ -73,11 +73,11 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const getPlaceholderByType = (type: CustomAvatarType) => {
     switch (type) {
       case "glb":
-        return "https://example.com/avatar.glb";
+        return "https://.../avatar.glb";
       case "html":
-        return "https://example.com/avatar.html";
+        return "https://.../avatar.html";
       case "mml":
-        return '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n</m-character';
+        return '<m-character src="https://link-to-avatar">\n</m-character';
     }
   };
 
