@@ -1,23 +1,23 @@
 import WebSocket from "ws";
 
 import {
-  CHAT_MESSAGE_TYPE,
-  CONNECTED_MESSAGE_TYPE,
-  ConnectedMessage,
-  DISCONNECTED_MESSAGE_TYPE,
-  DisconnectedMessage,
-  FromClientAuthenticateMessage,
+  CHAT_NETWORKING_CHAT_MESSAGE_TYPE,
+  CHAT_NETWORKING_CONNECTED_MESSAGE_TYPE,
+  ChatNetworkingConnectedMessage,
+  CHAT_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
+  ChatNetworkingDisconnectedMessage,
   FromClientMessage,
-  FromServerChatMessage,
+  ChatNetworkingServerChatMessage,
   FromServerMessage,
-  IDENTITY_MESSAGE_TYPE,
-  IdentityMessage,
-  PONG_MESSAGE_TYPE,
-  USER_AUTHENTICATE_MESSAGE_TYPE,
+  CHAT_NETWORKING_IDENTITY_MESSAGE_TYPE,
+  ChatNetworkingIdentityMessage,
+  CHAT_NETWORKING_PONG_MESSAGE_TYPE,
+  ChatNetworkingServerError,
+  CHAT_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
 } from "./ChatNetworkingMessages";
 import { heartBeatRate, pingPongRate } from "./ChatNetworkingSettings";
 
-export type Client = {
+export type ChatNetworkingServerClient = {
   socket: WebSocket;
   id: number | null;
   lastPong: number;
@@ -30,12 +30,15 @@ export type ChatNetworkingServerOptions = {
 };
 
 export class ChatNetworkingServer {
-  private allClients = new Set<Client>();
-  private clientsById = new Map<number, Client>();
+  private allClients = new Set<ChatNetworkingServerClient>();
+  private clientsById = new Map<number, ChatNetworkingServerClient>();
+
+  private pingClientsIntervalTimer: NodeJS.Timeout;
+  private heartbeatIntervalTimer: NodeJS.Timeout;
 
   constructor(private options: ChatNetworkingServerOptions) {
-    setInterval(this.pingClients.bind(this), pingPongRate);
-    setInterval(this.heartBeat.bind(this), heartBeatRate);
+    this.pingClientsIntervalTimer = setInterval(this.pingClients.bind(this), pingPongRate);
+    this.heartbeatIntervalTimer = setInterval(this.heartBeat.bind(this), heartBeatRate);
   }
 
   private heartBeat() {
@@ -48,7 +51,10 @@ export class ChatNetworkingServer {
     });
   }
 
-  private sendToAuthenticated(message: FromServerMessage, exceptClient?: Client) {
+  private sendToAuthenticated(
+    message: FromServerMessage,
+    exceptClient?: ChatNetworkingServerClient,
+  ) {
     const stringified = JSON.stringify(message);
     for (const client of this.allClients) {
       if (
@@ -61,16 +67,16 @@ export class ChatNetworkingServer {
     }
   }
 
-  private handleDisconnectedClient(client: Client) {
+  private handleDisconnectedClient(client: ChatNetworkingServerClient) {
     if (!this.allClients.has(client)) {
       return;
     }
     this.allClients.delete(client);
     if (client.id) {
       this.clientsById.delete(client.id);
-      const disconnectMessage: DisconnectedMessage = {
+      const disconnectMessage: ChatNetworkingDisconnectedMessage = {
         id: client.id,
-        type: DISCONNECTED_MESSAGE_TYPE,
+        type: CHAT_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
       };
       this.sendToAuthenticated(disconnectMessage);
     }
@@ -83,7 +89,7 @@ export class ChatNetworkingServer {
   public connectClient(socket: WebSocket) {
     console.log(`Client joined chat.`);
 
-    const client: Client = {
+    const client: ChatNetworkingServerClient = {
       id: null,
       lastPong: Date.now(),
       socket: socket as WebSocket,
@@ -99,7 +105,7 @@ export class ChatNetworkingServer {
         return;
       }
       if (!client.id) {
-        if (parsed.type === USER_AUTHENTICATE_MESSAGE_TYPE) {
+        if (parsed.type === CHAT_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE) {
           const { sessionToken } = parsed;
           const authResponse = this.options.getChatUserIdentity(sessionToken);
           if (authResponse === null) {
@@ -119,12 +125,15 @@ export class ChatNetworkingServer {
           client.id = authResponse.id;
           this.clientsById.set(client.id, client);
           socket.send(
-            JSON.stringify({ type: IDENTITY_MESSAGE_TYPE, id: client.id } as IdentityMessage),
+            JSON.stringify({
+              type: CHAT_NETWORKING_IDENTITY_MESSAGE_TYPE,
+              id: client.id,
+            } as ChatNetworkingIdentityMessage),
           );
           const connectedMessage = {
-            type: CONNECTED_MESSAGE_TYPE,
+            type: CHAT_NETWORKING_CONNECTED_MESSAGE_TYPE,
             id: client.id,
-          } as ConnectedMessage;
+          } as ChatNetworkingConnectedMessage;
           this.sendToAuthenticated(connectedMessage, client);
         } else {
           console.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
@@ -132,13 +141,13 @@ export class ChatNetworkingServer {
         }
       } else {
         switch (parsed.type) {
-          case PONG_MESSAGE_TYPE:
+          case CHAT_NETWORKING_PONG_MESSAGE_TYPE:
             client.lastPong = Date.now();
             break;
 
-          case CHAT_MESSAGE_TYPE:
-            const asChatMessage: FromServerChatMessage = {
-              type: CHAT_MESSAGE_TYPE,
+          case CHAT_NETWORKING_CHAT_MESSAGE_TYPE:
+            const asChatMessage: ChatNetworkingServerChatMessage = {
+              type: CHAT_NETWORKING_CHAT_MESSAGE_TYPE,
               id: client.id,
               text: parsed.text,
             };
@@ -162,6 +171,20 @@ export class ChatNetworkingServer {
     if (client) {
       client.socket.close();
       this.handleDisconnectedClient(client);
+    }
+  }
+
+  public dispose(clientCloseError?: ChatNetworkingServerError) {
+    clearInterval(this.pingClientsIntervalTimer);
+    clearInterval(this.heartbeatIntervalTimer);
+
+    const stringifiedError = clientCloseError ? JSON.stringify(clientCloseError) : undefined;
+
+    for (const [, client] of this.clientsById) {
+      if (stringifiedError) {
+        client.socket.send(stringifiedError);
+      }
+      client.socket.close();
     }
   }
 }

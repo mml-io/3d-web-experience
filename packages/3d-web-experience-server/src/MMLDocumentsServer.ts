@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import url from "url";
 
-import chokidar from "chokidar";
+import chokidar, { FSWatcher } from "chokidar";
 import { EditableNetworkedDOM, LocalObservableDOMFactory } from "networked-dom-server";
 import WebSocket from "ws";
 
@@ -18,9 +18,18 @@ export class MMLDocumentsServer {
       document: EditableNetworkedDOM;
     }
   >();
+  private watcher: FSWatcher;
 
   constructor(private directory: string) {
     this.watch();
+  }
+
+  public dispose() {
+    for (const { document } of this.documents.values()) {
+      document.dispose();
+    }
+    this.documents.clear();
+    this.watcher.close();
   }
 
   public handle(filename: string, ws: WebSocket) {
@@ -37,11 +46,11 @@ export class MMLDocumentsServer {
   }
 
   private watch() {
-    const watcher = chokidar.watch(this.directory, {
+    this.watcher = chokidar.watch(this.directory, {
       ignored: /^\./,
       persistent: true,
     });
-    watcher
+    this.watcher
       .on("add", (relativeFilePath) => {
         const filename = path.basename(relativeFilePath);
         console.log(`Example document '${filename}' has been added`);
