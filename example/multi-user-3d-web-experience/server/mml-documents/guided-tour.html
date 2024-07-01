@@ -549,6 +549,18 @@
       roomModel.setAttribute("z", zPos);
       progressionSpace.appendChild(roomModel);
 
+      const window = document.createElement("m-cube");
+      window.setAttribute("color", "#001122");
+      window.setAttribute("depth", 41.5);
+      window.setAttribute("height", 17);
+      window.setAttribute("width", 0.3);
+      window.setAttribute("opacity", 0.4);
+      window.setAttribute("x", 17.6);
+      window.setAttribute("y", 10.2);
+      window.setAttribute("z", zPos + 0.1);
+      window.setAttribute("cast-shadows", false);
+      progressionSpace.appendChild(window);
+
       // create the curves for the passages between rooms (loading) ===========
       if (i < numberOfRooms - 1) {
         const hallway = document.createElement("m-model");

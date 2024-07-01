@@ -46,12 +46,13 @@
     ></m-cube>
     <m-cube
       id="attributes-label-frame-border"
-      color="#212121"
+      color="#ddeeff"
       width="6.1"
       height="3.9"
       depth="0.1"
       z="-0.156"
     ></m-cube>
+    <m-model src="/assets/playground/mml_code_frame.glb" sx="0.75" sy="0.75" sz="0.75"></m-model>
   </m-group>
 </m-group>
 
@@ -73,10 +74,10 @@
 
   const currentAttributeLabels = new Map();
   const labelColor = "#ddeeff";
-  const labelWidth = 3;
-  const labelHeight = 0.26;
+  const labelWidth = 3.2;
+  const labelHeight = 0.265;
   const borderWidth = 0.17;
-  const labelsYOffset = 0.1;
+  const labelsYOffset = -0.01;
   const attributesLabelGroup = document.getElementById("attributes-label-group");
   const attributesLabelFrame = document.getElementById("attributes-label-frame");
   const attributesLabelBorder = document.getElementById("attributes-label-frame-border");
@@ -350,8 +351,8 @@
     attributesLabelFrame.setAttribute("width", labelWidth);
     attributesLabelFrame.setAttribute("height", frameHeight);
     attributesLabelFrame.setAttribute("y", frameHeight / 2 + borderWidth + labelsYOffset + frameY);
-    attributesLabelBorder.setAttribute("width", labelWidth + borderWidth);
-    attributesLabelBorder.setAttribute("height", borderHeight);
+    attributesLabelBorder.setAttribute("width", labelWidth + borderWidth + 0.2);
+    attributesLabelBorder.setAttribute("height", borderHeight + 0.2);
     attributesLabelBorder.setAttribute(
       "y",
       borderHeight / 2 + borderWidth / 2 + labelsYOffset + frameY,
