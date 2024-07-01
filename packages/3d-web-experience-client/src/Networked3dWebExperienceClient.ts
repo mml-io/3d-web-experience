@@ -1,4 +1,4 @@
-import { AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
+import { AvatarSelectionUI, AvatarType } from "@mml-io/3d-web-avatar-selection-ui";
 import {
   AnimationConfig,
   CameraManager,
@@ -65,36 +65,9 @@ type MMLDocumentConfiguration = {
   };
 };
 
-export type AvatarType =
-  | {
-      thumbnailUrl?: string;
-      name?: string;
-      meshFileUrl: string;
-      mmlCharacterString?: null;
-      mmlCharacterUrl?: null;
-      isDefaultAvatar?: boolean;
-    }
-  | {
-      thumbnailUrl?: string;
-      name?: string;
-      meshFileUrl?: null;
-      mmlCharacterString: string;
-      mmlCharacterUrl?: null;
-      isDefaultAvatar?: boolean;
-    }
-  | {
-      thumbnailUrl?: string;
-      name?: string;
-      meshFileUrl?: null;
-      mmlCharacterString?: null;
-      mmlCharacterUrl: string;
-      isDefaultAvatar?: boolean;
-    };
-
-type AvatarConfig = {
+export type AvatarConfiguration = {
   availableAvatars?: Array<AvatarType>;
   allowCustomAvatars?: boolean;
-  customAvatarWebhookUrl?: string;
 };
 
 export type Networked3dWebExperienceClientConfig = {
@@ -110,7 +83,7 @@ export type Networked3dWebExperienceClientConfig = {
   skyboxHdrJpgUrl: string;
   enableTweakPane?: boolean;
   updateURLLocation?: boolean;
-  avatarConfig?: AvatarConfig;
+  avatarConfig?: AvatarConfiguration;
 };
 
 export class Networked3dWebExperienceClient {

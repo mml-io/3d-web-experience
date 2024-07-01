@@ -18,7 +18,6 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-client": "^0.17.0",
     "express": "4.19.2",
     "express-ws": "5.0.2",
     "react": "^18.2.0",
