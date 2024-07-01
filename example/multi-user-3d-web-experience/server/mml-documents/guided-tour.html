@@ -521,6 +521,16 @@
         progressionSpace.appendChild(externalElement);
         break;
       }
+      case 3: {
+        externalElement = createFrame(
+          "wss:///mml-documents/example-earth-info-api.html",
+          10,
+          0,
+          zPos,
+        );
+        progressionSpace.appendChild(externalElement);
+        break;
+      }
       default:
         break;
     }
@@ -686,7 +696,7 @@
   dunes.setAttribute("sx", "2");
   dunes.setAttribute("sy", "2");
   dunes.setAttribute("sz", "2");
-  dunes.setAttribute("y", "-1");
+  dunes.setAttribute("y", "-10");
   progressionSpace.appendChild(dunes);
 
   createProgression();
