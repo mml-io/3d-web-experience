@@ -1,4 +1,3 @@
-import { Avatar } from "@mml-io/3d-web-experience-client";
 import React, {
   KeyboardEvent,
   useRef,
@@ -8,18 +7,23 @@ import React, {
 } from "react";
 
 import { CustomAvatar } from "../../AvatarSelectionUI";
+import { AvatarType } from "../../AvatarType";
 import AvatarIcon from "../../icons/Avatar.svg";
 
 import styles from "./AvatarSelectionUIComponent.module.css";
 
 type AvatarSelectionUIProps = {
-  onUpdateUserAvatar: (avatar: Avatar) => void;
+  onUpdateUserAvatar: (avatar: AvatarType) => void;
   visibleByDefault?: boolean;
-  availableAvatars: Avatar[];
+  availableAvatars: AvatarType[];
   enableCustomAvatar?: boolean;
 };
 
-type CustomAvatarType = "glb" | "html" | "mml";
+enum CustomAvatarType {
+  glb,
+  html,
+  mml,
+}
 
 export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSelectionUIProps> = (
   props: AvatarSelectionUIProps,
@@ -27,7 +31,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const visibleByDefault: boolean = props.visibleByDefault ?? false;
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
   const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatar | undefined>(undefined);
-  const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>("glb");
+  const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>(CustomAvatarType.html);
   const [customAvatarValue, setCustomAvatarValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,9 +55,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
     }
 
     const newSelectedAvatar = {
-      mmlCharacterString: customAvatarType === "mml" ? customAvatarValue : undefined,
-      mmlCharacterUrl: customAvatarType === "html" ? customAvatarValue : undefined,
-      meshFileUrl: customAvatarType === "glb" ? customAvatarValue : undefined,
+      mmlCharacterString: customAvatarType === CustomAvatarType.mml ? customAvatarValue : undefined,
+      mmlCharacterUrl: customAvatarType === CustomAvatarType.html ? customAvatarValue : undefined,
+      meshFileUrl: customAvatarType === CustomAvatarType.glb ? customAvatarValue : undefined,
       isCustomAvatar: true,
     } as CustomAvatar;
 
@@ -68,15 +72,15 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const handleTypeSwitch = (type: CustomAvatarType) => {
     setCustomAvatarType(type);
     setCustomAvatarValue("");
-  }
+  };
 
   const getPlaceholderByType = (type: CustomAvatarType) => {
     switch (type) {
-      case "glb":
+      case CustomAvatarType.glb:
         return "https://.../avatar.glb";
-      case "html":
+      case CustomAvatarType.html:
         return "https://.../avatar.html";
-      case "mml":
+      case CustomAvatarType.mml:
         return '<m-character src="https://link-to-avatar">\n</m-character';
     }
   };
@@ -132,33 +136,33 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
               <h2>Custom Avatar Section</h2>
               <input
                 type="radio"
-                id="glb"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch("glb")}
-                defaultChecked={customAvatarType === "glb"}
-                checked={customAvatarType === "glb"}
-              />
-              <label htmlFor="glb">GLB</label>
-              <input
-                type="radio"
                 id="html"
                 name="customAvatarType"
-                onChange={() => handleTypeSwitch("html")}
-                defaultChecked={customAvatarType === "html"}
-                checked={customAvatarType === "html"}
+                onChange={() => handleTypeSwitch(CustomAvatarType.html)}
+                defaultChecked={customAvatarType === CustomAvatarType.html}
+                checked={customAvatarType === CustomAvatarType.html}
               />
-              <label htmlFor="html">HTML</label>
+              <label htmlFor="html">MML URL</label>
               <input
                 type="radio"
                 id="mml"
                 name="customAvatarType"
-                onChange={() => handleTypeSwitch("mml")}
-                defaultChecked={customAvatarType === "mml"}
-                checked={customAvatarType === "mml"}
+                onChange={() => handleTypeSwitch(CustomAvatarType.mml)}
+                defaultChecked={customAvatarType === CustomAvatarType.mml}
+                checked={customAvatarType === CustomAvatarType.mml}
               />
               <label htmlFor="mml">MML</label>
+              <input
+                type="radio"
+                id="glb"
+                name="customAvatarType"
+                onChange={() => handleTypeSwitch(CustomAvatarType.glb)}
+                defaultChecked={customAvatarType === CustomAvatarType.glb}
+                checked={customAvatarType === CustomAvatarType.glb}
+              />
+              <label htmlFor="glb">Mesh URL</label>
               <div className={styles.customAvatarInputSection}>
-                {customAvatarType === "mml" ? (
+                {customAvatarType === CustomAvatarType.mml ? (
                   <textarea
                     ref={textareaRef}
                     className={styles.customAvatarInput}
