@@ -3,7 +3,7 @@ import React, {
   useRef,
   useState,
   ForwardRefRenderFunction,
-  MouseEvent,
+  MouseEvent, useEffect,
 } from "react";
 
 import { CustomAvatar } from "../../AvatarSelectionUI";
@@ -23,6 +23,10 @@ enum CustomAvatarType {
   glb,
   html,
   mml,
+}
+
+function SelectedPill() {
+  return <span className={styles.selectedPill}>Selected</span>;
 }
 
 export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSelectionUIProps> = (
@@ -96,43 +100,46 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
       </div>
       {isVisible && (
         <div className={`${styles.avatarSelectionContainer}`}>
-          <div className={styles.avatarSelectionUi}>
-            <div className={styles.avatarSelectionUiHeader}>
-              <h2>Choose your avatar</h2>
-              <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
-                X
-              </button>
-            </div>
-            <div className={styles.avatarSelectionUiContent}>
-              {props.availableAvatars.map((avatar, index) => {
-                const isSelected =
-                  !selectedAvatar?.isCustomAvatar &&
-                  ((selectedAvatar?.meshFileUrl &&
-                    selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
-                    (selectedAvatar?.mmlCharacterUrl &&
-                      selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
-                    (selectedAvatar?.mmlCharacterString &&
-                      selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
+          {!!props.availableAvatars.length && (
+            <div className={styles.avatarSelectionUi}>
+              <div className={styles.avatarSelectionUiHeader}>
+                <h2>Choose your avatar</h2>
+                <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
+                  X
+                </button>
+              </div>
+              <div className={styles.avatarSelectionUiContent}>
+                {props.availableAvatars.map((avatar, index) => {
+                  const isSelected =
+                    !selectedAvatar?.isCustomAvatar &&
+                    ((selectedAvatar?.meshFileUrl &&
+                      selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
+                      (selectedAvatar?.mmlCharacterUrl &&
+                        selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
+                      (selectedAvatar?.mmlCharacterString &&
+                        selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
 
-                return (
-                  <div
-                    key={index}
-                    className={styles.avatarSelectionUiAvatar}
-                    onClick={() => selectAvatar(avatar)}
-                  >
-                    <img
-                      className={isSelected ? styles.selectedAvatar : ""}
-                      src={avatar.thumbnailUrl}
-                      alt={avatar.name}
-                    />
-                    <h2>{avatar.name}</h2>
-                  </div>
-                );
-              })}
+                  return (
+                    <div
+                      key={index}
+                      className={styles.avatarSelectionUiAvatar}
+                      onClick={() => selectAvatar(avatar)}
+                    >
+                      <div className={styles.avatarSelectionUiAvatarImgContainer}>
+                        {isSelected && <SelectedPill />}
+                        <img src={avatar.thumbnailUrl} alt={avatar.name} />
+                      </div>
+                      <p>{avatar.name}</p>
+                      <span className={styles.tooltipText}>{avatar.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
           {props.enableCustomAvatar && (
             <div className={styles.customAvatarSection}>
+              {!!props.availableAvatars.length && <hr />}
               <h2>Custom Avatar Section</h2>
               <input
                 type="radio"
@@ -161,6 +168,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 checked={customAvatarType === CustomAvatarType.glb}
               />
               <label htmlFor="glb">Mesh URL</label>
+              {selectedAvatar?.isCustomAvatar && <SelectedPill />}
               <div className={styles.customAvatarInputSection}>
                 {customAvatarType === CustomAvatarType.mml ? (
                   <textarea
@@ -186,11 +194,6 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                   Set
                 </button>
               </div>
-              {selectedAvatar?.isCustomAvatar && (
-                <div>
-                  <h2 className={styles.selectedAvatar}>Custom Avatar Selected</h2>
-                </div>
-              )}
             </div>
           )}
         </div>
