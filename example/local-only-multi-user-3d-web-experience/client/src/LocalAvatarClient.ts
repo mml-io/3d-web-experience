@@ -46,6 +46,7 @@ const characterDescription: CharacterDescription = {
 
 export class LocalAvatarClient {
   public element: HTMLDivElement;
+  private canvasHolder: HTMLDivElement;
 
   private readonly scene = new Scene();
   private readonly audioListener = new AudioListener();
@@ -83,8 +84,14 @@ export class LocalAvatarClient {
       }
     });
 
+    this.canvasHolder = document.createElement("div");
+    this.canvasHolder.style.position = "absolute";
+    this.canvasHolder.style.width = "100%";
+    this.canvasHolder.style.height = "100%";
+    this.element.appendChild(this.canvasHolder);
+
     this.cameraManager = new CameraManager(
-      this.element,
+      this.canvasHolder,
       this.collisionsManager,
       Math.PI / 2,
       Math.PI / 2,

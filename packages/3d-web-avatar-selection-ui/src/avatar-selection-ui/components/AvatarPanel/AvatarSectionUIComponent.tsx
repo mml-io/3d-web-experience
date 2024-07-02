@@ -1,9 +1,9 @@
 import React, {
+  ForwardRefRenderFunction,
   KeyboardEvent,
+  MouseEvent,
   useRef,
   useState,
-  ForwardRefRenderFunction,
-  MouseEvent, useEffect,
 } from "react";
 
 import { CustomAvatar } from "../../AvatarSelectionUI";

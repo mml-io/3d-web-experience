@@ -30,7 +30,8 @@ const app = new Networked3dWebExperienceClient(holder, {
   avatarConfig: {
     availableAvatars: [
       {
-        thumbnailUrl:"https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
+        thumbnailUrl:
+          "https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
         mmlCharacterUrl: "https://mmlstorage.com/eYIAFx/1706889930376.html",
         name: "Avatar 1ahlishdflkjhaskjdfhlakj;shdfijlkhakjsdhfghjkabhsdyhuifbglakjhsdbfkjhabnsdkjfhnbsakjdhnbfjkws",
         isDefaultAvatar: false,
@@ -42,14 +43,17 @@ const app = new Networked3dWebExperienceClient(holder, {
         isDefaultAvatar: true,
       },
       {
-        thumbnailUrl: "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
-        mmlCharacterString: "<m-character src=\"https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78\">\n" +
+        thumbnailUrl:
+          "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
+        mmlCharacterString:
+          '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n' +
           "</m-character>",
         name: "Avatar 3",
         isDefaultAvatar: false,
       },
       {
-        thumbnailUrl:"https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
+        thumbnailUrl:
+          "https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
         mmlCharacterUrl: "https://mmlstorage.com/eYIAFx/1706889930376.html",
         name: "Avatar 1",
         isDefaultAvatar: false,
@@ -61,14 +65,17 @@ const app = new Networked3dWebExperienceClient(holder, {
         isDefaultAvatar: true,
       },
       {
-        thumbnailUrl: "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
-        mmlCharacterString: "<m-character src=\"https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78\">\n" +
+        thumbnailUrl:
+          "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
+        mmlCharacterString:
+          '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n' +
           "</m-character>",
         name: "Avatar 3",
         isDefaultAvatar: false,
       },
       {
-        thumbnailUrl:"https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
+        thumbnailUrl:
+          "https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
         mmlCharacterUrl: "https://mmlstorage.com/eYIAFx/1706889930376.html",
         name: "Avatar 1",
         isDefaultAvatar: false,
@@ -80,14 +87,17 @@ const app = new Networked3dWebExperienceClient(holder, {
         isDefaultAvatar: true,
       },
       {
-        thumbnailUrl: "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
-        mmlCharacterString: "<m-character src=\"https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78\">\n" +
+        thumbnailUrl:
+          "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
+        mmlCharacterString:
+          '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n' +
           "</m-character>",
         name: "Avatar 3",
         isDefaultAvatar: false,
       },
       {
-        thumbnailUrl:"https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
+        thumbnailUrl:
+          "https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
         mmlCharacterUrl: "https://mmlstorage.com/eYIAFx/1706889930376.html",
         name: "Avatar 1",
         isDefaultAvatar: false,
@@ -99,14 +109,17 @@ const app = new Networked3dWebExperienceClient(holder, {
         isDefaultAvatar: true,
       },
       {
-        thumbnailUrl: "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
-        mmlCharacterString: "<m-character src=\"https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78\">\n" +
+        thumbnailUrl:
+          "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
+        mmlCharacterString:
+          '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n' +
           "</m-character>",
         name: "Avatar 3",
         isDefaultAvatar: false,
       },
       {
-        thumbnailUrl:"https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
+        thumbnailUrl:
+          "https://e7.pngegg.com/pngimages/799/987/png-clipart-computer-icons-avatar-icon-design-avatar-heroes-computer-wallpaper-thumbnail.png",
         mmlCharacterUrl: "https://mmlstorage.com/eYIAFx/1706889930376.html",
         name: "Avatar 1",
         isDefaultAvatar: false,
@@ -118,15 +131,17 @@ const app = new Networked3dWebExperienceClient(holder, {
         isDefaultAvatar: true,
       },
       {
-        thumbnailUrl: "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
-        mmlCharacterString: "<m-character src=\"https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78\">\n" +
+        thumbnailUrl:
+          "https://static.vecteezy.com/system/resources/previews/019/896/008/original/male-user-avatar-icon-in-flat-design-style-person-signs-illustration-png.png",
+        mmlCharacterString:
+          '<m-character src="https://mmlstorage.com/fca2e81688f8c26b1671b701e399f0a5c9756307607d78c11739293d2e530e78">\n' +
           "</m-character>",
         name: "Avatar 3",
         isDefaultAvatar: false,
       },
     ],
     // allowCustomAvatars: true,
-  }
+  },
 });
 
 app.update();
