@@ -1,37 +1,69 @@
 <m-group id="earthquake-sign">
   <m-model
     src="/assets/playground/hazard.glb"
-    sx="0.51" sy="0.55" sz="0.51"
-    x="0" y="0.57" z="-0.07"
+    sx="0.51"
+    sy="0.55"
+    sz="0.51"
+    x="0"
+    y="0.57"
+    z="-0.07"
   ></m-model>
   <m-label
     id="days-without-label"
-    width="10" height="0.7"
+    width="10"
+    height="0.7"
     content=""
     font-size="35"
     y="1"
   ></m-label>
   <m-label
     id="latest-info-lable"
-    width="10" height="0.4"
+    width="10"
+    height="0.4"
     content=""
     font-size="25"
     y="0.5"
   ></m-label>
+  <m-label id="latest-ago" width="10" height="0.5" content="" font-size="25" y="0.05"></m-label>
+</m-group>
+
+<m-group id="earthquake-sign-6" y="2">
+  <m-model
+    src="/assets/playground/hazard.glb"
+    sx="0.51"
+    sy="0.55"
+    sz="0.51"
+    x="0"
+    y="0.57"
+    z="-0.07"
+  ></m-model>
   <m-label
-    id="latest-ago"
-    width="10" height="0.5"
+    id="days-without-label-6"
+    width="10"
+    height="0.7"
+    content=""
+    font-size="35"
+    y="1"
+  ></m-label>
+  <m-label
+    id="latest-info-lable-6"
+    width="10"
+    height="0.4"
     content=""
     font-size="25"
-    y="0.05"
+    y="0.5"
   ></m-label>
+  <m-label id="latest-ago-6" width="10" height="0.5" content="" font-size="25" y="0.05"></m-label>
 </m-group>
-  
-  
+
 <script>
   const daysWithoutLabel = document.getElementById("days-without-label");
   const infoLabel = document.getElementById("latest-info-lable");
   const agoLabel = document.getElementById("latest-ago");
+
+  const daysWithoutLabel6 = document.getElementById("days-without-label-6");
+  const infoLabel6 = document.getElementById("latest-info-lable-6");
+  const agoLabel6 = document.getElementById("latest-ago-6");
 
   function getHumanReadableDateDifference(date1, date2) {
     const msPerMinute = 60 * 1000;
@@ -42,25 +74,25 @@
 
     if (difference < msPerHour) {
       const minutes = Math.round(difference / msPerMinute);
-      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+      return `${minutes} minute${minutes > 1 ? "s" : ""} ago`;
     } else if (difference < msPerDay) {
       const hours = Math.floor(difference / msPerHour);
       const minuteDifference = difference % msPerHour;
       const minutes = Math.round(minuteDifference / msPerMinute);
-      return `${hours} hour${hours > 1 ? 's' : ''} and ${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+      return `${hours} hour${hours > 1 ? "s" : ""} and ${minutes} minute${minutes > 1 ? "s" : ""} ago`;
     } else if (difference < msPerWeek) {
       const days = Math.floor(difference / msPerDay);
       let dayRemainder = difference % msPerDay;
       const hours = Math.floor(dayRemainder / msPerHour);
       dayRemainder %= msPerHour;
       const minutes = Math.round(dayRemainder / msPerMinute);
-      return `${days} day${days > 1 ? 's' : ''}, ${hours} hour${hours > 1 ? 's' : ''}, and ${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+      return `${days} day${days > 1 ? "s" : ""}, ${hours} hour${hours > 1 ? "s" : ""}, and ${minutes} minute${minutes > 1 ? "s" : ""} ago`;
     } else {
-      return date2.toLocaleDateString("en-GB", { month: 'short', day: 'numeric', year: 'numeric' });
+      return date2.toLocaleDateString("en-GB", { month: "short", day: "numeric", year: "numeric" });
     }
   }
 
-  async function fetchEarthquakesAPIData() {
+  async function fetchEarthquakesAPIData(minMagnitude) {
     const endPoint = "https://earthquake.usgs.gov/fdsnws/event/1/query";
     const dateNow = new Date();
     const dateNowYYYYMMDD = dateNow.toISOString().split("T")[0];
@@ -75,11 +107,15 @@
       longitude: -118.2437,
       maxradiuskm: 20000,
       orderby: "time",
-      format: 'geojson'
+      format: "geojson",
     };
 
+    if (minMagnitude) {
+      params.minmagnitude = minMagnitude;
+    }
+
     const queryParams = Object.keys(params)
-      .map(key => key + "=" + encodeURIComponent(params[key]))
+      .map((key) => key + "=" + encodeURIComponent(params[key]))
       .join("&");
 
     const queryString = `${endPoint}?${queryParams}`;
@@ -89,8 +125,8 @@
       if (!response.ok) {
         throw new Error(`HTTP error fetching Earthquakes data! Status: ${response.status}`);
       }
-      if (!response.headers.get('content-type')?.includes('application/json')) {
-        console.error('Received non-JSON response for Earthquakes data');
+      if (!response.headers.get("content-type")?.includes("application/json")) {
+        console.error("Received non-JSON response for Earthquakes data");
         return;
       }
       const data = await response.json();
@@ -100,7 +136,7 @@
       const earthquakeTime = new Date(time);
       const earthquakeTimeStamp = [
         earthquakeTime.toISOString().split("T")[0],
-        earthquakeTime.toISOString().split("T")[1].slice(0, 8)
+        earthquakeTime.toISOString().split("T")[1].slice(0, 8),
       ].join(" ");
 
       const now = new Date();
@@ -108,17 +144,31 @@
       const readableDifference = getHumanReadableDateDifference(now, earthquakeTime);
       const differenceInTime = now - earthquakeTime;
       const differenceInDays = Math.floor(differenceInTime / (1000 * 3600 * 24));
-      
-      daysWithoutLabel.setAttribute("content", `Days without an Earthquake: ${differenceInDays}`);
-      infoLabel.setAttribute("content", `Magnitude ${mag} Earthquake ${place}`);
-      agoLabel.setAttribute("content", `${readableDifference}`);
+
+      if (minMagnitude) {
+        daysWithoutLabel6.setAttribute(
+          "content",
+          `Days without a Magnitude ${minMagnitude} Earthquake: ${differenceInDays}`,
+        );
+        infoLabel6.setAttribute("content", `Magnitude ${mag} Earthquake ${place}`);
+        agoLabel6.setAttribute("content", `${readableDifference}`);
+      } else {
+        daysWithoutLabel.setAttribute("content", `Days without an Earthquake: ${differenceInDays}`);
+        infoLabel.setAttribute("content", `Magnitude ${mag} Earthquake ${place}`);
+        agoLabel.setAttribute("content", `${readableDifference}`);
+      }
     } catch (error) {
-      console.error('Error fetching Earthquakes data: ', error);
+      console.error("Error fetching Earthquakes data: ", error);
     }
   }
   fetchEarthquakesAPIData();
+  fetchEarthquakesAPIData(6);
 
-  setInterval(() => {
-    fetchEarthquakesAPIData();
-  }, 1000 * 60 * 5);
+  setInterval(
+    () => {
+      fetchEarthquakesAPIData();
+      fetchEarthquakesAPIData(6);
+    },
+    1000 * 60 * 5,
+  );
 </script>
