@@ -88,6 +88,7 @@ export type Networked3dWebExperienceClientConfig = {
 
 export class Networked3dWebExperienceClient {
   private element: HTMLDivElement;
+  private canvasHolder: HTMLDivElement;
 
   private scene = new Scene();
   private composer: Composer;
@@ -147,7 +148,13 @@ export class Networked3dWebExperienceClient {
       }
     });
 
-    this.cameraManager = new CameraManager(this.element, this.collisionsManager);
+    this.canvasHolder = document.createElement("div");
+    this.canvasHolder.style.position = "absolute";
+    this.canvasHolder.style.width = "100%";
+    this.canvasHolder.style.height = "100%";
+    this.element.appendChild(this.canvasHolder);
+
+    this.cameraManager = new CameraManager(this.canvasHolder, this.collisionsManager);
     this.cameraManager.camera.add(this.audioListener);
 
     this.virtualJoystick = new VirtualJoystick(this.element, {
@@ -166,7 +173,7 @@ export class Networked3dWebExperienceClient {
     });
 
     this.composer.useHDRJPG(this.config.skyboxHdrJpgUrl);
-    this.element.appendChild(this.composer.renderer.domElement);
+    this.canvasHolder.appendChild(this.composer.renderer.domElement);
 
     if (this.config.enableTweakPane !== false) {
       this.tweakPane = new TweakPane(
