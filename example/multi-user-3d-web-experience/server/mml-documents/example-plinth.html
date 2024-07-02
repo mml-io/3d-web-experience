@@ -34,25 +34,8 @@
     </m-model>
   </m-group>
 
-  <m-group id="attributes-label-group" x="1" y="0" z="8" ry="240" sx="1.75" sy="1.75">
-    <m-group id="control-buttons-group" rx="-55" y="-0.3" z="1"></m-group>
-    <m-cube
-      id="attributes-label-frame"
-      color="#88ccff"
-      width="5.9"
-      height="3.5"
-      depth="0.09"
-      z="-0.155"
-    ></m-cube>
-    <m-cube
-      id="attributes-label-frame-border"
-      color="#ddeeff"
-      width="6.1"
-      height="3.9"
-      depth="0.1"
-      z="-0.156"
-    ></m-cube>
-    <m-model src="/assets/playground/mml_code_frame.glb" sx="0.75" sy="0.75" sz="0.75"></m-model>
+  <m-group id="attributes-label-group" x="-1" y="0" z="-8" ry="-90">
+    <m-model src="/assets/playground/mml_code_frame.glb" sx="0.65" sy="0.65" sz="0.65"></m-model>
   </m-group>
 </m-group>
 
@@ -72,15 +55,7 @@
   const maxRotationSpeed = 10;
   const triggerEffectTime = 700;
 
-  const currentAttributeLabels = new Map();
-  const labelColor = "#ddeeff";
-  const labelWidth = 3.2;
-  const labelHeight = 0.265;
-  const borderWidth = 0.17;
-  const labelsYOffset = -0.01;
   const attributesLabelGroup = document.getElementById("attributes-label-group");
-  const attributesLabelFrame = document.getElementById("attributes-label-frame");
-  const attributesLabelBorder = document.getElementById("attributes-label-frame-border");
 
   const unitDuration = 20000;
 
@@ -274,7 +249,7 @@
     }
   }
 
-  const infoButton = new InteractionButton(-3, 0, -4.5, 90, plinthDemo);
+  const infoButton = new InteractionButton(-1, 0, -5.3, 90, plinthDemo);
   infoButton.setupInfo("/assets/playground/placeholder_info_audio.mp3", 4500, 3);
   // ================================================================
 
@@ -340,64 +315,114 @@
     }
   }
 
-  function createLabel(str, amount, index) {
-    const y = amount * labelHeight - index * labelHeight;
-    const frameHeight = (amount + 1) * labelHeight;
-    const frameY = y - 0.5;
-    const borderHeight = frameHeight + borderWidth;
+  class CodeDisplay {
+    currentAttributeLabels = new Map();
+    totalLines = 0;
 
-    const firstOrLast = index === amount - 1 || index === 0;
+    /**
+     * Creates an instance of CodeDisplay.
+     * @param {Object} config Configuration object for the CodeDisplay.
+     * @param {number} config.width The width of the display panel.
+     * @param {number} config.height The height of the display panel.
+     * @param {number} config.depth The depth of the display panel.
+     * @param {string} config.bgColor The background color.
+     * @param {string} config.fgColor The foreground color.
+     * @param {number} config.textWidth The width of each text line.
+     * @param {number} config.textHeight The height of each text line.
+     * @param {number} config.fontSize The font size for the text.
+     * @param {HTMLElement} config.parentElement The parent element to which the panel will be appended.
+     */
+    constructor({
+      width,
+      height,
+      depth,
+      bgColor,
+      fgColor,
+      textWidth,
+      textHeight,
+      fontSize,
+      parentElement,
+    }) {
+      this.panel = document.createElement("m-cube");
+      this.width = width;
+      this.height = height;
+      this.depth = depth;
+      this.bgColor = bgColor;
+      this.fgColor = fgColor;
+      this.textWidth = textWidth;
+      this.textHeight = textHeight;
+      this.fontSize = fontSize;
+      this.parentElement = parentElement;
 
-    attributesLabelFrame.setAttribute("width", labelWidth);
-    attributesLabelFrame.setAttribute("height", frameHeight);
-    attributesLabelFrame.setAttribute("y", frameHeight / 2 + borderWidth + labelsYOffset + frameY);
-    attributesLabelBorder.setAttribute("width", labelWidth + borderWidth + 0.2);
-    attributesLabelBorder.setAttribute("height", borderHeight + 0.2);
-    attributesLabelBorder.setAttribute(
-      "y",
-      borderHeight / 2 + borderWidth / 2 + labelsYOffset + frameY,
-    );
-
-    if (str.includes("/assets/playground/")) {
-      str = str.replace("/assets/playground/", "https://mml.io/");
+      this.panel.setAttribute("width", this.width);
+      this.panel.setAttribute("height", this.height);
+      this.panel.setAttribute("depth", this.depth);
+      this.panel.setAttribute("color", this.bgColor);
+      this.panel.setAttribute("y", this.height / 2);
+      this.panel.setAttribute("z", -this.depth / 2 - 0.01);
+      this.parentElement.appendChild(this.panel);
     }
 
-    const label = document.createElement("m-label");
-    label.setAttribute("font-size", 22);
-    label.setAttribute("color", labelColor);
-    label.setAttribute("content", firstOrLast ? ` ${str}` : `    ${str}`);
-    label.setAttribute("padding", 0);
-    label.setAttribute("alignment", "left");
-    label.setAttribute("width", labelWidth);
-    label.setAttribute("height", 0.3);
-    label.setAttribute("y", y + labelsYOffset);
-    label.setAttribute("z", -0.1);
-    currentAttributeLabels.set(index, label);
-    return label;
-  }
+    createLabel(index, str) {
+      if (str.includes("/assets/playground/")) {
+        str = str.replace("/assets/playground/", "https://mml.io/");
+      }
+      const y = this.totalLines * this.textHeight - index * this.textHeight;
+      const yOffset = ((this.totalLines + 0.5) * this.textHeight) / 2;
+      const firstOrLast = index === this.totalLines - 1 || index === 0;
+      const text = firstOrLast ? ` ${str}` : `    ${str}`;
+      const label = document.createElement("m-label");
+      label.setAttribute("font-size", this.fontSize);
+      label.setAttribute("color", this.bgColor);
+      label.setAttribute("content", text);
+      label.setAttribute("padding", 0);
+      label.setAttribute("alignment", "left");
+      label.setAttribute("width", this.textWidth);
+      label.setAttribute("height", this.textHeight);
+      label.setAttribute("y", y - yOffset);
+      label.setAttribute("z", this.depth / 2 + 0.01);
+      return label;
+    }
 
-  function createLabels(attributes) {
-    currentAttributeLabels.forEach((label) => label.remove());
-    currentAttributeLabels.clear();
-    for (let i = 0; i < attributes.length; i++) {
-      const label = createLabel(attributes[i], attributes.length, i);
-      attributesLabelGroup.appendChild(label);
+    createLabels(attributes) {
+      this.totalLines = attributes.length;
+      this.currentAttributeLabels.forEach((label) => this.panel.removeChild(label));
+      this.currentAttributeLabels.clear();
+      for (let i = 0; i < attributes.length; i++) {
+        const label = this.createLabel(i, attributes[i]);
+        this.currentAttributeLabels.set(i, label);
+        this.panel.appendChild(label);
+      }
+    }
+
+    setPanelTextFromAttributes(element, tagOpen, tagClose) {
+      const attributes = [];
+      for (const attr of element.getAttributeNames()) {
+        let val = element.getAttribute(attr);
+        const numberVal = parseFloat(val);
+        if (!isNaN(numberVal)) val = numberVal.toFixed(2);
+        attributes.push(`${attr}="${val}"`);
+      }
+      attributes.unshift(tagOpen);
+      attributes.push(tagClose);
+      this.createLabels(attributes);
     }
   }
+  const codeDisplay = new CodeDisplay({
+    width: 3.2,
+    height: 2.4,
+    depth: 0.1,
+    bgColor: "#ddeeff",
+    fgColor: "#000000",
+    textWidth: 2.8,
+    textHeight: 0.21,
+    fontSize: 19,
+    parentElement: attributesLabelGroup,
+  });
+  codeDisplay.setPanelTextFromAttributes(carAnim, "<m-attr-anim", "></m-attr-anim>");
 
   function updateAttributesLabel() {
-    const attributes = [];
-    for (const attr of carAnim.getAttributeNames()) {
-      let val = carAnim.getAttribute(attr);
-      const numberVal = parseFloat(val);
-      if (!isNaN(numberVal)) {
-        val = numberVal.toFixed(2);
-      }
-      attributes.push(`${attr}="${val}"`);
-    }
-    attributes.unshift("<m-attr-anim");
-    attributes.push("></m-attr-anim>");
-    createLabels(attributes);
+    codeDisplay.setPanelTextFromAttributes(carAnim, "<m-attr-anim", "></m-attr-anim>");
   }
 
   animationStartTime = document.timeline.currentTime;
