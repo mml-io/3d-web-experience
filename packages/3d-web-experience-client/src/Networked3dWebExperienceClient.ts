@@ -360,7 +360,7 @@ export class Networked3dWebExperienceClient {
       this.networkChat = new ChatNetworkingClient({
         url: this.config.chatNetworkAddress,
         sessionToken: this.config.sessionToken,
-        websocketFactory: (url: string) => new WebSocket(`${url}?id=${this.clientId}`),
+        websocketFactory: (url: string) => new WebSocket(url),
         statusUpdateCallback: (status: WebsocketStatus) => {
           if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
             // The connection was lost after being established - the connection may be re-established with a different client ID
