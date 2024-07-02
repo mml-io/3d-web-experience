@@ -108,7 +108,13 @@ export class ChatNetworkingServer {
             return;
           }
           if (this.clientsById.has(authResponse.id)) {
-            throw new Error(`Client already connected with ID: ${authResponse.id}`);
+            /*
+             This client is already connected. Reject the connection. If the old connection is abandoned then it will
+             be removed and retry attempts will succeed.
+            */
+            console.error(`Client already connected with ID: ${authResponse.id}`);
+            socket.close();
+            return;
           }
           client.id = authResponse.id;
           this.clientsById.set(client.id, client);
