@@ -1,6 +1,21 @@
-<m-group id="fall-guys-group" y="300"></m-group>
+<m-group id="fall-guys-group" y="300">
+  <m-group id="helis-group"></m-group>
+  <m-group id="rotate-group" ry="90" x="0.7"></m-group>
+  <m-group id="hammers-group" y="-3.5"></m-group>
+  <m-group id="sine-group"></m-group>
+  <m-group id="axe-group"></m-group>
+</m-group>
 <script>
   const fallGuysGroup = document.getElementById("fall-guys-group");
+  const helisGroup = document.getElementById("helis-group");
+  const rotateGroup = document.getElementById("rotate-group");
+  const hammersGroup = document.getElementById("hammers-group");
+  const sineGroup = document.getElementById("sine-group");
+  const axeGroup = document.getElementById("axe-group");
+
+  const hammersLeft = document.createElement("m-group");
+  const hammersRight = document.createElement("m-group");
+
   const usersInRange = new Map();
 
   const gameYPos = 90;
@@ -62,6 +77,19 @@
       element.setAttribute(attr, end);
       element.removeChild(anim);
     }, duration);
+    return anim;
+  }
+
+  function createPingPongAnim(attr, start, end, startTime, duration, pingPongDelay, easing) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("ping-pong", true);
+    anim.setAttribute("ping-pong-delay", pingPongDelay);
+    if (easing) anim.setAttribute("easing", easing);
     return anim;
   }
 
@@ -277,14 +305,251 @@
     fallGuysGroup.appendChild(end);
   }
 
-  createRespawner(gameYPos);
+  function spin(element, duration, clockWise = true) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", "ry");
+    anim.setAttribute("start", clockWise ? 0 : 360);
+    anim.setAttribute("end", clockWise ? 360 : 0);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("loop", true);
+    element.appendChild(anim);
+    return anim;
+  }
 
+  function createHeli(left = false) {
+    const heliGroup = document.createElement("m-group");
+    const body = document.createElement("m-model");
+    body.setAttribute("src", "/assets/playground/fg_heli_body.glb");
+    heliGroup.appendChild(body);
+
+    const heliBlade = document.createElement("m-model");
+    heliBlade.setAttribute("src", "/assets/playground/fg_heli_blade.glb");
+    spin(heliBlade, 200, left);
+    heliGroup.appendChild(heliBlade);
+
+    return heliGroup;
+  }
+
+  function createSpinner(x, y, z, clockWise = true) {
+    const spinner = document.createElement("m-model");
+    spinner.setAttribute("src", "/assets/playground/fg_circle_clean.glb");
+    spinner.setAttribute("x", x);
+    spinner.setAttribute("y", y);
+    spinner.setAttribute("z", z);
+    spinner.setAttribute("rx", clockWise ? 180 : 0);
+    spinner.setAttribute("rz", clockWise ? 180 : 0);
+    return spinner;
+  }
+
+  function createSpinnersInHexGrid(segmentOffset, y, width, depth, fullRotationTime) {
+    const spinnerRadius = 3.4999;
+    const spinnerDiameter = spinnerRadius * 2;
+    const hexHeight = (spinnerDiameter * Math.sqrt(3)) / 2;
+    const numSpinnersX = Math.floor(width / spinnerDiameter);
+    const numSpinnersZ = Math.floor(depth / hexHeight);
+
+    const totalWidth = numSpinnersX * spinnerDiameter + spinnerRadius;
+    const totalDepth = numSpinnersZ * hexHeight;
+    const halfTotalWidth = totalWidth / 2;
+    const halfRadius = spinnerRadius / 2;
+
+    for (let j = 0; j < numSpinnersZ; j++) {
+      for (let i = 0; i < numSpinnersX; i++) {
+        const ccw = (i + j) % 2 === 0;
+        const xOffset = (j % 2) * spinnerRadius;
+        const x = i * spinnerDiameter + xOffset - halfTotalWidth + halfRadius;
+        const z = j * hexHeight - totalDepth / 2 + halfRadius;
+        const spinner = createSpinner(x - segmentOffset, y, z, ccw);
+        spin(spinner, fullRotationTime, true);
+        rotateGroup.appendChild(spinner);
+      }
+    }
+  }
+
+  function createHelis(xPos, yPos) {
+    const now = document.timeline.currentTime;
+    for (let i = 0; i < 4; i++) {
+      for (let j = 0; j < 2; j++) {
+        const heli = createHeli(j === 0);
+        heli.setAttribute("x", j % 2 === 0 ? -17 : 17);
+        heli.setAttribute("y", yPos);
+        heli.setAttribute("z", -i * 8 + xPos);
+
+        const heliAnim = createPingPongAnim("y", yPos, yPos + 0.5, now * -i * 300, 12000, 1200);
+        heli.appendChild(heliAnim);
+        helisGroup.appendChild(heli);
+      }
+    }
+  }
+
+  function rotateInZ(element, startTime, fullRevoTime, clockWise = true) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", "rz");
+    anim.setAttribute("start", clockWise ? 0 : 360);
+    anim.setAttribute("end", clockWise ? 360 : 0);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("loop", true);
+    anim.setAttribute("duration", fullRevoTime);
+    element.appendChild(anim);
+  }
+
+  function createHammersBase() {
+    const baseGroup = document.createElement("m-group");
+    const base = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/fg_hammers_base.glb");
+    base.setAttribute("sx", 1);
+    base.setAttribute("sy", 1);
+    base.setAttribute("sz", 2);
+    baseGroup.appendChild(base);
+
+    for (let i = 0; i < 2; i++) {
+      const edge = document.createElement("m-model");
+      edge.setAttribute("src", "/assets/playground/fg_hammers_edge.glb");
+      edge.setAttribute("z", i % 3 === 0 ? 30 : -30);
+      baseGroup.appendChild(edge);
+    }
+    return baseGroup;
+  }
+
+  function createHammer(z) {
+    const hammer = document.createElement("m-model");
+    hammer.setAttribute("src", "/assets/playground/fg_hammers.glb");
+    hammer.setAttribute("z", z);
+    hammer.setAttribute("sx", 1);
+    hammer.setAttribute("sy", 0.95);
+    hammer.setAttribute("sz", 2.5);
+    return hammer;
+  }
+
+  function createHammers(segmentOffset, yPos) {
+    const now = document.timeline.currentTime;
+    const hammersCount = 13;
+    const hammersInitialOffset = -22.25;
+    const hammersOffset = 3.75;
+    const speedOffsetMult = 600;
+
+    const baseLeft = createHammersBase();
+    const baseRight = createHammersBase();
+    hammersLeft.appendChild(baseLeft);
+    hammersRight.appendChild(baseRight);
+
+    for (let i = 0; i < hammersCount; i++) {
+      const speedOffset = Math.random() * speedOffsetMult * (Math.random() < 0.5 ? -1 : 1);
+      const hammer = createHammer(hammersInitialOffset + hammersOffset * i);
+      rotateInZ(hammer, now - i * 300, 2100 + speedOffset, Math.random() < 0.5);
+      hammersLeft.appendChild(hammer);
+    }
+    for (let i = 0; i < hammersCount; i++) {
+      const speedOffset = Math.random() * speedOffsetMult * (Math.random() < 0.5 ? -1 : 1);
+      const hammer = createHammer(hammersInitialOffset + hammersOffset * i);
+      rotateInZ(hammer, now - i * 300, 2100 + speedOffset, Math.random() < 0.5);
+      hammersRight.appendChild(hammer);
+    }
+
+    hammersLeft.setAttribute("x", 6);
+    hammersLeft.setAttribute("y", yPos);
+    hammersLeft.setAttribute("z", segmentOffset);
+    hammersRight.setAttribute("x", -6);
+    hammersRight.setAttribute("y", yPos);
+    hammersRight.setAttribute("z", segmentOffset);
+    hammersGroup.appendChild(hammersLeft);
+    hammersGroup.appendChild(hammersRight);
+  }
+
+  function createHexagon(x, y, z) {
+    const hexagon = document.createElement("m-model");
+    hexagon.setAttribute("src", "/assets/playground/fg_hexagon.glb");
+    hexagon.setAttribute("x", x);
+    hexagon.setAttribute("y", y);
+    hexagon.setAttribute("z", z);
+    return hexagon;
+  }
+
+  function createSinePlatforms(segmentOffset, yPos) {
+    const now = document.timeline.currentTime;
+    const totalPlatforms = 10;
+    const sineTime = 10000;
+    for (let i = 0; i < totalPlatforms; i++) {
+      const hexPlatform = createHexagon(0, yPos, i * 11 + segmentOffset);
+      if (i < totalPlatforms - 1) {
+        const sineAnim = createPingPongAnim("x", -6, 6, now - i * 1000, sineTime, sineTime * 0.1);
+        hexPlatform.appendChild(sineAnim);
+        const yAnim = createPingPongAnim(
+          "y",
+          yPos,
+          yPos - 0.5,
+          now - i * 1000,
+          sineTime * 0.5,
+          sineAnim * 0.5 * 0.1,
+        );
+        hexPlatform.appendChild(yAnim);
+      }
+      sineGroup.appendChild(hexPlatform);
+    }
+  }
+
+  function createAxesBase(segmentOffset, yPos) {
+    const base = document.createElement("m-model");
+    base.setAttribute("src", "/assets/playground/fg_axe_base.glb");
+    base.setAttribute("z", segmentOffset);
+    base.setAttribute("y", yPos);
+    axeGroup.appendChild(base);
+  }
+
+  function createAxe(yPos, zPos) {
+    const axeGroup = document.createElement("m-group");
+
+    const axeRod = document.createElement("m-model");
+    axeRod.setAttribute("src", "/assets/playground/fg_axe_rod.glb");
+    axeRod.setAttribute("collide", false);
+    axeGroup.appendChild(axeRod);
+
+    const axeBlade = document.createElement("m-model");
+    axeBlade.setAttribute("src", "/assets/playground/fg_axe_blade.glb");
+    axeBlade.setAttribute("sz", 2);
+    axeGroup.appendChild(axeBlade);
+
+    axeGroup.setAttribute("z", zPos);
+    axeGroup.setAttribute("y", yPos + 19.8);
+
+    return axeGroup;
+  }
+
+  function createAxes(segmentOffset, yPos) {
+    const now = document.timeline.currentTime;
+    const totalAxes = 9;
+    const axeSwingTime = 4000;
+    const zOffset = -17;
+    const space = 4.25;
+    for (let i = 0; i < totalAxes; i++) {
+      const axe = createAxe(yPos, segmentOffset + zOffset + i * space);
+      const anim = createPingPongAnim(
+        "rz",
+        -45,
+        45,
+        now * -i * 15,
+        axeSwingTime,
+        axeSwingTime * 0.025,
+        "easeInOutQuad",
+      );
+      axe.appendChild(anim);
+      axeGroup.appendChild(axe);
+    }
+  }
+
+  function createAxesSegment(segmentOffset, yPos) {
+    createAxesBase(segmentOffset, yPos);
+    createAxes(segmentOffset, yPos);
+  }
+
+  createRespawner(gameYPos);
   createStart(gameYPos);
-  createStageFrame("wss:///mml-documents/example-fallguys-heli.html", 0, gameYPos, 70);
-  createStageFrame("wss:///mml-documents/example-fallguys-heli.html", 0, gameYPos, 140);
-  createStageFrame("wss:///mml-documents/example-fallguys-rotate.html", 0, gameYPos, 36.05);
-  createStageFrame("wss:///mml-documents/example-fallguys-hammers.html", 0, gameYPos, 98);
-  createStageFrame("wss:///mml-documents/example-fallguys-sine.html", 0, gameYPos, 135);
-  createStageFrame("wss:///mml-documents/example-fallguys-axe.html", 0, gameYPos, 259);
+  createHelis(70, gameYPos);
+  createHelis(140, gameYPos);
+  createSpinnersInHexGrid(36.05, gameYPos, 42, 19, 2900);
+  createHammers(98, gameYPos);
+  createSinePlatforms(135, gameYPos);
+  createAxesSegment(259, gameYPos);
   createEnd(gameYPos, 296.6);
 </script>
