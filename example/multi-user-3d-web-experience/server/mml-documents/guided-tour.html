@@ -20,6 +20,38 @@
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
+  class AutomaticDoor {
+    automaticDoorGroup = document.createElement("m-group");
+    usersColliding = new Set();
+
+    pressurePlateWidth = 7;
+    pressurePlateHeight = 0.05;
+    pressurePlateDepth = 5;
+    pressurePlateY = 0.1;
+    pressurePlateColor = "#aaaaaa";
+
+    openAnimDuration = 1;
+    openAnimEasing = "easeInOutCubic";
+    doorOpenY = 10.99;
+    doorClosedY = 5;
+
+    doorSound = null;
+    doorOpen = false;
+
+    createCube(width, height, depth, x, y, z, color, ry = 0) {
+      const cube = document.createElement("m-cube");
+      cube.setAttribute("width", width);
+      cube.setAttribute("height", height);
+      cube.setAttribute("depth", depth);
+      cube.setAttribute("x", x);
+      cube.setAttribute("y", y);
+      cube.setAttribute("z", z);
+      cube.setAttribute("ry", ry);
+      cube.setAttribute("color", color);
+      return cube;
+    }
+  }
+
   function createWall(width, height, depth, angle, x, y, z, color) {
     const group = document.createElement("m-group");
     const wall = document.createElement("m-cube");
@@ -564,8 +596,8 @@
       // create the curves for the passages between rooms (loading) ===========
       if (i < numberOfRooms - 1) {
         const hallway = document.createElement("m-model");
-        hallway.setAttribute("src", "/assets/playground/hallway_backdoor.glb");
-        hallway.setAttribute("z", zPos + roomsDepth / 2 + 4.2);
+        hallway.setAttribute("src", "/assets/playground/hallway_withdoors_fixed.glb");
+        hallway.setAttribute("z", zPos + roomsDepth / 2 + 4.0);
         hallway.setAttribute("x", 0.015);
         hallway.setAttribute("y", 0.015);
         progressionSpace.appendChild(hallway);

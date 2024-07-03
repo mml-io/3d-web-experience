@@ -6,7 +6,7 @@ import { Sun } from "../../sun/Sun";
 
 export const sunValues = {
   sunPosition: {
-    sunAzimuthalAngle: 155,
+    sunAzimuthalAngle: 325,
     sunPolarAngle: -45,
   },
   sunIntensity: 5.5,
@@ -26,7 +26,7 @@ const sunOptions = {
 export const envValues = {
   skyboxAzimuthalAngle: 79,
   skyboxPolarAngle: 0,
-  envMapIntensity: 0.07,
+  envMapIntensity: 0.17,
   skyboxIntensity: 0.8,
   skyboxBlurriness: 0.0,
   ambientLight: {

@@ -35,7 +35,13 @@
   </m-group>
 
   <m-group id="attributes-label-group" x="-1" y="0" z="-8" ry="-90">
-    <m-model src="/assets/playground/mml_code_frame.glb" sx="0.65" sy="0.65" sz="0.65"></m-model>
+    <m-model
+      y="0.4"
+      src="/assets/playground/mml_code_frame.glb"
+      sx="0.45"
+      sy="0.45"
+      sz="0.45"
+    ></m-model>
   </m-group>
 </m-group>
 
@@ -322,6 +328,9 @@
     /**
      * Creates an instance of CodeDisplay.
      * @param {Object} config Configuration object for the CodeDisplay.
+     * @param {number} config.x The x position of the display panel.
+     * @param {number} config.y The y position of the display panel.
+     * @param {number} config.z The z position of the display panel.
      * @param {number} config.width The width of the display panel.
      * @param {number} config.height The height of the display panel.
      * @param {number} config.depth The depth of the display panel.
@@ -333,6 +342,9 @@
      * @param {HTMLElement} config.parentElement The parent element to which the panel will be appended.
      */
     constructor({
+      x,
+      y,
+      z,
       width,
       height,
       depth,
@@ -344,6 +356,9 @@
       parentElement,
     }) {
       this.panel = document.createElement("m-cube");
+      this.x = x;
+      this.y = y;
+      this.z = z;
       this.width = width;
       this.height = height;
       this.depth = depth;
@@ -358,8 +373,9 @@
       this.panel.setAttribute("height", this.height);
       this.panel.setAttribute("depth", this.depth);
       this.panel.setAttribute("color", this.bgColor);
-      this.panel.setAttribute("y", this.height / 2);
-      this.panel.setAttribute("z", -this.depth / 2 - 0.01);
+      this.panel.setAttribute("x", this.x);
+      this.panel.setAttribute("y", this.height / 2 + this.y);
+      this.panel.setAttribute("z", -this.depth / 2 - 0.01 + this.z);
       this.parentElement.appendChild(this.panel);
     }
 
@@ -377,6 +393,7 @@
       label.setAttribute("content", text);
       label.setAttribute("padding", 0);
       label.setAttribute("alignment", "left");
+      label.setAttribute("font-color", this.fgColor);
       label.setAttribute("width", this.textWidth);
       label.setAttribute("height", this.textHeight);
       label.setAttribute("y", y - yOffset);
@@ -409,17 +426,20 @@
     }
   }
   const codeDisplay = new CodeDisplay({
-    width: 3.2,
-    height: 2.4,
+    x: 0,
+    y: 0.4,
+    z: 0,
+    width: 2.2,
+    height: 1.65,
     depth: 0.1,
-    bgColor: "#ddeeff",
-    fgColor: "#000000",
-    textWidth: 2.8,
-    textHeight: 0.21,
-    fontSize: 19,
+    bgColor: "#0d0208",
+    fgColor: "#00ff41",
+    textWidth: 1.9,
+    textHeight: 0.16,
+    fontSize: 13,
     parentElement: attributesLabelGroup,
   });
-  codeDisplay.setPanelTextFromAttributes(carAnim, "<m-attr-anim", "></m-attr-anim>");
+  codeDisplay.setPanelTextFromAttributes(carAnim, "<m-attr-anim test", "></m-attr-anim>");
 
   function updateAttributesLabel() {
     codeDisplay.setPanelTextFromAttributes(carAnim, "<m-attr-anim", "></m-attr-anim>");
