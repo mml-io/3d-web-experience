@@ -130,9 +130,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                         {avatar.thumbnailUrl ? (
                           <img src={avatar.thumbnailUrl} alt={avatar.name} />
                         ) : (
-                          <div>
-                            No Image Available
-                          </div>
+                          <div>No Image Available</div>
                         )}
                         <p>{avatar.name}</p>
                         <span className={styles.tooltipText}>{avatar.name}</span>

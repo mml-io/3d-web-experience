@@ -445,7 +445,11 @@ export class Networked3dWebExperienceClient {
   }
 
   private mountAvatarSelectionUI() {
-    if (!this.config.avatarConfiguration?.availableAvatars?.length && !this.config.avatarConfiguration?.allowCustomAvatars) return;
+    if (
+      !this.config.avatarConfiguration?.availableAvatars?.length &&
+      !this.config.avatarConfiguration?.allowCustomAvatars
+    )
+      return;
 
     if (this.clientId === null) {
       throw new Error("Client ID not set");
