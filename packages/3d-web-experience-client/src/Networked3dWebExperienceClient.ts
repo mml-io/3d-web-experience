@@ -83,7 +83,7 @@ export type Networked3dWebExperienceClientConfig = {
   skyboxHdrJpgUrl: string;
   enableTweakPane?: boolean;
   updateURLLocation?: boolean;
-  avatarConfig?: AvatarConfiguration;
+  avatarConfiguration?: AvatarConfiguration;
 };
 
 export class Networked3dWebExperienceClient {
@@ -445,6 +445,8 @@ export class Networked3dWebExperienceClient {
   }
 
   private mountAvatarSelectionUI() {
+    if (!this.config.avatarConfiguration?.availableAvatars?.length && !this.config.avatarConfiguration?.allowCustomAvatars) return;
+
     if (this.clientId === null) {
       throw new Error("Client ID not set");
     }
@@ -457,9 +459,9 @@ export class Networked3dWebExperienceClient {
       holderElement: this.element,
       clientId: this.clientId,
       visibleByDefault: false,
-      availableAvatars: this.config.avatarConfig?.availableAvatars ?? [],
+      availableAvatars: this.config.avatarConfiguration?.availableAvatars ?? [],
       sendMessageToServerMethod: this.sendIdentityUpdateToServer.bind(this),
-      enableCustomAvatar: this.config.avatarConfig?.allowCustomAvatars,
+      enableCustomAvatar: this.config.avatarConfiguration?.allowCustomAvatars,
     });
     this.avatarSelectionUI.init();
   }
