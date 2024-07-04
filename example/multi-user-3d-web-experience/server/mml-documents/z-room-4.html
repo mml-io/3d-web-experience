@@ -72,13 +72,18 @@
   }
   createTeleporter(0, 0, -7, 589.98);
 
-  function createDoor(width, height, x, y, z, thickness, parentElement) {
+  function createDoor(
+    { width, height, x, y, z, buttonX, buttonY, buttonZFront, buttonZBack },
+    parentElement,
+  ) {
     const doorGroup = document.createElement("m-group");
-    const offset = -0.045;
+
     const doorAnimDuration = 1200;
     const doorSoundDuration = 1500;
     const buttonAnimDuration = 210;
     const buttonSoundDuration = 1200;
+    const buttonPushOffset = 0.05;
+
     const easing = "easeInOutCubic";
 
     let doorIsOpen = false;
@@ -86,7 +91,7 @@
 
     const doorFrame = document.createElement("m-model");
     doorFrame.setAttribute("src", "/assets/playground/doorframe.glb");
-    doorGroup.appendChild(doorFrame);
+    // doorGroup.appendChild(doorFrame);
 
     const door = document.createElement("m-cube");
     door.setAttribute("z", 0.035);
@@ -151,17 +156,14 @@
     const buttonOnURL = "/assets/playground/open_button_on.glb";
     const buttonOffURL = "/assets/playground/open_button_off.glb";
 
-    const buttonX = 3.19;
-    const buttonY = 1.7;
-
-    const doorButtonBase = createModel(buttonBaseURL, buttonX, buttonY, -0.1);
-    const doorButtonOn = createModel(buttonOnURL, buttonX, buttonY, -0.1);
-    const doorButtonOff = createModel(buttonOffURL, buttonX, buttonY, -0.1);
+    const doorButtonBase = createModel(buttonBaseURL, buttonX, buttonY, buttonZFront);
+    const doorButtonOn = createModel(buttonOnURL, buttonX, buttonY, buttonZFront);
+    const doorButtonOff = createModel(buttonOffURL, buttonX, buttonY, buttonZFront);
     scale(doorButtonOff, 0.001);
 
-    const doorBackButtonBase = createModel(buttonBaseURL, buttonX, buttonY, thickness, 180);
-    const doorBackButtonOn = createModel(buttonOnURL, buttonX, buttonY, thickness, 180);
-    const doorBackButtonOff = createModel(buttonOffURL, buttonX, buttonY, thickness, 180);
+    const doorBackButtonBase = createModel(buttonBaseURL, buttonX, buttonY, buttonZBack, 180);
+    const doorBackButtonOn = createModel(buttonOnURL, buttonX, buttonY, buttonZBack, 180);
+    const doorBackButtonOff = createModel(buttonOffURL, buttonX, buttonY, buttonZBack, 180);
     scale(doorBackButtonOff, 0.001);
 
     doorGroup.appendChild(doorButtonBase);
@@ -172,30 +174,44 @@
     doorGroup.appendChild(doorBackButtonOff);
 
     const pushButtonAnim = () => {
-      animateElement(doorButtonOn, "z", -0.1, -0.045, buttonAnimDuration, easing);
+      animateElement(
+        doorButtonOn,
+        "z",
+        buttonZFront,
+        buttonZFront + buttonPushOffset,
+        buttonAnimDuration,
+        easing,
+      );
     };
 
     const pushBackButtonAnim = () => {
       animateElement(
         doorBackButtonOn,
         "z",
-        thickness,
-        thickness - 0.045,
+        buttonZBack,
+        buttonZBack - buttonPushOffset,
         buttonAnimDuration,
         easing,
       );
     };
 
     const releaseButtonAnim = () => {
-      animateElement(doorButtonOn, "z", -0.045, -0.1, buttonAnimDuration, easing);
+      animateElement(
+        doorButtonOn,
+        "z",
+        buttonZFront + buttonPushOffset,
+        buttonZFront,
+        buttonAnimDuration,
+        easing,
+      );
     };
 
     const releaseBackButtonAnim = () => {
       animateElement(
         doorBackButtonOn,
         "z",
-        thickness - 0.045,
-        thickness,
+        buttonZBack - buttonPushOffset,
+        buttonZBack,
         buttonAnimDuration,
         easing,
       );
@@ -290,5 +306,32 @@
     setupButtonSound();
     parentElement.appendChild(doorGroup);
   }
-  createDoor(5, 6, -12.6, 0.03, 22.55, 0.39, roomContentGroup);
+  createDoor(
+    {
+      width: 5,
+      height: 6,
+      x: -12.6,
+      y: 0.03,
+      z: 22.76,
+      buttonX: 3.19,
+      buttonY: 1.7,
+      buttonZFront: -0.32,
+      buttonZBack: 0.51,
+    },
+    roomContentGroup,
+  );
+  createDoor(
+    {
+      width: 5,
+      height: 6,
+      x: 12.6,
+      y: 0.03,
+      z: -22.44,
+      buttonX: -3.19,
+      buttonY: 1.7,
+      buttonZFront: -0.37,
+      buttonZBack: 0.18,
+    },
+    roomContentGroup,
+  );
 </script>

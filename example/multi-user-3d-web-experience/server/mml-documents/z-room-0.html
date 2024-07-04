@@ -1,14 +1,15 @@
 <m-group id="room-content"></m-group>
 <m-frame
   src="wss:///mml-documents/example-gliders.html"
-  sz="2"
-  sy="2"
-  x="-17.21"
-  z="1.09"
+  sz="3.14"
+  sy="2.63"
+  x="-17.65"
+  y="2.05"
+  z="-0.02"
 ></m-frame>
 
-<m-group id="flat-screen" x="0" y="4.5" z="22.36" ry="180" sx="1.3" sy="1.3">
-  <m-cube color="#000000" width="9.2" height="5.7" depth="0.03" z="-0.02"></m-cube>
+<m-group id="flat-screen" x="3.75" y="9.3" z="22.36" ry="180" sx="2.5" sy="2.5">
+  <m-cube color="#707070" width="9.2" height="5.7" depth="0.03" z="-0.02"></m-cube>
   <m-cube color="#212121" width="9" height="5.5" depth="0.03" z="-0.01"></m-cube>
   <m-video
     id="video-player-1"
@@ -34,21 +35,6 @@
     start-time="-53050"
     pause-time="0"
   ></m-video>
-  <m-group y="-3">
-    <m-cube width="3.4" height="0.23" depth="0.01" color="#999999"></m-cube>
-    <m-label
-      id="spectators-label"
-      font-size="15"
-      color="#000000"
-      font-color="#cccccc"
-      alignment="center"
-      padding="0"
-      width="3.35"
-      height="0.2"
-      z="0.01"
-      content=""
-    ></m-label>
-  </m-group>
 </m-group>
 
 <script>
@@ -58,13 +44,22 @@
   const videoPlayer2 = document.getElementById("video-player-2");
   const spectatorsLabel = document.getElementById("spectators-label");
 
-  function createDoor(width, height, x, y, z, thickness, parentElement) {
+  videoPlayer1.setAttribute("z", 0.01);
+  videoPlayer1.setAttribute("src", "/assets/playground/sonic_ghz.mp4");
+  videoPlayer2.setAttribute("src", "/assets/playground/sonic_ghz.mp4");
+
+  function createDoor(
+    { width, height, x, y, z, buttonX, buttonY, buttonZFront, buttonZBack },
+    parentElement,
+  ) {
     const doorGroup = document.createElement("m-group");
-    const offset = -0.045;
+
     const doorAnimDuration = 1200;
     const doorSoundDuration = 1500;
     const buttonAnimDuration = 210;
     const buttonSoundDuration = 1200;
+    const buttonPushOffset = 0.05;
+
     const easing = "easeInOutCubic";
 
     let doorIsOpen = false;
@@ -72,7 +67,7 @@
 
     const doorFrame = document.createElement("m-model");
     doorFrame.setAttribute("src", "/assets/playground/doorframe.glb");
-    doorGroup.appendChild(doorFrame);
+    // doorGroup.appendChild(doorFrame);
 
     const door = document.createElement("m-cube");
     door.setAttribute("z", 0.035);
@@ -137,17 +132,14 @@
     const buttonOnURL = "/assets/playground/open_button_on.glb";
     const buttonOffURL = "/assets/playground/open_button_off.glb";
 
-    const buttonX = 3.19;
-    const buttonY = 1.7;
-
-    const doorButtonBase = createModel(buttonBaseURL, buttonX, buttonY, -0.1);
-    const doorButtonOn = createModel(buttonOnURL, buttonX, buttonY, -0.1);
-    const doorButtonOff = createModel(buttonOffURL, buttonX, buttonY, -0.1);
+    const doorButtonBase = createModel(buttonBaseURL, buttonX, buttonY, buttonZFront);
+    const doorButtonOn = createModel(buttonOnURL, buttonX, buttonY, buttonZFront);
+    const doorButtonOff = createModel(buttonOffURL, buttonX, buttonY, buttonZFront);
     scale(doorButtonOff, 0.001);
 
-    const doorBackButtonBase = createModel(buttonBaseURL, buttonX, buttonY, thickness, 180);
-    const doorBackButtonOn = createModel(buttonOnURL, buttonX, buttonY, thickness, 180);
-    const doorBackButtonOff = createModel(buttonOffURL, buttonX, buttonY, thickness, 180);
+    const doorBackButtonBase = createModel(buttonBaseURL, buttonX, buttonY, buttonZBack, 180);
+    const doorBackButtonOn = createModel(buttonOnURL, buttonX, buttonY, buttonZBack, 180);
+    const doorBackButtonOff = createModel(buttonOffURL, buttonX, buttonY, buttonZBack, 180);
     scale(doorBackButtonOff, 0.001);
 
     doorGroup.appendChild(doorButtonBase);
@@ -158,30 +150,44 @@
     doorGroup.appendChild(doorBackButtonOff);
 
     const pushButtonAnim = () => {
-      animateElement(doorButtonOn, "z", -0.1, -0.045, buttonAnimDuration, easing);
+      animateElement(
+        doorButtonOn,
+        "z",
+        buttonZFront,
+        buttonZFront + buttonPushOffset,
+        buttonAnimDuration,
+        easing,
+      );
     };
 
     const pushBackButtonAnim = () => {
       animateElement(
         doorBackButtonOn,
         "z",
-        thickness,
-        thickness - 0.045,
+        buttonZBack,
+        buttonZBack - buttonPushOffset,
         buttonAnimDuration,
         easing,
       );
     };
 
     const releaseButtonAnim = () => {
-      animateElement(doorButtonOn, "z", -0.045, -0.1, buttonAnimDuration, easing);
+      animateElement(
+        doorButtonOn,
+        "z",
+        buttonZFront + buttonPushOffset,
+        buttonZFront,
+        buttonAnimDuration,
+        easing,
+      );
     };
 
     const releaseBackButtonAnim = () => {
       animateElement(
         doorBackButtonOn,
         "z",
-        thickness - 0.045,
-        thickness,
+        buttonZBack - buttonPushOffset,
+        buttonZBack,
         buttonAnimDuration,
         easing,
       );
@@ -276,5 +282,32 @@
     setupButtonSound();
     parentElement.appendChild(doorGroup);
   }
-  createDoor(5, 6, -12.6, 0.03, 22.55, 0.39, roomContentGroup);
+  createDoor(
+    {
+      width: 5,
+      height: 6,
+      x: -12.6,
+      y: 0.03,
+      z: 22.76,
+      buttonX: 3.19,
+      buttonY: 1.7,
+      buttonZFront: -0.32,
+      buttonZBack: 0.51,
+    },
+    roomContentGroup,
+  );
+  createDoor(
+    {
+      width: 5,
+      height: 6,
+      x: 12.6,
+      y: 0.03,
+      z: -22.46,
+      buttonX: -3.19,
+      buttonY: 1.7,
+      buttonZFront: -0.37,
+      buttonZBack: 0.0,
+    },
+    roomContentGroup,
+  );
 </script>

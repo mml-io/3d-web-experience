@@ -1,71 +1,53 @@
 <m-group id="conway-frame"></m-group>
-<m-group id="cubes-group"></m-group>
+<m-group id="cubes-group" ry="90"></m-group>
 
 <script>
   const cubesGroup = document.getElementById("cubes-group");
   const conwayFrame = document.getElementById("conway-frame");
-  const resetButton = document.createElement("m-label");
 
-  let world = [];
-  const worldSize = 12;
-  const cellSize = 0.5;
+  const worldSizeX = 19; // Number of cells horizontally
+  const worldSizeY = 16; // Number of cells vertically
+  const squareSize = 6;
+  const cellWidth = squareSize / worldSizeX;
+  const cellHeight = squareSize / worldSizeY;
+
+  const visibleOpacity = 1;
+  const invisibleOpacity = 0;
+
+  let world = new Array(worldSizeX).fill().map(() => Array(worldSizeY).fill(0));
   const spawnChance = 0.3333334;
   let stepCount = 0;
 
-  function createBorder(side) {
-    const sy = side === "top" || side === "bottom" ? 0.5 : worldSize / 2;
-    const sz = sy === 0.5 ? worldSize / 2 + 1 : 0.5;
-    const pz =
-      side === "left" ? -(worldSize / 4 + 0.25) : side === "right" ? worldSize / 4 + 0.25 : 0;
-    const py =
-      side === "top" ? worldSize / 2 + 0.75 : side === "bottom" ? 0.25 : worldSize / 4 + 0.5;
-    const border = document.createElement("m-cube");
-    border.setAttribute("color", "black");
-    border.setAttribute("x", 0);
-    border.setAttribute("y", py);
-    border.setAttribute("z", pz);
-    border.setAttribute("sx", 0.5);
-    border.setAttribute("sy", sy);
-    border.setAttribute("sz", sz);
-    conwayFrame.appendChild(border);
-  }
-
-  createBorder("top");
-  createBorder("bottom");
-  createBorder("left");
-  createBorder("right");
-
   const cubesMap = new Map();
   const statesHistory = new Set();
+
+  let currentCellCount = 0;
+  const latestCellCount = [];
 
   function getID(x, y) {
     return `x:${x}-y:${y}`;
   }
 
   function initializeCubes() {
-    for (let x = 0; x < worldSize; x++) {
-      for (let y = 0; y < worldSize; y++) {
-        let red = Math.floor((x / worldSize) * 255);
-        let green = Math.floor((y / worldSize) * 255);
+    for (let x = 0; x < worldSizeX; x++) {
+      for (let y = 0; y < worldSizeY; y++) {
+        let red = Math.floor((x / worldSizeX) * 255);
+        let green = Math.floor((y / worldSizeY) * 255);
         let blue = 128;
-        const redHex = ("0" + red.toString(16)).slice(-2);
-        const greenHex = ("0" + green.toString(16)).slice(-2);
-        const blueHex = ("0" + blue.toString(16)).slice(-2);
-        const color = "#" + redHex + greenHex + blueHex;
+        const color = `#${("0" + red.toString(16)).slice(-2)}${("0" + green.toString(16)).slice(-2)}${("0" + blue.toString(16)).slice(-2)}`;
         const cubeID = getID(x, y);
         const cube = document.createElement("m-cube");
         cube.id = cubeID;
-        cube.setAttribute("id", cubeID);
-        cube.setAttribute("x", 0);
-        cube.setAttribute("y", cellSize * 2 + x * cellSize - cellSize / 2);
-        cube.setAttribute("z", (y - worldSize / 2) * cellSize + cellSize / 2);
+        cube.setAttribute("x", (x - worldSizeX / 2) * cellWidth + cellWidth / 2);
+        cube.setAttribute("y", cellHeight * y + cellHeight / 2);
+        cube.setAttribute("z", 0);
         cube.setAttribute("color", color);
-        cube.setAttribute("sx", "0.5");
-        cube.setAttribute("sy", "0.5");
-        cube.setAttribute("sz", "0.5");
+        cube.setAttribute("sx", cellWidth);
+        cube.setAttribute("sy", cellHeight);
+        cube.setAttribute("sz", 0.25);
         cube.setAttribute("collide", false);
         cube.setAttribute("cast-shadows", false);
-        cube.setAttribute("opacity", 0);
+        cube.setAttribute("opacity", invisibleOpacity);
         cubesMap.set(cubeID, cube);
         cubesGroup.appendChild(cube);
       }
@@ -75,14 +57,14 @@
   function toggleCube(x, y, visible) {
     const cubeID = getID(x, y);
     const cube = document.getElementById(cubeID);
-    cube.setAttribute("opacity", visible ? 1 : 0);
+    cube.setAttribute("opacity", visible ? visibleOpacity : invisibleOpacity);
     cube.setAttribute("cast-shadows", visible ? true : false);
   }
 
   function createCube(x, y) {
     const cubeID = getID(x, y);
     const cubeToCreate = cubesMap.get(cubeID);
-    cubeToCreate.setAttribute("opacity", 1);
+    cubeToCreate.setAttribute("opacity", visibleOpacity);
     cubeToCreate.setAttribute("cast-shadows", true);
   }
 
@@ -90,15 +72,14 @@
     const cubeID = getID(x, y);
     const cubeToDelete = cubesMap.get(cubeID);
     if (cubeToDelete) {
-      cubeToDelete.setAttribute("opacity", 0);
+      cubeToDelete.setAttribute("opacity", invisibleOpacity);
       cubeToDelete.setAttribute("cast-shadows", false);
     }
   }
 
   function initWorld() {
-    for (let x = 0; x < worldSize; x++) {
-      world[x] = [];
-      for (let y = 0; y < worldSize; y++) {
+    for (let x = 0; x < worldSizeX; x++) {
+      for (let y = 0; y < worldSizeY; y++) {
         world[x][y] = Math.random() < spawnChance ? 1 : 0;
         toggleCube(x, y, world[x][y]);
       }
@@ -107,8 +88,8 @@
 
   function resetSimulation() {
     statesHistory.clear();
-    for (let x = 0; x < worldSize; x++) {
-      for (let y = 0; y < worldSize; y++) {
+    for (let x = 0; x < worldSizeX; x++) {
+      for (let y = 0; y < worldSizeY; y++) {
         world[x][y] = Math.random() < spawnChance ? 1 : 0;
         toggleCube(x, y, world[x][y]);
       }
@@ -117,12 +98,11 @@
   }
 
   function update() {
-    const newWorld = [];
+    const newWorld = new Array(worldSizeX).fill().map(() => Array(worldSizeY).fill(0));
     let hash = "";
-
-    for (let x = 0; x < worldSize; x++) {
-      newWorld[x] = [];
-      for (let y = 0; y < worldSize; y++) {
+    let aliveCells = 0;
+    for (let x = 0; x < worldSizeX; x++) {
+      for (let y = 0; y < worldSizeY; y++) {
         const nn = countNeighbours(x, y);
         const alive = world[x][y] === 1;
         if (alive && (nn < 2 || nn > 3)) {
@@ -133,6 +113,9 @@
           newWorld[x][y] = world[x][y];
         }
 
+        if (newWorld[x][y] === 1) {
+          aliveCells++;
+        }
         hash += `${newWorld[x][y]}`;
 
         if (newWorld[x][y]) {
@@ -142,11 +125,21 @@
         }
       }
     }
+    currentCellCount = aliveCells;
+    latestCellCount.push(currentCellCount);
+    if (latestCellCount.length > 1000) {
+      latestCellCount.shift();
+    }
 
     world = newWorld;
     stepCount++;
 
-    if (statesHistory.has(hash)) {
+    let stuckWithGliders = false;
+    if (stepCount % 100 === 0) {
+      stuckWithGliders = latestCellCount.every((num) => num === latestCellCount[0]);
+    }
+
+    if (statesHistory.has(hash) || stuckWithGliders) {
       resetSimulation();
     } else {
       statesHistory.add(hash);
@@ -161,11 +154,9 @@
     let count = 0;
     for (let dx = -1; dx <= 1; dx++) {
       for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) {
-          continue;
-        }
-        const nx = (x + dx + worldSize) % worldSize;
-        const ny = (y + dy + worldSize) % worldSize;
+        if (dx === 0 && dy === 0) continue;
+        const nx = (x + dx + worldSizeX) % worldSizeX;
+        const ny = (y + dy + worldSizeY) % worldSizeY;
         count += world[nx][ny];
       }
     }
@@ -174,5 +165,5 @@
 
   initializeCubes();
   initWorld();
-  window.setInterval(update, 250);
+  window.setInterval(update, 210);
 </script>
