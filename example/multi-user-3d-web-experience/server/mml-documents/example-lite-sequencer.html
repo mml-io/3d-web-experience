@@ -14,8 +14,8 @@
 
   const bars = 16;
   const instruments = 4;
-  const minBPM = 60;
-  const maxBPM = 360;
+  const minBPM = 40;
+  const maxBPM = 400;
 
   const buttonsGap = 0.1;
   const buttonSize = 0.5;
@@ -23,9 +23,11 @@
   const offSatLight = "20%, 40%";
   const onSatLight = "100%, 80%";
 
+  const defaultPreset = [[0, 5, 8, 13], [0], [0, 1, 3, 4, 7, 9, 11, 12, 15], [2, 6, 10, 14]];
+
   let intervalId = null;
-  let initialBPM = 210;
-  let bpmStep = 5;
+  let initialBPM = 170;
+  let bpmStep = 10;
   let currentBar = 0;
   let bpmDisplay = null;
 
@@ -84,7 +86,7 @@
   }
 
   function animateCursor(bpm) {
-    const beatDuration = bpmToMS(bpm);
+    const beatDuration = bpmToMS(bpm * 2);
     const posStart = buttonSize * 0.1 + 0.1 - 10;
     const posEnd = buttonSize * 0.1 + 0.1;
 
@@ -224,11 +226,66 @@
       increaseBPM();
     });
 
+    const presetButton = createCube(1.25, 0.3, 0.2, "#888888", 2.75, -1.5, 0.05);
+    sequencerGroup.appendChild(presetButton);
+    const presetButtonLabel = createLabel(
+      1.25,
+      0.3,
+      "#888888",
+      "#aaddaa",
+      2.75,
+      -1.5,
+      0.16,
+      "PRESET",
+    );
+    presetButtonLabel.addEventListener("click", () => {
+      clearSequencer();
+      presetSequencer();
+    });
+    sequencerGroup.appendChild(presetButtonLabel);
+
+    const clearButton = createCube(1.25, 0.3, 0.2, "#888888", 4.125, -1.5, 0.05);
+    sequencerGroup.appendChild(clearButton);
+    const clearButtonLabel = createLabel(
+      1.25,
+      0.3,
+      "#888888",
+      "#ddaaaa",
+      4.125,
+      -1.5,
+      0.16,
+      "CLEAR",
+    );
+    clearButtonLabel.addEventListener("click", () => {
+      clearSequencer();
+    });
+    sequencerGroup.appendChild(clearButtonLabel);
+
     sequencerGroup.appendChild(bpmDecreaseButton);
     sequencerGroup.appendChild(bpmDecreaseButtonLabel);
     sequencerGroup.appendChild(bpmIncreaseButton);
     sequencerGroup.appendChild(bpmIncreaseButtonLabel);
     sequencerGroup.appendChild(bpmDisplayBorder);
+  }
+
+  function clearSequencer() {
+    channels.forEach((channel, index) => {
+      channel.forEach((bar) => {
+        bar.audio.setAttribute("enabled", "false");
+        turnButtonLedOff(bar.buttonMesh);
+      });
+    });
+  }
+
+  function presetSequencer() {
+    channels.forEach((channel, channelIndex) => {
+      channel.forEach((bar, barIndex) => {
+        if (defaultPreset[channelIndex].includes(barIndex)) {
+          bar.audio.setAttribute("enabled", "true");
+          turnButtonLedOn(bar.buttonMesh);
+        }
+      });
+    });
   }
 
   function createBody() {
@@ -246,7 +303,7 @@
   function increaseBPM() {
     if (initialBPM < maxBPM) {
       const newValue = initialBPM + bpmStep;
-      const remainder = newValue % 5;
+      const remainder = newValue % bpmStep;
       initialBPM = remainder === 0 ? newValue : newValue - remainder;
       if (bpmDisplay) {
         bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
@@ -262,10 +319,10 @@
   function decreaseBPM() {
     if (initialBPM > minBPM) {
       const newValue = initialBPM - bpmStep;
-      const remainder = newValue % 5;
+      const remainder = newValue % bpmStep;
       initialBPM = remainder === 0 ? newValue : newValue - remainder;
       if (initialBPM < newValue) {
-        initialBPM += 5;
+        initialBPM += bpmStep;
       }
       if (bpmDisplay) {
         bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
@@ -320,6 +377,11 @@
       );
       button.setAttribute("class", "off");
 
+      if (defaultPreset[channelIndex].includes(i)) {
+        const active = toggleButtonLed(button);
+        audio.setAttribute("enabled", active);
+      }
+
       button.addEventListener("click", () => {
         const active = toggleButtonLed(button);
         audio.setAttribute("enabled", active);
@@ -359,6 +421,7 @@
       const channelArray = createChannel(bars);
       channels.set(i, channelArray);
     }
+    animateCursor(initialBPM);
   }
 
   function createSequencer() {
