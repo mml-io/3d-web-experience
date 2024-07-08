@@ -1,3 +1,4 @@
+import { AvatarSelectionUI, AvatarType } from "@mml-io/3d-web-avatar-selection-ui";
 import {
   AnimationConfig,
   CameraManager,
@@ -30,6 +31,7 @@ import {
   AUTHENTICATION_FAILED_ERROR_TYPE,
   CONNECTION_LIMIT_REACHED_ERROR_TYPE,
   ServerErrorType,
+  USER_UPDATE_MESSAGE_TYPE,
   UserData,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
@@ -63,6 +65,11 @@ type MMLDocumentConfiguration = {
   };
 };
 
+export type AvatarConfiguration = {
+  availableAvatars?: Array<AvatarType>;
+  allowCustomAvatars?: boolean;
+};
+
 export type Networked3dWebExperienceClientConfig = {
   sessionToken: string;
   chatNetworkAddress?: string;
@@ -76,10 +83,12 @@ export type Networked3dWebExperienceClientConfig = {
   skyboxHdrJpgUrl: string;
   enableTweakPane?: boolean;
   updateURLLocation?: boolean;
+  avatarConfiguration?: AvatarConfiguration;
 };
 
 export class Networked3dWebExperienceClient {
   private element: HTMLDivElement;
+  private canvasHolder: HTMLDivElement;
 
   private scene = new Scene();
   private composer: Composer;
@@ -109,6 +118,8 @@ export class Networked3dWebExperienceClient {
   private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
 
+  private avatarSelectionUI: AvatarSelectionUI | null = null;
+
   private voiceChatManager: VoiceChatManager | null = null;
   private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
@@ -137,7 +148,13 @@ export class Networked3dWebExperienceClient {
       }
     });
 
-    this.cameraManager = new CameraManager(this.element, this.collisionsManager);
+    this.canvasHolder = document.createElement("div");
+    this.canvasHolder.style.position = "absolute";
+    this.canvasHolder.style.width = "100%";
+    this.canvasHolder.style.height = "100%";
+    this.element.appendChild(this.canvasHolder);
+
+    this.cameraManager = new CameraManager(this.canvasHolder, this.collisionsManager);
     this.cameraManager.camera.add(this.audioListener);
 
     this.virtualJoystick = new VirtualJoystick(this.element, {
@@ -156,7 +173,7 @@ export class Networked3dWebExperienceClient {
     });
 
     this.composer.useHDRJPG(this.config.skyboxHdrJpgUrl);
-    this.element.appendChild(this.composer.renderer.domElement);
+    this.canvasHolder.appendChild(this.composer.renderer.domElement);
 
     if (this.config.enableTweakPane !== false) {
       this.tweakPane = new TweakPane(
@@ -272,6 +289,7 @@ export class Networked3dWebExperienceClient {
         */
         this.connectToVoiceChat();
         this.connectToTextChat();
+        this.mountAvatarSelectionUI();
         this.spawnCharacter();
       }
     });
@@ -296,6 +314,7 @@ export class Networked3dWebExperienceClient {
     characterDescription: CharacterDescription;
   } {
     const user = this.userProfiles.get(clientId)!;
+
     if (!user) {
       throw new Error(`Failed to resolve user for clientId ${clientId}`);
     }
@@ -314,10 +333,56 @@ export class Networked3dWebExperienceClient {
     this.characterManager.respawnIfPresent(id);
   }
 
+  private updateUserAvatar(avatar: AvatarType) {
+    if (this.clientId === null) {
+      throw new Error("Client ID not set");
+    }
+    const user = this.userProfiles.get(this.clientId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const newUser = {
+      ...user,
+      characterDescription: {
+        meshFileUrl: avatar.meshFileUrl ?? undefined,
+        mmlCharacterUrl: avatar.mmlCharacterUrl ?? undefined,
+        mmlCharacterString: avatar.mmlCharacterString ?? undefined,
+      },
+    } as UserData;
+
+    this.userProfiles.set(this.clientId, newUser);
+    this.updateUserProfile(this.clientId, newUser);
+  }
+
   private sendChatMessageToServer(message: string): void {
     this.mmlCompositionScene.onChatMessage(message);
     if (this.clientId === null || this.networkChat === null) return;
     this.networkChat.sendChatMessage(message);
+  }
+
+  private sendIdentityUpdateToServer(avatar: AvatarType) {
+    if (!this.clientId) {
+      throw new Error("Client ID not set");
+    }
+
+    const userProfile = this.userProfiles.get(this.clientId);
+
+    if (!userProfile) {
+      throw new Error("User profile not found");
+    }
+
+    this.networkClient.sendMessage({
+      type: USER_UPDATE_MESSAGE_TYPE,
+      userIdentity: {
+        username: userProfile.username,
+        characterDescription: {
+          mmlCharacterString: avatar.mmlCharacterString,
+          mmlCharacterUrl: avatar.mmlCharacterUrl,
+          meshFileUrl: avatar.meshFileUrl,
+        } as CharacterDescription,
+      },
+    });
   }
 
   private connectToVoiceChat() {
@@ -379,6 +444,33 @@ export class Networked3dWebExperienceClient {
     }
   }
 
+  private mountAvatarSelectionUI() {
+    if (
+      !this.config.avatarConfiguration?.availableAvatars?.length &&
+      !this.config.avatarConfiguration?.allowCustomAvatars
+    ) {
+      return;
+    }
+
+    if (this.clientId === null) {
+      throw new Error("Client ID not set");
+    }
+    const ownIdentity = this.userProfiles.get(this.clientId);
+    if (!ownIdentity) {
+      throw new Error("Own identity not found");
+    }
+
+    this.avatarSelectionUI = new AvatarSelectionUI({
+      holderElement: this.element,
+      clientId: this.clientId,
+      visibleByDefault: false,
+      availableAvatars: this.config.avatarConfiguration?.availableAvatars ?? [],
+      sendMessageToServerMethod: this.sendIdentityUpdateToServer.bind(this),
+      enableCustomAvatar: this.config.avatarConfiguration?.allowCustomAvatars,
+    });
+    this.avatarSelectionUI.init();
+  }
+
   public update(): void {
     this.timeManager.update();
     this.characterManager.update();
@@ -430,6 +522,7 @@ export class Networked3dWebExperienceClient {
       spawnPosition,
       spawnRotation,
     );
+
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.copy(cameraPosition);
       this.cameraManager.setTarget(
