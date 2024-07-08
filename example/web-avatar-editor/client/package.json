@@ -16,14 +16,14 @@
   "dependencies": {
     "@mml-io/3d-web-avatar": "^0.17.0",
     "@mml-io/3d-web-standalone-avatar-editor": "^0.17.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "three": "0.163.0"
   },
   "devDependencies": {
-    "@types/node": "^20.12.7",
-    "@types/react": "^18.2.79",
-    "@types/react-dom": "^18.2.25",
+    "@types/node": "^20.14.10",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
     "@types/three": "0.163.0"
   }
 }
