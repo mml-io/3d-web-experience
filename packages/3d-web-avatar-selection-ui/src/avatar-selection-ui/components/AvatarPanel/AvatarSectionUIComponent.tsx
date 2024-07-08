@@ -20,8 +20,8 @@ type AvatarSelectionUIProps = {
 };
 
 enum CustomAvatarType {
-  glb,
-  html,
+  meshFileUrl,
+  mmlUrl,
   mml,
 }
 
@@ -35,7 +35,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const visibleByDefault: boolean = props.visibleByDefault ?? false;
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
   const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatar | undefined>(undefined);
-  const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>(CustomAvatarType.html);
+  const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>(
+    CustomAvatarType.mmlUrl,
+  );
   const [customAvatarValue, setCustomAvatarValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -60,8 +62,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
 
     const newSelectedAvatar = {
       mmlCharacterString: customAvatarType === CustomAvatarType.mml ? customAvatarValue : undefined,
-      mmlCharacterUrl: customAvatarType === CustomAvatarType.html ? customAvatarValue : undefined,
-      meshFileUrl: customAvatarType === CustomAvatarType.glb ? customAvatarValue : undefined,
+      mmlCharacterUrl: customAvatarType === CustomAvatarType.mmlUrl ? customAvatarValue : undefined,
+      meshFileUrl:
+        customAvatarType === CustomAvatarType.meshFileUrl ? customAvatarValue : undefined,
       isCustomAvatar: true,
     } as CustomAvatar;
 
@@ -80,9 +83,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
 
   const getPlaceholderByType = (type: CustomAvatarType) => {
     switch (type) {
-      case CustomAvatarType.glb:
+      case CustomAvatarType.meshFileUrl:
         return "https://.../avatar.glb";
-      case CustomAvatarType.html:
+      case CustomAvatarType.mmlUrl:
         return "https://.../avatar.html";
       case CustomAvatarType.mml:
         return '<m-character src="https://link-to-avatar">\n</m-character';
@@ -97,6 +100,11 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
             <img src={`data:image/svg+xml;utf8,${encodeURIComponent(AvatarIcon)}`} />
           </div>
         )}
+        {isVisible && (
+          <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
+            X
+          </button>
+        )}
       </div>
       {isVisible && (
         <div className={`${styles.avatarSelectionContainer}`}>
@@ -104,9 +112,6 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
             <div className={styles.avatarSelectionUi}>
               <div className={styles.avatarSelectionUiHeader}>
                 <h2>Choose your avatar</h2>
-                <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
-                  X
-                </button>
               </div>
               <div className={styles.avatarSelectionUiContent}>
                 {props.availableAvatars.map((avatar, index) => {
@@ -149,9 +154,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 type="radio"
                 id="html"
                 name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.html)}
-                defaultChecked={customAvatarType === CustomAvatarType.html}
-                checked={customAvatarType === CustomAvatarType.html}
+                onChange={() => handleTypeSwitch(CustomAvatarType.mmlUrl)}
+                defaultChecked={customAvatarType === CustomAvatarType.mmlUrl}
+                checked={customAvatarType === CustomAvatarType.mmlUrl}
               />
               <label htmlFor="html">MML URL</label>
               <input
@@ -167,9 +172,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 type="radio"
                 id="glb"
                 name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.glb)}
-                defaultChecked={customAvatarType === CustomAvatarType.glb}
-                checked={customAvatarType === CustomAvatarType.glb}
+                onChange={() => handleTypeSwitch(CustomAvatarType.meshFileUrl)}
+                defaultChecked={customAvatarType === CustomAvatarType.meshFileUrl}
+                checked={customAvatarType === CustomAvatarType.meshFileUrl}
               />
               <label htmlFor="glb">Mesh URL</label>
               {selectedAvatar?.isCustomAvatar && <SelectedPill />}
