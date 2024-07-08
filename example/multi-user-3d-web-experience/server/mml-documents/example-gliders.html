@@ -1,4 +1,4 @@
-<m-group id="conway-frame"></m-group>
+<m-group id="conway-frame" ry="-90" x="0.31" y="-0.3" z="0"></m-group>
 <m-group id="cubes-group" ry="90"></m-group>
 
 <script>
@@ -26,6 +26,111 @@
 
   function getID(x, y) {
     return `x:${x}-y:${y}`;
+  }
+
+  function createResetButton() {
+    let buttonSoundCanPlay = true;
+    const buttonSound = document.createElement("m-audio");
+    const buttonSoundDuration = 1200;
+    const buttonAnimDuration = 210;
+
+    // https://mmleditor.com/projects/interaction-button-45Zy2b
+    const buttonBaseURL =
+      "https://mmlstorage.com/26c684816caf7c5ac67ff924b1bf8b0d1a982cedbc11bda4f9b1c54bee8f1bf1"; // open_button_base.glb
+    const buttonOnURL =
+      "https://mmlstorage.com/e06ed8f36e64a28c0d543aeca9d1bcd440b31cdfc1a93aaf91326bf583b02240"; // open_button_on.glb
+    const buttonOffURL =
+      "https://mmlstorage.com/4b1d2fe8a0f2c6b3e732966e94d5b9366f4a2e9e094d476819e5b66a907a4c90"; // open_button_off.glb
+
+    const scale = (element, size) => {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    };
+
+    const swap = (elementA, elementB) => {
+      scale(elementB, 1.0);
+      scale(elementA, 0.001);
+    };
+
+    const animateElement = (element, attr, start, end, duration, easing) => {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    };
+
+    const buttonBase = document.createElement("m-model");
+    buttonBase.setAttribute("src", buttonBaseURL);
+    conwayFrame.appendChild(buttonBase);
+
+    const buttonOn = document.createElement("m-model");
+    buttonOn.setAttribute("src", buttonOnURL);
+    conwayFrame.appendChild(buttonOn);
+
+    const buttonOff = document.createElement("m-model");
+    buttonOff.setAttribute("src", buttonOffURL);
+    scale(buttonOff, 0.001);
+    conwayFrame.appendChild(buttonOff);
+
+    const pushButtonAnim = () => {
+      animateElement(buttonOn, "z", 0, 0.03, buttonAnimDuration, "easeInOutCubic");
+    };
+
+    const releaseButtonAnim = () => {
+      animateElement(buttonOn, "z", 0.03, 0, buttonAnimDuration, "easeInOutCubic");
+    };
+
+    const setupButtonSound = () => {
+      buttonSound.setAttribute("y", 1.2);
+      buttonSound.setAttribute("loop", false);
+      buttonSound.setAttribute("debug", false);
+      buttonSound.setAttribute(
+        "src",
+        "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344",
+      ); // button_sfx.mp3
+      buttonSound.setAttribute("volume", 0);
+      buttonSound.setAttribute("start-time", document.timeline.currentTime - buttonSoundDuration);
+      buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      buttonBase.appendChild(buttonSound);
+    };
+    setupButtonSound();
+
+    const playButtonSound = () => {
+      if (buttonSoundCanPlay === false) {
+        return;
+      }
+      buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      buttonSound.setAttribute("volume", 2);
+      buttonSound.setAttribute("start-time", now);
+      buttonSound.setAttribute("pause-time", now + buttonSoundDuration);
+      setTimeout(() => {
+        buttonSound.setAttribute("volume", 0);
+        buttonSoundCanPlay === true;
+      }, buttonSoundDuration);
+    };
+
+    buttonOn.addEventListener("click", () => {
+      pushButtonAnim();
+      resetSimulation();
+      setTimeout(() => {
+        releaseButtonAnim();
+        setTimeout(() => swap(buttonOn, buttonOff), buttonAnimDuration + 20);
+        setTimeout(() => swap(buttonOff, buttonOn), buttonAnimDuration + 240);
+      }, buttonAnimDuration + 20);
+      playButtonSound();
+    });
   }
 
   function initializeCubes() {
@@ -163,6 +268,7 @@
     return count;
   }
 
+  createResetButton();
   initializeCubes();
   initWorld();
   window.setInterval(update, 210);
