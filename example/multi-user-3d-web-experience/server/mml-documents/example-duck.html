@@ -9,7 +9,7 @@
   y="0"
   z="0"
 >
-  <m-attr-lerp attr="ry" duration="1000"></m-attr-lerp>
+  <m-attr-lerp attr="all" duration="1000"></m-attr-lerp>
 </m-model>
 <script>
   // https://mmleditor.com/projects/spinning-duck-2IG2Gk
@@ -41,18 +41,22 @@
     let minDistance = 999999;
     let closestId = null;
     let distanceX = 0;
+    let distanceY = 0;
     let distanceZ = 0;
     players.forEach((playerPosition, index) => {
-      const { x, z } = playerPosition;
+      const { x, y, z } = playerPosition;
       const duckX = parseFloat(duck.getAttribute("x"));
+      const duckY = parseFloat(duck.getAttribute("y"));
       const duckZ = parseFloat(duck.getAttribute("z"));
       const distX = duckX - x;
+      const distY = duckY - y;
       const distZ = duckZ - z;
       const distance = Math.sqrt(distX * distX + distZ * distZ);
       if (distance < minDistance) {
         minDistance = distance;
         closestId = index;
         distanceX = distX;
+        distanceY = distY;
         distanceZ = distZ;
       }
     });
@@ -60,6 +64,9 @@
       const angleRadians = Math.atan2(distanceX, distanceZ);
       const angleDegrees = angleRadians * (180 / Math.PI);
       duck.setAttribute("ry", (angleDegrees + 75) % 360);
+      const pitchRadians = Math.atan2(-distanceY, Math.sqrt(distanceX * distanceX + distanceZ * distanceZ));
+      const pitchDegrees = pitchRadians * (180 / Math.PI);
+      duck.setAttribute("rz", (pitchDegrees - 20) % 360)
     }
   }, 1000);
 </script>
