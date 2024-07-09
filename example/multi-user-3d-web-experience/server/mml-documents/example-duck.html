@@ -1,21 +1,65 @@
+<m-position-probe id="duck-position-probe" range="200"></m-position-probe>
 <m-model
   src="https://mmlstorage.com/65bf938f54d6073e619e76e007820bbf980cdc3dc0daec0d94830ffc4ae54ab5"
-  sx="17"
-  sy="17"
-  sz="17"
+  id="duck"
+  sx="15"
+  sy="15"
+  sz="15"
   x="50"
+  y="0"
+  z="0"
 >
-  <m-attr-anim
-    attr="ry"
-    ping-pong="false"
-    easing="linear"
-    start="360"
-    end="0"
-    loop="true"
-    start-time="0"
-    duration="5000"
-  ></m-attr-anim>
+  <m-attr-lerp attr="ry" duration="1000"></m-attr-lerp>
 </m-model>
 <script>
   // https://mmleditor.com/projects/spinning-duck-2IG2Gk
+  const positionProbe = document.getElementById("duck-position-probe");
+  const duck = document.getElementById("duck");
+  const players = new Map();
+
+  positionProbe.addEventListener("positionmove", (e) => {
+    const connectionId = e.detail.connectionId;
+    const playerPosition = e.detail.elementRelative.position;
+    players.set(connectionId, playerPosition);
+  });
+
+  positionProbe.addEventListener("positionenter", (e) => {
+    const connectionId = e.detail.connectionId;
+    const playerPosition = e.detail.elementRelative.position;
+    players.set(connectionId, playerPosition);
+  });
+
+  positionProbe.addEventListener("positionleave", (e) => {
+    players.delete(e.detail.connectionId);
+  });
+
+  window.addEventListener("disconnected", (e) => {
+    players.delete(e.detail.connectionId);
+  });
+
+  setInterval(() => {
+    let minDistance = 999999;
+    let closestId = null;
+    let distanceX = 0;
+    let distanceZ = 0;
+    players.forEach((playerPosition, index) => {
+      const { x, z } = playerPosition;
+      const duckX = parseFloat(duck.getAttribute("x"));
+      const duckZ = parseFloat(duck.getAttribute("z"));
+      const distX = duckX - x;
+      const distZ = duckZ - z;
+      const distance = Math.sqrt(distX * distX + distZ * distZ);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestId = index;
+        distanceX = distX;
+        distanceZ = distZ;
+      }
+    });
+    if (closestId) {
+      const angleRadians = Math.atan2(distanceX, distanceZ);
+      const angleDegrees = angleRadians * (180 / Math.PI);
+      duck.setAttribute("ry", (angleDegrees + 75) % 360);
+    }
+  }, 1000);
 </script>
