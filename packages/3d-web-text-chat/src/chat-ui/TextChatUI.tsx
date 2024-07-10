@@ -51,6 +51,11 @@ export class TextChatUI {
     this.root = createRoot(this.wrapper);
   }
 
+  dispose() {
+    this.root.unmount();
+    this.wrapper.remove();
+  }
+
   init() {
     flushSync(() =>
       this.root.render(

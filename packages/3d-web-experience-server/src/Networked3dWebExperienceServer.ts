@@ -1,5 +1,15 @@
-import { ChatNetworkingServer } from "@mml-io/3d-web-text-chat";
-import { UserData, UserIdentity, UserNetworkingServer } from "@mml-io/3d-web-user-networking";
+import {
+  CHAT_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+  CHAT_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
+  ChatNetworkingServer,
+} from "@mml-io/3d-web-text-chat";
+import {
+  USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+  USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
+  UserData,
+  UserIdentity,
+  UserNetworkingServer,
+} from "@mml-io/3d-web-user-networking";
 import cors from "cors";
 import express from "express";
 import enableWs from "express-ws";
@@ -101,6 +111,32 @@ export class Networked3dWebExperienceServer {
   public updateUserCharacter(clientId: number, userData: UserData) {
     console.log(`Initiate server-side update of client ${clientId}`);
     this.userNetworkingServer.updateUserCharacter(clientId, userData);
+  }
+
+  public dispose(errorMessage?: string) {
+    this.userNetworkingServer.dispose(
+      errorMessage
+        ? {
+            type: USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+            errorType: USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
+            message: errorMessage,
+          }
+        : undefined,
+    );
+    if (this.chatNetworkingServer) {
+      this.chatNetworkingServer.dispose(
+        errorMessage
+          ? {
+              type: CHAT_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+              errorType: CHAT_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
+              message: errorMessage,
+            }
+          : undefined,
+      );
+    }
+    if (this.mmlDocumentsServer) {
+      this.mmlDocumentsServer.dispose();
+    }
   }
 
   registerExpressRoutes(app: enableWs.Application) {

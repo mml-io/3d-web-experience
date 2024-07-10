@@ -22,19 +22,21 @@ import {
 } from "@mml-io/3d-web-client-core";
 import {
   ChatNetworkingClient,
-  FromClientChatMessage,
+  ChatNetworkingClientChatMessage,
+  ChatNetworkingServerErrorType,
   StringToHslOptions,
   TextChatUI,
   TextChatUIProps,
 } from "@mml-io/3d-web-text-chat";
 import {
-  AUTHENTICATION_FAILED_ERROR_TYPE,
-  CONNECTION_LIMIT_REACHED_ERROR_TYPE,
-  ServerErrorType,
-  USER_UPDATE_MESSAGE_TYPE,
+  USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
+  USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+  USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
+  USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
   UserData,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
+  UserNetworkingServerErrorType,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
 import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
@@ -235,14 +237,20 @@ export class Networked3dWebExperienceClient {
           characterDescription,
         });
       },
-      onServerError: (error: { message: string; errorType: ServerErrorType }) => {
+      onServerError: (error: { message: string; errorType: UserNetworkingServerErrorType }) => {
         switch (error.errorType) {
-          case AUTHENTICATION_FAILED_ERROR_TYPE:
+          case USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE:
             this.disposeWithError(error.message);
             break;
-          case CONNECTION_LIMIT_REACHED_ERROR_TYPE:
+          case USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE:
             this.disposeWithError(error.message);
             break;
+          case USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE:
+            this.disposeWithError(error.message || "Server shutdown");
+            break;
+          default:
+            console.error(`Unhandled server error: ${error.message}`);
+            this.disposeWithError(error.message);
         }
       },
     });
@@ -373,7 +381,7 @@ export class Networked3dWebExperienceClient {
     }
 
     this.networkClient.sendMessage({
-      type: USER_UPDATE_MESSAGE_TYPE,
+      type: USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
       userIdentity: {
         username: userProfile.username,
         characterDescription: {
@@ -433,12 +441,16 @@ export class Networked3dWebExperienceClient {
         },
         clientChatUpdate: (
           clientId: number,
-          chatNetworkingUpdate: null | FromClientChatMessage,
+          chatNetworkingUpdate: null | ChatNetworkingClientChatMessage,
         ) => {
           if (chatNetworkingUpdate !== null && this.textChatUI !== null) {
             const username = this.userProfiles.get(clientId)?.username || "Unknown";
             this.textChatUI.addTextMessage(username, chatNetworkingUpdate.text);
           }
+        },
+        onServerError: (error: { message: string; errorType: ChatNetworkingServerErrorType }) => {
+          console.error(`Chat server error: ${error.message}. errorType: ${error.errorType}`);
+          this.disposeWithError(error.message);
         },
       });
     }
@@ -544,6 +556,7 @@ export class Networked3dWebExperienceClient {
     for (const mmlFrame of this.mmlFrames) {
       mmlFrame.remove();
     }
+    this.textChatUI?.dispose();
     this.mmlFrames = [];
     this.mmlCompositionScene.dispose();
     this.composer.dispose();

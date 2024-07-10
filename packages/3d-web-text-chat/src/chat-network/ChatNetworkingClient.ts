@@ -1,13 +1,15 @@
 import {
-  CHAT_MESSAGE_TYPE,
-  CONNECTED_MESSAGE_TYPE,
-  DISCONNECTED_MESSAGE_TYPE,
-  FromClientChatMessage,
+  CHAT_NETWORKING_CHAT_MESSAGE_TYPE,
+  CHAT_NETWORKING_CONNECTED_MESSAGE_TYPE,
+  CHAT_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
+  ChatNetworkingClientChatMessage,
   FromClientMessage,
   FromServerMessage,
-  IDENTITY_MESSAGE_TYPE,
-  PING_MESSAGE_TYPE,
-  USER_AUTHENTICATE_MESSAGE_TYPE,
+  CHAT_NETWORKING_IDENTITY_MESSAGE_TYPE,
+  CHAT_NETWORKING_PING_MESSAGE_TYPE,
+  CHAT_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+  ChatNetworkingServerErrorType,
+  CHAT_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
 } from "./ChatNetworkingMessages";
 import { ReconnectingWebSocket, WebsocketFactory, WebsocketStatus } from "./ReconnectingWebsocket";
 
@@ -16,7 +18,8 @@ export type ChatNetworkingClientConfig = {
   sessionToken: string;
   websocketFactory: WebsocketFactory;
   statusUpdateCallback: (status: WebsocketStatus) => void;
-  clientChatUpdate: (id: number, update: null | FromClientChatMessage) => void;
+  clientChatUpdate: (id: number, update: null | ChatNetworkingClientChatMessage) => void;
+  onServerError: (error: { message: string; errorType: ChatNetworkingServerErrorType }) => void;
 };
 
 export class ChatNetworkingClient extends ReconnectingWebSocket {
@@ -24,7 +27,7 @@ export class ChatNetworkingClient extends ReconnectingWebSocket {
     super(config.url, config.websocketFactory, (status: WebsocketStatus) => {
       if (status === WebsocketStatus.Connected) {
         this.sendMessage({
-          type: USER_AUTHENTICATE_MESSAGE_TYPE,
+          type: CHAT_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
           sessionToken: config.sessionToken,
         });
       }
@@ -33,7 +36,7 @@ export class ChatNetworkingClient extends ReconnectingWebSocket {
   }
 
   public sendChatMessage(message: string) {
-    this.sendMessage({ type: CHAT_MESSAGE_TYPE, text: message });
+    this.sendMessage({ type: CHAT_NETWORKING_CHAT_MESSAGE_TYPE, text: message });
   }
 
   private sendMessage(message: FromClientMessage): void {
@@ -44,20 +47,24 @@ export class ChatNetworkingClient extends ReconnectingWebSocket {
     if (typeof message.data === "string") {
       const parsed = JSON.parse(message.data) as FromServerMessage;
       switch (parsed.type) {
-        case IDENTITY_MESSAGE_TYPE:
+        case CHAT_NETWORKING_SERVER_ERROR_MESSAGE_TYPE:
+          console.error(`Server error: ${parsed.message}. errorType: ${parsed.errorType}`);
+          this.config.onServerError(parsed);
+          break;
+        case CHAT_NETWORKING_IDENTITY_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} assigned to self`);
           break;
-        case CONNECTED_MESSAGE_TYPE:
+        case CHAT_NETWORKING_CONNECTED_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} joined chat`);
           break;
-        case DISCONNECTED_MESSAGE_TYPE:
+        case CHAT_NETWORKING_DISCONNECTED_MESSAGE_TYPE:
           console.log(`Client ID: ${parsed.id} left chat`);
           break;
-        case PING_MESSAGE_TYPE: {
+        case CHAT_NETWORKING_PING_MESSAGE_TYPE: {
           this.sendMessage({ type: "pong" });
           break;
         }
-        case CHAT_MESSAGE_TYPE: {
+        case CHAT_NETWORKING_CHAT_MESSAGE_TYPE: {
           this.config.clientChatUpdate(parsed.id, parsed);
           break;
         }
