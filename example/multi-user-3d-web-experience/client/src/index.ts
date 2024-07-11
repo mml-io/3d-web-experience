@@ -26,7 +26,9 @@ const app = new Networked3dWebExperienceClient(holder, {
   },
   skyboxHdrJpgUrl: hdrJpgUrl,
   mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/guided-tour.html` }],
-  environmentConfiguration: {},
+  environmentConfiguration: {
+    groundPlane: false,
+  },
 });
 
 app.update();

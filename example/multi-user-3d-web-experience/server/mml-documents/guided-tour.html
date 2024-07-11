@@ -530,6 +530,37 @@
     return anim;
   }
 
+  function createSecretDoor() {
+    const animateDoor = (element, attr, start, end, duration) => {
+      const anim = document.createElement("m-attr-anim");
+      anim.setAttribute("attr", attr);
+      anim.setAttribute("start", start);
+      anim.setAttribute("end", end);
+      anim.setAttribute("start-time", document.timeline.currentTime);
+      anim.setAttribute("duration", duration);
+      anim.setAttribute("loop", false);
+      element.appendChild(anim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(anim);
+      }, duration);
+    };
+
+    const openDoor = (element) => {
+      animateDoor(element, "x", 0, -0.5, 1000);
+      setTimeout(() => animateDoor(element, "y", 0, 6, 1000), 1100);
+      setTimeout(() => {
+        animateDoor(element, "y", 6, 0, 1000);
+        setTimeout(() => animateDoor(element, "x", -0.5, 0, 1000), 1100);
+      }, 7000);
+    };
+
+    const secretDoorMesh = document.createElement("m-model");
+    secretDoorMesh.setAttribute("src", "/assets/playground/hallway_secret_door.glb");
+    secretDoorMesh.addEventListener("click", () => openDoor(secretDoorMesh));
+    return secretDoorMesh;
+  }
+
   function createProgression() {
     const externalElement = createFrame(
       "wss://mmlhosting.com/v1/world-142734_external-objects-c8c62b",
@@ -546,9 +577,9 @@
       // create the room ======================================================
       const roomModel = document.createElement("m-model");
       if (i === 0) {
-        roomModel.setAttribute("src", "/assets/playground/room_module_installationwall.glb");
+        roomModel.setAttribute("src", "/assets/playground/1st_room_module.glb");
       } else {
-        roomModel.setAttribute("src", "/assets/playground/building_module_bright_2.glb");
+        roomModel.setAttribute("src", "/assets/playground/room_module_installationwall.glb");
       }
       roomModel.setAttribute("z", zPos);
       progressionSpace.appendChild(roomModel);
@@ -568,11 +599,14 @@
       // create the curves for the passages between rooms (loading) ===========
       if (i < numberOfRooms - 1) {
         const hallway = document.createElement("m-model");
-        hallway.setAttribute("src", "/assets/playground/hallway_newlight_floor.glb");
+        hallway.setAttribute("src", "/assets/playground/hallway.glb");
         hallway.setAttribute("z", zPos + roomsDepth / 2 + 4.5);
         hallway.setAttribute("x", 0.015);
         hallway.setAttribute("y", 0.015);
         progressionSpace.appendChild(hallway);
+
+        const secretDoor = createSecretDoor();
+        hallway.appendChild(secretDoor);
 
         const travelatorPZ = document.createElement("m-frame");
         travelatorPZ.setAttribute("src", "wss:///mml-documents/example-travelator.html");
