@@ -22,7 +22,30 @@
 
   const blocks = new Map();
 
-  let availableImages = [];
+  const availableImages = [
+    "https://mmlstorage.com/272a6ca6374b7d4bba5b7b74aedfb3f9fa8a8bc5b5508d08cb689234b6044e86",
+    "https://mmlstorage.com/d7a5776fabc1363b1f600beb89b2d86ec4d53d1b7e149fc35170bdb5e8dee741",
+    "https://mmlstorage.com/1df2d0723bf9b36686b1f6378c668a96fa92b0dc78c0e2d54fd371e39c1e98bc",
+    "https://mmlstorage.com/5007e0b7453a007e1b4078490e8998f8f74d244d5f8fd765dfa8dfdac58dc05c",
+    "https://mmlstorage.com/94fb4f7405f73ef9b9fbe52477db7fd29540e6b0056a2cb65aa17c57cb37cc62",
+    "https://mmlstorage.com/1da393d4db0c729b7a71f01340b8a8046e852c4e32c0424ccf37c6fdd32c1181",
+    "https://mmlstorage.com/eb4a77dca77a744a01d30dbdfc7e000bcb03411730a79725b69cf18fd64aa260",
+    "https://mmlstorage.com/109b0d55fe7f74115fa2c36c865499f756a29ab54f4281c782eeec9cf18a5983",
+    "https://mmlstorage.com/830b11585d7b21fdc017629759cbebd7e71eb2db46b5fe0269340cfaf2e3ddcf",
+    "https://mmlstorage.com/60417c1ea26b070e165c1e1c9226c2ba9c2118905223bebbad5dff6acf227073",
+    "https://mmlstorage.com/626fcda3aa9d669b0067e8f059102d65d280c11cc9e8771c218b266a8cd29fd5",
+    "https://mmlstorage.com/fb8687ddd576e9c10c7e9daed1eef3f6fafece78987be88416af263c15a89008",
+    "https://mmlstorage.com/4d36d51ee4fa4628520f863a1246000a8d5918ad21e509072e3d4f646cce3560",
+    "https://mmlstorage.com/bc90e445e3f86ecaff21ca46dbedae7ad65637b6e458078f8d2657c3979a2611",
+    "https://mmlstorage.com/f33101d7560fd3b9e823b22a0daad594a7705c8bcf3fc246a24748570de9b7cb",
+    "https://mmlstorage.com/28b6e9e6d1fa3a4b23e7a2442a9541d8f9b31df2deb539c801ba45e7dcb05877",
+    "https://mmlstorage.com/db4e15efe23f5853fab83602ad81777a8326ba1a47159bb157c98502905aec6d",
+    "https://mmlstorage.com/343b283a4bba3f6576da68aeb7f9f054046bc65c200589f6d7d753c94db2b939",
+    "https://mmlstorage.com/06be4811b5b55fdeb4da1233674f153dd2112a373ba56accb03d61ab80b9b20f",
+    "https://mmlstorage.com/282ea972e3478046e108e6ed106c4b6ecf468b488165b491dcc5849d0c2cc1fc",
+    "https://mmlstorage.com/4d56ed1dcd72c7446ca4ecd01d68670f3b9cff65559a591436b1ac82e324e561",
+  ];
+
   let images = [];
   let imagesDuplicated = [];
 
@@ -105,12 +128,18 @@
 
   // interaction buttons ============================================
   class InteractionButton {
-    baseModelURL = "/assets/playground/button_base.glb";
-    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
-    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
-    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
-    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
-    buttonSoundURL = "/assets/playground/button_sfx.mp3";
+    baseModelURL =
+      "https://mmlstorage.com/b78b004cfc7c5ba5c0029e6b97d87f1291ad2106e9c724631669684fee295f8d"; // button_base.glb
+    playButtonOnModelURL =
+      "https://mmlstorage.com/0e99f1b49eba484ae5a2c447f8ed81bdf893bfb1f2c30160327abf5a69a85b75"; // play_button_on.glb
+    playButtonOffModelURL =
+      "https://mmlstorage.com/0a25bfe85a537917a32dae1f23c442deebc6f4c0594c099a6c576444e8d520a7"; // play_button_off.glb
+    questionButtonOnModelURL =
+      "https://mmlstorage.com/23e1853309eed73d9777043643ca6786c08c787f1de942646b58f238c28795b8"; // question_button_on.glb
+    questionButtonOffModelURL =
+      "https://mmlstorage.com/26180e4f0cf7009c3ed4c82cbde72dadb06424012e09a151951f4a9000ffcd56"; // question_button_off.glb
+    buttonSoundURL =
+      "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344"; // button_sfx.mp3
 
     animDuration = 210;
     buttonSoundDuration = 1200;
@@ -265,7 +294,10 @@
       this.buttonSound.setAttribute("y", 1.2);
       this.buttonSound.setAttribute("loop", false);
       this.buttonSound.setAttribute("debug", false);
-      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute(
+        "src",
+        "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344",
+      ); // button_sfx.mp3
       this.buttonSound.setAttribute("volume", 0);
       this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
       this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
@@ -291,7 +323,11 @@
   }
 
   const infoButton = new InteractionButton(-1.4, 0, 2, 180, demoGroup);
-  infoButton.setupInfo("/assets/playground/memory_game.mp3", 22000, 3);
+  infoButton.setupInfo(
+    "https://mmlstorage.com/05fa1af6a867ab316be795481e3aaaf6e858b80e327c0bb9f67f5db8e6702081",
+    22000,
+    3,
+  ); // memory_game.mp3
 
   const playButton = new InteractionButton(-0.95, 0, 2, 180, demoGroup);
   playButton.setupPlay(() => {
@@ -319,13 +355,25 @@
 
   function createSFX() {
     soundPlay = document.createElement("m-audio");
-    setupAudioTag(soundPlay, "/assets/playground/game_play.mp3");
+    setupAudioTag(
+      soundPlay,
+      "https://mmlstorage.com/aec020fb9ea522a3b921be24f6bc57c504532d8b8bfc489049e74bd0a70e66f1",
+    ); // game_play.mp3
     soundYes = document.createElement("m-audio");
-    setupAudioTag(soundYes, "/assets/playground/game_yes.mp3");
+    setupAudioTag(
+      soundYes,
+      "https://mmlstorage.com/0cfc176efacb60caf36175a493d64005b43aba4b3a942b90f86afb4d4c3ef04d",
+    ); // game_yes.mp3
     soundNo = document.createElement("m-audio");
-    setupAudioTag(soundNo, "/assets/playground/game_no.mp3");
+    setupAudioTag(
+      soundNo,
+      "https://mmlstorage.com/56ba2acc1dd6bfb8fd1bd1a4ae41b70989328b354cc1b2e2f2c6f3e003618a1b",
+    ); // game_no.mp3
     soundWin = document.createElement("m-audio");
-    setupAudioTag(soundWin, "/assets/playground/game_win.mp3");
+    setupAudioTag(
+      soundWin,
+      "https://mmlstorage.com/d488bbcf78c3f32a428c4942d754702effeed1855e1331f77c59da723adff76b",
+    ); // game_win.mp3
     gameGroup.appendChild(soundPlay);
     gameGroup.appendChild(soundYes);
     gameGroup.appendChild(soundNo);
@@ -339,16 +387,30 @@
     setTimeout(() => sound.setAttribute("volume", 0), 1200);
   }
 
+  // function prepareImages() {
+  //   availableImages = [];
+  //   images = [];
+  //   imagesDuplicated = [];
+  //   for (let i = 0; i < numberOfAvailableImages; i++) {
+  //     availableImages.push(`${imgPrefix}${i.toString().padStart(2, "0")}.jpg`);
+  //   }
+  //   while (images.length < numberOfImages) {
+  //     const imageName = getRandomImage(availableImages);
+  //     const url = `/assets/playground/${imageName}`;
+  //     if (!images.includes(url)) {
+  //       images.push(url);
+  //     }
+  //   }
+  //   imagesDuplicated = images.concat(images);
+  //   shuffleArray(imagesDuplicated);
+  // }
+
   function prepareImages() {
-    availableImages = [];
     images = [];
     imagesDuplicated = [];
-    for (let i = 0; i < numberOfAvailableImages; i++) {
-      availableImages.push(`${imgPrefix}${i.toString().padStart(2, "0")}.jpg`);
-    }
     while (images.length < numberOfImages) {
       const imageName = getRandomImage(availableImages);
-      const url = `/assets/playground/${imageName}`;
+      const url = `${imageName}`;
       if (!images.includes(url)) {
         images.push(url);
       }
