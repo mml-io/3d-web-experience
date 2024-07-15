@@ -79,10 +79,9 @@ export class UserNetworkingServer {
 
   private getId(): number {
     let id = 1;
-    while (this.usedIds.has(id)) {
+    while (this.allClientsById.has(id)) {
       id++;
     }
-    this.usedIds.add(id);
     return id;
   }
 
@@ -226,7 +225,6 @@ export class UserNetworkingServer {
       return;
     }
     this.allClientsById.delete(client.id);
-    this.usedIds.delete(client.id);
     if (client.authenticatedUser !== null) {
       // Only report disconnections of clients that were authenticated
       this.options.onClientDisconnect(client.id);

@@ -89,7 +89,6 @@
 }
 
 .voiceParticipants {
-  font-family: monospace;
   z-index: 104;
   color: white;
   position: absolute;
@@ -118,7 +117,6 @@
 }
 
 .voiceParticipantsVisible {
-  font-family: monospace;
   z-index: 104;
   color: white;
   position: absolute;

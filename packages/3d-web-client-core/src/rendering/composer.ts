@@ -246,8 +246,6 @@ export class Composer {
     this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
-    this.effectComposer.addPass(this.smaaPass);
-    this.effectComposer.addPass(this.fxaaPass);
     if (ppssaoValues.enabled) {
       this.effectComposer.addPass(this.normalPass);
       this.effectComposer.addPass(this.ppssaoPass);
@@ -255,6 +253,7 @@ export class Composer {
     if (n8ssaoValues.enabled) {
       this.effectComposer.addPass(this.n8aopass);
     }
+    this.effectComposer.addPass(this.fxaaPass);
     this.effectComposer.addPass(this.bloomPass);
     this.effectComposer.addPass(this.toneMappingPass);
     this.effectComposer.addPass(this.bcsPass);

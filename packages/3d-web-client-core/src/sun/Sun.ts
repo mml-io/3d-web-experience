@@ -10,7 +10,7 @@ export class Sun extends Group {
     100,
   );
   private readonly shadowResolution: number = 8192;
-  private readonly shadowCamFrustum: number = 80;
+  private readonly shadowCamFrustum: number = 50;
   private readonly camHelper: CameraHelper | null = null;
 
   private readonly shadowCamera: OrthographicCamera;
@@ -34,7 +34,7 @@ export class Sun extends Group {
     this.directionalLight = new DirectionalLight(0xffffff);
     this.directionalLight.intensity = sunValues.sunIntensity;
     this.directionalLight.shadow.normalBias = 0.1;
-    this.directionalLight.shadow.radius = sunValues.shadowRadius;
+    this.directionalLight.shadow.radius = 0.02;
     this.directionalLight.shadow.camera = this.shadowCamera;
     this.directionalLight.shadow.mapSize.set(this.shadowResolution, this.shadowResolution);
     this.directionalLight.castShadow = true;
@@ -46,10 +46,6 @@ export class Sun extends Group {
     if (this.debug === true && this.camHelper instanceof CameraHelper) {
       this.add(this.camHelper);
     }
-  }
-
-  public setShadowRadius(radius: number) {
-    this.directionalLight.shadow.radius = radius;
   }
 
   public updateCharacterPosition(position: Vector3 | undefined) {

@@ -4,7 +4,7 @@ import { Scene, ShadowMapType, ToneMapping, WebGLRenderer } from "three";
 import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 export const rendererValues = {
-  shadowMap: 1,
+  shadowMap: 2,
   toneMapping: 5,
   exposure: 1.7,
 };

@@ -20,7 +20,6 @@
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.18.0",
     "@voxeet/voxeet-web-sdk": "3.11.1",
-    "livekit-client": "^2.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "ws": "^8.18.0"

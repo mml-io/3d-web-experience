@@ -2,14 +2,11 @@ import dolbyio from "@dolbyio/dolbyio-rest-apis-client";
 import * as jwtToken from "@dolbyio/dolbyio-rest-apis-client/dist/types/jwtToken";
 import express from "express";
 
-import { authMiddleware } from "./auth";
-
 export function registerDolbyVoiceRoutes(
   app: express.Application,
   options: {
     DOLBY_APP_KEY: string;
     DOLBY_APP_SECRET: string;
-    PASS?: string;
   },
 ) {
   const fetchApiToken = (): Promise<jwtToken.JwtToken> => {
@@ -30,9 +27,6 @@ export function registerDolbyVoiceRoutes(
   };
 
   let apiTokenPromise = fetchApiToken();
-  if (options.PASS) {
-    app.use("/voice-token/:id", authMiddleware(options.PASS));
-  }
   app.get("/voice-token/:id", async (req, res) => {
     try {
       if (!apiTokenPromise) {

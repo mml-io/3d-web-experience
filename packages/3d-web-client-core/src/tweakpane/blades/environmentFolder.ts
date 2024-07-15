@@ -149,10 +149,6 @@ export class EnvironmentFolder {
           sun?.setColor();
           break;
         }
-        case "shadowRadius": {
-          const value = e.value as number;
-          sun?.setShadowRadius(value);
-        }
         default:
           break;
       }
