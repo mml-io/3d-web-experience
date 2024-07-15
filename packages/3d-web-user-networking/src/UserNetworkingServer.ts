@@ -4,23 +4,24 @@ import { heartBeatRate, packetsUpdateRate, pingPongRate } from "./user-networkin
 import { UserData } from "./UserData";
 import { UserNetworkingClientUpdate, UserNetworkingCodec } from "./UserNetworkingCodec";
 import {
-  AUTHENTICATION_FAILED_ERROR_TYPE,
-  CONNECTION_LIMIT_REACHED_ERROR_TYPE,
-  DISCONNECTED_MESSAGE_TYPE,
-  FromClientMessage,
-  FromServerMessage,
-  IDENTITY_MESSAGE_TYPE,
-  PONG_MESSAGE_TYPE,
-  SERVER_ERROR_MESSAGE_TYPE,
-  USER_AUTHENTICATE_MESSAGE_TYPE,
-  USER_PROFILE_MESSAGE_TYPE,
-  USER_UPDATE_MESSAGE_TYPE as USER_UPDATE_MESSAGE_TYPE,
-  UserAuthenticateMessage,
+  FromUserNetworkingClientMessage,
+  FromUserNetworkingServerMessage,
+  USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
+  USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+  USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
+  USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
+  USER_NETWORKING_PONG_MESSAGE_TYPE,
+  USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+  USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
+  USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
+  USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
   UserIdentity,
-  UserUpdateMessage,
+  UserNetworkingAuthenticateMessage,
+  UserNetworkingServerError,
+  UserNetworkingUserUpdateMessage,
 } from "./UserNetworkingMessages";
 
-export type Client = {
+export type UserNetworkingServerClient = {
   socket: WebSocket;
   id: number;
   lastPong: number;
@@ -45,14 +46,17 @@ export type UserNetworkingServerOptions = {
 };
 
 export class UserNetworkingServer {
-  private usedIds = new Set();
-  private allClientsById = new Map<number, Client>();
-  private authenticatedClientsById: Map<number, Client> = new Map();
+  private allClientsById = new Map<number, UserNetworkingServerClient>();
+  private authenticatedClientsById: Map<number, UserNetworkingServerClient> = new Map();
+
+  private sendUpdatesIntervalTimer: NodeJS.Timeout;
+  private pingClientsIntervalTimer: NodeJS.Timeout;
+  private heartbeatIntervalTimer: NodeJS.Timeout;
 
   constructor(private options: UserNetworkingServerOptions) {
-    setInterval(this.sendUpdates.bind(this), packetsUpdateRate);
-    setInterval(this.pingClients.bind(this), pingPongRate);
-    setInterval(this.heartBeat.bind(this), heartBeatRate);
+    this.sendUpdatesIntervalTimer = setInterval(this.sendUpdates.bind(this), packetsUpdateRate);
+    this.pingClientsIntervalTimer = setInterval(this.pingClients.bind(this), pingPongRate);
+    this.heartbeatIntervalTimer = setInterval(this.heartBeat.bind(this), heartBeatRate);
   }
 
   private heartBeat() {
@@ -68,7 +72,7 @@ export class UserNetworkingServer {
   private pingClients() {
     this.authenticatedClientsById.forEach((client) => {
       if (client.socket.readyState === WebSocketOpenStatus) {
-        client.socket.send(JSON.stringify({ type: "ping" } as FromServerMessage));
+        client.socket.send(JSON.stringify({ type: "ping" } as FromUserNetworkingServerMessage));
       }
     });
   }
@@ -87,7 +91,7 @@ export class UserNetworkingServer {
     console.log(`Client ID: ${id} joined, waiting for user-identification`);
 
     // Create a client but without user information
-    const client: Client = {
+    const client: UserNetworkingServerClient = {
       id,
       lastPong: Date.now(),
       socket: socket as WebSocket,
@@ -110,21 +114,21 @@ export class UserNetworkingServer {
       } else {
         let parsed;
         try {
-          parsed = JSON.parse(message as string) as FromClientMessage;
+          parsed = JSON.parse(message as string) as FromUserNetworkingClientMessage;
         } catch (e) {
           console.error("Error parsing JSON message", message, e);
           return;
         }
         if (!client.authenticatedUser) {
-          if (parsed.type === USER_AUTHENTICATE_MESSAGE_TYPE) {
+          if (parsed.type === USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE) {
             this.handleUserAuth(client, parsed).then((authResult) => {
               if (!authResult) {
                 // If the user is not authorized, disconnect the client
                 const serverError = JSON.stringify({
-                  type: SERVER_ERROR_MESSAGE_TYPE,
-                  errorType: AUTHENTICATION_FAILED_ERROR_TYPE,
+                  type: USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+                  errorType: USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
                   message: "Authentication failed",
-                } as FromServerMessage);
+                } as FromUserNetworkingServerMessage);
                 socket.send(serverError);
                 socket.close();
               } else {
@@ -134,10 +138,10 @@ export class UserNetworkingServer {
                 ) {
                   // There is a connection limit and it has been met - disconnect the user
                   const serverError = JSON.stringify({
-                    type: SERVER_ERROR_MESSAGE_TYPE,
-                    errorType: CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+                    type: USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+                    errorType: USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
                     message: "Connection limit reached",
-                  } as FromServerMessage);
+                  } as FromUserNetworkingServerMessage);
                   socket.send(serverError);
                   socket.close();
                   return;
@@ -148,17 +152,17 @@ export class UserNetworkingServer {
                 // Give the client its own profile
                 const userProfileMessage = JSON.stringify({
                   id: client.id,
-                  type: USER_PROFILE_MESSAGE_TYPE,
+                  type: USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
                   username: userData.username,
                   characterDescription: userData.characterDescription,
-                } as FromServerMessage);
+                } as FromUserNetworkingServerMessage);
                 client.socket.send(userProfileMessage);
 
                 // Give the client its own identity
                 const identityMessage = JSON.stringify({
                   id: client.id,
-                  type: IDENTITY_MESSAGE_TYPE,
-                } as FromServerMessage);
+                  type: USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
+                } as FromUserNetworkingServerMessage);
                 client.socket.send(identityMessage);
 
                 const userUpdateMessage = UserNetworkingCodec.encodeUpdate(client.update);
@@ -176,10 +180,10 @@ export class UserNetworkingServer {
                   client.socket.send(
                     JSON.stringify({
                       id: otherClient.update.id,
-                      type: USER_PROFILE_MESSAGE_TYPE,
+                      type: USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
                       username: otherClient.authenticatedUser?.username,
                       characterDescription: otherClient.authenticatedUser?.characterDescription,
-                    } as FromServerMessage),
+                    } as FromUserNetworkingServerMessage),
                   );
                   client.socket.send(UserNetworkingCodec.encodeUpdate(otherClient.update));
 
@@ -196,12 +200,12 @@ export class UserNetworkingServer {
           }
         } else {
           switch (parsed.type) {
-            case PONG_MESSAGE_TYPE:
+            case USER_NETWORKING_PONG_MESSAGE_TYPE:
               client.lastPong = Date.now();
               break;
 
-            case USER_UPDATE_MESSAGE_TYPE:
-              this.handleUserUpdate(id, parsed as UserUpdateMessage);
+            case USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE:
+              this.handleUserUpdate(id, parsed as UserNetworkingUserUpdateMessage);
               break;
 
             default:
@@ -217,7 +221,7 @@ export class UserNetworkingServer {
     });
   }
 
-  private handleDisconnectedClient(client: Client) {
+  private handleDisconnectedClient(client: UserNetworkingServerClient) {
     if (!this.allClientsById.has(client.id)) {
       return;
     }
@@ -229,8 +233,8 @@ export class UserNetworkingServer {
       this.authenticatedClientsById.delete(client.id);
       const disconnectMessage = JSON.stringify({
         id: client.id,
-        type: DISCONNECTED_MESSAGE_TYPE,
-      } as FromServerMessage);
+        type: USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
+      } as FromUserNetworkingServerMessage);
       for (const [, otherClient] of this.authenticatedClientsById) {
         if (otherClient.socket.readyState === WebSocketOpenStatus) {
           otherClient.socket.send(disconnectMessage);
@@ -240,8 +244,8 @@ export class UserNetworkingServer {
   }
 
   private async handleUserAuth(
-    client: Client,
-    credentials: UserAuthenticateMessage,
+    client: UserNetworkingServerClient,
+    credentials: UserNetworkingAuthenticateMessage,
   ): Promise<false | UserData> {
     const userData = this.options.onClientConnect(
       client.id,
@@ -278,10 +282,10 @@ export class UserNetworkingServer {
 
     const newUserData = JSON.stringify({
       id: clientId,
-      type: USER_PROFILE_MESSAGE_TYPE,
+      type: USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
       username: userData.username,
       characterDescription: userData.characterDescription,
-    } as FromServerMessage);
+    } as FromUserNetworkingServerMessage);
 
     // Broadcast the new userdata to all sockets, INCLUDING the user of the calling socket
     // Clients will always render based on the public userProfile.
@@ -293,7 +297,10 @@ export class UserNetworkingServer {
     }
   }
 
-  private async handleUserUpdate(clientId: number, message: UserUpdateMessage): Promise<void> {
+  private async handleUserUpdate(
+    clientId: number,
+    message: UserNetworkingUserUpdateMessage,
+  ): Promise<void> {
     const client = this.authenticatedClientsById.get(clientId);
     if (!client) {
       console.error(`Client-id ${clientId} user_update ignored, client not found`);
@@ -305,6 +312,7 @@ export class UserNetworkingServer {
       clientId,
       message.userIdentity,
     );
+
     let resolvedAuthorizedUserData;
     if (authorizedUserData instanceof Promise) {
       resolvedAuthorizedUserData = await authorizedUserData;
@@ -330,6 +338,21 @@ export class UserNetworkingServer {
           otherClient.socket.send(encodedUpdate);
         }
       }
+    }
+  }
+
+  public dispose(clientCloseError?: UserNetworkingServerError) {
+    clearInterval(this.sendUpdatesIntervalTimer);
+    clearInterval(this.pingClientsIntervalTimer);
+    clearInterval(this.heartbeatIntervalTimer);
+
+    const stringifiedError = clientCloseError ? JSON.stringify(clientCloseError) : undefined;
+
+    for (const [, client] of this.authenticatedClientsById) {
+      if (stringifiedError) {
+        client.socket.send(stringifiedError);
+      }
+      client.socket.close();
     }
   }
 }

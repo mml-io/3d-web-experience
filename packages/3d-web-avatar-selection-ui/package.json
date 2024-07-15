@@ -1,5 +1,5 @@
 {
-  "name": "@mml-io/3d-web-avatar",
+  "name": "@mml-io/3d-web-avatar-selection-ui",
   "version": "0.18.0",
   "publishConfig": {
     "access": "public"
@@ -13,23 +13,24 @@
   "scripts": {
     "build": "tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
-    "start": "NODE_ENV=production node build/index.js 2>error.log",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
-    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/model-loader": "0.16.1",
+    "express": "4.19.2",
+    "express-ws": "5.0.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "0.163.0"
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/express-ws": "^3.0.4",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
-    "@types/three": "0.163.0",
+    "@types/ws": "^8.5.10",
     "esbuild-css-modules-plugin": "3.1.2"
   }
 }

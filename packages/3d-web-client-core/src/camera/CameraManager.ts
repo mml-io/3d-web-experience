@@ -241,6 +241,7 @@ export class CameraManager {
 
   public dispose() {
     this.eventHandlerCollection.clear();
+    document.body.style.cursor = "";
   }
 
   private easeOutExpo(x: number): number {

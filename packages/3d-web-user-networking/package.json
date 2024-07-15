@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-user-networking",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "publishConfig": {
     "access": "public"
   },
@@ -19,12 +19,12 @@
     "test": "jest"
   },
   "dependencies": {
-    "ws": "^8.16.0"
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/express-ws": "^3.0.4",
-    "@types/node": "^20.12.7",
+    "@types/node": "^20.14.10",
     "@types/ws": "^8.5.10",
     "express": "4.19.2",
     "express-ws": "5.0.2"
