@@ -10,6 +10,7 @@ import {
   PromptProps,
   ChatProbe,
   LoadingProgressManager,
+  LinkProps,
 } from "mml-web";
 import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
 
@@ -83,8 +84,19 @@ export class MMLCompositionScene {
       removeChatProbe: (chatProbe: ChatProbe) => {
         this.chatProbes.delete(chatProbe);
       },
-      prompt: (promptProps: PromptProps, callback: (message: string | null) => void) => {
-        this.promptManager.prompt(promptProps, callback);
+      prompt: (
+        promptProps: PromptProps,
+        abortSignal: AbortSignal,
+        callback: (message: string | null) => void,
+      ) => {
+        this.promptManager.prompt(promptProps, abortSignal, callback);
+      },
+      link: (
+        linkProps: LinkProps,
+        abortSignal: AbortSignal,
+        windowCallback: (openedWindow: Window | null) => void,
+      ) => {
+        this.promptManager.link(linkProps, abortSignal, windowCallback);
       },
       getLoadingProgressManager: () => {
         return this.loadingProgressManager;
