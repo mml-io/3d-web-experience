@@ -1,5 +1,14 @@
 import { ModelLoadResult } from "@mml-io/model-loader";
-import { Bone, BufferAttribute, Group, MathUtils, Object3D, Skeleton, SkinnedMesh } from "three";
+import {
+  Bone,
+  BufferAttribute,
+  Group,
+  InterleavedBufferAttribute,
+  MathUtils,
+  Object3D,
+  Skeleton,
+  SkinnedMesh,
+} from "three";
 
 import { MMLCharacterDescriptionPart } from "../helpers/parseMMLDescription";
 
@@ -33,20 +42,24 @@ export class MMLCharacter {
     const boneIndexMap = this.createBoneIndexMap(originSkeleton, targetSkeleton);
 
     const newSkinIndexArray = [];
-    for (let i = 0; i < originGeometry.attributes.skinIndex.array.length; i++) {
-      const originIndex = originGeometry.attributes.skinIndex.array[i];
+    const missingBoneIndices = new Set();
+
+    const skinIndexAttribute = originGeometry.attributes.skinIndex;
+    for (let i = 0; i < skinIndexAttribute.count; i++) {
+      const originIndex = skinIndexAttribute.getComponent(i, 0);
       const targetIndex = boneIndexMap.get(originIndex);
       if (targetIndex !== undefined) {
-        newSkinIndexArray.push(targetIndex);
+        skinIndexAttribute.setComponent(i, 0, targetIndex);
       } else {
-        console.error("Missing bone index", originIndex);
-        newSkinIndexArray.push(0);
+        missingBoneIndices.add(originIndex);
       }
     }
-    skinnedMesh.geometry.attributes.skinIndex = new BufferAttribute(
-      new Uint8Array(newSkinIndexArray),
-      4,
-    );
+
+    if (missingBoneIndices.size > 0) {
+      console.warn(
+        `Missing bone indices in skinIndex attribute: ${Array.from(missingBoneIndices).join(", ")}`,
+      );
+    }
   }
 
   public async mergeBodyParts(

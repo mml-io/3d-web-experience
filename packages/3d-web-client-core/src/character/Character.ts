@@ -70,6 +70,9 @@ export class Character extends Group {
 
   private async load(): Promise<void> {
     const previousModel = this.model;
+    if (previousModel && previousModel.mesh) {
+      this.remove(previousModel.mesh!);
+    }
     this.model = new CharacterModel({
       characterDescription: this.config.characterDescription,
       animationConfig: this.config.animationConfig,
@@ -79,9 +82,6 @@ export class Character extends Group {
       isLocal: this.config.isLocal,
     });
     await this.model.init();
-    if (previousModel && previousModel.mesh) {
-      this.remove(previousModel.mesh!);
-    }
     this.add(this.model.mesh!);
     if (this.speakingIndicator === null) {
       this.speakingIndicator = new CharacterSpeakingIndicator(this.config.composer.postPostScene);
