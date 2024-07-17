@@ -8,45 +8,11 @@
   z="-0.02"
 ></m-frame>
 
-<m-group id="flat-screen" x="3.75" y="9.3" z="22.36" ry="180" sx="2.5" sy="2.5">
-  <m-cube color="#707070" width="9.2" height="5.7" depth="0.03" z="-0.02"></m-cube>
-  <m-cube color="#212121" width="9" height="5.5" depth="0.03" z="-0.01"></m-cube>
-  <m-video
-    id="video-player-1"
-    width="8"
-    height="4.5"
-    y="0.05"
-    z="-0.01"
-    collide="true"
-    volume="0"
-    loop="false"
-    start-time="-32000"
-    pause-time="0"
-  ></m-video>
-  <m-video
-    id="video-player-2"
-    width="8"
-    height="4.5"
-    y="0.05"
-    z="-0.02"
-    collide="true"
-    volume="0"
-    loop="false"
-    start-time="-53050"
-    pause-time="0"
-  ></m-video>
-</m-group>
+<m-frame src="wss:///mml-documents/example-first-interaction.html"></m-frame>
 
 <script>
   const roomContentGroup = document.getElementById("room-content");
-
-  const videoPlayer1 = document.getElementById("video-player-1");
-  const videoPlayer2 = document.getElementById("video-player-2");
   const spectatorsLabel = document.getElementById("spectators-label");
-
-  videoPlayer1.setAttribute("z", 0.01);
-  videoPlayer1.setAttribute("src", "/assets/playground/sonic_ghz.mp4");
-  videoPlayer2.setAttribute("src", "/assets/playground/sonic_ghz.mp4");
 
   function createDoor(
     { width, height, x, y, z, buttonX, buttonY, buttonZFront, buttonZBack },

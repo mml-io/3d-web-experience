@@ -1,0 +1,624 @@
+<m-group id="flat-screen" x="3.75" y="8.5" z="22.36" ry="180" sx="2.5" sy="2.5">
+  <m-cube color="#707070" width="9.2" height="5.7" depth="0.03" z="-0.02"></m-cube>
+  <m-cube color="#212121" width="9" height="5.5" depth="0.03" z="-0.01"></m-cube>
+  <m-audio
+    id="video-player-1-audio"
+    src="/assets/playground/video-first-interaction-01.mp3"
+    loop="false"
+    start-time="-32000"
+    pause-time="0"
+    y="1"
+    rx="20"
+    cone-angle="70"
+    cone-falloff-angle="180"
+    volume="0"
+    debug="false"
+  ></m-audio>
+  <m-audio
+    id="video-player-2-audio"
+    src="/assets/playground/video-first-interaction-02.mp3"
+    loop="false"
+    start-time="-53050"
+    pause-time="0"
+    y="1"
+    rx="20"
+    cone-angle="70"
+    cone-falloff-angle="180"
+    volume="0"
+    debug="false"
+  ></m-audio>
+  <m-video
+    id="video-player-1"
+    width="8"
+    height="4.5"
+    y="0.05"
+    z="-0.01"
+    collide="true"
+    volume="0"
+    loop="false"
+    start-time="-32000"
+    pause-time="0"
+    src="/assets/playground/video-first-interaction-01.mp4"
+  ></m-video>
+  <m-video
+    id="video-player-2"
+    width="8"
+    height="4.5"
+    y="0.05"
+    z="-0.02"
+    collide="true"
+    volume="0"
+    loop="false"
+    start-time="-53050"
+    pause-time="0"
+    src="/assets/playground/video-first-interaction-02.mp4"
+  ></m-video>
+</m-group>
+
+<m-group id="plinth-group" x="3.75" y="0.01" z="8" ry="90">
+  <m-model src="/assets/playground/teleporter_base.glb"></m-model>
+  <m-group id="cube-holder" y="1">
+    <m-attr-anim
+      attr="y"
+      start="1"
+      end="1.15"
+      duration="8000"
+      ping-pong="true"
+      loop="true"
+      easing="easeInOutQuad"
+    ></m-attr-anim>
+    <m-group id="cube-label-group" y="0.2" z="1.5" sy="0" class="hidden">
+      <m-attr-anim
+        attr="rx"
+        start="-3"
+        end="3"
+        duration="16000"
+        loop="true"
+        ping-pong="true"
+        easing="easeInOutQuad"
+      ></m-attr-anim>
+      <m-label
+        id="pet-label-back"
+        x="-0.2"
+        ry="90"
+        padding="0"
+        width="1"
+        height="0.7"
+        alignment="center"
+        font-size="21"
+        content="I was pet 0 times"
+      ></m-label>
+      <m-label
+        id="pet-label-front"
+        x="-0.199"
+        ry="-90"
+        padding="0"
+        width="1"
+        height="0.7"
+        alignment="center"
+        font-size="21"
+        content="I was pet 0 times"
+      ></m-label>
+    </m-group>
+    <m-group id="cube-code-group" x="0.5" y="0.5" z="2" sy="0" class="hidden">
+      <m-attr-anim
+        attr="rx"
+        start="-1"
+        end="1"
+        duration="16000"
+        loop="true"
+        ping-pong="true"
+        easing="easeInOutQuad"
+      ></m-attr-anim>
+      <m-image
+        src="/assets/playground/first_cube_code.png"
+        width="4"
+        ry="110"
+        collide="false"
+      ></m-image>
+    </m-group>
+
+    <m-cube id="my-first-cube" visible="false" color="#bbbbbb" collide="false" class="regular-size">
+      <m-attr-anim attr="ry" start="0" end="360" duration="20000" loop="true"></m-attr-anim>
+      <m-attr-anim attr="rx" start="0" end="360" duration="30000" loop="true"></m-attr-anim>
+    </m-cube>
+  </m-group>
+</m-group>
+
+<m-cube x="3.75" y="0.2" z="0" sx="0.8" sy="0.4" collide="false" visible="false">
+  <m-position-probe id="demo-probe" range="26" interval="500" debug="false"></m-position-probe>
+</m-cube>
+
+<m-group id="play-demo-group"></m-group>
+
+<script>
+  const playDemoGroup = document.getElementById("play-demo-group");
+  const videoPlayer1Video = document.getElementById("video-player-1");
+  const videoPlayer2Video = document.getElementById("video-player-2");
+  const videoPlayer1Audio = document.getElementById("video-player-1-audio");
+  const videoPlayer2Audio = document.getElementById("video-player-2-audio");
+
+  const playersInProbe = new Set();
+
+  let demoRolling = false;
+  let firstVideoPlaying = false;
+  let secondVideoPlaying = false;
+  let waitingPetSince = null;
+  let clickCount = 0;
+
+  let cubeColorIndex = 0;
+  const cubeColors = ["#FF77FF", "#55FFFF"];
+
+  const demoProbe = document.getElementById("demo-probe");
+
+  const cube = document.getElementById("my-first-cube");
+  const cubeLabelGroup = document.getElementById("cube-label-group");
+  const cubeCodeGroup = document.getElementById("cube-code-group");
+  const petLabelFront = document.getElementById("pet-label-front");
+  const petLabelBack = document.getElementById("pet-label-back");
+
+  const cubeSpawnTimeInSeconds = 15.08;
+
+  const video1DurationInSeconds = 30.0;
+  const video2DurationInSeconds = 47.0;
+  const visibleDepth = 0.01;
+  const hiddenDepth = -0.02;
+
+  function animate(element, attr, start, end, duration, easing) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", document.timeline.currentTime);
+    anim.setAttribute("end-time", document.timeline.currentTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", false);
+    element.appendChild(anim);
+    setTimeout(() => {
+      element.setAttribute(attr, end);
+      element.removeChild(anim);
+    }, duration);
+  }
+
+  function showLabel() {
+    cubeLabelGroup.setAttribute("class", "visible");
+    animate(cubeLabelGroup, "sy", 0, 1, 1000, "easeInOutQuint");
+  }
+
+  function hideLabel() {
+    cubeLabelGroup.setAttribute("class", "hidden");
+    animate(cubeLabelGroup, "sy", 1, 0, 1000, "easeInOutQuint");
+    setTimeout(() => {
+      petLabelFront.setAttribute("content", "I was pet 0 times");
+      petLabelBack.setAttribute("content", "I was pet 0 times");
+    }, 1100);
+  }
+
+  function showCode() {
+    cubeCodeGroup.setAttribute("class", "visible");
+    animate(cubeCodeGroup, "sy", 0, 1, 1000, "easeInOutQuint");
+  }
+
+  function hideCode() {
+    cubeCodeGroup.setAttribute("class", "hidden");
+    animate(cubeCodeGroup, "sy", 1, 0, 1000, "easeInOutQuint");
+  }
+
+  function onCubeClick() {
+    cube.setAttribute("color", cubeColors[cubeColorIndex]);
+    cubeColorIndex++;
+    if (cubeColorIndex > 1) {
+      cubeColorIndex = 0;
+    }
+    clickCount++;
+    petLabelFront.setAttribute("content", `I was pet ${clickCount} times 😊`);
+    petLabelBack.setAttribute("content", `I was pet ${clickCount} times 😊`);
+    if (clickCount >= 3) {
+      waitingPetSince = null;
+      const cubeLabelClass = cubeLabelGroup.getAttribute("class");
+      if (cubeLabelClass === "visible") {
+        hideLabel();
+      }
+      const cubeClass = cube.getAttribute("class");
+      if (cubeClass === "regular-size") {
+        shrinkCube();
+      }
+      if (secondVideoPlaying === false) {
+        clickCount = 0;
+        playSecondVideo();
+      }
+    }
+  }
+
+  function addCubeListener() {
+    cube.addEventListener("click", onCubeClick);
+  }
+
+  function removeCubeListener() {
+    cube.removeEventListener("click", onCubeClick);
+  }
+
+  function shrinkCube() {
+    cube.setAttribute("class", "tiny");
+    removeCubeListener();
+    animate(cube, "sx", 1, 0.25, 900, "easeInOutQuint");
+    animate(cube, "sy", 1, 0.25, 1100, "easeInOutQuint");
+    animate(cube, "sz", 1, 0.25, 1300, "easeInOutQuint");
+    animate(cube, "color", cubeColors[cubeColorIndex], "#ffffff", 1300);
+  }
+
+  function removeCube() {
+    animate(cube, "sx", 0.25, 0, 900, "easeInOutQuint");
+    animate(cube, "sy", 0.25, 0, 900, "easeInOutQuint");
+    animate(cube, "sz", 0.25, 0, 900, "easeInOutQuint");
+    animate(cube, "y", 0, -1, 900, "easeInOutQuint");
+    setTimeout(() => {
+      cube.setAttribute("class", "regular-size");
+      cube.setAttribute("visible", false);
+      cube.setAttribute("collide", false);
+      cube.setAttribute("sx", 1);
+      cube.setAttribute("sy", 1);
+      cube.setAttribute("sz", 1);
+      cube.setAttribute("y", 0);
+    }, 1000);
+  }
+
+  function stopFirstVideo() {
+    const now = document.timeline.currentTime;
+
+    videoPlayer1Video.setAttribute("z", hiddenDepth);
+    videoPlayer1Video.setAttribute("start-time", now - video1DurationInSeconds * 1000);
+    videoPlayer1Video.setAttribute("pause-time", now);
+
+    videoPlayer1Audio.setAttribute("volume", 0);
+    videoPlayer1Audio.setAttribute("start-time", now - video1DurationInSeconds * 1000);
+    videoPlayer1Audio.setAttribute("pause-time", now);
+
+    firstVideoPlaying = false;
+  }
+
+  function stopSecondVideo() {
+    const now = document.timeline.currentTime;
+
+    videoPlayer2Video.setAttribute("z", hiddenDepth);
+    videoPlayer2Video.setAttribute("start-time", now - video2DurationInSeconds * 1000);
+    videoPlayer2Video.setAttribute("pause-time", now);
+
+    videoPlayer2Audio.setAttribute("volume", 0);
+    videoPlayer2Audio.setAttribute("start-time", now - video2DurationInSeconds * 1000);
+    videoPlayer2Audio.setAttribute("pause-time", now);
+
+    secondVideoPlaying = false;
+  }
+
+  function playFirstVideo() {
+    clickCount = 0;
+    stopSecondVideo();
+
+    demoRolling = true;
+    firstVideoPlaying = true;
+
+    const now = document.timeline.currentTime;
+    const pauseTime = now + video1DurationInSeconds * 1000;
+
+    videoPlayer1Video.setAttribute("z", visibleDepth);
+    videoPlayer1Video.setAttribute("start-time", now);
+    videoPlayer1Video.setAttribute("pause-time", pauseTime);
+
+    videoPlayer1Audio.setAttribute("start-time", now);
+    videoPlayer1Audio.setAttribute("pause-time", pauseTime);
+    videoPlayer1Audio.setAttribute("volume", 4);
+
+    setTimeout(() => {
+      cube.setAttribute("collide", true);
+      cube.setAttribute("visible", true);
+
+      setTimeout(() => {
+        waitingPetSince = Date.now();
+        cube.setAttribute("color", "#ffffff");
+        showLabel();
+        addCubeListener();
+      }, 14.5 * 1000);
+    }, cubeSpawnTimeInSeconds * 1000);
+  }
+
+  function playSecondVideo() {
+    stopFirstVideo();
+
+    demoRolling = true;
+    secondVideoPlaying = true;
+
+    const now = document.timeline.currentTime;
+    const pauseTime = now + video2DurationInSeconds * 1000;
+
+    videoPlayer2Video.setAttribute("z", visibleDepth);
+    videoPlayer2Video.setAttribute("start-time", now);
+    videoPlayer2Video.setAttribute("pause-time", pauseTime);
+
+    videoPlayer2Audio.setAttribute("start-time", now);
+    videoPlayer2Audio.setAttribute("pause-time", pauseTime);
+    videoPlayer2Audio.setAttribute("volume", 4);
+
+    setTimeout(() => {
+      showCode();
+      setTimeout(() => hideCode(), 17000);
+    }, 16000);
+
+    setTimeout(() => {
+      stopSecondVideo();
+      removeCube();
+      demoRolling = false;
+    }, video2DurationInSeconds * 1000);
+  }
+
+  function resetExample() {
+    stopFirstVideo();
+    stopSecondVideo();
+    removeCubeListener();
+    removeCube();
+    hideLabel();
+    hideCode();
+    clickCount = 0;
+    setTimeout(() => {
+      demoRolling = false;
+    }, 2100);
+  }
+
+  demoProbe.addEventListener("positionenter", (event) => {
+    const { connectionId } = event.detail;
+    if (!playersInProbe.has(connectionId)) {
+      playersInProbe.add(connectionId);
+    }
+  });
+
+  demoProbe.addEventListener("positionmove", (event) => {
+    const { connectionId } = event.detail;
+    if (!playersInProbe.has(connectionId)) {
+      playersInProbe.add(connectionId);
+    }
+  });
+
+  demoProbe.addEventListener("positionleave", (event) => {
+    const { connectionId } = event.detail;
+    if (playersInProbe.has(connectionId)) {
+      playersInProbe.delete(connectionId);
+    }
+  });
+
+  window.addEventListener("disconnected", (event) => {
+    const { connectionId } = event.detail;
+    if (playersInProbe.has(connectionId)) {
+      playersInProbe.delete(connectionId);
+    }
+  });
+
+  setInterval(() => {
+    const hasWatchers = playersInProbe.size > 0;
+
+    if (!hasWatchers) {
+      if (firstVideoPlaying === false && secondVideoPlaying === false && demoRolling === true) {
+        clickCount = 0;
+        demoRolling = false;
+      }
+    }
+
+    if (!hasWatchers && waitingPetSince !== null) {
+      const waitingPetDelta = (Date.now() - waitingPetSince) / 1000;
+      if (waitingPetDelta > 30) {
+        waitingPetSince = null;
+        resetExample();
+      }
+    }
+
+    if (demoRolling === false) {
+      if (playButton) {
+        playButton.turnOn();
+      }
+    }
+  }, 500);
+
+  // interaction buttons ============================================
+  class InteractionButton {
+    baseModelURL =
+      "https://mmlstorage.com/b78b004cfc7c5ba5c0029e6b97d87f1291ad2106e9c724631669684fee295f8d"; // button_base.glb
+    playButtonOnModelURL =
+      "https://mmlstorage.com/0e99f1b49eba484ae5a2c447f8ed81bdf893bfb1f2c30160327abf5a69a85b75"; // play_button_on.glb
+    playButtonOffModelURL =
+      "https://mmlstorage.com/0a25bfe85a537917a32dae1f23c442deebc6f4c0594c099a6c576444e8d520a7"; // play_button_off.glb
+    questionButtonOnModelURL =
+      "https://mmlstorage.com/23e1853309eed73d9777043643ca6786c08c787f1de942646b58f238c28795b8"; // question_button_on.glb
+    questionButtonOffModelURL =
+      "https://mmlstorage.com/26180e4f0cf7009c3ed4c82cbde72dadb06424012e09a151951f4a9000ffcd56"; // question_button_off.glb
+    buttonSoundURL =
+      "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344"; // button_sfx.mp3
+
+    animDuration = 210;
+    buttonSoundDuration = 1200;
+    offset = 0.03;
+    easing = "easeInOutCubic";
+
+    infoSound = null;
+    infoSoundDuration = 0;
+    infoSoundCanPlay = true;
+    buttonSoundCanPlay = true;
+
+    group = document.createElement("m-group");
+    base = document.createElement("m-model");
+    buttonOn = document.createElement("m-model");
+    buttonOff = document.createElement("m-model");
+    buttonSound = document.createElement("m-audio");
+
+    constructor(x, y, z, yRotation, parentGroup) {
+      this.base.setAttribute("src", this.baseModelURL);
+      this.transform(this.group, x, y, z, yRotation);
+      this.group.appendChild(this.base);
+      parentGroup.appendChild(this.group);
+      this.setupButtonSound();
+      return this;
+    }
+
+    setupPlay(callBackFunction) {
+      this.buttonOn.setAttribute("src", this.playButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.playButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            callBackFunction();
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+      });
+    }
+
+    setupInfo(infoSoundURL, infoSoundDuration, infoSoundVolume) {
+      this.buttonOn.setAttribute("src", this.questionButtonOnModelURL);
+      this.buttonOff.setAttribute("src", this.questionButtonOffModelURL);
+      this.group.appendChild(this.buttonOn);
+      this.group.appendChild(this.buttonOff);
+      this.scale(this.buttonOff, 0.001);
+
+      this.infoSound = document.createElement("m-audio");
+      this.infoSound.setAttribute("y", 12);
+      this.infoSound.setAttribute("rx", 90);
+      this.infoSound.setAttribute("cone-angle", 90);
+      this.infoSound.setAttribute("cone-falloff-angle", 120);
+      this.infoSound.setAttribute("loop", false);
+      this.infoSound.setAttribute("debug", false);
+      this.infoSound.setAttribute("src", infoSoundURL);
+      this.infoSound.setAttribute("volume", 0);
+      this.infoSound.setAttribute("start-time", document.timeline.currentTime - infoSoundDuration);
+      this.infoSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.infoSound);
+
+      this.buttonOn.addEventListener("click", () => {
+        this.pushButtonAnim();
+        setTimeout(() => {
+          this.releaseButtonAnim();
+          setTimeout(() => {
+            this.turnOff();
+            setTimeout(() => this.turnOn(), infoSoundDuration);
+          }, this.animDuration + 20);
+        }, this.animDuration + 20);
+
+        this.playButtonSound();
+        setTimeout(() => {
+          this.playInfoSound(infoSoundDuration, infoSoundVolume);
+        }, this.buttonSoundDuration * 0.6667);
+      });
+    }
+
+    turnOff() {
+      this.swap(this.buttonOn, this.buttonOff);
+    }
+
+    turnOn() {
+      this.swap(this.buttonOff, this.buttonOn);
+    }
+
+    pushButtonAnim() {
+      this.animateButton(this.buttonOn, "y", 0, -this.offset, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", 0, this.offset, this.animDuration, this.easing);
+    }
+
+    releaseButtonAnim() {
+      this.animateButton(this.buttonOn, "y", -this.offset, 0, this.animDuration, this.easing);
+      this.animateButton(this.buttonOn, "z", this.offset, 0, this.animDuration, this.easing);
+    }
+
+    playInfoSound(infoSoundDuration, infoSoundVolume) {
+      if (this.infoSoundCanPlay === false || this.infoSound === null) {
+        return;
+      }
+      this.infoSoundCanPlay = false;
+      const now = document.timeline.currentTime;
+      this.infoSound.setAttribute("volume", infoSoundVolume);
+      this.infoSound.setAttribute("start-time", now);
+      this.infoSound.setAttribute("pause-time", now + infoSoundDuration);
+      setTimeout(() => {
+        this.infoSound.setAttribute("volume", 0);
+        this.infoSoundCanPlay = true;
+      }, infoSoundDuration);
+    }
+
+    playButtonSound() {
+      if (this.buttonSoundCanPlay === false) {
+        return;
+      }
+      this.buttonSoundCanPlay === false;
+      const now = document.timeline.currentTime;
+      this.buttonSound.setAttribute("volume", 2);
+      this.buttonSound.setAttribute("start-time", now);
+      this.buttonSound.setAttribute("pause-time", now + this.buttonSoundDuration);
+      setTimeout(() => {
+        this.buttonSound.setAttribute("volume", 0);
+        this.buttonSoundCanPlay === true;
+      }, this.buttonSoundDuration);
+    }
+
+    transform(element, x, y, z, ry) {
+      element.setAttribute("x", x);
+      element.setAttribute("y", y);
+      element.setAttribute("z", z);
+      element.setAttribute("ry", ry);
+    }
+
+    scale(element, size) {
+      element.setAttribute("sx", size);
+      element.setAttribute("sy", size);
+      element.setAttribute("sz", size);
+    }
+
+    swap(elementA, elementB) {
+      this.scale(elementB, 1.0);
+      this.scale(elementA, 0.001);
+    }
+
+    setupButtonSound() {
+      this.buttonSound.setAttribute("y", 1.2);
+      this.buttonSound.setAttribute("loop", false);
+      this.buttonSound.setAttribute("debug", false);
+      this.buttonSound.setAttribute(
+        "src",
+        "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344",
+      ); // button_sfx.mp3
+      this.buttonSound.setAttribute("volume", 0);
+      this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
+      this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
+      this.group.appendChild(this.buttonSound);
+    }
+
+    animateButton(element, attr, start, end, duration, easing) {
+      const buttonAnim = document.createElement("m-attr-anim");
+      buttonAnim.setAttribute("attr", attr);
+      buttonAnim.setAttribute("start", start);
+      buttonAnim.setAttribute("end", end);
+      buttonAnim.setAttribute("start-time", document.timeline.currentTime);
+      buttonAnim.setAttribute("end-time", document.timeline.currentTime + duration);
+      buttonAnim.setAttribute("duration", duration);
+      buttonAnim.setAttribute("easing", easing);
+      buttonAnim.setAttribute("loop", false);
+      element.appendChild(buttonAnim);
+      setTimeout(() => {
+        element.setAttribute(attr, end);
+        element.removeChild(buttonAnim);
+      }, duration);
+    }
+  }
+
+  const playButton = new InteractionButton(2, 0, 7, 0, playDemoGroup);
+  playButton.setupPlay(() => {
+    if (demoRolling === false) {
+      playFirstVideo();
+    }
+  });
+  // ================================================================
+</script>
