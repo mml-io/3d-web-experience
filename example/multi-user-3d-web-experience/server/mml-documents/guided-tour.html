@@ -631,7 +631,10 @@
         progressionSpace.appendChild(travelatorNZ);
       }
 
-      const frameURL = `wss:///mml-documents/z-room-${i}.html`;
+      let frameURL = `wss:///mml-documents/z-room-${i}.html`;
+      if (i === 1) {
+        frameURL = "wss://mmlhosting.com/v1/world-142734_room-1-773a5c";
+      }
       const minX = -roomsWidth;
       const maxX = roomsWidth;
       const minY = -roomsHeight / 2;

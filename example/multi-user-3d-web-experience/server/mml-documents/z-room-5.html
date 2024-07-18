@@ -101,7 +101,10 @@ We can use them to entice the community to create their own MML documents and su
     let buttonSoundCanPlay = true;
 
     const doorFrame = document.createElement("m-model");
-    doorFrame.setAttribute("src", "/assets/playground/doorframe.glb");
+    doorFrame.setAttribute(
+      "src",
+      "https://mmlstorage.com/fa41737dd901fd0e62b98f1c0debc4c1e5d155384507b0abd380e336aa197710",
+    );
     // doorGroup.appendChild(doorFrame);
 
     const door = document.createElement("m-cube");
@@ -117,7 +120,10 @@ We can use them to entice the community to create their own MML documents and su
 
     const doorSound = document.createElement("m-audio");
     doorSound.setAttribute("volume", 0);
-    doorSound.setAttribute("src", "/assets/playground/door_swoosh.mp3");
+    doorSound.setAttribute(
+      "src",
+      "https://mmlstorage.com/f4bf35da3d464496b7cc9a0fbe3b695fd938a1e2248322e9f46c77a11d3fc948",
+    );
     doorSound.setAttribute("loop", false);
     doorSound.setAttribute("start-time", document.timeline.currentTime - (doorSoundDuration + 100));
     doorSound.setAttribute("pause-time", document.timeline.currentTime - 100);
@@ -163,9 +169,12 @@ We can use them to entice the community to create their own MML documents and su
       }, duration);
     };
 
-    const buttonBaseURL = "/assets/playground/open_button_base.glb";
-    const buttonOnURL = "/assets/playground/open_button_on.glb";
-    const buttonOffURL = "/assets/playground/open_button_off.glb";
+    const buttonBaseURL =
+      "https://mmlstorage.com/26c684816caf7c5ac67ff924b1bf8b0d1a982cedbc11bda4f9b1c54bee8f1bf1";
+    const buttonOnURL =
+      "https://mmlstorage.com/e06ed8f36e64a28c0d543aeca9d1bcd440b31cdfc1a93aaf91326bf583b02240";
+    const buttonOffURL =
+      "https://mmlstorage.com/4b1d2fe8a0f2c6b3e732966e94d5b9366f4a2e9e094d476819e5b66a907a4c90";
 
     const doorButtonBase = createModel(buttonBaseURL, buttonX, buttonY, buttonZFront);
     const doorButtonOn = createModel(buttonOnURL, buttonX, buttonY, buttonZFront);
@@ -177,12 +186,19 @@ We can use them to entice the community to create their own MML documents and su
     const doorBackButtonOff = createModel(buttonOffURL, buttonX, buttonY, buttonZBack, 180);
     scale(doorBackButtonOff, 0.001);
 
-    doorGroup.appendChild(doorButtonBase);
-    doorGroup.appendChild(doorButtonOn);
-    doorGroup.appendChild(doorButtonOff);
-    doorGroup.appendChild(doorBackButtonBase);
-    doorGroup.appendChild(doorBackButtonOn);
-    doorGroup.appendChild(doorBackButtonOff);
+    const buttonGroup = document.createElement("m-group");
+
+    buttonGroup.appendChild(doorButtonBase);
+    buttonGroup.appendChild(doorButtonOn);
+    buttonGroup.appendChild(doorButtonOff);
+    buttonGroup.appendChild(doorBackButtonBase);
+    buttonGroup.appendChild(doorBackButtonOn);
+    buttonGroup.appendChild(doorBackButtonOff);
+    buttonGroup.setAttribute("sx", 2);
+    buttonGroup.setAttribute("sy", 2);
+    buttonGroup.setAttribute("sz", 2);
+
+    doorGroup.appendChild(buttonGroup);
 
     const pushButtonAnim = () => {
       animateElement(
@@ -232,7 +248,10 @@ We can use them to entice the community to create their own MML documents and su
       buttonSound.setAttribute("y", 1.2);
       buttonSound.setAttribute("loop", false);
       buttonSound.setAttribute("debug", false);
-      buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      buttonSound.setAttribute(
+        "src",
+        "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344",
+      );
       buttonSound.setAttribute("volume", 0);
       buttonSound.setAttribute("start-time", document.timeline.currentTime - buttonSoundDuration);
       buttonSound.setAttribute("pause-time", document.timeline.currentTime);
@@ -323,11 +342,11 @@ We can use them to entice the community to create their own MML documents and su
       height: 6,
       x: -12.6,
       y: 0.03,
-      z: 22.66,
-      buttonX: 3.19,
-      buttonY: 1.7,
-      buttonZFront: 0.32,
-      buttonZBack: 0.51,
+      z: 22.76,
+      buttonX: 1.72,
+      buttonY: 0.7,
+      buttonZFront: 0.0,
+      buttonZBack: 0.29,
     },
     roomContentGroup,
   );
@@ -338,10 +357,10 @@ We can use them to entice the community to create their own MML documents and su
       x: 12.6,
       y: 0.03,
       z: -22.44,
-      buttonX: -3.19,
-      buttonY: 1.7,
-      buttonZFront: -0.37,
-      buttonZBack: 0.18,
+      buttonX: -1.69,
+      buttonY: 0.7,
+      buttonZFront: -0.22,
+      buttonZBack: 0.1,
     },
     roomContentGroup,
   );

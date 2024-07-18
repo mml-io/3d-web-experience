@@ -35,7 +35,13 @@
   </m-group>
 
   <m-group id="attributes-label-group" x="0" y="0.5" z="4.5" ry="0">
-    <m-model y="0.4" src="/assets/playground/code_display.glb" sx="0.4" sy="0.4" sz="0.4"></m-model>
+    <m-model
+      y="0.4"
+      src="https://mmlstorage.com/fb78bdc93f7d463e7dde14a56535e92ba85336ee9849903193425504ee51ccc0"
+      sx="0.4"
+      sy="0.4"
+      sz="0.4"
+    ></m-model>
     <m-group id="code-screen"></m-group>
   </m-group>
 </m-group>
@@ -59,6 +65,16 @@
 
   const easings = ["easeInOutQuad", "easeInOutCubic"];
   const availableCars = ["yellow", "green", "blue", "pink", "red"];
+  const availableCarsModels = {
+    yellow:
+      "https://mmlstorage.com/06a76843d5c29fb1d1ddd89ae059c50dc86e05ef051dfa6798579bfb0f282d32",
+    green:
+      "https://mmlstorage.com/a0d3025711056c7d8c488de0d704f8dd974f2acd32792822241e7cb17d2bed68",
+    blue: "https://mmlstorage.com/56ce286e5c8122ab33500b66584c819430b2d06a47f64530be0e4ae3ed5a1e58",
+    pink: "https://mmlstorage.com/bd1fd217082712d542d24d5fcc57d17d1d157e23505f924f4555d5e5095accc5",
+    red: "https://mmlstorage.com/71ef0b2deb50c408e4e06069dd1cd6e7ca658c2e06d3ea5e21e9111b2a6bb036",
+  };
+
   const sat = "100%";
   const light = "65%";
   const carColors = [
@@ -86,12 +102,18 @@
 
   // interaction buttons ============================================
   class InteractionButton {
-    baseModelURL = "/assets/playground/button_base.glb";
-    playButtonOnModelURL = "/assets/playground/play_button_on.glb";
-    playButtonOffModelURL = "/assets/playground/play_button_off.glb";
-    questionButtonOnModelURL = "/assets/playground/question_button_on.glb";
-    questionButtonOffModelURL = "/assets/playground/question_button_off.glb";
-    buttonSoundURL = "/assets/playground/button_sfx.mp3";
+    baseModelURL =
+      "https://mmlstorage.com/b78b004cfc7c5ba5c0029e6b97d87f1291ad2106e9c724631669684fee295f8d";
+    playButtonOnModelURL =
+      "https://mmlstorage.com/0e99f1b49eba484ae5a2c447f8ed81bdf893bfb1f2c30160327abf5a69a85b75";
+    playButtonOffModelURL =
+      "https://mmlstorage.com/0a25bfe85a537917a32dae1f23c442deebc6f4c0594c099a6c576444e8d520a7";
+    questionButtonOnModelURL =
+      "https://mmlstorage.com/23e1853309eed73d9777043643ca6786c08c787f1de942646b58f238c28795b8";
+    questionButtonOffModelURL =
+      "https://mmlstorage.com/26180e4f0cf7009c3ed4c82cbde72dadb06424012e09a151951f4a9000ffcd56";
+    buttonSoundURL =
+      "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344";
 
     animDuration = 210;
     buttonSoundDuration = 1200;
@@ -246,7 +268,10 @@
       this.buttonSound.setAttribute("y", 1.2);
       this.buttonSound.setAttribute("loop", false);
       this.buttonSound.setAttribute("debug", false);
-      this.buttonSound.setAttribute("src", "/assets/playground/button_sfx.mp3");
+      this.buttonSound.setAttribute(
+        "src",
+        "https://mmlstorage.com/18cf8bddaf0b8dcd93548433637216e3dd086bd3510f00cf83fffc1508932344",
+      );
       this.buttonSound.setAttribute("volume", 0);
       this.buttonSound.setAttribute("start-time", document.timeline.currentTime - 900);
       this.buttonSound.setAttribute("pause-time", document.timeline.currentTime);
@@ -272,7 +297,11 @@
   }
 
   const infoButton = new InteractionButton(-8, 0, -1.5, 0, raceTrackGroup);
-  infoButton.setupInfo("/assets/playground/placeholder_info_audio.mp3", 4500, 3);
+  infoButton.setupInfo(
+    "https://mmlstorage.com/d1202953ab0f39d7eb634c625fc657f002c369ffaaa378fbfe9b3e59bd201b67",
+    4500,
+    3,
+  );
   const playButton = new InteractionButton(-8.5, 0, -1.5, 0, raceTrackGroup);
   playButton.setupPlay(play);
   // ================================================================
@@ -463,7 +492,10 @@
 
   function createCountDownSound() {
     countDownSound = document.createElement("m-audio");
-    countDownSound.setAttribute("src", "/assets/playground/countdown.mp3");
+    countDownSound.setAttribute(
+      "src",
+      "https://mmlstorage.com/3a3097b651169f68b56dd3d844e1f2eb773b6b49f248cc2b3b9e6c13d6e6f3e2",
+    );
     countDownSound.setAttribute("loop", false);
     countDownSound.setAttribute("start-time", document.timeline.currentTime - 4100);
     countDownSound.setAttribute("pause-time", document.timeline.currentTime - 100);
@@ -496,7 +528,10 @@
   function createRacingSound(xPos, yPos, zPos) {
     const now = document.timeline.currentTime;
     const racingSound = document.createElement("m-audio");
-    racingSound.setAttribute("src", "/assets/playground/racing.mp3");
+    racingSound.setAttribute(
+      "src",
+      "https://mmlstorage.com/80034cf5936b214055dd3228556a536f43c407b9d563f2b8f0324f360a01a432",
+    );
     racingSound.setAttribute("loop", false);
     racingSound.setAttribute("start-time", now - raceSoundDuration - 100);
     racingSound.setAttribute("pause-time", now - 100);
@@ -518,7 +553,7 @@
       }
 
       const carColor = availableCars[carIndex];
-      const carURL = `/assets/playground/f1_race_car_${carColor}.glb`;
+      const carURL = availableCarsModels[carColor];
       const carSound = raceCarsSound.get(carIndex);
 
       const car = document.createElement("m-model");
