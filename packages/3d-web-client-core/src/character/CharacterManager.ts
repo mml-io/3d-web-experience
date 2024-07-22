@@ -240,7 +240,12 @@ export class CharacterManager {
       if (
         this.config.updateURLLocation &&
         this.config.timeManager.frame % 60 === 0 &&
-        document.hasFocus()
+        document.hasFocus() &&
+        /*
+         Don't update the URL if the camera is being controlled as some browsers (e.g. Chrome) cause a hitch to Pointer
+         events when the url is updated
+        */
+        !this.config.cameraManager.hasActiveInput()
       ) {
         const hash = encodeCharacterAndCamera(
           this.localCharacter,

@@ -49,7 +49,9 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
   const startHideTimeout = useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = setTimeout(() => {
-      if (isVisible) setIsVisible(false);
+      if (isVisible) {
+        setIsVisible(false);
+      }
     }, SECONDS_TO_FADE_OUT * 1000);
   }, [isVisible]);
 
@@ -79,6 +81,8 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
 
   const handleRootClick = (e: MouseEvent) => {
     e.stopPropagation();
+    setOpenHovered(true);
+    if (!isVisible) setIsVisible(true);
   };
 
   const handleStickyButton = (e: MouseEvent) => {
@@ -162,7 +166,7 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
   }, [handleBlur, handleKeyDown]);
 
   return (
-    <>
+    <div className={styles.textChatUi}>
       <div
         className={styles.uiHover}
         onMouseEnter={handleMouseEnter}
@@ -178,7 +182,7 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
       </div>
       <div
         ref={chatPanelRef}
-        style={{ position: "fixed", zIndex: -1 }}
+        style={{ zIndex: -1 }}
         id="text-chat-wrapper"
         className={`${styles.textChat} ${panelStyle}`}
         onWheel={handleWheel}
@@ -203,6 +207,6 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
           setFocus={setFocus}
         />
       </div>
-    </>
+    </div>
   );
 };

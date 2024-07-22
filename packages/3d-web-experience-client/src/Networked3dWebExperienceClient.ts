@@ -161,10 +161,8 @@ export class Networked3dWebExperienceClient {
 
     this.virtualJoystick = new VirtualJoystick(this.element, {
       radius: 70,
-      inner_radius: 20,
-      x: 70,
-      y: 0,
-      mouse_support: false,
+      innerRadius: 20,
+      mouseSupport: false,
     });
 
     this.composer = new Composer({

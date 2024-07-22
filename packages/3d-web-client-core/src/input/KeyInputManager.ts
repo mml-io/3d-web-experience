@@ -51,39 +51,42 @@ export class KeyInputManager {
     return [Key.W, Key.A, Key.S, Key.D].some((key) => this.isKeyPressed(key));
   }
 
-  get forward(): boolean {
+  private getForward(): boolean {
     return this.isKeyPressed(Key.W);
   }
 
-  get backward(): boolean {
+  private getBackward(): boolean {
     return this.isKeyPressed(Key.S);
   }
 
-  get left(): boolean {
+  private getLeft(): boolean {
     return this.isKeyPressed(Key.A);
   }
 
-  get right(): boolean {
+  private getRight(): boolean {
     return this.isKeyPressed(Key.D);
   }
 
-  get run(): boolean {
+  private getRun(): boolean {
     return this.isKeyPressed(Key.SHIFT);
   }
 
-  get jump(): boolean {
+  private getJump(): boolean {
     return this.isKeyPressed(Key.SPACE);
   }
 
-  get anyDirection(): boolean {
-    return this.isMovementKeyPressed();
-  }
-
-  get conflictingDirection(): boolean {
-    return (
-      (this.isKeyPressed(Key.W) && this.isKeyPressed(Key.S)) ||
-      (this.isKeyPressed(Key.A) && this.isKeyPressed(Key.D))
-    );
+  public getOutput(): { direction: number | null; isSprinting: boolean; jump: boolean } | null {
+    const dx = (this.getRight() ? 1 : 0) - (this.getLeft() ? 1 : 0);
+    const dy = (this.getBackward() ? 1 : 0) - (this.getForward() ? 1 : 0);
+    const jump = this.getJump();
+    if (dx === 0 && dy === 0) {
+      if (this.getJump()) {
+        return { direction: null, isSprinting: false, jump };
+      }
+      return null;
+    }
+    const direction = Math.atan2(dx, dy);
+    return { direction, isSprinting: this.getRun(), jump };
   }
 
   public dispose() {

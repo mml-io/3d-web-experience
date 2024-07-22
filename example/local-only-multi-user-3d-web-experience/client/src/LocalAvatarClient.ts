@@ -54,7 +54,7 @@ export class LocalAvatarClient {
   public readonly composer: Composer;
   private readonly timeManager = new TimeManager();
   private readonly keyInputManager = new KeyInputManager(() => {
-    return this.cameraManager.dragging;
+    return this.cameraManager.hasActiveInput();
   });
   private readonly characterManager: CharacterManager;
   private readonly cameraManager: CameraManager;
