@@ -269,6 +269,10 @@
   }
 
   function clearSequencer() {
+    initialBPM = 170;
+    if (bpmDisplay) {
+      bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
+    }
     channels.forEach((channel, index) => {
       channel.forEach((bar) => {
         bar.audio.setAttribute("enabled", "false");
@@ -278,6 +282,11 @@
   }
 
   function presetSequencer() {
+    initialBPM = 170;
+    if (bpmDisplay) {
+      bpmDisplay.setAttribute("content", `${initialBPM} BPM`);
+    }
+    animateCursor(initialBPM);
     channels.forEach((channel, channelIndex) => {
       channel.forEach((bar, barIndex) => {
         if (defaultPreset[channelIndex].includes(barIndex)) {
