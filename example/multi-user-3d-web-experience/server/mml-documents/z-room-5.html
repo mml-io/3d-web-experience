@@ -41,7 +41,13 @@
     return group;
   }
 
-  function createGreyBoxedElement(description, x, y, z, width, height, ry) {
+  function setElementLink(element, url) {
+    const mLink = document.createElement("m-link");
+    mLink.setAttribute("href", url);
+    mLink.appendChild(element);
+  }
+
+  function createGreyBoxedElement(description, x, y, z, width, height, ry, href = null) {
     const group = document.createElement("m-group");
     group.setAttribute("ry", ry);
 
@@ -54,6 +60,13 @@
     const label = createDoubleSidedLabel(description, width, height, x, y + 2, z, 180, 35);
     group.appendChild(label);
 
+    if (href) {
+      const mLink = document.createElement("m-link");
+      mLink.setAttribute("href", href);
+      mLink.appendChild(group);
+      return mLink;
+    }
+
     return group;
   }
 
@@ -61,14 +74,23 @@
 Here, we'll have 3D elements properly themed that, when clicked, will link to the continuance of the journey.`;
   const elementA = createGreyBoxedElement(messageA, 9, 0, -12, 6, 2, 10);
 
-  const messageB = `Element that links to the MML editor or the hosted platform.`;
-  const elementB = createGreyBoxedElement(messageB, 5, 0, 5, 6, 1.5, 20);
+  const messageB = `Element that links to the MML editor.`;
+  const elementB = createGreyBoxedElement(messageB, 5, 0, 5, 6, 1.5, 20, "https://mmleditor.com/");
 
   const messageC = `Element that links to the documentation.`;
-  const elementC = createGreyBoxedElement(messageC, -2, 0, 6, 6, 1.5, 15);
+  const elementC = createGreyBoxedElement(messageC, -2, 0, 6, 6, 1.5, 15, "https://mml.io/");
 
   const messageD = `Element that links to our discord.`;
-  const elementD = createGreyBoxedElement(messageD, -8, 0, 6, 6, 1.5, 0);
+  const elementD = createGreyBoxedElement(
+    messageD,
+    -8,
+    0,
+    6,
+    6,
+    1.5,
+    0,
+    "https://discord.gg/msquared",
+  );
 
   const messageE = `Element that leads to another area so the player can keep exploring.
 
