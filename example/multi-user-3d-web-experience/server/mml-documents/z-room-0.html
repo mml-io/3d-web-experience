@@ -14,6 +14,112 @@
   const roomContentGroup = document.getElementById("room-content");
   const spectatorsLabel = document.getElementById("spectators-label");
 
+  function setPosition(element, x, y, z, ry = null) {
+    element.setAttribute("x", x);
+    element.setAttribute("y", y);
+    element.setAttribute("z", z);
+    if (ry) {
+      element.setAttribute("ry", ry);
+    }
+  }
+
+  function setScale(element, sx, sy, sz) {
+    element.setAttribute("sx", sx);
+    element.setAttribute("sy", sy);
+    element.setAttribute("sz", sz);
+  }
+
+  function animate(element, attr, start, end, duration, easing, startTime) {
+    const anim = document.createElement("m-attr-anim");
+    anim.setAttribute("attr", attr);
+    anim.setAttribute("start", start);
+    anim.setAttribute("end", end);
+    anim.setAttribute("start-time", startTime);
+    anim.setAttribute("end-time", startTime + duration);
+    anim.setAttribute("duration", duration);
+    anim.setAttribute("easing", easing);
+    anim.setAttribute("loop", true);
+    anim.setAttribute("ping-pong", true);
+    anim.setAttribute("ping-pong-delay", duration / 15);
+    element.appendChild(anim);
+  }
+
+  function createAvatarStand() {
+    const standsXPos = 16;
+    const avatarYPos = 0.8;
+
+    const standScale = 0.6;
+    const zSpacing = 4;
+    const zOffset = 6;
+
+    const standGroup = document.createElement("m-group");
+
+    for (let i = 0; i < 4; i++) {
+      const zPos = i * zSpacing - zOffset;
+      const standModel = document.createElement("m-model");
+      standModel.setAttribute("src", "/assets/playground/avatar_plinth.glb");
+      setPosition(standModel, standsXPos, 0, zPos);
+      setScale(standModel, standScale, standScale, standScale);
+      standGroup.appendChild(standModel);
+
+      const standAvatar = document.createElement("m-model");
+      standAvatar.setAttribute("src", "/assets/playground/bot.glb");
+      standAvatar.setAttribute("anim", "/assets/playground/anim_idle.glb");
+      standAvatar.setAttribute("collide", false);
+
+      const standAvatarGroup = document.createElement("m-group");
+      standAvatarGroup.appendChild(standAvatar);
+
+      setPosition(standAvatarGroup, standsXPos, avatarYPos, zPos, -90);
+
+      animate(
+        standAvatarGroup,
+        "y",
+        avatarYPos,
+        avatarYPos + 0.1,
+        7000,
+        "easeInOutQuad",
+        document.timeline.currentTime - i * 5000,
+      );
+
+      animate(
+        standAvatarGroup,
+        "rx",
+        0,
+        3,
+        12000,
+        "easeInOutQuad",
+        document.timeline.currentTime - i * 5000,
+      );
+
+      animate(
+        standAvatarGroup,
+        "rz",
+        0,
+        5,
+        12000,
+        "easeInOutQuad",
+        document.timeline.currentTime - i * 7000,
+      );
+
+      animate(
+        standAvatarGroup,
+        "ry",
+        -90,
+        -95,
+        12000,
+        "easeInOutQuad",
+        document.timeline.currentTime - i * 5000,
+      );
+
+      standGroup.appendChild(standAvatarGroup);
+    }
+    return standGroup;
+  }
+
+  const avatarStands = createAvatarStand();
+  roomContentGroup.appendChild(avatarStands);
+
   function createDoor(
     { width, height, x, y, z, buttonX, buttonY, buttonZFront, buttonZBack },
     parentElement,
