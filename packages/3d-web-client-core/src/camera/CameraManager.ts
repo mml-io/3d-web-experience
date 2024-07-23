@@ -37,7 +37,7 @@ export class CameraManager {
 
   private phi: number = Math.PI / 2;
   private targetPhi: number = this.phi;
-  private theta: number = Math.PI / 2;
+  private theta: number = -Math.PI / 2;
   private targetTheta: number = this.theta;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
