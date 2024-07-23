@@ -146,8 +146,10 @@ export class CameraManager {
       const dx = (sX / this.targetElement.clientWidth) * mouseCameraSensitivity;
       const dy = (sY / this.targetElement.clientHeight) * mouseCameraSensitivity;
 
-      const zoomDelta = latest.spread - previous.spread;
-      this.zoom(-zoomDelta * pinchZoomSensitivity);
+      if (this.activePointers.size > 1) {
+        const zoomDelta = latest.spread - previous.spread;
+        this.zoom(-zoomDelta * pinchZoomSensitivity);
+      }
 
       this.targetTheta += dx;
       this.targetPhi -= dy;
