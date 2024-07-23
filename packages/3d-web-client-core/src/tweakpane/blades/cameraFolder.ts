@@ -13,7 +13,7 @@ export const camValues = {
   invertFOVMapping: false,
   damping: 0.25,
   zoomScale: 0.088,
-  zoomDamping: 0.16,
+  zoomDamping: 0.4,
 };
 
 export const camOptions = {

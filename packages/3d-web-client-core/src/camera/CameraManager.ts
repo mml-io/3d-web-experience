@@ -7,7 +7,7 @@ import { camValues } from "../tweakpane/blades/cameraFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
-const mouseCameraSensitivity = 20;
+const cameraPanSensitivity = 20;
 const scrollZoomSensitivity = 0.1;
 const pinchZoomSensitivity = 0.025;
 
@@ -69,11 +69,11 @@ export class CameraManager {
     this.rayCaster = new Raycaster();
 
     this.eventHandlerCollection = EventHandlerCollection.create([
-      [targetElement, "pointerdown", this.onMouseDown.bind(this)],
+      [targetElement, "pointerdown", this.onPointerDown.bind(this)],
       [targetElement, "gesturestart", this.preventDefaultAndStopPropagation.bind(this)],
-      [document, "pointerup", this.onMouseUp.bind(this)],
-      [document, "pointercancel", this.onMouseUp.bind(this)],
-      [document, "pointermove", this.onMouseMove.bind(this)],
+      [document, "pointerup", this.onPointerUp.bind(this)],
+      [document, "pointercancel", this.onPointerUp.bind(this)],
+      [document, "pointermove", this.onPointerMove.bind(this)],
       [targetElement, "wheel", this.onMouseWheel.bind(this)],
       [targetElement, "contextmenu", this.onContextMenu.bind(this)],
     ]);
@@ -88,7 +88,7 @@ export class CameraManager {
     tweakPane.setupCamPane(this);
   }
 
-  private onMouseDown(event: PointerEvent): void {
+  private onPointerDown(event: PointerEvent): void {
     if (event.button === 0 || event.button === 2) {
       // Left or right mouse button
 
@@ -98,7 +98,7 @@ export class CameraManager {
     }
   }
 
-  private onMouseUp(event: PointerEvent): void {
+  private onPointerUp(event: PointerEvent): void {
     const existingPointer = this.activePointers.get(event.pointerId);
     if (existingPointer) {
       this.activePointers.delete(event.pointerId);
@@ -125,7 +125,7 @@ export class CameraManager {
     return { pos: { x: aX, y: aY }, spread: sumOfDistances / this.activePointers.size };
   }
 
-  private onMouseMove(event: PointerEvent): void {
+  private onPointerMove(event: PointerEvent): void {
     if (getTweakpaneActive()) {
       return;
     }
@@ -143,8 +143,8 @@ export class CameraManager {
       const sX = latest.pos.x - previous.pos.x;
       const sY = latest.pos.y - previous.pos.y;
 
-      const dx = (sX / this.targetElement.clientWidth) * mouseCameraSensitivity;
-      const dy = (sY / this.targetElement.clientHeight) * mouseCameraSensitivity;
+      const dx = (sX / this.targetElement.clientWidth) * cameraPanSensitivity;
+      const dy = (sY / this.targetElement.clientHeight) * cameraPanSensitivity;
 
       if (this.activePointers.size > 1) {
         const zoomDelta = latest.spread - previous.spread;
@@ -225,14 +225,13 @@ export class CameraManager {
 
     this.rayCaster.set(this.target.clone(), rayDirection);
     const firstRaycastHit = this.collisionsManager.raycastFirst(this.rayCaster.ray);
-    const cameraToPlayerDistance = this.camera.position.distanceTo(this.target);
 
     if (firstRaycastHit !== null && firstRaycastHit[0] <= this.desiredDistance) {
-      this.targetDistance = firstRaycastHit[0] - 0.1;
-      this.distance = firstRaycastHit[0] - 0.1;
+      const distanceToCollision = firstRaycastHit[0] - 0.1;
+      this.targetDistance = distanceToCollision;
+      this.distance = distanceToCollision;
     } else {
       this.targetDistance = this.desiredDistance;
-      this.distance = this.desiredDistance;
     }
   }
 

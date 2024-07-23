@@ -126,7 +126,7 @@ export class VirtualJoystick {
   }
 
   private bindEvents(): void {
-    this.joystickBaseElement.addEventListener("pointerdown", this.handleMouseDown.bind(this));
+    this.joystickBaseElement.addEventListener("pointerdown", this.onJoystickPointerDown.bind(this));
     this.joystickBaseElement.addEventListener(
       "contextmenu",
       this.preventDefaultAndStopPropagation.bind(this),
@@ -135,11 +135,8 @@ export class VirtualJoystick {
       "touchstart",
       this.preventDefaultAndStopPropagation.bind(this),
     );
-    document.addEventListener("pointermove", this.handleMouseMove.bind(this));
-    document.addEventListener("pointercancel", this.handleMouseUp.bind(this));
-    document.addEventListener("pointerup", this.handleMouseUp.bind(this));
 
-    this.jumpButton.addEventListener("pointerdown", this.handleJumpStart.bind(this));
+    this.jumpButton.addEventListener("pointerdown", this.onJumpPointerDown.bind(this));
     this.jumpButton.addEventListener(
       "contextmenu",
       this.preventDefaultAndStopPropagation.bind(this),
@@ -148,8 +145,9 @@ export class VirtualJoystick {
       "touchstart",
       this.preventDefaultAndStopPropagation.bind(this),
     );
-    document.addEventListener("pointercancel", this.handleJumpEnd.bind(this));
-    document.addEventListener("pointerup", this.handleJumpEnd.bind(this));
+    document.addEventListener("pointermove", this.onPointerMove.bind(this));
+    document.addEventListener("pointerup", this.onPointerUp.bind(this));
+    document.addEventListener("pointercancel", this.onPointerUp.bind(this));
   }
 
   private preventDefaultAndStopPropagation(evt: PointerEvent): void {
@@ -157,21 +155,13 @@ export class VirtualJoystick {
     evt.stopPropagation();
   }
 
-  private handleJumpStart(evt: PointerEvent): void {
+  private onJumpPointerDown(evt: PointerEvent): void {
     if (this.jumpPointerId === null) {
       this.jumpPointerId = evt.pointerId;
     }
   }
 
-  private handleJumpEnd(evt: PointerEvent): void {
-    evt.preventDefault();
-    evt.stopPropagation();
-    if (evt.pointerId === this.jumpPointerId) {
-      this.jumpPointerId = null;
-    }
-  }
-
-  private handleMouseDown(evt: PointerEvent): void {
+  private onJoystickPointerDown(evt: PointerEvent): void {
     evt.preventDefault();
     evt.stopPropagation();
     if (evt.buttons !== 1) {
@@ -183,7 +173,7 @@ export class VirtualJoystick {
     }
   }
 
-  private handleMouseMove(evt: PointerEvent): void {
+  private onPointerMove(evt: PointerEvent): void {
     evt.preventDefault();
     evt.stopPropagation();
     if (evt.pointerId !== this.joystickPointerId) {
@@ -192,14 +182,17 @@ export class VirtualJoystick {
     this.updateControlAndDirection(evt);
   }
 
-  private handleMouseUp(evt: PointerEvent): void {
+  private onPointerUp(evt: PointerEvent): void {
     evt.preventDefault();
     evt.stopPropagation();
-    if (evt.pointerId !== this.joystickPointerId) {
-      return;
+
+    if (evt.pointerId === this.jumpPointerId) {
+      this.jumpPointerId = null;
     }
-    this.joystickPointerId = null;
-    this.clearJoystickState();
+    if (evt.pointerId === this.joystickPointerId) {
+      this.joystickPointerId = null;
+      this.clearJoystickState();
+    }
   }
 
   private clearJoystickState = (): void => {
