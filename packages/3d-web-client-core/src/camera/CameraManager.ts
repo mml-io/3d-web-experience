@@ -17,6 +17,7 @@ export class CameraManager {
   public initialDistance: number = camValues.initialDistance;
   public minDistance: number = camValues.minDistance;
   public maxDistance: number = camValues.maxDistance;
+  public damping: number = camValues.damping;
   public zoomScale: number = camValues.zoomScale;
   public zoomDamping: number = camValues.zoomDamping;
 
@@ -35,7 +36,9 @@ export class CameraManager {
   public desiredDistance: number = this.initialDistance;
 
   private phi: number = Math.PI / 2;
+  private targetPhi: number = this.phi;
   private theta: number = Math.PI / 2;
+  private targetTheta: number = this.theta;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
   private hadTarget: boolean = false;
@@ -146,9 +149,9 @@ export class CameraManager {
       const zoomDelta = latest.spread - previous.spread;
       this.zoom(-zoomDelta * pinchZoomSensitivity);
 
-      this.theta += dx;
-      this.phi -= dy;
-      this.phi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.phi));
+      this.targetTheta += dx;
+      this.targetPhi -= dy;
+      this.targetPhi = Math.max(this.minPolarAngle, Math.min(this.maxPolarAngle, this.targetPhi));
       event.preventDefault();
     }
   }
@@ -202,10 +205,12 @@ export class CameraManager {
     const dy = this.camera.position.y - this.target.y;
     const dz = this.camera.position.z - this.target.z;
     this.targetDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    this.theta = Math.atan2(dz, dx);
-    this.phi = Math.acos(dy / this.targetDistance);
     this.distance = this.targetDistance;
     this.desiredDistance = this.targetDistance;
+    this.theta = Math.atan2(dz, dx);
+    this.targetTheta = this.theta;
+    this.phi = Math.acos(dy / this.targetDistance);
+    this.targetPhi = this.phi;
     this.recomputeFoV(true);
   }
 
@@ -264,24 +269,25 @@ export class CameraManager {
       this.adjustCameraPosition();
     }
 
-    if (this.phi !== null && this.theta !== null) {
-      this.distance += (this.targetDistance - this.distance) * this.zoomDamping;
+    this.distance += (this.targetDistance - this.distance) * this.zoomDamping;
 
-      const x = this.target.x + this.distance * Math.sin(this.phi) * Math.cos(this.theta);
-      const y = this.target.y + this.distance * Math.cos(this.phi);
-      const z = this.target.z + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
+    this.theta += (this.targetTheta - this.theta) * this.damping;
+    this.phi += (this.targetPhi - this.phi) * this.damping;
 
-      this.recomputeFoV();
-      this.fov += (this.targetFOV - this.fov) * this.zoomDamping;
-      this.camera.fov = this.fov;
-      this.camera.updateProjectionMatrix();
+    const x = this.target.x + this.distance * Math.sin(this.phi) * Math.cos(this.theta);
+    const y = this.target.y + this.distance * Math.cos(this.phi);
+    const z = this.target.z + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
 
-      this.camera.position.set(x, y, z);
-      this.camera.lookAt(this.target);
+    this.recomputeFoV();
+    this.fov += (this.targetFOV - this.fov) * this.zoomDamping;
+    this.camera.fov = this.fov;
+    this.camera.updateProjectionMatrix();
 
-      if (this.isLerping && this.lerpFactor >= 1) {
-        this.isLerping = false;
-      }
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(this.target);
+
+    if (this.isLerping && this.lerpFactor >= 1) {
+      this.isLerping = false;
     }
   }
 
