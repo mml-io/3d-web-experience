@@ -90,19 +90,12 @@ export class LocalController {
       ]
     | null = null;
 
-  private forward: boolean;
-  private backward: boolean;
-  private left: boolean;
-  private right: boolean;
-  private run: boolean;
-  private jump: boolean;
-  private anyDirection: boolean;
-  private conflictingDirections: boolean;
-
   public jumpPressed: boolean = false; // Tracks if the jump button is pressed
   public jumpReleased: boolean = true; // Indicates if the jump button has been released
 
   public networkState: CharacterState;
+  private controlState: { direction: number | null; isSprinting: boolean; jump: boolean } | null =
+    null;
 
   constructor(private config: LocalControllerConfig) {
     this.networkState = {
@@ -113,27 +106,9 @@ export class LocalController {
     };
   }
 
-  private updateControllerState(): void {
-    this.forward = this.config.keyInputManager.forward || this.config.virtualJoystick?.up || false;
-    this.backward =
-      this.config.keyInputManager.backward || this.config.virtualJoystick?.down || false;
-    this.left = this.config.keyInputManager.left || this.config.virtualJoystick?.left || false;
-    this.right = this.config.keyInputManager.right || this.config.virtualJoystick?.right || false;
-    this.run = this.config.keyInputManager.run;
-    this.jump = this.config.keyInputManager.jump;
-    this.anyDirection =
-      this.config.keyInputManager.anyDirection ||
-      this.config.virtualJoystick?.hasDirection ||
-      false;
-    this.conflictingDirections = this.config.keyInputManager.conflictingDirection;
-
-    if (!this.jump) {
-      this.jumpReleased = true;
-    }
-  }
-
   public update(): void {
-    this.updateControllerState();
+    this.controlState =
+      this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
 
     this.rayCaster.set(this.config.character.position, this.vectorDown);
     const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.rayCaster.ray);
@@ -142,14 +117,14 @@ export class LocalController {
       this.currentSurfaceAngle.copy(firstRaycastHit[1]);
     }
 
-    if (this.anyDirection || !this.characterOnGround) {
+    if (this.controlState?.direction !== null || !this.characterOnGround) {
       const targetAnimation = this.getTargetAnimation();
       this.config.character.updateAnimation(targetAnimation);
     } else {
       this.config.character.updateAnimation(AnimationState.idle);
     }
 
-    if (this.anyDirection) {
+    if (this.controlState) {
       this.updateRotation();
     }
 
@@ -179,30 +154,20 @@ export class LocalController {
       }
       return AnimationState.air;
     }
-    if (this.conflictingDirections) {
+    if (!this.controlState) {
       return AnimationState.idle;
     }
-    return this.run && this.anyDirection
-      ? AnimationState.running
-      : this.anyDirection
-        ? AnimationState.walking
-        : AnimationState.idle;
+
+    if (this.controlState.isSprinting) {
+      return AnimationState.running;
+    }
+
+    return AnimationState.walking;
   }
 
   private updateRotationOffset(): void {
-    if (this.conflictingDirections) return;
-    if (this.forward) {
-      this.rotationOffset = Math.PI;
-      if (this.left) this.rotationOffset = Math.PI + Math.PI / 4;
-      if (this.right) this.rotationOffset = Math.PI - Math.PI / 4;
-    } else if (this.backward) {
-      this.rotationOffset = Math.PI * 2;
-      if (this.left) this.rotationOffset = -Math.PI * 2 - Math.PI / 4;
-      if (this.right) this.rotationOffset = Math.PI * 2 + Math.PI / 4;
-    } else if (this.left) {
-      this.rotationOffset = Math.PI * -0.5;
-    } else if (this.right) {
-      this.rotationOffset = Math.PI * 0.5;
+    if (this.controlState && this.controlState.direction !== null) {
+      this.rotationOffset = this.controlState.direction;
     }
   }
 
@@ -243,19 +208,21 @@ export class LocalController {
   }
 
   private processJump(currentAcceleration: Vector3, deltaTime: number) {
+    const jump = this.controlState?.jump;
+
     if (this.characterOnGround) {
       this.coyoteJumped = false;
       this.canDoubleJump = false;
       this.doubleJumpUsed = false;
       this.jumpCounter = 0;
 
-      if (!this.jump) {
+      if (!jump) {
         this.canDoubleJump = !this.doubleJumpUsed && this.jumpReleased && this.jumpCounter === 1;
         this.canJump = true;
         this.jumpReleased = true;
       }
 
-      if (this.jump && this.canJump && this.jumpReleased) {
+      if (jump && this.canJump && this.jumpReleased) {
         currentAcceleration.y += this.jumpForce / deltaTime;
         this.canJump = false;
         this.jumpReleased = false;
@@ -266,13 +233,13 @@ export class LocalController {
         }
       }
     } else {
-      if (this.jump && !this.coyoteJumped && this.coyoteTime) {
+      if (jump && !this.coyoteJumped && this.coyoteTime) {
         this.coyoteJumped = true;
         currentAcceleration.y += this.jumpForce / deltaTime;
         this.canJump = false;
         this.jumpReleased = false;
         this.jumpCounter++;
-      } else if (this.jump && this.canDoubleJump) {
+      } else if (jump && this.canDoubleJump) {
         currentAcceleration.y += this.doubleJumpForce / deltaTime;
         this.doubleJumpUsed = true;
         this.jumpReleased = false;
@@ -283,7 +250,7 @@ export class LocalController {
       }
     }
 
-    if (!this.jump) {
+    if (!jump) {
       this.jumpReleased = true;
       if (!this.characterOnGround) {
         currentAcceleration.y += this.gravity;
@@ -304,41 +271,20 @@ export class LocalController {
 
     const control =
       (this.characterOnGround
-        ? this.run
+        ? this.controlState?.isSprinting
           ? this.groundRunControl
           : this.groundWalkControl
         : this.airControlModifier) * this.baseControl;
 
     const controlAcceleration = this.tempVector2.set(0, 0, 0);
 
-    if (!this.conflictingDirections) {
-      if (this.forward) {
-        const forward = this.tempVector3
-          .set(0, 0, -1)
-          .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-        controlAcceleration.add(forward);
-      }
-
-      if (this.backward) {
-        const backward = this.tempVector3
-          .set(0, 0, 1)
-          .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-        controlAcceleration.add(backward);
-      }
-
-      if (this.left) {
-        const left = this.tempVector3
-          .set(-1, 0, 0)
-          .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-        controlAcceleration.add(left);
-      }
-
-      if (this.right) {
-        const right = this.tempVector3
-          .set(1, 0, 0)
-          .applyAxisAngle(this.vectorUp, this.azimuthalAngle);
-        controlAcceleration.add(right);
-      }
+    if (this.controlState && this.controlState.direction !== null) {
+      // convert heading to direction vector
+      const heading = this.controlState.direction;
+      const headingVector = this.tempVector3
+        .set(0, 0, 1)
+        .applyAxisAngle(this.vectorUp, this.azimuthalAngle + heading);
+      controlAcceleration.add(headingVector);
     }
     if (controlAcceleration.length() > 0) {
       controlAcceleration.normalize();
@@ -391,7 +337,7 @@ export class LocalController {
       this.characterAirborneSince = Date.now();
     }
 
-    if (!this.jump) {
+    if (!this.controlState?.jump) {
       this.jumpReleased = true;
     }
 

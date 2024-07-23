@@ -1,25 +1,33 @@
 .uiHover {
   width: 70px;
   min-height: 70px;
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   z-index: 102;
 }
 
+.textChatUi {
+  position: absolute;
+  display: flex;
+
+  bottom: 8px;
+  left: 0px;
+  width: 100%;
+  max-width: 500px;
+  flex-direction: row;
+  align-items: flex-end;
+}
+
 .textChat {
   z-index: -1;
-  position: fixed;
+  width: 100%;
 
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  margin-left: 60px;
 
-  bottom: 8px;
-  left: 60px;
-
-  width: 350px;
-  min-width: 350px;
   max-height: 500px;
 
   color: #ffffff;
@@ -57,7 +65,7 @@
   border-radius: 50%;
   width: 42px;
   height: 42px;
-  position: fixed;
+  position: absolute;
   bottom: 12px;
   left: 12px;
   box-shadow: 2px 2px 2px rgba(0, 0, 0, 0.8);

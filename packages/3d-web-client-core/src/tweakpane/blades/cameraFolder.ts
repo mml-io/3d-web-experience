@@ -11,10 +11,9 @@ export const camValues = {
   maxFOV: 70,
   minFOV: 60,
   invertFOVMapping: false,
-  damping: 0.15,
-  dampingScale: 0.005,
+  damping: 0.25,
   zoomScale: 0.088,
-  zoomDamping: 0.16,
+  zoomDamping: 0.4,
 };
 
 export const camOptions = {
@@ -24,8 +23,7 @@ export const camOptions = {
   initialFOV: { min: 60, max: 85, step: 1 },
   maxFOV: { min: 50, max: 100, step: 1 },
   minFOV: { min: 50, max: 100, step: 1 },
-  damping: { min: 0.01, max: 0.15, step: 0.01 },
-  dampingScale: { min: 0.001, max: 0.02, step: 0.001 },
+  damping: { min: 0.01, max: 1, step: 0.001 },
   zoomScale: { min: 0.005, max: 0.3, step: 0.001 },
   zoomDamping: { min: 0.0, max: 2.0, step: 0.01 },
 };
@@ -54,7 +52,6 @@ export class CameraFolder {
     this.folder.addBinding(camValues, "maxFOV", camOptions.maxFOV);
     this.folder.addBinding({ invertFOVMapping: camValues.invertFOVMapping }, "invertFOVMapping");
     this.folder.addBinding(camValues, "damping", camOptions.damping);
-    this.folder.addBinding(camValues, "dampingScale", camOptions.dampingScale);
     this.folder.addBinding(camValues, "zoomScale", camOptions.zoomScale);
     this.folder.addBinding(camValues, "zoomDamping", camOptions.zoomDamping);
   }
@@ -103,18 +100,14 @@ export class CameraFolder {
           cameraManager.recomputeFoV();
           break;
         }
-        case "invertFOVMapping":
+        case "invertFOVMapping": {
           const boolValue = e.value as boolean;
           cameraManager.invertFOVMapping = boolValue;
           break;
+        }
         case "damping": {
           const value = e.value as number;
           cameraManager.damping = value;
-          break;
-        }
-        case "dampingScale": {
-          const value = e.value as number;
-          cameraManager.dampingScale = value;
           break;
         }
         case "zoomScale": {
