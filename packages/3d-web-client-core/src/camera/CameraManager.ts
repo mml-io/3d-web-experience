@@ -35,10 +35,10 @@ export class CameraManager {
   public targetDistance: number = this.initialDistance;
   public desiredDistance: number = this.initialDistance;
 
-  private phi: number = Math.PI / 2;
-  private targetPhi: number = this.phi;
-  private theta: number = Math.PI / 2;
-  private targetTheta: number = this.theta;
+  private phi: number;
+  private targetPhi: number;
+  private theta: number;
+  private targetTheta: number;
 
   private target: Vector3 = new Vector3(0, 1.55, 0);
   private hadTarget: boolean = false;
@@ -63,7 +63,9 @@ export class CameraManager {
   ) {
     this.targetElement.style.touchAction = "pinch-zoom";
     this.phi = initialPhi;
+    this.targetPhi = this.phi;
     this.theta = initialTheta;
+    this.targetTheta = this.theta;
     this.camera = new PerspectiveCamera(this.fov, window.innerWidth / window.innerHeight, 0.1, 400);
     this.camera.position.set(0, 1.4, -this.initialDistance);
     this.rayCaster = new Raycaster();
