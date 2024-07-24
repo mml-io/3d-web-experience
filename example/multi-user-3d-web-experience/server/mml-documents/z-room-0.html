@@ -46,15 +46,15 @@
 
   function createAvatarStand() {
     const standsXPos = 16;
-    const avatarYPos = 0.8;
+    const avatarYPos = 0.6;
 
     const standScale = 0.6;
     const zSpacing = 4;
-    const zOffset = 6;
+    const zOffset = 3;
 
     const standGroup = document.createElement("m-group");
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       const zPos = i * zSpacing - zOffset;
       const standModel = document.createElement("m-model");
       standModel.setAttribute("src", "/assets/playground/avatar_plinth.glb");
@@ -78,36 +78,6 @@
         avatarYPos,
         avatarYPos + 0.1,
         7000,
-        "easeInOutQuad",
-        document.timeline.currentTime - i * 5000,
-      );
-
-      animate(
-        standAvatarGroup,
-        "rx",
-        0,
-        3,
-        12000,
-        "easeInOutQuad",
-        document.timeline.currentTime - i * 5000,
-      );
-
-      animate(
-        standAvatarGroup,
-        "rz",
-        0,
-        5,
-        12000,
-        "easeInOutQuad",
-        document.timeline.currentTime - i * 7000,
-      );
-
-      animate(
-        standAvatarGroup,
-        "ry",
-        -90,
-        -95,
-        12000,
         "easeInOutQuad",
         document.timeline.currentTime - i * 5000,
       );
