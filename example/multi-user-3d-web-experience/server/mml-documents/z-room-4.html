@@ -28,8 +28,14 @@
       return anim;
     };
 
+    const transporterYOffset = 0.15;
+
     const teleporterStart = document.createElement("m-model");
-    teleporterStart.setAttribute("src", "/assets/playground/teleporter_base.glb");
+    teleporterStart.setAttribute("src", "/assets/playground/avatar_plinth.glb");
+    teleporterStart.setAttribute("ry", 180);
+    teleporterStart.setAttribute("sx", 1);
+    teleporterStart.setAttribute("sy", 0.25);
+    teleporterStart.setAttribute("sz", 1);
     teleporterStart.setAttribute("x", startX);
     teleporterStart.setAttribute("y", startY);
     teleporterStart.setAttribute("z", startZ);
@@ -38,12 +44,16 @@
     transporter.setAttribute("src", "/assets/playground/teleporter_platform_emissive.glb");
     transporter.setAttribute("opacity", 0.0);
     transporter.setAttribute("x", startX);
-    transporter.setAttribute("y", startY);
+    transporter.setAttribute("y", startY + transporterYOffset);
     transporter.setAttribute("z", startZ);
     gameRoomGroup.appendChild(transporter);
 
     const teleporterEnd = document.createElement("m-model");
-    teleporterEnd.setAttribute("src", "/assets/playground/teleporter_base.glb");
+    teleporterEnd.setAttribute("src", "/assets/playground/avatar_plinth.glb");
+    teleporterEnd.setAttribute("ry", 180);
+    teleporterEnd.setAttribute("sx", 1);
+    teleporterEnd.setAttribute("sy", 0.25);
+    teleporterEnd.setAttribute("sz", 1);
     teleporterEnd.setAttribute("x", endX);
     teleporterEnd.setAttribute("y", endY);
     teleporterEnd.setAttribute("z", endZ);
@@ -55,12 +65,30 @@
         transporter.setAttribute("x", endX);
         transporter.setAttribute("z", endZ);
         transporter.setAttribute("y", endY);
-        setTimeout(() => animate(transporter, "y", endY, endY - 0.1, 2100, "EaseInOutCubic"), 1000);
+        setTimeout(
+          () =>
+            animate(
+              transporter,
+              "y",
+              endY + transporterYOffset,
+              endY - 0.1,
+              2100,
+              "EaseInOutCubic",
+            ),
+          1000,
+        );
         setTimeout(() => {
           transporter.setAttribute("y", startY);
           transporter.setAttribute("x", startX);
           transporter.setAttribute("z", startZ);
-          animate(transporter, "y", startY - 0.1, startY, 2900, "EaseInOutCubic");
+          animate(
+            transporter,
+            "y",
+            startY - 0.1,
+            startY + transporterYOffset,
+            2900,
+            "EaseInOutCubic",
+          );
         }, 3000);
       }, 3000);
     };
@@ -72,8 +100,8 @@
 
     gameRoomGroup.appendChild(teleporterStart);
   }
-  createTeleporter(-6, 0, -7.1, 0, 589.98, -8);
-  createTeleporter(10, 589.98, -8, -6, 0, -10.1);
+  createTeleporter(-6, 0, -6.5, 0, 589.98, -8);
+  createTeleporter(10, 589.98, -8, -6, 0, -10.5);
 
   function createDoor(
     { width, height, x, y, z, buttonX, buttonY, buttonZFront, buttonZBack },
