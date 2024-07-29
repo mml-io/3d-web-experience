@@ -41,4 +41,3 @@ dist
 
 .envrc
 .direnv
-flake.*
