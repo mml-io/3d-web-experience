@@ -24,9 +24,12 @@ const app = new Networked3dWebExperienceClient(holder, {
     sprintAnimationFileUrl,
     doubleJumpAnimationFileUrl,
   },
-  skyboxHdrJpgUrl: hdrJpgUrl,
   mmlDocuments: [{ url: `${protocol}//${host}/mml-documents/example-mml.html` }],
-  environmentConfiguration: {},
+  environmentConfiguration: {
+    skybox: {
+      hdrJpgUrl: hdrJpgUrl,
+    },
+  },
   avatarConfiguration: {
     availableAvatars: [],
   },
