@@ -16,7 +16,7 @@ type AvatarSelectionUIProps = {
   onUpdateUserAvatar: (avatar: AvatarType) => void;
   visibleByDefault?: boolean;
   availableAvatars: AvatarType[];
-  enableCustomAvatar?: boolean;
+  allowCustomAvatars?: boolean;
 };
 
 enum CustomAvatarType {
@@ -92,6 +92,10 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
     }
   };
 
+  if (!props.availableAvatars.length && !props.allowCustomAvatars) {
+    return null;
+  }
+
   return (
     <>
       <div className={styles.menuButton} onClick={handleRootClick}>
@@ -146,7 +150,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
               </div>
             </div>
           )}
-          {props.enableCustomAvatar && (
+          {props.allowCustomAvatars && (
             <div className={styles.customAvatarSection}>
               {!!props.availableAvatars.length && <hr />}
               <h2>Custom Avatar Section</h2>
