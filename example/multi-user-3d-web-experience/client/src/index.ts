@@ -33,6 +33,9 @@ const app = new Networked3dWebExperienceClient(holder, {
   avatarConfiguration: {
     availableAvatars: [],
   },
+  onServerBroadcast: (broadcast: { broadcastType: string; payload: any }) => {
+    app.updateConfig(broadcast.payload);
+  },
 });
 
 app.update();

@@ -70,6 +70,80 @@ export class Networked3dWebExperienceServer {
       this.mmlDocumentsServer = new MMLDocumentsServer(this.config.mmlServing.documentsWatchPath);
     }
 
+    setInterval(() => {
+      // TODO - remove before PR
+      if (this.userNetworkingServer) {
+        this.userNetworkingServer.broadcastMessage("useful_info", {
+          avatarConfiguration: {
+            allowCustomAvatars: Math.random() > 0.5,
+            availableAvatars:
+              Math.random() > 0.5
+                ? []
+                : [
+                    {
+                      name: "Test Avatar",
+                      mmlCharacterUrl: "https://mmlstorage.com/CObH6F/1715268905445.html",
+                    },
+                  ],
+          },
+          enableTweakPane: Math.random() > 0.5,
+          chatNetworkAddress: Math.random() > 0.5 ? "ws://localhost:8080/chat-network" : null,
+          environmentConfiguration: {
+            ambientLight: {
+              intensity: Math.random(),
+            },
+            sun: {
+              intensity: Math.random(),
+              polarAngle: Math.random() * 360,
+              azimuthAngle: Math.random() * 360,
+            },
+            envMap: { intensity: Math.random() },
+            postProcessing: {
+              bloomIntensity: Math.random() > 0.5,
+            },
+            skybox:
+              Math.random() > 0.5
+                ? {
+                    hdrJpgUrl: "http://localhost:8080/assets/hdr/puresky_2k.jpg",
+                  }
+                : {
+                    hdrUrl: "http://localhost:8080/assets/hdr/puresky_2k.hdr",
+                  },
+            groundPlane: Math.random() > 0.2,
+          },
+          mmlDocuments: {
+            "0": {
+              name: "Test Document",
+              url: "ws://localhost:8080/mml-documents/example-mml.html",
+              position: {
+                x: Math.random() * 10,
+                y: 0,
+                z: 5,
+              },
+            },
+            ...(Math.random() > 0.5
+              ? {
+                  "1": {
+                    name: "Test Document 2",
+                    url: "ws://localhost:8080/mml-documents/example-mml.html",
+                    position: {
+                      x: Math.random() * 10,
+                      y: 0,
+                      z: 5,
+                    },
+                    rotation: {
+                      x: 0,
+                      y: Math.random() * 360,
+                      z: 0,
+                    },
+                  },
+                }
+              : {}),
+          },
+        });
+      }
+    }, 3000);
+
     if (this.config.chatNetworkPath) {
       this.chatNetworkingServer = new ChatNetworkingServer({
         getChatUserIdentity: (sessionToken: string) => {
