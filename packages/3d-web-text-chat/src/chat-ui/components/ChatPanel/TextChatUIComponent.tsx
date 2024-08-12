@@ -33,6 +33,7 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
 ) => {
   const visibleByDefault: boolean = props.visibleByDefault ?? true;
   const [messages, setMessages] = useState<Array<{ username: string; message: string }>>([]);
+  const [globalVisible, setGlobalVisible] = useState<boolean>(true);
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
   const [isSticky, setSticky] = useState<boolean>(visibleByDefault);
   const [isFocused, setIsFocused] = useState(false);
@@ -60,9 +61,11 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
         setIsFocused(true);
         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
         if (inputBoxRef.current) inputBoxRef.current.focusInput();
+      } else if (e.key === "/") {
+        setGlobalVisible(!globalVisible);
       }
     },
-    [isVisible],
+    [globalVisible, isVisible],
   );
 
   const handleBlur = useCallback(() => {
@@ -163,46 +166,50 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
 
   return (
     <>
-      <div
-        className={styles.uiHover}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onClick={handleRootClick}
-      >
-        <div className={styles.openTab} onClick={hide}>
-          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
+      {globalVisible && (
+        <div className={styles.textChatUi}>
+          <div
+            className={styles.uiHover}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+            onClick={handleRootClick}
+          >
+            <div className={styles.openTab} onClick={hide}>
+              <img src={`data:image/svg+xml;utf8,${encodeURIComponent(ChatIcon)}`} />
+            </div>
+            <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
+              <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
+            </div>
+          </div>
+          <div
+            ref={chatPanelRef}
+            style={{ zIndex: -1 }}
+            id="text-chat-wrapper"
+            className={`${styles.textChat} ${panelStyle}`}
+            onWheel={handleWheel}
+          >
+            <div
+              className={styles.messagesWrapper}
+              style={{
+                WebkitMaskImage: `url(data:image/png;base64,${gradient})`,
+                maskImage: `url(data:image/png;base64,${gradient})`,
+                WebkitMaskRepeat: "repeat-x",
+                maskRepeat: "repeat-x",
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+              }}
+            >
+              <Messages messages={messages} stringToHslOptions={props.stringToHslOptions} />
+            </div>
+            <InputBox
+              ref={inputBoxRef}
+              onSendMessage={handleSendMessage}
+              hide={hide}
+              setFocus={setFocus}
+            />
+          </div>
         </div>
-        <div ref={stickyButtonRef} className={stickyStyle} onClick={handleStickyButton}>
-          <img src={`data:image/svg+xml;utf8,${encodeURIComponent(PinButton)}`} />
-        </div>
-      </div>
-      <div
-        ref={chatPanelRef}
-        style={{ position: "fixed", zIndex: -1 }}
-        id="text-chat-wrapper"
-        className={`${styles.textChat} ${panelStyle}`}
-        onWheel={handleWheel}
-      >
-        <div
-          className={styles.messagesWrapper}
-          style={{
-            WebkitMaskImage: `url(data:image/png;base64,${gradient})`,
-            maskImage: `url(data:image/png;base64,${gradient})`,
-            WebkitMaskRepeat: "repeat-x",
-            maskRepeat: "repeat-x",
-            WebkitMaskSize: "contain",
-            maskSize: "contain",
-          }}
-        >
-          <Messages messages={messages} stringToHslOptions={props.stringToHslOptions} />
-        </div>
-        <InputBox
-          ref={inputBoxRef}
-          onSendMessage={handleSendMessage}
-          hide={hide}
-          setFocus={setFocus}
-        />
-      </div>
+      )}
     </>
   );
 };

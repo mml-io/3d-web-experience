@@ -1,7 +1,8 @@
 import React, {
   ForwardRefRenderFunction,
-  KeyboardEvent,
   MouseEvent,
+  useCallback,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -33,6 +34,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   props: AvatarSelectionUIProps,
 ) => {
   const visibleByDefault: boolean = props.visibleByDefault ?? false;
+  const [globalVisible, setGlobalVisible] = useState<boolean>(true);
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
   const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatar | undefined>(undefined);
   const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>(
@@ -41,6 +43,22 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const [customAvatarValue, setCustomAvatarValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "/") {
+        setGlobalVisible(!globalVisible);
+      }
+    },
+    [globalVisible],
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown, false);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, false);
+    };
+  }, [handleKeyDown]);
 
   const handleRootClick = (e: MouseEvent) => {
     e.stopPropagation();
@@ -72,7 +90,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
     props.onUpdateUserAvatar(newSelectedAvatar);
   };
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.stopPropagation();
   };
 
@@ -94,118 +112,122 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
 
   return (
     <>
-      <div className={styles.menuButton} onClick={handleRootClick}>
-        {!isVisible && (
-          <div className={styles.openTab} onClick={() => setIsVisible(true)}>
-            <img src={`data:image/svg+xml;utf8,${encodeURIComponent(AvatarIcon)}`} />
+      {globalVisible && (
+        <>
+          <div className={styles.menuButton} onClick={handleRootClick}>
+            {!isVisible && (
+              <div className={styles.openTab} onClick={() => setIsVisible(true)}>
+                <img src={`data:image/svg+xml;utf8,${encodeURIComponent(AvatarIcon)}`} />
+              </div>
+            )}
+            {isVisible && (
+              <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
+                X
+              </button>
+            )}
           </div>
-        )}
-        {isVisible && (
-          <button className={styles.closeButton} onClick={(e) => setIsVisible(false)}>
-            X
-          </button>
-        )}
-      </div>
-      {isVisible && (
-        <div className={`${styles.avatarSelectionContainer}`}>
-          {!!props.availableAvatars.length && (
-            <div className={styles.avatarSelectionUi}>
-              <div className={styles.avatarSelectionUiHeader}>
-                <h2>Choose your avatar</h2>
-              </div>
-              <div className={styles.avatarSelectionUiContent}>
-                {props.availableAvatars.map((avatar, index) => {
-                  const isSelected =
-                    !selectedAvatar?.isCustomAvatar &&
-                    ((selectedAvatar?.meshFileUrl &&
-                      selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
-                      (selectedAvatar?.mmlCharacterUrl &&
-                        selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
-                      (selectedAvatar?.mmlCharacterString &&
-                        selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
+          {isVisible && (
+            <div className={`${styles.avatarSelectionContainer}`}>
+              {!!props.availableAvatars.length && (
+                <div className={styles.avatarSelectionUi}>
+                  <div className={styles.avatarSelectionUiHeader}>
+                    <h2>Choose your avatar</h2>
+                  </div>
+                  <div className={styles.avatarSelectionUiContent}>
+                    {props.availableAvatars.map((avatar, index) => {
+                      const isSelected =
+                        !selectedAvatar?.isCustomAvatar &&
+                        ((selectedAvatar?.meshFileUrl &&
+                          selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
+                          (selectedAvatar?.mmlCharacterUrl &&
+                            selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
+                          (selectedAvatar?.mmlCharacterString &&
+                            selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
 
-                  return (
-                    <div
-                      key={index}
-                      className={styles.avatarSelectionUiAvatar}
-                      onClick={() => selectAvatar(avatar)}
-                    >
-                      <div className={styles.avatarSelectionUiAvatarImgContainer}>
-                        {isSelected && <SelectedPill />}
-                        {avatar.thumbnailUrl ? (
-                          <img src={avatar.thumbnailUrl} alt={avatar.name} />
-                        ) : (
-                          <div>No Image Available</div>
-                        )}
-                        <p>{avatar.name}</p>
-                        <span className={styles.tooltipText}>{avatar.name}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {props.enableCustomAvatar && (
-            <div className={styles.customAvatarSection}>
-              {!!props.availableAvatars.length && <hr />}
-              <h2>Custom Avatar Section</h2>
-              <input
-                type="radio"
-                id="html"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.mmlUrl)}
-                defaultChecked={customAvatarType === CustomAvatarType.mmlUrl}
-                checked={customAvatarType === CustomAvatarType.mmlUrl}
-              />
-              <label htmlFor="html">MML URL</label>
-              <input
-                type="radio"
-                id="mml"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.mml)}
-                defaultChecked={customAvatarType === CustomAvatarType.mml}
-                checked={customAvatarType === CustomAvatarType.mml}
-              />
-              <label htmlFor="mml">MML</label>
-              <input
-                type="radio"
-                id="glb"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.meshFileUrl)}
-                defaultChecked={customAvatarType === CustomAvatarType.meshFileUrl}
-                checked={customAvatarType === CustomAvatarType.meshFileUrl}
-              />
-              <label htmlFor="glb">Mesh URL</label>
-              {selectedAvatar?.isCustomAvatar && <SelectedPill />}
-              <div className={styles.customAvatarInputSection}>
-                {customAvatarType === CustomAvatarType.mml ? (
-                  <textarea
-                    ref={textareaRef}
-                    className={styles.customAvatarInput}
-                    value={customAvatarValue}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyPress}
-                    placeholder={getPlaceholderByType(customAvatarType)}
-                    rows={4}
-                  />
-                ) : (
+                      return (
+                        <div
+                          key={index}
+                          className={styles.avatarSelectionUiAvatar}
+                          onClick={() => selectAvatar(avatar)}
+                        >
+                          <div className={styles.avatarSelectionUiAvatarImgContainer}>
+                            {isSelected && <SelectedPill />}
+                            {avatar.thumbnailUrl ? (
+                              <img src={avatar.thumbnailUrl} alt={avatar.name} />
+                            ) : (
+                              <div>No Image Available</div>
+                            )}
+                            <p>{avatar.name}</p>
+                            <span className={styles.tooltipText}>{avatar.name}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {props.enableCustomAvatar && (
+                <div className={styles.customAvatarSection}>
+                  {!!props.availableAvatars.length && <hr />}
+                  <h2>Custom Avatar Section</h2>
                   <input
-                    ref={inputRef}
-                    className={styles.customAvatarInput}
-                    value={customAvatarValue}
-                    onKeyDown={handleKeyPress}
-                    onChange={handleInputChange}
-                    placeholder={getPlaceholderByType(customAvatarType)}
+                    type="radio"
+                    id="html"
+                    name="customAvatarType"
+                    onChange={() => handleTypeSwitch(CustomAvatarType.mmlUrl)}
+                    defaultChecked={customAvatarType === CustomAvatarType.mmlUrl}
+                    checked={customAvatarType === CustomAvatarType.mmlUrl}
                   />
-                )}
-                <button disabled={!customAvatarValue} type="button" onClick={addCustomAvatar}>
-                  Set
-                </button>
-              </div>
+                  <label htmlFor="html">MML URL</label>
+                  <input
+                    type="radio"
+                    id="mml"
+                    name="customAvatarType"
+                    onChange={() => handleTypeSwitch(CustomAvatarType.mml)}
+                    defaultChecked={customAvatarType === CustomAvatarType.mml}
+                    checked={customAvatarType === CustomAvatarType.mml}
+                  />
+                  <label htmlFor="mml">MML</label>
+                  <input
+                    type="radio"
+                    id="glb"
+                    name="customAvatarType"
+                    onChange={() => handleTypeSwitch(CustomAvatarType.meshFileUrl)}
+                    defaultChecked={customAvatarType === CustomAvatarType.meshFileUrl}
+                    checked={customAvatarType === CustomAvatarType.meshFileUrl}
+                  />
+                  <label htmlFor="glb">Mesh URL</label>
+                  {selectedAvatar?.isCustomAvatar && <SelectedPill />}
+                  <div className={styles.customAvatarInputSection}>
+                    {customAvatarType === CustomAvatarType.mml ? (
+                      <textarea
+                        ref={textareaRef}
+                        className={styles.customAvatarInput}
+                        value={customAvatarValue}
+                        onChange={handleInputChange}
+                        onKeyDown={handleKeyPress}
+                        placeholder={getPlaceholderByType(customAvatarType)}
+                        rows={4}
+                      />
+                    ) : (
+                      <input
+                        ref={inputRef}
+                        className={styles.customAvatarInput}
+                        value={customAvatarValue}
+                        onKeyDown={handleKeyPress}
+                        onChange={handleInputChange}
+                        placeholder={getPlaceholderByType(customAvatarType)}
+                      />
+                    )}
+                    <button disabled={!customAvatarValue} type="button" onClick={addCustomAvatar}>
+                      Set
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       )}
     </>
   );

@@ -30,7 +30,32 @@ const app = new Networked3dWebExperienceClient(holder, {
     groundPlane: false,
   },
   avatarConfiguration: {
-    availableAvatars: [],
+    availableAvatars: [
+      {
+        name: "Bot",
+        meshFileUrl: "/assets/models/bot.glb",
+        thumbnailUrl: "/assets/models/thumbs/bot.jpg",
+      },
+      {
+        name: "Hat Bot",
+        mmlCharacterString: `
+          <m-character src="/assets/models/bot.glb">
+            <m-model rz="-90" sx="1.01" sy="1.01" sz="1.01" x="0.025" z="-0.01" socket="head" src="/assets/models/hat.glb"></m-model>
+          </m-character>
+        `,
+        thumbnailUrl: "/assets/models/thumbs/hat_bot.jpg",
+      },
+      {
+        name: "Ninja",
+        meshFileUrl: "/assets/models/ninja.glb",
+        thumbnailUrl: "/assets/models/thumbs/ninja.jpg",
+      },
+      {
+        name: "Toon Boy",
+        meshFileUrl: "/assets/models/cartoon_boy.glb",
+        thumbnailUrl: "/assets/models/thumbs/cartoon_boy.jpg",
+      },
+    ],
   },
 });
 

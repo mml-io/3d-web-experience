@@ -26,7 +26,7 @@ const sunOptions = {
 export const envValues = {
   skyboxAzimuthalAngle: 79,
   skyboxPolarAngle: 0,
-  envMapIntensity: 0.17,
+  envMapIntensity: 0.25,
   skyboxIntensity: 0.8,
   skyboxBlurriness: 0.0,
   ambientLight: {
