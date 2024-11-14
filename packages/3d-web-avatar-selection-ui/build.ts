@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 // @ts-ignore
 import CssModulesPlugin from "esbuild-css-modules-plugin";
 
