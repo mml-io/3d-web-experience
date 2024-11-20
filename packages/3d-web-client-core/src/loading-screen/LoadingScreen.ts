@@ -82,11 +82,8 @@ export class LoadingScreen {
         console.error(`Failed to load overlay image: ${imageUrl}`);
       };
 
-      console.log("Overlay layers", this.config.overlayLayers);
-      let overlayZIndex = 10002;
       for (const layer of this.config.overlayLayers) {
         const overlayLayer = document.createElement("div");
-        overlayLayer.id = `loading-screen-overlay-${overlayZIndex}`;
         overlayLayer.style.position = "absolute";
         overlayLayer.style.background = `url(${layer.overlayImageUrl}) no-repeat`;
         overlayLayer.style.backgroundSize = "contain";
@@ -119,10 +116,8 @@ export class LoadingScreen {
 
         image.onerror = () => logLoadError(layer.overlayImageUrl);
 
-        overlayLayer.style.zIndex = `${overlayZIndex}`;
         this.overlayLayers.push(overlayLayer);
         this.backgroundBlur.append(overlayLayer);
-        overlayZIndex++;
       }
     }
 
@@ -227,7 +222,6 @@ export class LoadingScreen {
     this.progressBarHolder.style.marginBottom = "40px";
     this.progressBarHolder.style.cursor = "pointer";
     this.progressBarHolder.style.marginTop = "24px";
-    this.progressBarHolder.style.backdropFilter = "blur(5px)";
     this.loadingBanner.append(this.progressBarHolder);
 
     this.progressBarBackground = document.createElement("div");
@@ -235,8 +229,8 @@ export class LoadingScreen {
     this.progressBarBackground.style.width = "80%";
     this.progressBarBackground.style.maxWidth = "400px";
     this.progressBarBackground.style.minWidth = "240px";
-    this.progressBarBackground.style.backgroundColor = "rgba(64,64,64, 0.25)";
-    this.progressBarBackground.style.backdropFilter = "blur(10px)";
+    this.progressBarBackground.style.backgroundColor = "rgba(32,32,32, 0.25)";
+    this.progressBarBackground.style.backdropFilter = "blur(4px)";
     this.progressBarBackground.style.height = "16px";
     this.progressBarBackground.style.lineHeight = "16px";
     this.progressBarBackground.style.borderRadius = "16px";
