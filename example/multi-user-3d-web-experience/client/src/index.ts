@@ -25,7 +25,7 @@ const app = new Networked3dWebExperienceClient(holder, {
     sprintAnimationFileUrl,
     doubleJumpAnimationFileUrl,
   },
-  mmlDocuments: { example: { url: `wss://mml.mgz.me/mml-documents/playground.html` } },
+  mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
   environmentConfiguration: {
     skybox: {
       hdrJpgUrl: hdrJpgUrl,
