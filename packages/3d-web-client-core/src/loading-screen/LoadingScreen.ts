@@ -21,7 +21,8 @@ export class LoadingScreen {
 
   private overlayLayers: HTMLDivElement[] = [];
 
-  private loadingBannerText: HTMLDivElement;
+  private loadingBanner: HTMLDivElement;
+  private loadingBannerTitle: HTMLDivElement;
   private loadingBannerSubtitle: HTMLDivElement;
 
   private progressBarBackground: HTMLDivElement;
@@ -127,57 +128,60 @@ export class LoadingScreen {
 
     this.element.style.color = this.config?.color || "white";
 
-    this.loadingBannerText = document.createElement("div");
-    if (this.config?.title) {
-      this.loadingBannerText.textContent = this.config.title;
-    }
-    this.loadingBannerText.style.position = "absolute";
-    this.loadingBannerText.style.display = "flex";
-    this.loadingBannerText.style.flexDirection = "column";
-    this.loadingBannerText.style.left = "42px";
-    this.loadingBannerText.style.bottom = "102px";
-    this.loadingBannerText.style.width = "100%";
-    this.loadingBannerText.style.height = "100%";
-    this.loadingBannerText.style.color = this.config?.color || "white";
-    this.loadingBannerText.style.fontSize = "3.8vw";
-    this.loadingBannerText.style.fontWeight = "bold";
-    this.loadingBannerText.style.fontFamily = "sans-serif";
-    this.loadingBannerText.style.alignItems = "start";
-    this.loadingBannerText.style.justifyContent = "flex-end";
-    if (this.config?.background) {
-      this.loadingBannerText.style.textShadow = `0px 0px 80px ${this.config.background}`;
-    }
-    this.backgroundBlur.append(this.loadingBannerText);
+    this.loadingBanner = document.createElement("div");
+    this.loadingBanner.style.position = "absolute";
+    this.loadingBanner.style.display = "flex";
+    this.loadingBanner.style.flexDirection = "column";
+    this.loadingBanner.style.left = "0";
+    this.loadingBanner.style.bottom = "0";
+    this.loadingBanner.style.padding = "0";
+    this.loadingBanner.style.width = "100%";
+    this.loadingBanner.style.justifyContent = "flex-end";
+    this.backgroundBlur.append(this.loadingBanner);
 
-    this.loadingBannerSubtitle = document.createElement("div");
-    this.loadingBannerSubtitle.style.maxWidth = "38.2%";
-    this.loadingBannerSubtitle.style.width = "38.2%";
-    this.loadingBannerSubtitle.style.color = this.config?.color || "white";
-    this.loadingBannerSubtitle.style.fontSize = "1.3vw";
-    this.loadingBannerSubtitle.style.fontWeight = "400";
-    this.loadingBannerSubtitle.style.fontFamily = "sans-serif";
-    this.loadingBannerSubtitle.style.marginTop = "12px";
-    this.loadingBannerSubtitle.style.alignItems = "center";
-    if (this.config?.background) {
-      this.loadingBannerSubtitle.style.textShadow = `0px 0px 40px ${this.config.background}`;
+    if (this.config?.title) {
+      this.loadingBannerTitle = document.createElement("div");
+      this.loadingBannerTitle.textContent = this.config.title;
+      this.loadingBannerTitle.style.color = this.config?.color || "white";
+      this.loadingBannerTitle.style.paddingLeft = "40px";
+      this.loadingBannerTitle.style.paddingRight = "40px";
+      this.loadingBannerTitle.style.fontSize = "42px";
+      this.loadingBannerTitle.style.fontWeight = "bold";
+      this.loadingBannerTitle.style.fontFamily = "sans-serif";
+      if (this.config?.background) {
+        this.loadingBannerTitle.style.textShadow = `0px 0px 80px ${this.config.background}`;
+      }
+      this.loadingBanner.append(this.loadingBannerTitle);
     }
 
     if (this.config?.subtitle) {
+      this.loadingBannerSubtitle = document.createElement("div");
+      this.loadingBannerSubtitle.style.color = this.config?.color || "white";
+      this.loadingBannerSubtitle.style.paddingLeft = "40px";
+      this.loadingBannerSubtitle.style.paddingRight = "40px";
+      this.loadingBannerSubtitle.style.fontSize = "16px";
+      this.loadingBannerSubtitle.style.fontWeight = "400";
+      this.loadingBannerSubtitle.style.fontFamily = "sans-serif";
+      this.loadingBannerSubtitle.style.marginTop = "12px";
+      if (this.config?.background) {
+        this.loadingBannerSubtitle.style.textShadow = `0px 0px 40px ${this.config.background}`;
+      }
+
       this.loadingBannerSubtitle.textContent = this.config.subtitle;
-      this.loadingBannerText.append(this.loadingBannerSubtitle);
+      this.loadingBanner.append(this.loadingBannerSubtitle);
     }
 
     this.progressDebugViewHolder = document.createElement("div");
     this.progressDebugViewHolder.style.display = "none";
     this.progressDebugViewHolder.style.position = "absolute";
+    this.progressDebugViewHolder.style.width = "calc(100% - 80px)";
     this.progressDebugViewHolder.style.maxHeight = "calc(100% - 120px)";
-    this.progressDebugViewHolder.style.left = "42px";
+    this.progressDebugViewHolder.style.left = "40px";
     this.progressDebugViewHolder.style.bottom = "60px";
-    this.progressDebugViewHolder.style.width = "38.2%";
     this.progressDebugViewHolder.style.alignItems = "center";
     this.progressDebugViewHolder.style.justifyContent = "center";
     this.progressDebugViewHolder.style.zIndex = "10003";
-    this.backgroundBlur.append(this.progressDebugViewHolder);
+    this.element.append(this.progressDebugViewHolder);
 
     this.progressDebugView = document.createElement("div");
     this.progressDebugView.style.backgroundColor = "rgba(128, 128, 128, 0.5)";
@@ -193,7 +197,8 @@ export class LoadingScreen {
     this.debugCheckbox.checked = false;
     this.debugCheckbox.addEventListener("change", () => {
       this.progressDebugElement.style.display = this.debugCheckbox.checked ? "block" : "none";
-      this.loadingBannerText.style.display = this.debugCheckbox.checked ? "none" : "flex";
+      this.loadingBannerTitle.style.display = this.debugCheckbox.checked ? "none" : "flex";
+      this.loadingBannerSubtitle.style.display = this.debugCheckbox.checked ? "none" : "flex";
       if (this.hasCompleted) {
         this.dispose();
       }
@@ -217,12 +222,26 @@ export class LoadingScreen {
     this.progressBarHolder.style.display = "flex";
     this.progressBarHolder.style.alignItems = "start";
     this.progressBarHolder.style.justifyContent = "flex-start";
-    this.progressBarHolder.style.position = "absolute";
-    this.progressBarHolder.style.bottom = "42px";
-    this.progressBarHolder.style.left = "42px";
     this.progressBarHolder.style.width = "100%";
+    this.progressBarHolder.style.marginLeft = "40px";
+    this.progressBarHolder.style.marginBottom = "40px";
     this.progressBarHolder.style.cursor = "pointer";
-    this.progressBarHolder.addEventListener("click", () => {
+    this.progressBarHolder.style.marginTop = "24px";
+    this.progressBarHolder.style.backdropFilter = "blur(5px)";
+    this.loadingBanner.append(this.progressBarHolder);
+
+    this.progressBarBackground = document.createElement("div");
+    this.progressBarBackground.style.position = "relative";
+    this.progressBarBackground.style.width = "80%";
+    this.progressBarBackground.style.maxWidth = "400px";
+    this.progressBarBackground.style.minWidth = "240px";
+    this.progressBarBackground.style.backgroundColor = "rgba(64,64,64, 0.25)";
+    this.progressBarBackground.style.backdropFilter = "blur(10px)";
+    this.progressBarBackground.style.height = "16px";
+    this.progressBarBackground.style.lineHeight = "16px";
+    this.progressBarBackground.style.borderRadius = "16px";
+    this.progressBarBackground.style.overflow = "hidden";
+    this.progressBarBackground.addEventListener("click", () => {
       const display = this.progressDebugViewHolder.style.display;
       if (display === "none") {
         this.progressDebugViewHolder.style.display = "flex";
@@ -230,23 +249,9 @@ export class LoadingScreen {
         this.progressDebugViewHolder.style.display = "none";
         this.debugCheckbox.checked = false;
         this.progressDebugElement.style.display = this.debugCheckbox.checked ? "block" : "none";
-        this.loadingBannerText.style.display = this.debugCheckbox.checked ? "none" : "flex";
+        this.loadingBannerTitle.style.display = this.debugCheckbox.checked ? "none" : "flex";
       }
     });
-    this.element.append(this.progressBarHolder);
-
-    this.progressBarBackground = document.createElement("div");
-    this.progressBarBackground.style.position = "relative";
-    this.progressBarBackground.style.width = "38.2%";
-    this.progressBarBackground.style.maxWidth = "38.2%";
-    this.progressBarBackground.style.backgroundColor = "gray";
-    this.progressBarBackground.style.height = "12px";
-    this.progressBarBackground.style.lineHeight = "12px";
-    this.progressBarBackground.style.borderRadius = "12px";
-    this.progressBarBackground.style.border = this.config?.background
-      ? `2px solid ${this.config?.background}`
-      : "2px solid white";
-    this.progressBarBackground.style.overflow = "hidden";
     this.progressBarHolder.append(this.progressBarBackground);
 
     this.progressBar = document.createElement("div");
@@ -255,6 +260,7 @@ export class LoadingScreen {
     this.progressBar.style.left = "0";
     this.progressBar.style.width = "0";
     this.progressBar.style.height = "100%";
+    this.progressBar.style.pointerEvents = "none";
     this.progressBar.style.backgroundColor = this.config?.color || "#0050a4";
     this.progressBarBackground.append(this.progressBar);
 
@@ -264,10 +270,11 @@ export class LoadingScreen {
     this.loadingStatusText.style.left = "0";
     this.loadingStatusText.style.width = "100%";
     this.loadingStatusText.style.height = "100%";
-    this.loadingStatusText.style.color = this.config?.background || "white";
-    this.loadingStatusText.style.fontSize = "11px";
+    this.loadingStatusText.style.color = "rgba(200,200,200,0.9)";
+    this.loadingStatusText.style.fontSize = "10px";
     this.loadingStatusText.style.textAlign = "center";
     this.loadingStatusText.style.verticalAlign = "middle";
+    this.loadingStatusText.style.mixBlendMode = "difference";
     this.loadingStatusText.style.fontFamily = "sans-serif";
     this.loadingStatusText.style.fontWeight = "bold";
     this.loadingStatusText.style.userSelect = "none";
