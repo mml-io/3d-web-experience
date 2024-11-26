@@ -38,6 +38,7 @@ import {
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
+import { CameraManager } from "../camera/CameraManager";
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { bcsValues } from "../tweakpane/blades/bcsFolder";
@@ -54,7 +55,7 @@ import { N8SSAOPass } from "./post-effects/n8-ssao/N8SSAOPass";
 
 type ComposerContructorArgs = {
   scene: Scene;
-  camera: PerspectiveCamera;
+  cameraManager: CameraManager;
   spawnSun: boolean;
   environmentConfiguration?: EnvironmentConfiguration;
 };
@@ -98,7 +99,7 @@ export class Composer {
 
   private readonly scene: Scene;
   public postPostScene: Scene;
-  private readonly camera: PerspectiveCamera;
+  private readonly cameraManager: CameraManager;
   public readonly renderer: WebGLRenderer;
 
   public readonly effectComposer: EffectComposer;
@@ -142,13 +143,13 @@ export class Composer {
 
   constructor({
     scene,
-    camera,
+    cameraManager,
     spawnSun = false,
     environmentConfiguration,
   }: ComposerContructorArgs) {
     this.scene = scene;
+    this.cameraManager = cameraManager;
     this.postPostScene = new Scene();
-    this.camera = camera;
     this.spawnSun = spawnSun;
     this.renderer = new WebGLRenderer({
       powerPreference: "high-performance",
@@ -172,16 +173,16 @@ export class Composer {
       frameBufferType: HalfFloatType,
     });
 
-    this.renderPass = new RenderPass(this.scene, this.camera);
+    this.renderPass = new RenderPass(this.scene, this.cameraManager.activeCamera);
 
-    this.normalPass = new NormalPass(this.scene, this.camera);
+    this.normalPass = new NormalPass(this.scene, this.cameraManager.activeCamera);
     this.normalPass.enabled = ppssaoValues.enabled;
     this.normalTextureEffect = new TextureEffect({
       blendFunction: BlendFunction.SKIP,
       texture: this.normalPass.texture,
     });
 
-    this.ppssaoEffect = new SSAOEffect(this.camera, this.normalPass.texture, {
+    this.ppssaoEffect = new SSAOEffect(this.cameraManager.activeCamera, this.normalPass.texture, {
       blendFunction: ppssaoValues.blendFunction,
       distanceScaling: ppssaoValues.distanceScaling,
       depthAwareUpsampling: ppssaoValues.depthAwareUpsampling,
@@ -199,7 +200,11 @@ export class Composer {
       worldProximityThreshold: ppssaoValues.worldProximityThreshold,
       worldProximityFalloff: ppssaoValues.worldProximityFalloff,
     });
-    this.ppssaoPass = new EffectPass(this.camera, this.ppssaoEffect, this.normalTextureEffect);
+    this.ppssaoPass = new EffectPass(
+      this.cameraManager.activeCamera,
+      this.ppssaoEffect,
+      this.normalTextureEffect,
+    );
     this.ppssaoPass.enabled = ppssaoValues.enabled;
 
     this.fxaaEffect = new FXAAEffect();
@@ -212,7 +217,12 @@ export class Composer {
       intensity: extrasValues.bloom,
     });
 
-    this.n8aopass = new N8SSAOPass(this.scene, this.camera, this.width, this.height);
+    this.n8aopass = new N8SSAOPass(
+      this.scene,
+      this.cameraManager.activeCamera,
+      this.width,
+      this.height,
+    );
     this.n8aopass.configuration.aoRadius = n8ssaoValues.aoRadius;
     this.n8aopass.configuration.distanceFalloff = n8ssaoValues.distanceFalloff;
     this.n8aopass.configuration.intensity = n8ssaoValues.intensity;
@@ -226,8 +236,8 @@ export class Composer {
     this.n8aopass.configuration.denoiseRadius = n8ssaoValues.denoiseRadius;
     this.n8aopass.enabled = n8ssaoValues.enabled;
 
-    this.fxaaPass = new EffectPass(this.camera, this.fxaaEffect);
-    this.bloomPass = new EffectPass(this.camera, this.bloomEffect);
+    this.fxaaPass = new EffectPass(this.cameraManager.activeCamera, this.fxaaEffect);
+    this.bloomPass = new EffectPass(this.cameraManager.activeCamera, this.bloomEffect);
 
     this.toneMappingEffect = new ToneMappingEffect({
       mode: toneMappingValues.mode,
@@ -244,7 +254,7 @@ export class Composer {
       predicationMode: PredicationMode.DEPTH,
     });
 
-    this.toneMappingPass = new EffectPass(this.camera, this.toneMappingEffect);
+    this.toneMappingPass = new EffectPass(this.cameraManager.activeCamera, this.toneMappingEffect);
     this.toneMappingPass.enabled =
       rendererValues.toneMapping === 5 || rendererValues.toneMapping === 0 ? true : false;
 
@@ -257,7 +267,7 @@ export class Composer {
     this.gaussGrainEffect.uniforms.amount.value = extrasValues.grain;
     this.gaussGrainEffect.uniforms.alpha.value = 1.0;
 
-    this.smaaPass = new EffectPass(this.camera, this.smaaEffect);
+    this.smaaPass = new EffectPass(this.cameraManager.activeCamera, this.smaaEffect);
 
     this.effectComposer.addPass(this.renderPass);
     if (ppssaoValues.enabled) {
@@ -355,8 +365,8 @@ export class Composer {
     }
     this.width = parentElement.clientWidth;
     this.height = parentElement.clientHeight;
-    this.camera.aspect = this.width / this.height;
-    this.camera.updateProjectionMatrix();
+    this.cameraManager.activeCamera.aspect = this.width / this.height;
+    this.cameraManager.activeCamera.updateProjectionMatrix();
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.resolution.set(
       this.width * window.devicePixelRatio,
@@ -386,11 +396,12 @@ export class Composer {
 
   public render(timeManager: TimeManager): void {
     this.renderer.info.reset();
+    this.renderPass.mainCamera = this.cameraManager.activeCamera;
     this.normalPass.texture.needsUpdate = true;
     this.gaussGrainEffect.uniforms.time.value = timeManager.time;
     this.effectComposer.render();
     this.renderer.clearDepth();
-    this.renderer.render(this.postPostScene, this.camera);
+    this.renderer.render(this.postPostScene, this.cameraManager.activeCamera);
   }
 
   public updateSkyboxRotation() {

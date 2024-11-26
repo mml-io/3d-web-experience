@@ -17,6 +17,7 @@ import {
   ErrorScreen,
   getSpawnPositionInsideCircle,
   GroundPlane,
+  Key,
   KeyInputManager,
   LoadingScreen,
   LoadingScreenConfig,
@@ -173,7 +174,7 @@ export class Networked3dWebExperienceClient {
 
     this.composer = new Composer({
       scene: this.scene,
-      camera: this.cameraManager.camera,
+      cameraManager: this.cameraManager,
       spawnSun: true,
       environmentConfiguration: this.config.environmentConfiguration,
     });
@@ -251,6 +252,11 @@ export class Networked3dWebExperienceClient {
       onServerBroadcast: (broadcast: { broadcastType: string; payload: any }) => {
         this.config.onServerBroadcast?.(broadcast);
       },
+    });
+
+    this.keyInputManager.createKeyBinding(Key.C, () => {
+      this.cameraManager.toggleFlyCamera();
+      this.composer.fitContainer();
     });
 
     this.characterManager = new CharacterManager({
