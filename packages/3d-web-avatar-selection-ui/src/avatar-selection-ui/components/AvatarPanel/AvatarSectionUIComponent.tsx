@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 
-import { CustomAvatar } from "../../AvatarSelectionUI";
 import { AvatarType } from "../../AvatarType";
 import AvatarIcon from "../../icons/Avatar.svg";
 
@@ -16,7 +15,13 @@ type AvatarSelectionUIProps = {
   onUpdateUserAvatar: (avatar: AvatarType) => void;
   visibleByDefault?: boolean;
   availableAvatars: AvatarType[];
-  allowCustomAvatars?: boolean;
+
+  characterDescription: AvatarType;
+  allowCustomAvatars: boolean;
+
+  displayName: string;
+  allowCustomDisplayName: boolean;
+  onUpdateDisplayName: (displayNameValue: string) => void;
 };
 
 enum CustomAvatarType {
@@ -34,7 +39,9 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
 ) => {
   const visibleByDefault: boolean = props.visibleByDefault ?? false;
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
-  const [selectedAvatar, setSelectedAvatar] = useState<CustomAvatar | undefined>(undefined);
+  const [selectedAvatar, setSelectedAvatar] = useState<AvatarType | undefined>(
+    props.characterDescription,
+  );
   const [customAvatarType, setCustomAvatarType] = useState<CustomAvatarType>(
     CustomAvatarType.mmlUrl,
   );
@@ -42,11 +49,14 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const [displayNameValue, setDisplayNameValue] = useState<string>(props.displayName);
+  const displayNameRef = useRef<HTMLInputElement>(null);
+
   const handleRootClick = (e: MouseEvent) => {
     e.stopPropagation();
   };
 
-  const selectAvatar = (avatar: CustomAvatar) => {
+  const selectAvatar = (avatar: AvatarType) => {
     setSelectedAvatar(avatar);
     props.onUpdateUserAvatar(avatar);
   };
@@ -55,18 +65,42 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
     setCustomAvatarValue(e.target.value);
   };
 
+  const handleDisplayNameChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    setDisplayNameValue(e.target.value);
+  };
+
+  const setDisplayName = () => {
+    if (!displayNameValue) {
+      return;
+    }
+    props.onUpdateDisplayName(displayNameValue);
+  };
+
   const addCustomAvatar = () => {
     if (!customAvatarValue) {
       return;
     }
 
-    const newSelectedAvatar = {
-      mmlCharacterString: customAvatarType === CustomAvatarType.mml ? customAvatarValue : undefined,
-      mmlCharacterUrl: customAvatarType === CustomAvatarType.mmlUrl ? customAvatarValue : undefined,
-      meshFileUrl:
-        customAvatarType === CustomAvatarType.meshFileUrl ? customAvatarValue : undefined,
-      isCustomAvatar: true,
-    } as CustomAvatar;
+    let newSelectedAvatar: AvatarType;
+    switch (customAvatarType) {
+      case CustomAvatarType.mml:
+        newSelectedAvatar = {
+          mmlCharacterString: customAvatarValue,
+        };
+        break;
+      case CustomAvatarType.mmlUrl:
+        newSelectedAvatar = {
+          mmlCharacterUrl: customAvatarValue,
+        };
+        break;
+      case CustomAvatarType.meshFileUrl:
+        newSelectedAvatar = {
+          meshFileUrl: customAvatarValue,
+        };
+        break;
+    }
 
     setSelectedAvatar(newSelectedAvatar);
     props.onUpdateUserAvatar(newSelectedAvatar);
@@ -74,6 +108,20 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
 
   const handleKeyPress = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     e.stopPropagation();
+  };
+
+  const handleAvatarInputKeyPress = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      addCustomAvatar();
+    }
+  };
+
+  const handleDisplayNameKeyPress = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.stopPropagation();
+    if (e.key === "Enter") {
+      setDisplayName();
+    }
   };
 
   const handleTypeSwitch = (type: CustomAvatarType) => {
@@ -92,9 +140,15 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
     }
   };
 
-  if (!props.availableAvatars.length && !props.allowCustomAvatars) {
+  if (
+    !props.availableAvatars.length &&
+    !props.allowCustomAvatars &&
+    !props.allowCustomDisplayName
+  ) {
     return null;
   }
+
+  let recognizedAvatar = false;
 
   return (
     <>
@@ -112,21 +166,45 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
       </div>
       {isVisible && (
         <div className={`${styles.avatarSelectionContainer}`}>
-          {!!props.availableAvatars.length && (
-            <div className={styles.avatarSelectionUi}>
-              <div className={styles.avatarSelectionUiHeader}>
-                <h2>Choose your avatar</h2>
+          {props.allowCustomDisplayName && (
+            <div className={styles.displayNameSection}>
+              <div className={styles.sectionHeading}>Display Name</div>
+              <div className={styles.displayNameInputSection}>
+                <input
+                  ref={displayNameRef}
+                  className={styles.input}
+                  value={displayNameValue}
+                  onKeyDown={handleDisplayNameKeyPress}
+                  onChange={handleDisplayNameChange}
+                  placeholder={"Enter your display name"}
+                />
+                <button
+                  className={styles.setButton}
+                  disabled={!displayNameValue}
+                  type="button"
+                  onClick={setDisplayName}
+                >
+                  Set
+                </button>
               </div>
-              <div className={styles.avatarSelectionUiContent}>
+            </div>
+          )}
+          {!!props.availableAvatars.length && (
+            <div className={styles.avatarSelectionSection}>
+              <div className={styles.sectionHeading}>Choose your Avatar</div>
+              <div className={styles.avatarSelectionUi}>
                 {props.availableAvatars.map((avatar, index) => {
                   const isSelected =
-                    !selectedAvatar?.isCustomAvatar &&
-                    ((selectedAvatar?.meshFileUrl &&
+                    (selectedAvatar?.meshFileUrl &&
                       selectedAvatar?.meshFileUrl === avatar.meshFileUrl) ||
-                      (selectedAvatar?.mmlCharacterUrl &&
-                        selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
-                      (selectedAvatar?.mmlCharacterString &&
-                        selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString));
+                    (selectedAvatar?.mmlCharacterUrl &&
+                      selectedAvatar?.mmlCharacterUrl === avatar.mmlCharacterUrl) ||
+                    (selectedAvatar?.mmlCharacterString &&
+                      selectedAvatar?.mmlCharacterString === avatar.mmlCharacterString);
+
+                  if (isSelected) {
+                    recognizedAvatar = true;
+                  }
 
                   return (
                     <div
@@ -137,9 +215,18 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                       <div className={styles.avatarSelectionUiAvatarImgContainer}>
                         {isSelected && <SelectedPill />}
                         {avatar.thumbnailUrl ? (
-                          <img src={avatar.thumbnailUrl} alt={avatar.name} />
+                          <img
+                            className={styles.avatarSelectionUiAvatarImage}
+                            src={avatar.thumbnailUrl}
+                            alt={avatar.name}
+                          />
                         ) : (
-                          <div>No Image Available</div>
+                          <div className={styles.avatarSelectionNoImage}>
+                            <img
+                              alt={avatar.name}
+                              src={`data:image/svg+xml;utf8,${encodeURIComponent(AvatarIcon)}`}
+                            />
+                          </div>
                         )}
                         <p>{avatar.name}</p>
                         <span className={styles.tooltipText}>{avatar.name}</span>
@@ -152,8 +239,7 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
           )}
           {props.allowCustomAvatars && (
             <div className={styles.customAvatarSection}>
-              {!!props.availableAvatars.length && <hr />}
-              <h2>Custom Avatar Section</h2>
+              <div className={styles.sectionHeading}>Custom Avatar</div>
               <input
                 type="radio"
                 id="html"
@@ -181,12 +267,12 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 checked={customAvatarType === CustomAvatarType.meshFileUrl}
               />
               <label htmlFor="glb">Mesh URL</label>
-              {selectedAvatar?.isCustomAvatar && <SelectedPill />}
+              {!recognizedAvatar && <SelectedPill />}
               <div className={styles.customAvatarInputSection}>
                 {customAvatarType === CustomAvatarType.mml ? (
                   <textarea
                     ref={textareaRef}
-                    className={styles.customAvatarInput}
+                    className={styles.input}
                     value={customAvatarValue}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
@@ -196,14 +282,19 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
                 ) : (
                   <input
                     ref={inputRef}
-                    className={styles.customAvatarInput}
+                    className={styles.input}
                     value={customAvatarValue}
-                    onKeyDown={handleKeyPress}
+                    onKeyDown={handleAvatarInputKeyPress}
                     onChange={handleInputChange}
                     placeholder={getPlaceholderByType(customAvatarType)}
                   />
                 )}
-                <button disabled={!customAvatarValue} type="button" onClick={addCustomAvatar}>
+                <button
+                  className={styles.setButton}
+                  disabled={!customAvatarValue}
+                  type="button"
+                  onClick={addCustomAvatar}
+                >
                   Set
                 </button>
               </div>
