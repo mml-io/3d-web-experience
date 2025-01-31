@@ -16,9 +16,9 @@
   left: 0px;
   width: 100%;
   max-width: 500px;
+  height: 0px;
   flex-direction: row;
   align-items: flex-end;
-  pointer-events: none;
 }
 
 .textChat {
@@ -246,4 +246,5 @@
   position: relative;
   max-height: 450px;
   direction: rtl;
+  width: fit-content;
 }
