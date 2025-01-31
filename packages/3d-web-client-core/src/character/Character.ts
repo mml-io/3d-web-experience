@@ -17,21 +17,22 @@ export type AnimationConfig = {
   doubleJumpAnimationFileUrl: string;
 };
 
-export type CharacterDescription = {
-  meshFileUrl?: string;
-  mmlCharacterUrl?: string;
-  mmlCharacterString?: string;
-} & (
+export type CharacterDescription =
   | {
       meshFileUrl: string;
+      mmlCharacterString?: null;
+      mmlCharacterUrl?: null;
     }
   | {
-      mmlCharacterUrl: string;
-    }
-  | {
+      meshFileUrl?: null;
       mmlCharacterString: string;
+      mmlCharacterUrl?: null;
     }
-);
+  | {
+      meshFileUrl?: null;
+      mmlCharacterString?: null;
+      mmlCharacterUrl: string;
+    };
 
 export type CharacterConfig = {
   username: string;
@@ -161,11 +162,7 @@ export class Character extends Group {
     const tooltip = new CharacterTooltip({
       maxWidth: 1000,
       secondsToFadeOut: 10,
-      color: {
-        r: 0.125,
-        g: 0.125,
-        b: 0.125,
-      },
+      color: new Color(0.125, 0.125, 0.125),
     });
     this.add(tooltip);
     this.chatTooltips.push(tooltip);

@@ -229,17 +229,19 @@ export class CharacterModel {
   }
 
   private cleanAnimationClips(
-    skeletalMesh: Object3D,
+    skeletalMesh: Object3D | null,
     animationClip: AnimationClip,
     keepRootBonePositionAnimation: boolean,
   ): AnimationClip {
     const availableBones = new Set<string>();
-    skeletalMesh.traverse((child) => {
-      const asBone = child as Bone;
-      if (asBone.isBone) {
-        availableBones.add(child.name);
-      }
-    });
+    if (skeletalMesh) {
+      skeletalMesh.traverse((child) => {
+        const asBone = child as Bone;
+        if (asBone.isBone) {
+          availableBones.add(child.name);
+        }
+      });
+    }
     animationClip.tracks = animationClip.tracks.filter((track) => {
       const [trackName, trackProperty] = track.name.split(".");
       if (keepRootBonePositionAnimation && trackName === "root" && trackProperty === "position") {
