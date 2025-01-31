@@ -1,13 +1,4 @@
-import {
-  BoxGeometry,
-  Color,
-  FrontSide,
-  LinearFilter,
-  Mesh,
-  MeshBasicMaterial,
-  Sprite,
-  SpriteMaterial,
-} from "three";
+import { Color, FrontSide, LinearFilter, Sprite, SpriteMaterial } from "three";
 
 import { THREECanvasTextTexture } from "./CanvasText";
 

@@ -1,4 +1,4 @@
-import { Texture, LinearFilter, RGBAFormat, MeshBasicMaterial } from "three";
+import { Texture, LinearFilter, RGBAFormat } from "three";
 
 export type RGBA = {
   r: number;
