@@ -56,7 +56,9 @@ import { AvatarSelectionUI, AvatarConfiguration } from "./avatar-selection-ui";
 import { StringToHslOptions, TextChatUI, TextChatUIProps } from "./chat-ui";
 import styles from "./Networked3dWebExperience.module.css";
 
-type MMLDocumentConfiguration = {
+import { MMLEditingMode } from "./MMLEditingMode";
+
+export type MMLDocumentConfiguration = {
   url: string;
   position?: {
     x: number;
@@ -154,6 +156,8 @@ export class Networked3dWebExperienceClient {
 
   private keyInputManager = new KeyInputManager();
   private virtualJoystick: VirtualJoystick;
+
+  private mmlEditingMode: MMLEditingMode;
 
   private mmlCompositionScene: MMLCompositionScene;
   private mmlDocumentStates: { [key: string]: MMLDocumentState } = {};
@@ -750,6 +754,7 @@ export class Networked3dWebExperienceClient {
     this.mmlDocumentStates = {};
     this.textChatUI?.dispose();
     this.mmlCompositionScene.dispose();
+    this.mmlEditingMode.dispose();
     this.composer.dispose();
     this.tweakPane?.dispose();
     if (this.currentRequestAnimationFrame !== null) {
@@ -763,6 +768,7 @@ export class Networked3dWebExperienceClient {
 
   private setupMMLScene() {
     registerCustomElementsToWindow(window);
+
     this.mmlCompositionScene = new MMLCompositionScene({
       targetElement: this.element,
       renderer: this.composer.renderer,
@@ -775,6 +781,20 @@ export class Networked3dWebExperienceClient {
       },
     });
     this.scene.add(this.mmlCompositionScene.group);
+
+    this.mmlEditingMode = new MMLEditingMode({
+      scene: this.scene,
+      targetElement: this.element,
+      camera: this.cameraManager.camera,
+      collisionsManager: this.collisionsManager,
+      onCreate: (mmlDocument: MMLDocumentConfiguration) => {
+        console.log({ mmlDocument });
+        const frame = this.createFrame(mmlDocument);
+        document.body.appendChild(frame);
+      },
+    });
+    this.scene.add(this.mmlEditingMode.group);
+
     setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
     setGlobalDocumentTimeManager(this.mmlCompositionScene.documentTimeManager);
 
