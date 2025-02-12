@@ -42,6 +42,7 @@ import {
   parseServerBroadcastMessage,
 } from "@mml-io/3d-web-user-networking";
 import {
+  IframeWrapper,
   IMMLScene,
   LoadingProgressManager,
   MMLNetworkSource,
@@ -183,9 +184,13 @@ export class Networked3dWebExperienceClient {
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
   private groundPlane: GroundPlane | null = null;
+<<<<<<< HEAD
   private respawnButton: HTMLDivElement | null = null;
 
   private currentRequestAnimationFrame: number | null = null;
+=======
+  private iframeBody: HTMLElement;
+>>>>>>> 55a5793b (Semi-working ghost mode)
 
   constructor(
     private holderElement: HTMLElement,
@@ -767,45 +772,53 @@ export class Networked3dWebExperienceClient {
   }
 
   private setupMMLScene() {
-    registerCustomElementsToWindow(window);
+    IframeWrapper.create().then((iframeWrapperResult) => {
+      const { iframeWindow, iframeBody } = iframeWrapperResult;
+      this.iframeBody = iframeBody;
 
-    this.mmlCompositionScene = new MMLCompositionScene({
-      targetElement: this.element,
-      renderer: this.composer.renderer,
-      scene: this.scene,
-      camera: this.cameraManager.camera,
-      audioListener: this.audioListener,
-      collisionsManager: this.collisionsManager,
-      getUserPositionAndRotation: () => {
-        return this.characterManager.getLocalCharacterPositionAndRotation();
-      },
+      registerCustomElementsToWindow(iframeWindow);
+
+      this.mmlCompositionScene = new MMLCompositionScene({
+        targetElement: this.element,
+        renderer: this.composer.renderer,
+        scene: this.scene,
+        camera: this.cameraManager.camera,
+        audioListener: this.audioListener,
+        collisionsManager: this.collisionsManager,
+        getUserPositionAndRotation: () => {
+          return this.characterManager.getLocalCharacterPositionAndRotation();
+        },
+      });
+      this.scene.add(this.mmlCompositionScene.group);
+
+      this.mmlEditingMode = new MMLEditingMode({
+        scene: this.scene,
+        targetElement: this.element,
+        iframeBody: iframeBody,
+        iframeWindow: iframeWindow,
+        graphicsAdapter: this.mmlCompositionScene.graphicsAdapter,
+        camera: this.cameraManager.camera,
+        collisionsManager: this.collisionsManager,
+        onCreate: (mmlDocument: MMLDocumentConfiguration) => {
+          console.log({ mmlDocument });
+          const frame = this.createFrame(mmlDocument);
+          this.iframeBody.appendChild(frame);
+        },
+      });
+      this.scene.add(this.mmlEditingMode.group);
+
+      setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
+      setGlobalDocumentTimeManager(this.mmlCompositionScene.documentTimeManager);
+
+      this.setMMLDocuments(this.config.mmlDocuments ?? {});
+
+      const mmlProgressManager = this.mmlCompositionScene.mmlScene.getLoadingProgressManager!()!;
+      this.loadingProgressManager.addLoadingDocument(mmlProgressManager, "mml", mmlProgressManager);
+      mmlProgressManager.addProgressCallback(() => {
+        this.loadingProgressManager.updateDocumentProgress(mmlProgressManager);
+      });
+      mmlProgressManager.setInitialLoad(true);
     });
-    this.scene.add(this.mmlCompositionScene.group);
-
-    this.mmlEditingMode = new MMLEditingMode({
-      scene: this.scene,
-      targetElement: this.element,
-      camera: this.cameraManager.camera,
-      collisionsManager: this.collisionsManager,
-      onCreate: (mmlDocument: MMLDocumentConfiguration) => {
-        console.log({ mmlDocument });
-        const frame = this.createFrame(mmlDocument);
-        document.body.appendChild(frame);
-      },
-    });
-    this.scene.add(this.mmlEditingMode.group);
-
-    setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
-    setGlobalDocumentTimeManager(this.mmlCompositionScene.documentTimeManager);
-
-    this.setMMLDocuments(this.config.mmlDocuments ?? {});
-
-    const mmlProgressManager = this.mmlCompositionScene.mmlScene.getLoadingProgressManager!()!;
-    this.loadingProgressManager.addLoadingDocument(mmlProgressManager, "mml", mmlProgressManager);
-    mmlProgressManager.addProgressCallback(() => {
-      this.loadingProgressManager.updateDocumentProgress(mmlProgressManager);
-    });
-    mmlProgressManager.setInitialLoad(true);
   }
 
   private createMMLDocument(mmlDocConfig: MMLDocumentConfiguration): MMLDocumentState {

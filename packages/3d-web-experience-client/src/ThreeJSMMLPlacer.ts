@@ -9,6 +9,14 @@ import * as THREE from "three";
 const mouseMovePixelsThreshold = 10;
 const mouseMoveTimeThresholdMilliseconds = 500;
 
+type ThreeJSMMLPlacerConfig = {
+  clickTarget: Document | HTMLElement;
+  rootContainer: THREE.Object3D;
+  camera: THREE.Camera;
+  placementGhostRoot: THREE.Object3D;
+  updatePosition: (vec: THREE.Vector3, isClick: boolean) => void;
+};
+
 /**
  * The ThreeJSClickTrigger class is responsible for handling click events on the MML scene and raycasts into the scene to
  * determine which object was clicked and then dispatches events to those elements.
@@ -19,26 +27,28 @@ export class ThreeJSMMLPlacer {
   private mouseDownTime: number | null = null;
   private mouseMoveDelta = 0;
 
-  static init(
-    clickTarget: Document | HTMLElement,
-    rootContainer: THREE.Object3D,
-    camera: THREE.Camera,
-    updatePosition: (vec: THREE.Vector3, isClick: boolean) => void,
-  ): ThreeJSMMLPlacer {
-    return new ThreeJSMMLPlacer(clickTarget, rootContainer, camera, updatePosition);
+  static init(config: ThreeJSMMLPlacerConfig): ThreeJSMMLPlacer {
+    return new ThreeJSMMLPlacer(config);
   }
 
-  private constructor(
-    private clickTarget: Document | HTMLElement,
-    private rootContainer: THREE.Object3D,
-    private camera: THREE.Camera,
-    private updatePosition: (vec: THREE.Vector3, isClick: boolean) => void,
-  ) {
+  private constructor(private config: ThreeJSMMLPlacerConfig) {
     this.raycaster = new THREE.Raycaster();
 
-    this.eventHandlerCollection.add(clickTarget, "mousedown", this.handleMouseDown.bind(this));
-    this.eventHandlerCollection.add(clickTarget, "mouseup", this.handleMouseUp.bind(this));
-    this.eventHandlerCollection.add(clickTarget, "mousemove", this.handleMouseMove.bind(this));
+    this.eventHandlerCollection.add(
+      this.config.clickTarget,
+      "mousedown",
+      this.handleMouseDown.bind(this),
+    );
+    this.eventHandlerCollection.add(
+      this.config.clickTarget,
+      "mouseup",
+      this.handleMouseUp.bind(this),
+    );
+    this.eventHandlerCollection.add(
+      this.config.clickTarget,
+      "mousemove",
+      this.handleMouseMove.bind(this),
+    );
   }
 
   private handleMouseDown() {
@@ -77,20 +87,20 @@ export class ThreeJSMMLPlacer {
     if (!document.pointerLockElement) {
       let width = window.innerWidth;
       let height = window.innerHeight;
-      if (this.clickTarget instanceof HTMLElement) {
-        width = this.clickTarget.offsetWidth;
-        height = this.clickTarget.offsetHeight;
+      if (this.config.clickTarget instanceof HTMLElement) {
+        width = this.config.clickTarget.offsetWidth;
+        height = this.config.clickTarget.offsetHeight;
       }
       x = (event.offsetX / width) * 2 - 1;
       y = -((event.offsetY / height) * 2 - 1);
     }
-    this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.camera);
-    const intersections = this.raycaster.intersectObject(this.rootContainer, true);
+    this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.config.camera);
+    const intersections = this.raycaster.intersectObject(this.config.rootContainer, true);
     if (intersections.length > 0) {
       for (const intersection of intersections) {
         const obj: THREE.Object3D | null = intersection.object;
-        if (obj) {
-          this.updatePosition(intersection.point, isClick);
+        if (obj && !hasAncestor(obj, this.config.placementGhostRoot)) {
+          this.config.updatePosition(intersection.point, isClick);
           return;
         }
       }
@@ -123,5 +133,18 @@ export class ThreeJSMMLPlacer {
       }
     }
     return false;
+  }
+}
+
+function hasAncestor(obj: THREE.Object3D, ancestor: THREE.Object3D) {
+  let parent: THREE.Object3D | null = obj;
+  while (true) {
+    if (parent === ancestor) {
+      return true;
+    }
+    if (parent === null) {
+      return false;
+    }
+    parent = parent.parent;
   }
 }

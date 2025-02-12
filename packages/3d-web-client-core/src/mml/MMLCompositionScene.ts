@@ -45,13 +45,14 @@ export class MMLCompositionScene {
   private readonly clickTrigger: ThreeJSClickTrigger;
   private readonly loadingProgressManager: LoadingProgressManager;
   private readonly resourceManager: ThreeJSResourceManager;
+  public graphicsAdapter: ThreeJSGraphicsAdapter;
 
   constructor(private config: MMLCompositionSceneConfig) {
     this.group = new Group();
     this.promptManager = PromptManager.init(this.config.targetElement);
     this.resourceManager = new ThreeJSResourceManager();
 
-    const graphicsAdapter: ThreeJSGraphicsAdapter = {
+    this.graphicsAdapter = {
       collisionType: null as unknown as Object3D,
       containerType: null as unknown as Object3D,
       getGraphicsAdapterFactory: () => {
@@ -90,7 +91,7 @@ export class MMLCompositionScene {
     const { interactionListener, interactionManager } = InteractionManager.init(
       this.config.targetElement,
       (interaction: Interaction<ThreeJSGraphicsAdapter>) => {
-        return graphicsAdapter.interactionShouldShowDistance(interaction);
+        return this.graphicsAdapter.interactionShouldShowDistance(interaction);
       },
     );
     this.interactionManager = interactionManager;
@@ -99,8 +100,8 @@ export class MMLCompositionScene {
     this.documentTimeManager = new MMLDocumentTimeManager();
 
     this.mmlScene = {
-      getGraphicsAdapter(): ThreeJSGraphicsAdapter {
-        return graphicsAdapter;
+      getGraphicsAdapter: (): ThreeJSGraphicsAdapter => {
+        return this.graphicsAdapter;
       },
       hasGraphicsAdapter(): boolean {
         return true;
