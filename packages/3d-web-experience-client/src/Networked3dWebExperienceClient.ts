@@ -667,6 +667,8 @@ export class Networked3dWebExperienceClient {
     // Update audio listener position to character's head while maintaining camera rotation
     this.updateAudioListenerPosition();
 
+    this.mmlEditingMode?.update();
+
     const characterPosition = this.characterManager.localCharacter?.getPosition();
     this.composer.sun?.updateCharacterPosition(
       new Vector3(characterPosition?.x || 0, characterPosition?.y || 0, characterPosition?.z || 0),

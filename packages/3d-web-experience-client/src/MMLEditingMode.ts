@@ -12,7 +12,7 @@ import {
   RemoteDocumentWrapper,
 } from "@mml-io/mml-web";
 import { ThreeJSGraphicsAdapter } from "@mml-io/mml-web-threejs";
-import { Euler, Group, Object3D, PerspectiveCamera, Scene, Vector3 } from "three";
+import { Euler, Group, Material, Mesh, Object3D, PerspectiveCamera, Scene, Vector3 } from "three";
 
 import { MMLDocumentConfiguration } from "./Networked3dWebExperienceClient";
 import { ThreeJSMMLPlacer } from "./ThreeJSMMLPlacer";
@@ -58,6 +58,7 @@ export class MMLEditingMode {
       "http://localhost:8080/assets/static-mml.html",
       "http://localhost:8080/assets/static-mml-2.html",
       "http://localhost:8080/assets/static-mml-3.html",
+      "https://mmlstorage.com/l4sPd6/1738665435978.html",
     ];
     for (const url of urls) {
       const docUrl = url;
@@ -216,5 +217,19 @@ export class MMLEditingMode {
 
   dispose() {
     this.placer.dispose();
+  }
+
+  update() {
+    this.group.traverse((obj: Object3D) => {
+      const asMesh = obj as Mesh;
+      if (asMesh.isMesh) {
+        const asMaterial = asMesh.material as Material;
+        if (asMaterial.isMaterial) {
+          asMaterial.opacity = 0.5;
+          asMaterial.transparent = true;
+          asMaterial.needsUpdate = true;
+        }
+      }
+    });
   }
 }
