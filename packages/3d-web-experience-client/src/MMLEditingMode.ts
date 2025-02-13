@@ -23,7 +23,7 @@ type MMLEditingModeConfig = {
   iframeBody: HTMLElement;
   iframeWindow: Window;
   graphicsAdapter: ThreeJSGraphicsAdapter;
-  onCreate: (mmlDoc: MMLDocumentConfiguration) => void;
+  onCreate: (mmlDoc: MMLDocumentConfiguration) => Promise<void>;
   camera: PerspectiveCamera;
   collisionsManager: CollisionsManager;
 };
@@ -33,12 +33,14 @@ export class MMLEditingMode {
   private ghostMMLScene: IMMLScene;
   private placer: ThreeJSMMLPlacer;
   private controlsPanel: HTMLDivElement;
-  private placeButton: HTMLButtonElement;
+  private continuousCheckbox: HTMLInputElement;
 
+  private placeButton: HTMLButtonElement;
   private currentGhost: null | {
     src: string;
     remoteDocumentWrapper: RemoteDocumentWrapper;
   } = null;
+  private waitingForPlacement: boolean = false;
 
   constructor(private config: MMLEditingModeConfig) {
     this.group = new Group();
@@ -50,9 +52,13 @@ export class MMLEditingMode {
     this.controlsPanel.style.top = "0";
     this.controlsPanel.style.left = "0";
     this.controlsPanel.style.padding = "20px";
-    this.placeButton = document.createElement("button");
-    this.placeButton.textContent = "Start placing";
-    this.controlsPanel.appendChild(this.placeButton);
+    // this.placeButton = document.createElement("button");
+    // this.placeButton.textContent = "Start placing";
+    // this.controlsPanel.appendChild(this.placeButton);
+
+    this.continuousCheckbox = document.createElement("input");
+    this.continuousCheckbox.setAttribute("type", "checkbox");
+    this.controlsPanel.appendChild(this.continuousCheckbox);
 
     const urls: Array<string> = [
       "http://localhost:8080/assets/static-mml.html",
@@ -155,6 +161,9 @@ export class MMLEditingMode {
       camera: this.config.camera,
       placementGhostRoot: cube,
       updatePosition: (position: Vector3, isClick: boolean) => {
+        if (this.waitingForPlacement) {
+          return;
+        }
         cube.position.copy(position);
 
         const eulerYXZ = new Euler();
@@ -163,20 +172,27 @@ export class MMLEditingMode {
         cube.rotation.y = eulerYXZ.y;
 
         if (isClick && this.currentGhost) {
-          this.config.onCreate({
-            url: this.currentGhost.src,
-            position: {
-              x: position.x,
-              y: position.y,
-              z: position.z,
-            },
-            rotation: {
-              x: 0,
-              y: radToDeg(eulerYXZ.y),
-              z: 0,
-            },
-          });
-          this.clearGhost();
+          this.waitingForPlacement = true;
+          this.config
+            .onCreate({
+              url: this.currentGhost.src,
+              position: {
+                x: position.x,
+                y: position.y,
+                z: position.z,
+              },
+              rotation: {
+                x: 0,
+                y: radToDeg(eulerYXZ.y),
+                z: 0,
+              },
+            })
+            .then(() => {
+              this.waitingForPlacement = false;
+              if (!this.continuousCheckbox.checked) {
+                this.clearGhost();
+              }
+            });
         }
       },
     });

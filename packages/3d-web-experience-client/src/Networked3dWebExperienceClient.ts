@@ -793,6 +793,8 @@ export class Networked3dWebExperienceClient {
       });
       this.scene.add(this.mmlCompositionScene.group);
 
+      const mmlProgressManager = this.mmlCompositionScene.mmlScene.getLoadingProgressManager!()!;
+
       this.mmlEditingMode = new MMLEditingMode({
         scene: this.scene,
         targetElement: this.element,
@@ -802,9 +804,32 @@ export class Networked3dWebExperienceClient {
         camera: this.cameraManager.camera,
         collisionsManager: this.collisionsManager,
         onCreate: (mmlDocument: MMLDocumentConfiguration) => {
-          console.log({ mmlDocument });
-          const frame = this.createFrame(mmlDocument);
-          this.iframeBody.appendChild(frame);
+          return new Promise((resolve) => {
+            console.log({ mmlDocument });
+            const existingSet = new Map(mmlProgressManager.loadingDocuments);
+            let newDoc;
+            const frame = this.createFrame(mmlDocument);
+            this.iframeBody.appendChild(frame);
+            const newSet = new Map(mmlProgressManager.loadingDocuments);
+            for (const [key, value] of newSet) {
+              if (!existingSet.has(key)) {
+                newDoc = value;
+              }
+            }
+            if (!newDoc) {
+              resolve();
+              return;
+            }
+            const docProgressManager = newDoc.progressManager;
+            const loadingCallback = () => {
+              const [ratio, completed] = docProgressManager.toRatio();
+              if (completed) {
+                docProgressManager.removeProgressCallback(loadingCallback);
+                resolve();
+              }
+            };
+            docProgressManager.addProgressCallback(loadingCallback);
+          });
         },
       });
       this.scene.add(this.mmlEditingMode.group);
@@ -814,7 +839,6 @@ export class Networked3dWebExperienceClient {
 
       this.setMMLDocuments(this.config.mmlDocuments ?? {});
 
-      const mmlProgressManager = this.mmlCompositionScene.mmlScene.getLoadingProgressManager!()!;
       this.loadingProgressManager.addLoadingDocument(mmlProgressManager, "mml", mmlProgressManager);
       mmlProgressManager.addProgressCallback(() => {
         this.loadingProgressManager.updateDocumentProgress(mmlProgressManager);
