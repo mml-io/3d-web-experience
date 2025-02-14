@@ -1,4 +1,4 @@
-import { CollisionsManager, Key, KeyInputManager } from "@mml-io/3d-web-client-core";
+import { CollisionsManager, KeyInputManager } from "@mml-io/3d-web-client-core";
 import {
   ChatProbe,
   GraphicsAdapter,
@@ -13,7 +13,7 @@ import {
   RemoteDocumentWrapper,
 } from "@mml-io/mml-web";
 import { ThreeJSGraphicsAdapter } from "@mml-io/mml-web-threejs";
-import { Euler, Group, Material, Mesh, Object3D, PerspectiveCamera, Scene, Vector3 } from "three";
+import { Group, Material, Mesh, Object3D, PerspectiveCamera, Scene } from "three";
 
 import { MMLDocumentConfiguration } from "./Networked3dWebExperienceClient";
 import { ThreeJSMMLPlacer } from "./ThreeJSMMLPlacer";
@@ -44,6 +44,7 @@ export class MMLEditingMode {
     remoteDocumentWrapper: RemoteDocumentWrapper;
   } = null;
   private waitingForPlacement: boolean = false;
+  private existingDocumentsPanel: HTMLDivElement;
 
   constructor(private config: MMLEditingModeConfig) {
     this.group = new Group();
@@ -82,6 +83,41 @@ export class MMLEditingMode {
       documentButton.textContent = url;
       this.controlsPanel.appendChild(documentButton);
     }
+
+    const title = document.createElement("h1");
+    title.textContent = "Existing documents";
+    this.controlsPanel.appendChild(title);
+    this.existingDocumentsPanel = document.createElement("div");
+    this.existingDocumentsPanel.style.display = "flex";
+    this.existingDocumentsPanel.style.flexDirection = "column";
+    this.controlsPanel.appendChild(this.existingDocumentsPanel);
+
+    const mutationObserver = new MutationObserver(() => {
+      this.existingDocumentsPanel.innerHTML = "";
+      for (const child of this.config.iframeBody.children) {
+        const frame = child;
+        if (frame !== this.currentGhost?.remoteDocumentWrapper.remoteDocument) {
+          const docRow = document.createElement("div");
+          docRow.style.display = "flex";
+          const documentButton = document.createElement("button");
+          documentButton.textContent = frame.getAttribute("src") ?? "";
+          documentButton.addEventListener("click", () => {
+            this.placer.selectFrameToEdit(frame);
+          });
+          docRow.appendChild(documentButton);
+          const removeButton = document.createElement("button");
+          removeButton.textContent = "Remove";
+          removeButton.addEventListener("click", () => {
+            frame.remove();
+          });
+          docRow.appendChild(removeButton);
+          this.existingDocumentsPanel.appendChild(docRow);
+        }
+      }
+    });
+    mutationObserver.observe(this.config.iframeBody, {
+      childList: true,
+    });
 
     document.body.appendChild(this.controlsPanel);
 

@@ -1,5 +1,6 @@
 import { Key, KeyInputManager } from "@mml-io/3d-web-client-core";
 import { degToRad, EventHandlerCollection, MElement, PositionAndRotation } from "@mml-io/mml-web";
+import { ThreeJSGraphicsAdapter } from "@mml-io/mml-web-threejs";
 import * as THREE from "three";
 import { Euler } from "three";
 
@@ -78,15 +79,7 @@ export class ThreeJSMMLPlacer {
       if (this.editMode && !this.selectedFrame) {
         const editFrame = this.raycastToGetRootMFrame();
         if (editFrame) {
-          this.selectedFrame = editFrame;
-          const ryAttr = parseFloat(editFrame.getAttribute("ry") || "");
-          const cameraY = this.getCameraRotationY();
-          if (!isNaN(ryAttr)) {
-            this.rotationY = degToRad(ryAttr) - cameraY;
-          } else {
-            this.rotationY = -cameraY;
-          }
-          this.config.selectedEditFrame(editFrame);
+          this.selectFrameToEdit(editFrame);
         }
         return;
       }
@@ -236,6 +229,18 @@ export class ThreeJSMMLPlacer {
       }
     }
     return false;
+  }
+
+  public selectFrameToEdit(editFrame: MElement<ThreeJSGraphicsAdapter>) {
+    this.selectedFrame = editFrame;
+    const ryAttr = parseFloat(editFrame.getAttribute("ry") || "");
+    const cameraY = this.getCameraRotationY();
+    if (!isNaN(ryAttr)) {
+      this.rotationY = degToRad(ryAttr) - cameraY;
+    } else {
+      this.rotationY = -cameraY;
+    }
+    this.config.selectedEditFrame(editFrame);
   }
 }
 
