@@ -70,6 +70,7 @@ export class MMLEditingMode {
       "http://localhost:8080/assets/static-mml.html",
       "http://localhost:8080/assets/static-mml-2.html",
       "http://localhost:8080/assets/static-mml-3.html",
+      "http://localhost:8080/assets/static-mml-4.html",
       "https://mmlstorage.com/l4sPd6/1738665435978.html",
     ];
     for (const url of urls) {
