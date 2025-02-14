@@ -47,6 +47,7 @@ import {
   LoadingProgressManager,
   MMLNetworkSource,
   NetworkedDOMWebsocketStatus,
+  PositionAndRotation,
   registerCustomElementsToWindow,
   setGlobalDocumentTimeManager,
   setGlobalMMLScene,
@@ -798,11 +799,24 @@ export class Networked3dWebExperienceClient {
       this.mmlEditingMode = new MMLEditingMode({
         scene: this.scene,
         targetElement: this.element,
+        keyInputManager: this.keyInputManager,
         iframeBody: iframeBody,
         iframeWindow: iframeWindow,
         graphicsAdapter: this.mmlCompositionScene.graphicsAdapter,
         camera: this.cameraManager.camera,
         collisionsManager: this.collisionsManager,
+        onMove: (existingFrame: HTMLElement, mmlDocument: PositionAndRotation) => {
+          console.log("Root.onMove", { existingFrame, mmlDocument });
+          return new Promise((resolve) => {
+            existingFrame.setAttribute("x", mmlDocument.position.x.toString());
+            existingFrame.setAttribute("y", mmlDocument.position.y.toString());
+            existingFrame.setAttribute("z", mmlDocument.position.z.toString());
+            existingFrame.setAttribute("rx", mmlDocument.rotation.x.toString());
+            existingFrame.setAttribute("ry", mmlDocument.rotation.y.toString());
+            existingFrame.setAttribute("rz", mmlDocument.rotation.z.toString());
+            resolve();
+          });
+        },
         onCreate: (mmlDocument: MMLDocumentConfiguration) => {
           return new Promise((resolve) => {
             console.log({ mmlDocument });

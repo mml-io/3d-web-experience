@@ -1,10 +1,7 @@
-import {
-  EventHandlerCollection,
-  getRelativePositionAndRotationRelativeToObject,
-  MElement,
-  TransformableElement,
-} from "@mml-io/mml-web";
+import { Key, KeyInputManager } from "@mml-io/3d-web-client-core";
+import { EventHandlerCollection, MElement, PositionAndRotation } from "@mml-io/mml-web";
 import * as THREE from "three";
+import { Euler } from "three";
 
 const mouseMovePixelsThreshold = 10;
 const mouseMoveTimeThresholdMilliseconds = 500;
@@ -13,8 +10,14 @@ type ThreeJSMMLPlacerConfig = {
   clickTarget: Document | HTMLElement;
   rootContainer: THREE.Object3D;
   camera: THREE.Camera;
+  keyInputManager: KeyInputManager;
   placementGhostRoot: THREE.Object3D;
-  updatePosition: (vec: THREE.Vector3, isClick: boolean) => void;
+  updatePosition: (
+    positionAndRotation: PositionAndRotation | null,
+    isClick: boolean,
+    existingElement: MElement | null,
+  ) => void;
+  selectedEditFrame: (mElement: MElement) => void;
 };
 
 /**
@@ -26,6 +29,11 @@ export class ThreeJSMMLPlacer {
   private raycaster: THREE.Raycaster;
   private mouseDownTime: number | null = null;
   private mouseMoveDelta = 0;
+  private rotationY: number = 0;
+  private latestMousePosition: { x: number; y: number } = { x: 0, y: 0 };
+  private latestWorldPositionAndRotation: PositionAndRotation | null = null;
+  private editMode: boolean = false;
+  private selectedFrame: MElement | null = null;
 
   static init(config: ThreeJSMMLPlacerConfig): ThreeJSMMLPlacer {
     return new ThreeJSMMLPlacer(config);
@@ -66,7 +74,25 @@ export class ThreeJSMMLPlacer {
       this.mouseMoveDelta < mouseMovePixelsThreshold &&
       duration < mouseMoveTimeThresholdMilliseconds
     ) {
-      this.handleClick(event, true);
+      this.handleMovePlacement(event);
+      console.log("this.selectedFrame", this.selectedFrame);
+      if (this.editMode && !this.selectedFrame) {
+        const editFrame = this.raycastToGetRootMFrame();
+        if (editFrame) {
+          this.selectedFrame = editFrame;
+          this.config.selectedEditFrame(editFrame);
+        }
+        return;
+      }
+      this.update();
+      console.log(
+        "this.latestWorldPositionAndRotation",
+        this.latestWorldPositionAndRotation,
+        this.selectedFrame,
+      );
+      if (this.latestWorldPositionAndRotation) {
+        this.config.updatePosition(this.latestWorldPositionAndRotation, true, this.selectedFrame);
+      }
     }
   }
 
@@ -74,10 +100,10 @@ export class ThreeJSMMLPlacer {
     if (this.mouseDownTime) {
       this.mouseMoveDelta += Math.abs(event.movementX) + Math.abs(event.movementY);
     }
-    this.handleClick(event, false);
+    this.handleMovePlacement(event);
   }
 
-  private handleClick(event: MouseEvent, isClick: boolean) {
+  private handleMovePlacement(event: MouseEvent) {
     if ((event.detail as any).element) {
       // Avoid infinite loop of handling click events that originated from this trigger
       return;
@@ -94,21 +120,93 @@ export class ThreeJSMMLPlacer {
       x = (event.offsetX / width) * 2 - 1;
       y = -((event.offsetY / height) * 2 - 1);
     }
+    this.latestMousePosition = { x, y };
+  }
+
+  public findRootMFrameFromElement(mElement: MElement): MElement | null {
+    let parent: HTMLElement | null = mElement;
+    let lastFrame: MElement | null = null;
+    while (parent !== null) {
+      if (parent.tagName === "M-FRAME") {
+        lastFrame = parent as MElement;
+      }
+      parent = parent.parentElement;
+    }
+    return lastFrame;
+  }
+
+  public raycastToGetRootMFrame(): MElement | null {
+    console.log("raycastToGetRootMFrame");
+    const { x, y } = this.latestMousePosition;
+    this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.config.camera);
+    const intersections = this.raycaster.intersectObject(this.config.rootContainer, true);
+    if (intersections.length > 0) {
+      for (const intersection of intersections) {
+        let obj: THREE.Object3D | null = intersection.object;
+        while (obj) {
+          /*
+             Ignore scene objects that have a transparent or wireframe material
+            */
+          if (this.isMaterialIgnored(obj)) {
+            break;
+          }
+
+          console.log("obj", obj);
+
+          const mElement = MElement.getMElementFromObject(obj);
+          console.log("mElement", mElement);
+          if (mElement) {
+            const mFrame = this.findRootMFrameFromElement(mElement);
+            console.log("mFrame", mFrame);
+            return mFrame;
+          }
+          obj = obj.parent;
+        }
+      }
+    }
+    return null;
+  }
+
+  public update() {
+    if (this.config.keyInputManager.isKeyPressed(Key.Q)) {
+      this.rotationY += 0.025;
+    } else if (this.config.keyInputManager.isKeyPressed(Key.E)) {
+      this.rotationY -= 0.025;
+    }
+
+    const eulerYXZ = new Euler();
+    eulerYXZ.copy(this.config.camera.rotation);
+    eulerYXZ.reorder("YZX");
+    const cameraY = eulerYXZ.y;
+
+    const { x, y } = this.latestMousePosition;
     this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.config.camera);
     const intersections = this.raycaster.intersectObject(this.config.rootContainer, true);
     if (intersections.length > 0) {
       for (const intersection of intersections) {
         const obj: THREE.Object3D | null = intersection.object;
         if (obj && !hasAncestor(obj, this.config.placementGhostRoot)) {
-          this.config.updatePosition(intersection.point, isClick);
-          return;
+          this.latestWorldPositionAndRotation = {
+            position: intersection.point,
+            rotation: {
+              x: 0,
+              y: this.rotationY + cameraY,
+              z: 0,
+            },
+          };
+          break;
         }
       }
     }
+    this.config.updatePosition(this.latestWorldPositionAndRotation, false, null);
   }
 
   dispose() {
     this.eventHandlerCollection.clear();
+  }
+
+  toggleEditMode() {
+    this.editMode = !this.editMode;
   }
 
   private isMaterialIgnored(obj: THREE.Object3D): boolean {

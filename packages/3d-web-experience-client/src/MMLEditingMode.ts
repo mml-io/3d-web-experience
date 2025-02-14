@@ -1,4 +1,4 @@
-import { CollisionsManager } from "@mml-io/3d-web-client-core";
+import { CollisionsManager, Key, KeyInputManager } from "@mml-io/3d-web-client-core";
 import {
   ChatProbe,
   GraphicsAdapter,
@@ -7,6 +7,7 @@ import {
   LinkProps,
   MElement,
   MMLGraphicsInterface,
+  PositionAndRotation,
   PromptProps,
   radToDeg,
   RemoteDocumentWrapper,
@@ -21,8 +22,10 @@ type MMLEditingModeConfig = {
   scene: Scene;
   targetElement: HTMLElement;
   iframeBody: HTMLElement;
+  keyInputManager: KeyInputManager;
   iframeWindow: Window;
   graphicsAdapter: ThreeJSGraphicsAdapter;
+  onMove: (existingFrame: MElement, mmlDoc: PositionAndRotation) => Promise<void>;
   onCreate: (mmlDoc: MMLDocumentConfiguration) => Promise<void>;
   camera: PerspectiveCamera;
   collisionsManager: CollisionsManager;
@@ -35,7 +38,7 @@ export class MMLEditingMode {
   private controlsPanel: HTMLDivElement;
   private continuousCheckbox: HTMLInputElement;
 
-  private placeButton: HTMLButtonElement;
+  private editButton: HTMLButtonElement;
   private currentGhost: null | {
     src: string;
     remoteDocumentWrapper: RemoteDocumentWrapper;
@@ -52,9 +55,12 @@ export class MMLEditingMode {
     this.controlsPanel.style.top = "0";
     this.controlsPanel.style.left = "0";
     this.controlsPanel.style.padding = "20px";
-    // this.placeButton = document.createElement("button");
-    // this.placeButton.textContent = "Start placing";
-    // this.controlsPanel.appendChild(this.placeButton);
+    this.editButton = document.createElement("button");
+    this.editButton.textContent = "Edit existing";
+    this.editButton.addEventListener("click", () => {
+      this.placer.toggleEditMode();
+    });
+    this.controlsPanel.appendChild(this.editButton);
 
     this.continuousCheckbox = document.createElement("input");
     this.continuousCheckbox.setAttribute("type", "checkbox");
@@ -159,40 +165,71 @@ export class MMLEditingMode {
       clickTarget: this.config.targetElement,
       rootContainer: this.config.scene,
       camera: this.config.camera,
+      keyInputManager: this.config.keyInputManager,
       placementGhostRoot: cube,
-      updatePosition: (position: Vector3, isClick: boolean) => {
+      selectedEditFrame: (mElement: MElement) => {
+        const src = mElement.getAttribute("src");
+        if (src) {
+          this.setGhostUrl(src);
+        }
+      },
+      updatePosition: (
+        positionAndRotation: PositionAndRotation | null,
+        isClick: boolean,
+        existingFrame: MElement | null,
+      ) => {
         if (this.waitingForPlacement) {
           return;
         }
-        cube.position.copy(position);
-
-        const eulerYXZ = new Euler();
-        eulerYXZ.copy(this.config.camera.rotation);
-        eulerYXZ.reorder("YZX");
-        cube.rotation.y = eulerYXZ.y;
+        if (positionAndRotation === null) {
+          return;
+        }
+        cube.position.copy(positionAndRotation.position);
+        cube.rotation.set(
+          positionAndRotation.rotation.x,
+          positionAndRotation.rotation.y,
+          positionAndRotation.rotation.z,
+        );
 
         if (isClick && this.currentGhost) {
-          this.waitingForPlacement = true;
-          this.config
-            .onCreate({
-              url: this.currentGhost.src,
+          if (existingFrame) {
+            console.log("onMove", existingFrame, positionAndRotation);
+            this.config.onMove(existingFrame, {
               position: {
-                x: position.x,
-                y: position.y,
-                z: position.z,
+                x: positionAndRotation.position.x,
+                y: positionAndRotation.position.y,
+                z: positionAndRotation.position.z,
               },
               rotation: {
-                x: 0,
-                y: radToDeg(eulerYXZ.y),
-                z: 0,
+                x: radToDeg(positionAndRotation.rotation.x),
+                y: radToDeg(positionAndRotation.rotation.y),
+                z: radToDeg(positionAndRotation.rotation.z),
               },
-            })
-            .then(() => {
-              this.waitingForPlacement = false;
-              if (!this.continuousCheckbox.checked) {
-                this.clearGhost();
-              }
             });
+            this.clearGhost();
+          } else {
+            this.waitingForPlacement = true;
+            this.config
+              .onCreate({
+                url: this.currentGhost.src,
+                position: {
+                  x: positionAndRotation.position.x,
+                  y: positionAndRotation.position.y,
+                  z: positionAndRotation.position.z,
+                },
+                rotation: {
+                  x: radToDeg(positionAndRotation.rotation.x),
+                  y: radToDeg(positionAndRotation.rotation.y),
+                  z: radToDeg(positionAndRotation.rotation.z),
+                },
+              })
+              .then(() => {
+                this.waitingForPlacement = false;
+                if (!this.continuousCheckbox.checked) {
+                  this.clearGhost();
+                }
+              });
+          }
         }
       },
     });
@@ -236,6 +273,7 @@ export class MMLEditingMode {
   }
 
   update() {
+    this.placer.update();
     this.group.traverse((obj: Object3D) => {
       const asMesh = obj as Mesh;
       if (asMesh.isMesh) {

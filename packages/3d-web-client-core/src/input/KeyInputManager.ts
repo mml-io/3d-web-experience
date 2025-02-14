@@ -6,6 +6,8 @@ export enum Key {
   A = "a",
   S = "s",
   D = "d",
+  Q = "q",
+  E = "e",
   SHIFT = "shift",
   SPACE = " ",
   C = "c",
