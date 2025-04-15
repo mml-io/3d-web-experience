@@ -218,8 +218,6 @@ export class Composer {
       extrasValues.bloom = environmentConfiguration.postProcessing.bloomIntensity;
     }
 
-    console.log(this.environmentConfiguration?.fog?.fogFar);
-
     if (
       typeof this.environmentConfiguration?.fog?.fogNear === "number" &&
       typeof this.environmentConfiguration?.fog?.fogFar === "number"
@@ -239,7 +237,7 @@ export class Composer {
 
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
-    this.setFog();
+    this.updateFogValues();
 
     this.bloomEffect = new BloomEffect({
       intensity: extrasValues.bloom,
@@ -347,6 +345,7 @@ export class Composer {
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
     this.updateSunValues();
+    this.updateFogValues();
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
@@ -591,6 +590,16 @@ export class Composer {
       sunValues.sunPosition.sunPolarAngle = this.environmentConfiguration.sun.polarAngle;
       this.sun?.setPolarAngle(this.environmentConfiguration.sun.polarAngle * (Math.PI / 180));
     }
+  }
+
+  private updateFogValues() {
+    if (typeof this.environmentConfiguration?.fog?.fogNear === "number") {
+      envValues.fog.fogNear = this.environmentConfiguration.fog.fogNear;
+    }
+    if (typeof this.environmentConfiguration?.fog?.fogFar === "number") {
+      envValues.fog.fogFar = this.environmentConfiguration.fog.fogFar;
+    }
+    this.setFog();
   }
 
   private updateSkyboxAndEnvValues() {
