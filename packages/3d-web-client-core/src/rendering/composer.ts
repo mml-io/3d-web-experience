@@ -218,23 +218,6 @@ export class Composer {
       extrasValues.bloom = environmentConfiguration.postProcessing.bloomIntensity;
     }
 
-    if (
-      typeof this.environmentConfiguration?.fog?.fogNear === "number" &&
-      typeof this.environmentConfiguration?.fog?.fogFar === "number"
-    ) {
-      envValues.fog.fogNear = this.environmentConfiguration.fog.fogNear;
-      envValues.fog.fogFar = this.environmentConfiguration.fog.fogFar;
-    }
-    if (
-      typeof this.environmentConfiguration?.fog?.fogColor?.r === "number" &&
-      typeof this.environmentConfiguration?.fog?.fogColor?.g === "number" &&
-      typeof this.environmentConfiguration?.fog?.fogColor?.b === "number"
-    ) {
-      envValues.fog.fogColor.r = this.environmentConfiguration.fog.fogColor.r;
-      envValues.fog.fogColor.g = this.environmentConfiguration.fog.fogColor.g;
-      envValues.fog.fogColor.b = this.environmentConfiguration.fog.fogColor.b;
-    }
-
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
     this.updateFogValues();
@@ -598,6 +581,15 @@ export class Composer {
     }
     if (typeof this.environmentConfiguration?.fog?.fogFar === "number") {
       envValues.fog.fogFar = this.environmentConfiguration.fog.fogFar;
+    }
+    if (
+      typeof this.environmentConfiguration?.fog?.fogColor?.r === "number" &&
+      typeof this.environmentConfiguration?.fog?.fogColor?.g === "number" &&
+      typeof this.environmentConfiguration?.fog?.fogColor?.b === "number"
+    ) {
+      envValues.fog.fogColor.r = this.environmentConfiguration.fog.fogColor.r;
+      envValues.fog.fogColor.g = this.environmentConfiguration.fog.fogColor.g;
+      envValues.fog.fogColor.b = this.environmentConfiguration.fog.fogColor.b;
     }
     this.setFog();
   }
