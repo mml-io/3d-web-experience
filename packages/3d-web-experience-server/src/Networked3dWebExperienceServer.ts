@@ -60,11 +60,11 @@ export type Networked3dWebExperienceServerConfig = {
 };
 
 export class Networked3dWebExperienceServer {
-  private userNetworkingServer: UserNetworkingServer;
+  public userNetworkingServer: UserNetworkingServer;
 
-  private chatNetworkingServer?: ChatNetworkingServer;
+  public chatNetworkingServer?: ChatNetworkingServer;
 
-  private mmlDocumentsServer?: MMLDocumentsServer;
+  public mmlDocumentsServer?: MMLDocumentsServer;
 
   constructor(private config: Networked3dWebExperienceServerConfig) {
     if (this.config.mmlServing) {
