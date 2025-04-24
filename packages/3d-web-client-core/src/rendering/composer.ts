@@ -327,6 +327,7 @@ export class Composer {
 
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
+    this.updateBloomValues();
     this.updateSunValues();
     this.updateFogValues();
   }
@@ -619,6 +620,13 @@ export class Composer {
       envValues.skyboxPolarAngle = this.environmentConfiguration?.skybox.polarAngle;
       this.updateSkyboxRotation();
     }
+  }
+
+  private updateBloomValues() {
+    if (typeof this.environmentConfiguration?.postProcessing?.bloomIntensity === "number") {
+      extrasValues.bloom = this.environmentConfiguration.postProcessing.bloomIntensity;
+    }
+    this.bloomEffect.intensity = extrasValues.bloom;
   }
 
   private updateAmbientLightValues() {
