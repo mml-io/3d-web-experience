@@ -4,17 +4,16 @@ import {
   AnimationClip,
   AnimationMixer,
   Bone,
+  EquirectangularReflectionMapping,
   LinearSRGBColorSpace,
   LoadingManager,
   LoopRepeat,
   Object3D,
-  PMREMGenerator,
   Scene,
   VSMShadowMap,
   Vector3,
   WebGLRenderer,
 } from "three";
-import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { Lights } from "./scene/Lights";
@@ -98,18 +97,15 @@ export class AvatarRenderer {
 
   public useHDRI(url: string): void {
     if (!this.renderer) return;
-    const pmremGenerator = new PMREMGenerator(this.renderer);
     new RGBELoader(new LoadingManager()).load(
       url,
       (texture) => {
-        const envMap = pmremGenerator!.fromEquirectangular(texture).texture;
-        if (envMap) {
-          envMap.colorSpace = LinearSRGBColorSpace;
-          envMap.needsUpdate = true;
-          this.scene.environment = envMap;
-          texture.dispose();
-          pmremGenerator!.dispose();
-        }
+        texture.mapping = EquirectangularReflectionMapping;
+        texture.colorSpace = LinearSRGBColorSpace;
+        texture.needsUpdate = true;
+        this.scene.environment = texture;
+        this.scene.background = texture;
+        texture.dispose();
       },
       () => {},
       (error: ErrorEvent) => {

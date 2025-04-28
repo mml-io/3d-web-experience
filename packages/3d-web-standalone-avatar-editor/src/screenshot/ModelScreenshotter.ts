@@ -2,18 +2,17 @@ import { ModelLoader } from "@mml-io/model-loader";
 import {
   AnimationMixer,
   Box3,
+  EquirectangularReflectionMapping,
   LinearSRGBColorSpace,
   LoadingManager,
   Object3D,
   PerspectiveCamera,
-  PMREMGenerator,
   Scene,
   Vector3,
   VSMShadowMap,
   WebGLRenderer,
   WebGLRenderTarget,
 } from "three";
-import { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 import { getDataUrlFromRenderTarget } from "./getDataUrlFromRenderTarget";
@@ -87,13 +86,12 @@ export class ModelScreenshotter {
         new RGBELoader(new LoadingManager()).load(
           this.hdrURL!,
           (texture) => {
-            const pmremGenerator = new PMREMGenerator(this.renderer);
-            const envMap = pmremGenerator.fromEquirectangular(texture).texture;
-            envMap.colorSpace = LinearSRGBColorSpace;
-            envMap.needsUpdate = true;
-            this.scene.environment = envMap;
+            texture.mapping = EquirectangularReflectionMapping;
+            texture.colorSpace = LinearSRGBColorSpace;
+            texture.needsUpdate = true;
+            this.scene.environment = texture;
+            this.scene.background = texture;
             texture.dispose();
-            pmremGenerator.dispose();
             resolve();
           },
           undefined,
