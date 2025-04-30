@@ -1,6 +1,7 @@
 import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
+import hdrUrl from "../../../assets/hdr/puresky_2k.hdr";
 import loadingBackground from "../../../assets/images/loading-bg.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
 import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
@@ -28,7 +29,8 @@ const app = new Networked3dWebExperienceClient(holder, {
   mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
   environmentConfiguration: {
     skybox: {
-      hdrJpgUrl: hdrJpgUrl,
+      hdrUrl: hdrUrl,
+      // hdrJpgUrl: hdrJpgUrl,
     },
   },
   avatarConfiguration: {

@@ -13,68 +13,67 @@ import {
   PromptProps,
 } from "@mml-io/mml-web";
 import {
-  ThreeJSClickTrigger,
-  ThreeJSGraphicsAdapter,
-  ThreeJSGraphicsInterface,
-  ThreeJSInteractionAdapter,
-} from "@mml-io/mml-web-threejs";
-import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
+  PlayCanvasGraphicsAdapter,
+  PlayCanvasGraphicsInterface,
+  PlayCanvasInteractionAdapter,
+} from "@mml-io/mml-web-playcanvas";
+import * as playcanvas from "playcanvas";
+import { AppBase } from "playcanvas";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 
+import { CustomPlayCanvasClickTrigger } from "./CustomPlayCanvasClickTrigger";
+
 type MMLCompositionSceneConfig = {
   targetElement: HTMLElement;
-  renderer: WebGLRenderer;
-  scene: Scene;
-  camera: PerspectiveCamera;
-  audioListener: AudioListener;
+  playcanvasScene: playcanvas.Scene;
+  playcanvasApp: playcanvas.AppBase;
+  camera: playcanvas.Entity;
   collisionsManager: CollisionsManager;
   getUserPositionAndRotation: () => PositionAndRotation;
 };
 
 export class MMLCompositionScene {
-  public group: Group;
+  public group: playcanvas.Entity;
 
-  public readonly mmlScene: IMMLScene<ThreeJSGraphicsAdapter>;
+  public readonly mmlScene: IMMLScene<PlayCanvasGraphicsAdapter>;
   public readonly documentTimeManager: MMLDocumentTimeManager;
   private readonly promptManager: PromptManager;
   private readonly interactionManager: InteractionManager;
-  private readonly interactionListener: InteractionListener<ThreeJSGraphicsAdapter>;
-  private readonly chatProbes = new Set<ChatProbe<ThreeJSGraphicsAdapter>>();
-  private readonly clickTrigger: ThreeJSClickTrigger;
+  private readonly interactionListener: InteractionListener<PlayCanvasGraphicsAdapter>;
+  private readonly chatProbes = new Set<ChatProbe<PlayCanvasGraphicsAdapter>>();
+  private readonly clickTrigger: CustomPlayCanvasClickTrigger;
   private readonly loadingProgressManager: LoadingProgressManager;
 
   constructor(private config: MMLCompositionSceneConfig) {
-    this.group = new Group();
+    this.group = new playcanvas.Entity();
     this.promptManager = PromptManager.init(this.config.targetElement);
 
-    const graphicsAdapter: ThreeJSGraphicsAdapter = {
-      collisionType: null as unknown as Object3D,
-      containerType: null as unknown as Object3D,
+    const graphicsAdapter: PlayCanvasGraphicsAdapter = {
+      collisionType: null as unknown as playcanvas.Entity,
+      containerType: null as unknown as playcanvas.Entity,
       getGraphicsAdapterFactory: () => {
-        return ThreeJSGraphicsInterface;
+        return PlayCanvasGraphicsInterface;
       },
       getRootContainer: () => {
         return this.group;
       },
       interactionShouldShowDistance(
-        interaction: Interaction<ThreeJSGraphicsAdapter>,
+        interaction: Interaction<PlayCanvasGraphicsAdapter>,
       ): number | null {
-        return ThreeJSInteractionAdapter.interactionShouldShowDistance(
+        return PlayCanvasInteractionAdapter.interactionShouldShowDistance(
           interaction,
           this.config.camera,
-          this.config.scene,
+          this.config.playcanvasScene,
+          this.config.playcanvasApp,
         );
       },
-      dispose(): void {},
-      getAudioListener: () => {
-        return config.audioListener;
+      getPlayCanvasApp: (): AppBase => {
+        return this.config.playcanvasApp;
       },
+      dispose(): void {},
       getCamera: () => {
         return config.camera;
-      },
-      getThreeScene: () => {
-        return config.scene;
       },
       getUserPositionAndRotation: () => {
         return this.config.getUserPositionAndRotation();
@@ -83,7 +82,7 @@ export class MMLCompositionScene {
 
     const { interactionListener, interactionManager } = InteractionManager.init(
       this.config.targetElement,
-      (interaction: Interaction<ThreeJSGraphicsAdapter>) => {
+      (interaction: Interaction<PlayCanvasGraphicsAdapter>) => {
         return graphicsAdapter.interactionShouldShowDistance(interaction);
       },
     );
@@ -93,38 +92,38 @@ export class MMLCompositionScene {
     this.documentTimeManager = new MMLDocumentTimeManager();
 
     this.mmlScene = {
-      getGraphicsAdapter(): ThreeJSGraphicsAdapter {
+      getGraphicsAdapter(): PlayCanvasGraphicsAdapter {
         return graphicsAdapter;
       },
       hasGraphicsAdapter(): boolean {
         return true;
       },
-      addCollider: (object: Object3D, mElement: MElement<ThreeJSGraphicsAdapter>) => {
-        this.config.collisionsManager.addMeshesGroup(object as Group, mElement);
+      addCollider: (object: playcanvas.Entity, mElement: MElement<PlayCanvasGraphicsAdapter>) => {
+        this.config.collisionsManager.addMeshesGroup(object as playcanvas.Entity, mElement);
       },
-      updateCollider: (object: Object3D) => {
-        this.config.collisionsManager.updateMeshesGroup(object as Group);
+      updateCollider: (object: playcanvas.Entity) => {
+        this.config.collisionsManager.updateMeshesGroup(object as playcanvas.Entity);
       },
-      removeCollider: (object: Object3D) => {
-        this.config.collisionsManager.removeMeshesGroup(object as Group);
+      removeCollider: (object: playcanvas.Entity) => {
+        this.config.collisionsManager.removeMeshesGroup(object as playcanvas.Entity);
       },
       getUserPositionAndRotation: this.config.getUserPositionAndRotation,
-      addInteraction: (interaction: Interaction<ThreeJSGraphicsAdapter>) => {
+      addInteraction: (interaction: Interaction<PlayCanvasGraphicsAdapter>) => {
         this.interactionListener.addInteraction(interaction);
       },
-      updateInteraction: (interaction: Interaction<ThreeJSGraphicsAdapter>) => {
+      updateInteraction: (interaction: Interaction<PlayCanvasGraphicsAdapter>) => {
         this.interactionListener.updateInteraction(interaction);
       },
-      removeInteraction: (interaction: Interaction<ThreeJSGraphicsAdapter>) => {
+      removeInteraction: (interaction: Interaction<PlayCanvasGraphicsAdapter>) => {
         this.interactionListener.removeInteraction(interaction);
       },
-      addChatProbe: (chatProbe: ChatProbe<ThreeJSGraphicsAdapter>) => {
+      addChatProbe: (chatProbe: ChatProbe<PlayCanvasGraphicsAdapter>) => {
         this.chatProbes.add(chatProbe);
       },
       updateChatProbe: () => {
         // no-op
       },
-      removeChatProbe: (chatProbe: ChatProbe<ThreeJSGraphicsAdapter>) => {
+      removeChatProbe: (chatProbe: ChatProbe<PlayCanvasGraphicsAdapter>) => {
         this.chatProbes.delete(chatProbe);
       },
       prompt: (
@@ -146,9 +145,9 @@ export class MMLCompositionScene {
       },
     };
 
-    this.clickTrigger = ThreeJSClickTrigger.init(
+    this.clickTrigger = CustomPlayCanvasClickTrigger.init(
+      this.config.collisionsManager,
       this.config.targetElement,
-      this.group,
       this.config.camera,
     );
   }

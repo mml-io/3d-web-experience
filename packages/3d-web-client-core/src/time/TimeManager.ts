@@ -1,9 +1,6 @@
-import { Clock } from "three";
-
 import { ease } from "../helpers/math-helpers";
 
 export class TimeManager {
-  private clock: Clock = new Clock();
   private roundMagnitude: number = 200000;
   private maxAverageFrames: number = 150;
   private deltaTimes: number[] = [];
@@ -24,7 +21,7 @@ export class TimeManager {
   public static maxDeltaTime = 0.1; // 100ms
 
   update() {
-    this.rawDeltaTime = this.clock.getDelta();
+    this.rawDeltaTime = performance.now() - this.time;
     if (this.rawDeltaTime > TimeManager.maxDeltaTime) {
       this.rawDeltaTime = TimeManager.maxDeltaTime;
     }

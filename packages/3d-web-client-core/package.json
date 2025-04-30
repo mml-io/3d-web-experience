@@ -11,6 +11,7 @@
     "/build"
   ],
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
@@ -20,7 +21,7 @@
   "dependencies": {
     "@mml-io/3d-web-avatar": "^0.21.6",
     "@mml-io/mml-web": "0.19.7",
-    "@mml-io/mml-web-threejs": "0.19.7",
+    "@mml-io/mml-web-playcanvas": "0.19.7",
     "@mml-io/model-loader": "0.19.7",
     "@monogrid/gainmap-js": "^3.1.0",
     "@tweakpane/core": "2.0.5",
@@ -30,9 +31,9 @@
     "tweakpane": "4.0.5"
   },
   "peerDependencies": {
-    "three": ">= 0.163.0"
+    "playcanvas": ">= 1.73.5"
   },
   "devDependencies": {
-    "@types/three": "0.163.0"
+    "playcanvas": "1.73.5"
   }
 }

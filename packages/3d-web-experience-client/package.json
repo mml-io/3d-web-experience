@@ -11,6 +11,7 @@
     "/build"
   ],
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
@@ -24,10 +25,9 @@
     "@mml-io/3d-web-user-networking": "^0.21.6",
     "@mml-io/3d-web-voice-chat": "^0.21.6",
     "@mml-io/mml-web": "0.19.7",
-    "three": "0.163.0"
+    "playcanvas": "1.73.5"
   },
   "devDependencies": {
-    "@types/node": "^22.13.1",
-    "@types/three": "0.163.0"
+    "@types/node": "^22.13.1"
   }
 }

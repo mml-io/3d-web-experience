@@ -1,22 +1,5 @@
-import {
-  MMLCharacter,
-  type MMLCharacterDescription,
-  parseMMLDescription,
-} from "@mml-io/3d-web-avatar";
-import { ModelLoader } from "@mml-io/model-loader";
-import {
-  AnimationAction,
-  AnimationClip,
-  AnimationMixer,
-  Bone,
-  Box3,
-  LoopRepeat,
-  Mesh,
-  MeshStandardMaterial,
-  Object3D,
-  SkinnedMesh,
-  Vector3,
-} from "three";
+import { parseMMLDescription, type MMLCharacterDescription } from "@mml-io/3d-web-avatar";
+import * as playcanvas from "playcanvas";
 
 import { CameraManager } from "../camera/CameraManager";
 
@@ -24,8 +7,10 @@ import { AnimationConfig, CharacterDescription } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
+import { PlayCanvasMMLCharacter } from "./PlayCanvasMMLCharacter";
 
 export type CharacterModelConfig = {
+  playcanvasApp: playcanvas.AppBase;
   characterDescription: CharacterDescription;
   animationConfig: AnimationConfig;
   characterModelLoader: CharacterModelLoader;
@@ -35,16 +20,14 @@ export type CharacterModelConfig = {
 };
 
 export class CharacterModel {
-  public static ModelLoader: ModelLoader = new ModelLoader();
-
-  public mesh: Object3D | null = null;
-  public headBone: Bone | null = null;
+  public mesh: playcanvas.Entity | null = null;
+  // public headBone: Bone | null = null;
   public characterHeight: number | null = null;
 
   private materials: Map<string, CharacterMaterial> = new Map();
 
-  public animations: Record<string, AnimationAction> = {};
-  public animationMixer: AnimationMixer | null = null;
+  private animations: Record<string, playcanvas.Animation> = {};
+  // private animationMixer: AnimationMixer | null = null;
   public currentAnimation: AnimationState = AnimationState.idle;
 
   public mmlCharacterDescription: MMLCharacterDescription;
@@ -82,51 +65,7 @@ export class CharacterModel {
         false,
         1.45,
       );
-      this.applyCustomMaterials();
     }
-  }
-
-  private applyCustomMaterials(): void {
-    if (!this.mesh) return;
-    const boundingBox = new Box3();
-    this.mesh.updateWorldMatrix(true, true);
-    boundingBox.expandByObject(this.mesh);
-    this.characterHeight = boundingBox.max.y - boundingBox.min.y;
-
-    this.mesh.traverse((child: Object3D) => {
-      if ((child as Bone).isBone) {
-        if (child.name === "head") {
-          const worldPosition = new Vector3();
-          this.headBone = child as Bone;
-          this.headBone.getWorldPosition(worldPosition);
-        }
-      }
-      if ((child as Mesh).isMesh || (child as SkinnedMesh).isSkinnedMesh) {
-        const asMesh = child as Mesh;
-        const originalMaterial = asMesh.material as MeshStandardMaterial;
-        if (this.materials.has(originalMaterial.name)) {
-          asMesh.material = this.materials.get(originalMaterial.name)!;
-        } else {
-          const material =
-            originalMaterial.name === "body_replaceable_color"
-              ? new CharacterMaterial({
-                  isLocal: this.config.isLocal,
-                  cameraManager: this.config.cameraManager,
-                  characterId: this.config.characterId,
-                  originalMaterial,
-                })
-              : new CharacterMaterial({
-                  isLocal: this.config.isLocal,
-                  cameraManager: this.config.cameraManager,
-                  characterId: this.config.characterId,
-                  originalMaterial,
-                  colorOverride: originalMaterial.color,
-                });
-          this.materials.set(originalMaterial.name, material);
-          asMesh.material = material;
-        }
-      }
-    });
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
@@ -144,33 +83,27 @@ export class CharacterModel {
     }
   }
 
-  private setMainMesh(mainMesh: Object3D): void {
+  private setMainMesh(mainMesh: playcanvas.Entity): void {
     this.mesh = mainMesh;
-    this.mesh.position.set(0, -0.44, 0);
-    this.mesh.traverse((child: Object3D) => {
-      if (child.type === "SkinnedMesh") {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    this.animationMixer = new AnimationMixer(this.mesh);
+    this.mesh.setPosition(0, -0.44, 0);
+    // this.animationMixer = new AnimationMixer(this.mesh);
   }
 
   private async composeMMLCharacter(
     mmlCharacterDescription: MMLCharacterDescription,
-  ): Promise<Object3D | undefined> {
+  ): Promise<playcanvas.Entity | undefined> {
     if (mmlCharacterDescription.base?.url.length === 0) {
       throw new Error(
         "ERROR: An MML Character Description was provided, but it's not a valid <m-character> string, or a valid URL",
       );
     }
 
-    let mergedCharacter: Object3D | null = null;
+    let mergedCharacter: playcanvas.Entity | null = null;
     if (mmlCharacterDescription) {
       const characterBase = mmlCharacterDescription.base?.url || null;
       if (characterBase) {
         this.mmlCharacterDescription = mmlCharacterDescription;
-        const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
+        const mmlCharacter = new PlayCanvasMMLCharacter(this.config.characterModelLoader);
         mergedCharacter = await mmlCharacter.mergeBodyParts(
           characterBase,
           mmlCharacterDescription.parts,
@@ -182,15 +115,20 @@ export class CharacterModel {
     }
   }
 
-  private async loadCharacterFromDescription(): Promise<Object3D | null> {
+  private async loadCharacterFromDescription(): Promise<playcanvas.Entity | null> {
     if (this.config.characterDescription.meshFileUrl) {
-      return (
-        (await this.config.characterModelLoader.load(
-          this.config.characterDescription.meshFileUrl,
-          "model",
-        )) || null
+      const asset = await this.config.characterModelLoader.load(
+        this.config.characterDescription.meshFileUrl,
       );
+      console.log(asset);
+      const renderEntity: playcanvas.Entity = asset.resource.instantiateRenderEntity();
+      renderEntity.addComponent("anim", {
+        activate: true,
+        speed: 1,
+      });
+      return renderEntity;
     }
+    console.error("TODO - load character from MML description");
 
     let mmlCharacterSource: string;
     if (this.config.characterDescription.mmlCharacterUrl) {
@@ -211,48 +149,52 @@ export class CharacterModel {
     }
     const mmlCharacterBody = await this.composeMMLCharacter(mmlCharacterDescription);
     if (mmlCharacterBody) {
+      mmlCharacterBody.addComponent("anim", {
+        activate: true,
+        speed: 1,
+      });
       return mmlCharacterBody;
     }
     return null;
   }
 
   private async loadMainMesh(): Promise<void> {
-    let mainMesh: Object3D | null = null;
+    let mainMesh: playcanvas.Entity | null = null;
     try {
       mainMesh = await this.loadCharacterFromDescription();
     } catch (error) {
       console.error("Failed to load character from description", error);
     }
     if (mainMesh) {
-      this.setMainMesh(mainMesh as Object3D);
+      this.setMainMesh(mainMesh as playcanvas.Entity);
     }
   }
 
-  private cleanAnimationClips(
-    skeletalMesh: Object3D | null,
-    animationClip: AnimationClip,
-    keepRootBonePositionAnimation: boolean,
-  ): AnimationClip {
-    const availableBones = new Set<string>();
-    if (skeletalMesh) {
-      skeletalMesh.traverse((child) => {
-        const asBone = child as Bone;
-        if (asBone.isBone) {
-          availableBones.add(child.name);
-        }
-      });
-    }
-    animationClip.tracks = animationClip.tracks.filter((track) => {
-      const [trackName, trackProperty] = track.name.split(".");
-      if (keepRootBonePositionAnimation && trackName === "root" && trackProperty === "position") {
-        return true;
-      }
-      const shouldAnimate =
-        availableBones.has(trackName) && trackProperty !== "position" && trackProperty !== "scale";
-      return shouldAnimate;
-    });
-    return animationClip;
-  }
+  // private cleanAnimationClips(
+  //   skeletalMesh: Object3D | null,
+  //   animationClip: AnimationClip,
+  //   keepRootBonePositionAnimation: boolean,
+  // ): AnimationClip {
+  //   const availableBones = new Set<string>();
+  //   if (skeletalMesh) {
+  //     skeletalMesh.traverse((child) => {
+  //       const asBone = child as Bone;
+  //       if (asBone.isBone) {
+  //         availableBones.add(child.name);
+  //       }
+  //     });
+  //   }
+  //   animationClip.tracks = animationClip.tracks.filter((track) => {
+  //     const [trackName, trackProperty] = track.name.split(".");
+  //     if (keepRootBonePositionAnimation && trackName === "root" && trackProperty === "position") {
+  //       return true;
+  //     }
+  //     const shouldAnimate =
+  //       availableBones.has(trackName) && trackProperty !== "position" && trackProperty !== "scale";
+  //     return shouldAnimate;
+  //   });
+  //   return animationClip;
+  // }
 
   private async setAnimationFromFile(
     animationFileUrl: string,
@@ -261,23 +203,40 @@ export class CharacterModel {
     playbackSpeed: number = 1.0,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const animation = await this.config.characterModelLoader.load(animationFileUrl, "animation");
-      const cleanAnimation = this.cleanAnimationClips(this.mesh, animation as AnimationClip, true);
-      if (typeof animation !== "undefined" && cleanAnimation instanceof AnimationClip) {
-        this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);
-        this.animations[animationType].stop();
-        this.animations[animationType].timeScale = playbackSpeed;
-        if (animationType === AnimationState.idle) {
-          this.animations[animationType].play();
+      const fileName = animationFileUrl.split("/").pop() || "";
+      const animationAsset = new playcanvas.Asset(
+        fileName,
+        "container",
+        { url: animationFileUrl, filename: fileName },
+        undefined,
+      );
+
+      animationAsset.ready(() => {
+        if (!this.mesh || !this.mesh.anim) {
+          reject("Mesh or anim component not found");
+          return;
         }
+
+        const animTrack = animationAsset.resource.animations[0].resource;
+        this.animations[animationType] = animTrack;
+
+        // Add the animation state to the anim component
+        this.mesh.anim.addAnimationState(animationType, animTrack);
+
+        // Set animation properties
         if (!loop) {
-          this.animations[animationType].setLoop(LoopRepeat, 1); // Ensure non-looping
-          this.animations[animationType].clampWhenFinished = true;
+          const layer = this.mesh.anim.findAnimationLayer("BaseLayer");
+          if (layer) {
+            // Configure the animation through assignAnimation which allows setting loop property
+            layer.assignAnimation(animationType, animTrack, playbackSpeed, loop);
+          }
         }
-        resolve();
-      } else {
-        reject(`failed to load ${animationType} from ${animationFileUrl}`);
-      }
+
+        resolve(animTrack);
+      });
+
+      this.config.playcanvasApp.assets.add(animationAsset);
+      this.config.playcanvasApp.assets.load(animationAsset);
     });
   }
 
@@ -285,44 +244,34 @@ export class CharacterModel {
     targetAnimation: AnimationState,
     transitionDuration: number = 0.15,
   ): void {
-    if (!this.mesh) {
+    console.log("transitionToAnimation", targetAnimation);
+    if (!this.mesh || !this.mesh.anim) {
       return;
     }
 
-    const currentAction = this.animations[this.currentAnimation];
-    this.currentAnimation = targetAnimation;
-    const targetAction = this.animations[targetAnimation];
+    // Check if the target animation exists in our loaded animations
+    if (targetAnimation in this.animations) {
+      // Use the transition method with the specified duration
+      this.mesh.anim.baseLayer.transition(targetAnimation, transitionDuration);
 
-    if (!targetAction) {
-      return;
+      // Update our current animation state
+      this.currentAnimation = targetAnimation;
+
+      // Special handling for double jump animation
+      if (targetAnimation === AnimationState.doubleJump) {
+        // Set a flag to track that we're in post-double-jump state
+        // This will be reset when any other animation is requested
+        this.isPostDoubleJump = true;
+      }
+    } else {
+      console.warn(`Animation ${targetAnimation} not found in loaded animations`);
     }
-
-    if (currentAction) {
-      currentAction.fadeOut(transitionDuration);
-    }
-
-    targetAction.reset();
-    if (!targetAction.isRunning()) {
-      targetAction.play();
-    }
-
-    if (targetAnimation === AnimationState.doubleJump) {
-      targetAction.getMixer().addEventListener("finished", (_event) => {
-        if (this.currentAnimation === AnimationState.doubleJump) {
-          this.isPostDoubleJump = true;
-          // This triggers the transition to the air animation because the double jump animation is done
-          this.updateAnimation(AnimationState.doubleJump);
-        }
-      });
-    }
-
-    targetAction.enabled = true;
-    targetAction.fadeIn(transitionDuration);
   }
 
   update(time: number) {
-    if (this.animationMixer) {
-      this.animationMixer.update(time);
+    // Update animations if needed
+    if (this.mesh && this.mesh.anim) {
+      // PlayCanvas handles animation updates internally
       this.materials.forEach((material) => material.update());
     }
   }

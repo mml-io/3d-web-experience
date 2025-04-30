@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from "three";
+import { Quat } from "../math";
 
 import { Character } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
@@ -8,7 +8,7 @@ export type RemoteControllerConfig = {
   character: Character;
 };
 
-const tempQuaternion = new Quaternion();
+const tempQuaternion = new Quat();
 
 export class RemoteController {
   public currentAnimation: AnimationState = AnimationState.idle;
@@ -24,7 +24,7 @@ export class RemoteController {
         z: this.config.character.position.z,
       },
       rotation: {
-        quaternionY: tempQuaternion.setFromEuler(this.config.character.rotation).y,
+        quaternionY: tempQuaternion.setFromEulerXYZ(this.config.character.rotation).y,
         quaternionW: 1,
       },
       state: this.currentAnimation as AnimationState,
@@ -44,12 +44,18 @@ export class RemoteController {
     const distanceSquared = this.config.character.position.distanceToSquared(position);
     if (distanceSquared > 5 * 5) {
       // More than 5m of movement in a tick - the character is likely teleporting rather than just moving quickly - snap to the new position
-      this.config.character.position.copy(position);
+      this.config.character.setPosition(position.x, position.y, position.z);
     } else {
-      this.config.character.position.lerp(new Vector3(position.x, position.y, position.z), 0.15);
+      // TODO - lerp
+      this.config.character.setPosition(position.x, position.y, position.z);
     }
     const rotationQuaternion = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);
-    this.config.character.quaternion.slerp(rotationQuaternion, 0.6);
+    this.config.character.setRotation(
+      rotationQuaternion.x,
+      rotationQuaternion.y,
+      rotationQuaternion.z,
+      rotationQuaternion.w,
+    );
     if (state !== this.currentAnimation) {
       this.currentAnimation = state;
       this.config.character.updateAnimation(state);

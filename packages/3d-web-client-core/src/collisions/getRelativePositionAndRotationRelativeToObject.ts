@@ -1,26 +1,28 @@
 import { PositionAndRotation } from "@mml-io/mml-web";
-import { Euler, Matrix4, Object3D, Quaternion, Vector3 } from "three";
+import * as playcanvas from "playcanvas";
 
-const tempContainerMatrix = new Matrix4();
-const tempTargetMatrix = new Matrix4();
-const tempPositionVector = new Vector3();
-const tempRotationEuler = new Euler();
-const tempRotationQuaternion = new Quaternion();
-const tempScaleVector = new Vector3();
+import { EulXYZ, Matr4, Quat, Vect3 } from "../math";
+
+const tempContainerMatrix = new Matr4();
+const tempTargetMatrix = new Matr4();
+const tempPositionVector = new Vect3();
+const tempRotationEuler = new EulXYZ();
+const tempRotationQuaternion = new Quat();
+const tempScaleVector = new Vect3();
 
 export function getRelativePositionAndRotationRelativeToObject(
   positionAndRotation: PositionAndRotation,
-  container: Object3D,
+  container: playcanvas.Entity,
 ): PositionAndRotation {
   const { x, y, z } = positionAndRotation.position;
   const { x: rx, y: ry, z: rz } = positionAndRotation.rotation;
 
-  container.updateWorldMatrix(true, false);
-  tempContainerMatrix.copy(container.matrixWorld).invert();
+  // container.updateWorldMatrix(true, false);
+  tempContainerMatrix.set(container.getWorldTransform().data).invert();
 
   tempPositionVector.set(x, y, z);
   tempRotationEuler.set(rx, ry, rz);
-  tempRotationQuaternion.setFromEuler(tempRotationEuler);
+  tempRotationQuaternion.setFromEulerXYZ(tempRotationEuler);
   tempScaleVector.set(1, 1, 1);
 
   tempTargetMatrix.compose(tempPositionVector, tempRotationQuaternion, tempScaleVector);
@@ -30,7 +32,7 @@ export function getRelativePositionAndRotationRelativeToObject(
   tempRotationEuler.setFromQuaternion(tempRotationQuaternion);
 
   // Correct for the container's local scale
-  tempPositionVector.multiply(container.scale);
+  tempPositionVector.multiply(container.getLocalScale());
 
   return {
     position: {

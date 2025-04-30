@@ -1,33 +1,18 @@
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
-import {
-  BloomEffect,
-  EffectComposer,
-  EffectPass,
-  NormalPass,
-  SSAOEffect,
-  ToneMappingEffect,
-} from "postprocessing";
-import { Scene, WebGLRenderer } from "three";
+import * as playcanvas from "playcanvas";
 import { FolderApi, Pane } from "tweakpane";
 
 import { CameraManager } from "../camera/CameraManager";
 import { LocalController } from "../character/LocalController";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
-import { BrightnessContrastSaturation } from "../rendering/post-effects/bright-contrast-sat";
-import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 
-import { BrightnessContrastSaturationFolder } from "./blades/bcsFolder";
 import { CameraFolder } from "./blades/cameraFolder";
 import { CharacterControlsFolder } from "./blades/characterControlsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
 import { EnvironmentFolder } from "./blades/environmentFolder";
-import { PostExtrasFolder } from "./blades/postExtrasFolder";
-import { RendererFolder, rendererValues } from "./blades/rendererFolder";
 import { RendererStatsFolder } from "./blades/rendererStatsFolder";
-import { SSAOFolder } from "./blades/ssaoFolder";
-import { ToneMappingFolder } from "./blades/toneMappingFolder";
 import { setTweakpaneActive } from "./tweakPaneActivity";
 import { tweakPaneStyle } from "./tweakPaneStyle";
 
@@ -35,11 +20,6 @@ export class TweakPane {
   private gui: Pane;
 
   private renderStatsFolder: RendererStatsFolder;
-  private rendererFolder: RendererFolder;
-  private toneMappingFolder: ToneMappingFolder;
-  private ssaoFolder: SSAOFolder;
-  private bcsFolder: BrightnessContrastSaturationFolder;
-  private postExtrasFolder: PostExtrasFolder;
   // @ts-ignore
   private character: CharacterFolder;
   private environment: EnvironmentFolder;
@@ -55,9 +35,8 @@ export class TweakPane {
 
   constructor(
     private holderElement: HTMLElement,
-    private renderer: WebGLRenderer,
-    private scene: Scene,
-    private composer: EffectComposer,
+    private playcanvasApp: playcanvas.AppBase,
+    private playcanvasScene: playcanvas.Scene,
   ) {
     this.tweakPaneWrapper = document.createElement("div");
     this.tweakPaneWrapper.style.position = "fixed";
@@ -93,17 +72,10 @@ export class TweakPane {
     document.head.appendChild(styleElement);
 
     this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
-    this.rendererFolder = new RendererFolder(this.gui, false);
-    this.toneMappingFolder = new ToneMappingFolder(this.gui, false);
-    this.ssaoFolder = new SSAOFolder(this.gui, false);
-    this.bcsFolder = new BrightnessContrastSaturationFolder(this.gui, false);
-    this.postExtrasFolder = new PostExtrasFolder(this.gui, false);
     this.character = new CharacterFolder(this.gui, false);
     this.environment = new EnvironmentFolder(this.gui, false);
     this.camera = new CameraFolder(this.gui, false);
     this.characterControls = new CharacterControlsFolder(this.gui, false);
-
-    this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
@@ -131,16 +103,6 @@ export class TweakPane {
   }
 
   public setupRenderPane(
-    composer: EffectComposer,
-    normalPass: NormalPass,
-    ppssaoEffect: SSAOEffect,
-    ppssaoPass: EffectPass,
-    n8aopass: any,
-    toneMappingEffect: ToneMappingEffect,
-    toneMappingPass: EffectPass,
-    brightnessContrastSaturation: typeof BrightnessContrastSaturation,
-    bloomEffect: BloomEffect,
-    gaussGrainEffect: typeof GaussGrainEffect,
     hasLighting: boolean,
     sun: Sun | null,
     setHDR: () => void,
@@ -149,19 +111,8 @@ export class TweakPane {
     setAmbientLight: () => void,
     setFog: () => void,
   ): void {
-    // RenderOptions
-    this.rendererFolder.setupChangeEvent(
-      this.renderer,
-      this.toneMappingFolder.folder,
-      toneMappingPass,
-    );
-
-    this.toneMappingFolder.setupChangeEvent(toneMappingEffect);
-    this.ssaoFolder.setupChangeEvent(composer, normalPass, ppssaoEffect, ppssaoPass, n8aopass);
-    this.bcsFolder.setupChangeEvent(brightnessContrastSaturation);
-    this.postExtrasFolder.setupChangeEvent(bloomEffect, gaussGrainEffect);
     this.environment.setupChangeEvent(
-      this.scene,
+      this.playcanvasScene,
       setHDR,
       setSkyboxAzimuthalAngle,
       setSkyboxPolarAngle,
@@ -198,7 +149,7 @@ export class TweakPane {
   }
 
   public updateStats(timeManager: TimeManager): void {
-    this.renderStatsFolder.update(this.renderer, this.composer, timeManager);
+    this.renderStatsFolder.update(this.playcanvasApp, timeManager);
   }
 
   public updateCameraData(cameraManager: CameraManager) {

@@ -11,6 +11,8 @@ import {
   decodeCharacterAndCamera,
   EnvironmentConfiguration,
   ErrorScreen,
+  EulXYZ,
+  getSpawnPositionInsideCircle,
   GroundPlane,
   Key,
   KeyInputManager,
@@ -21,6 +23,7 @@ import {
   TweakPane,
   SpawnConfiguration,
   SpawnConfigurationState,
+  Vect3,
   VirtualJoystick,
 } from "@mml-io/3d-web-client-core";
 import {
@@ -42,7 +45,6 @@ import {
   UserNetworkingServerErrorType,
   WebsocketStatus,
 } from "@mml-io/3d-web-user-networking";
-import { VoiceChatManager } from "@mml-io/3d-web-voice-chat";
 import {
   IMMLScene,
   LoadingProgressManager,
@@ -50,7 +52,13 @@ import {
   setGlobalDocumentTimeManager,
   setGlobalMMLScene,
 } from "@mml-io/mml-web";
-import { AudioListener, Euler, Scene, Vector3 } from "three";
+import ammoWasmJs from "base64:./wasm/ammo.wasm.js";
+import ammoWasmWasm from "base64:./wasm/ammo.wasm.wasm";
+import dracoWasmJs from "base64:./wasm/draco.wasm.js";
+import dracoWasmWasm from "base64:./wasm/draco.wasm.wasm";
+import glslangWasmJs from "base64:./wasm/glslang.js";
+import twgslWasmJs from "base64:./wasm/twgsl.js";
+import * as playcanvas from "playcanvas";
 
 type MMLDocumentConfiguration = {
   url: string;
@@ -123,16 +131,19 @@ export class Networked3dWebExperienceClient {
   private element: HTMLDivElement;
   private canvasHolder: HTMLDivElement;
 
-  private scene = new Scene();
+  private playcanvasApp: playcanvas.AppBase;
+  private playcanvasScene: playcanvas.Scene;
+
+  private canvas: HTMLCanvasElement;
+
   private composer: Composer;
   private tweakPane: TweakPane | null = null;
-  private audioListener = new AudioListener();
 
   private cameraManager: CameraManager;
 
-  private collisionsManager = new CollisionsManager(this.scene);
+  private collisionsManager: CollisionsManager;
 
-  private characterModelLoader = new CharacterModelLoader();
+  private characterModelLoader;
   private characterManager: CharacterManager;
 
   private timeManager = new TimeManager();
@@ -153,7 +164,6 @@ export class Networked3dWebExperienceClient {
 
   private avatarSelectionUI: AvatarSelectionUI | null = null;
 
-  private voiceChatManager: VoiceChatManager | null = null;
   private readonly latestCharacterObject = {
     characterState: null as null | CharacterState,
   };
@@ -165,7 +175,6 @@ export class Networked3dWebExperienceClient {
   private loadingProgressManager = new LoadingProgressManager();
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
-  private currentRequestAnimationFrame: number | null = null;
   private groundPlane: GroundPlane | null = null;
   private respawnButton: HTMLDivElement | null = null;
 
@@ -179,20 +188,123 @@ export class Networked3dWebExperienceClient {
     this.element.style.height = "100%";
     this.holderElement.appendChild(this.element);
 
-    document.addEventListener("mousedown", () => {
-      if (this.audioListener.context.state === "suspended") {
-        this.audioListener.context.resume();
-      }
-    });
+    this.canvas = document.createElement("canvas");
+    this.canvas.style.pointerEvents = "none";
 
     this.canvasHolder = document.createElement("div");
     this.canvasHolder.style.position = "absolute";
     this.canvasHolder.style.width = "100%";
     this.canvasHolder.style.height = "100%";
+    this.canvasHolder.appendChild(this.canvas);
     this.element.appendChild(this.canvasHolder);
 
-    this.cameraManager = new CameraManager(this.canvasHolder, this.collisionsManager);
-    this.cameraManager.camera.add(this.audioListener);
+    // TODO - report loading progress correctly
+    this.init();
+  }
+
+  async init() {
+    playcanvas.WasmModule.setConfig("Ammo", {
+      glueUrl: "data:text/javascript;base64," + ammoWasmJs,
+      wasmUrl: "data:application/octet-stream;base64," + ammoWasmWasm,
+    });
+    await new Promise<void>((resolve) => {
+      playcanvas.WasmModule.getInstance("Ammo", () => resolve());
+    });
+
+    playcanvas.WasmModule.setConfig("DracoDecoderModule", {
+      glueUrl: "data:text/javascript;base64," + dracoWasmJs,
+      wasmUrl: "data:application/wasm;base64," + dracoWasmWasm,
+    });
+
+    this.canvas = document.createElement("canvas");
+    this.canvas.style.pointerEvents = "none";
+    this.element.appendChild(this.canvas);
+
+    this.playcanvasApp = new playcanvas.AppBase(this.canvas);
+
+    const gfxOptions = {
+      deviceTypes: ["webgpu", "webgl2"],
+      glslangUrl: "data:text/javascript;base64," + glslangWasmJs,
+      twgslUrl: "data:text/javascript;base64," + twgslWasmJs,
+    };
+
+    const soundManager = new playcanvas.SoundManager();
+    const device = await playcanvas.createGraphicsDevice(this.canvas, gfxOptions);
+    device.maxPixelRatio = window.devicePixelRatio;
+    const createOptions = new playcanvas.AppOptions();
+    createOptions.soundManager = soundManager;
+    createOptions.graphicsDevice = device;
+    createOptions.componentSystems = [
+      playcanvas.RenderComponentSystem,
+      playcanvas.CollisionComponentSystem,
+      playcanvas.RigidBodyComponentSystem,
+      playcanvas.CameraComponentSystem,
+      playcanvas.LightComponentSystem,
+      playcanvas.ModelComponentSystem,
+      playcanvas.AnimComponentSystem,
+      playcanvas.SoundComponentSystem,
+      playcanvas.AudioListenerComponentSystem,
+    ];
+    createOptions.resourceHandlers = [
+      playcanvas.AudioHandler,
+      playcanvas.TextureHandler,
+      playcanvas.ContainerHandler,
+      playcanvas.ModelHandler,
+      playcanvas.AnimationHandler,
+    ];
+    window.playcanvasApp = this.playcanvasApp;
+    this.playcanvasApp.init(createOptions);
+    this.playcanvasScene = this.playcanvasApp.scene;
+    this.playcanvasApp.scene.physicalUnits = true;
+    this.playcanvasApp.setCanvasFillMode(playcanvas.FILLMODE_NONE);
+    this.playcanvasApp.setCanvasResolution(playcanvas.RESOLUTION_FIXED);
+
+    // Set the canvas size to non-zero to avoid errors on startup
+    device.resizeCanvas(128, 128);
+
+    // const camera = new playcanvas.Entity("camera", this.playcanvasApp);
+    // camera.addComponent("audiolistener");
+    // camera.addComponent("camera", {
+    //   fov: 75,
+    //   clearColor: new playcanvas.Color(1, 1, 1, 1),
+    // } as playcanvas.CameraComponent);
+    // camera.setPosition(0, 5, 10);
+    // this.playcanvasApp.root.addChild(camera);
+
+    const envMapAsset = new playcanvas.Asset("env-atlas", "texture", {
+      url: this.config.environmentConfiguration.skybox.hdrUrl,
+    });
+    this.playcanvasApp.assets.add(envMapAsset);
+    this.playcanvasApp.assets.load(envMapAsset);
+
+    const onEnvMapAssetLoad = (texture: playcanvas.Texture) => {
+      const skybox = playcanvas.EnvLighting.generateSkyboxCubemap(texture);
+      const lighting = playcanvas.EnvLighting.generateLightingSource(texture);
+      const envAtlas = playcanvas.EnvLighting.generateAtlas(lighting, {});
+      lighting.destroy();
+      this.playcanvasScene.envAtlas = envAtlas;
+      this.playcanvasScene.skybox = skybox;
+      this.playcanvasScene.skyboxLuminance = 10000;
+    };
+
+    if (envMapAsset.loaded) {
+      onEnvMapAssetLoad(envMapAsset.resource);
+    } else {
+      envMapAsset.on("load", (envMapAsset: playcanvas.Asset) => {
+        onEnvMapAssetLoad(envMapAsset.resource);
+      });
+    }
+
+    this.playcanvasApp.start();
+
+    this.collisionsManager = new CollisionsManager();
+
+    device.resizeCanvas(128, 128);
+    this.cameraManager = new CameraManager(
+      this.playcanvasApp,
+      this.canvasHolder,
+      this.collisionsManager,
+    );
 
     this.virtualJoystick = new VirtualJoystick(this.element, {
       radius: 70,
@@ -201,12 +313,12 @@ export class Networked3dWebExperienceClient {
     });
 
     this.composer = new Composer({
-      scene: this.scene,
+      playcanvasApp: this.playcanvasApp,
+      playcanvasScene: this.playcanvasApp.scene,
       cameraManager: this.cameraManager,
       spawnSun: true,
       environmentConfiguration: this.config.environmentConfiguration,
     });
-    this.canvasHolder.appendChild(this.composer.renderer.domElement);
 
     if (this.config.enableTweakPane !== false) {
       this.setupTweakPane();
@@ -294,7 +406,9 @@ export class Networked3dWebExperienceClient {
 
     this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
 
-    this.characterManager = new CharacterManager({
+    this.characterModelLoader = new CharacterModelLoader(this.playcanvasApp, false);
+
+    this.characterManager = new CharacterManager(this.playcanvasApp, {
       composer: this.composer,
       characterModelLoader: this.characterModelLoader,
       collisionsManager: this.collisionsManager,
@@ -314,31 +428,37 @@ export class Networked3dWebExperienceClient {
       },
       updateURLLocation: this.config.updateURLLocation !== false,
     });
-    this.scene.add(this.characterManager.group);
-
-    if (this.spawnConfiguration.enableRespawnButton) {
-      this.element.appendChild(this.characterManager.createRespawnButton());
-    }
 
     this.setGroundPlaneEnabled(this.config.environmentConfiguration?.groundPlane ?? true);
 
     this.setupMMLScene();
 
-    this.loadingScreen = new LoadingScreen(this.loadingProgressManager, this.config.loadingScreen);
-    this.element.append(this.loadingScreen.element);
+    this.playcanvasApp.root.addChild(this.characterManager.group);
 
+    if (this.spawnConfiguration.enableRespawnButton) {
+      this.element.appendChild(this.characterManager.createRespawnButton());
+    }
+    //
+    // this.loadingScreen = new LoadingScreen(this.loadingProgressManager, this.config.loadingScreen);
+    // this.element.append(this.loadingScreen.element);
+    //
     this.loadingProgressManager.addProgressCallback(() => {
       const [, completed] = this.loadingProgressManager.toRatio();
       if (completed && !this.initialLoadCompleted) {
         this.initialLoadCompleted = true;
         /*
-         When all content (in particular MML) has loaded, spawn the character (this is to avoid the character falling
-         through as-yet-unloaded geometry)
-        */
-        this.connectToVoiceChat();
+             When all content (in particular MML) has loaded, spawn the character (this is to avoid the character falling
+             through as-yet-unloaded geometry)
+            */
         this.connectToTextChat();
         this.mountAvatarSelectionUI();
         this.spawnCharacter();
+
+        this.playcanvasApp.on("update", (delta) => {
+          this.update();
+        });
+
+        this.setGroundPlaneEnabled(this.config.environmentConfiguration?.groundPlane ?? true);
       }
     });
     this.loadingProgressManager.setInitialLoad(true);
@@ -346,12 +466,12 @@ export class Networked3dWebExperienceClient {
 
   private setGroundPlaneEnabled(enabled: boolean) {
     if (enabled && this.groundPlane === null) {
-      this.groundPlane = new GroundPlane();
+      this.groundPlane = new GroundPlane(this.playcanvasApp);
       this.collisionsManager.addMeshesGroup(this.groundPlane);
-      this.scene.add(this.groundPlane);
+      this.playcanvasApp.root.addChild(this.groundPlane);
     } else if (!enabled && this.groundPlane !== null) {
       this.collisionsManager.removeMeshesGroup(this.groundPlane);
-      this.scene.remove(this.groundPlane);
+      this.playcanvasApp.root.removeChild(this.groundPlane);
       this.groundPlane = null;
     }
   }
@@ -486,31 +606,11 @@ export class Networked3dWebExperienceClient {
     });
   }
 
-  private connectToVoiceChat() {
-    if (this.clientId === null) return;
-
-    if (this.voiceChatManager === null && this.config.voiceChatAddress) {
-      this.voiceChatManager = new VoiceChatManager({
-        url: this.config.voiceChatAddress,
-        holderElement: this.element,
-        userId: this.clientId,
-        remoteUserStates: this.remoteUserStates,
-        latestCharacterObj: this.latestCharacterObject,
-        autoJoin: false,
-      });
-    }
-  }
-
   private setupTweakPane() {
     if (this.tweakPane) {
       return;
     }
-    this.tweakPane = new TweakPane(
-      this.element,
-      this.composer.renderer,
-      this.scene,
-      this.composer.effectComposer,
-    );
+    this.tweakPane = new TweakPane(this.element, this.playcanvasApp, this.playcanvasScene);
     this.cameraManager.setupTweakPane(this.tweakPane);
     this.composer.setupTweakPane(this.tweakPane);
   }
@@ -592,14 +692,15 @@ export class Networked3dWebExperienceClient {
   }
 
   public update(): void {
+    if (!this.initialLoadCompleted) {
+      return;
+    }
     this.timeManager.update();
     this.characterManager.update();
-    this.voiceChatManager?.speakingParticipants.forEach((value: boolean, id: number) => {
-      this.characterManager.setSpeakingCharacter(id, value);
-    });
     this.cameraManager.update();
-    this.composer.sun?.updateCharacterPosition(this.characterManager.localCharacter?.position);
-    this.composer.render(this.timeManager);
+    this.composer.sun?.updateCharacterPosition(
+      this.characterManager.localCharacter?.getLocalPosition(),
+    );
     if (this.tweakPane?.guiVisible) {
       this.tweakPane.updateStats(this.timeManager);
       this.tweakPane.updateCameraData(this.cameraManager);
@@ -612,9 +713,6 @@ export class Networked3dWebExperienceClient {
         }
       }
     }
-    this.currentRequestAnimationFrame = requestAnimationFrame(() => {
-      this.update();
-    });
   }
 
   private randomWithVariance(value: number, variance: number): number {
@@ -627,7 +725,8 @@ export class Networked3dWebExperienceClient {
     if (this.clientId === null) {
       throw new Error("Client ID not set");
     }
-    const spawnPosition = new Vector3();
+
+    const spawnPosition = new Vect3();
     spawnPosition.set(
       this.randomWithVariance(
         this.spawnConfiguration.spawnPosition.x,
@@ -642,22 +741,22 @@ export class Networked3dWebExperienceClient {
         this.spawnConfiguration.spawnPositionVariance.z,
       ),
     );
-    const spawnRotation = new Euler(
+    const spawnRotation = new EulXYZ(
       0,
       -this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
       0,
     );
 
-    let cameraPosition: Vector3 | null = null;
-    const offset = new Vector3(0, 0, 3.3);
-    offset.applyEuler(new Euler(0, spawnRotation.y, 0));
+    let cameraPosition: Vect3 | null = null;
+    const offset = new Vect3(0, 0, 3.3);
+    offset.applyEulerXYZ(new EulXYZ(0, spawnRotation.y, 0));
     cameraPosition = spawnPosition.clone().sub(offset).add(this.characterManager.headTargetOffset);
 
     if (window.location.hash && window.location.hash.length > 1) {
       const urlParams = decodeCharacterAndCamera(window.location.hash.substring(1));
       spawnPosition.copy(urlParams.character.position);
       spawnRotation.setFromQuaternion(urlParams.character.quaternion);
-      cameraPosition = urlParams.camera.position;
+      cameraPosition = new Vect3(urlParams.camera.position);
     }
     const ownIdentity = this.userProfiles.get(this.clientId);
     if (!ownIdentity) {
@@ -673,9 +772,13 @@ export class Networked3dWebExperienceClient {
     );
 
     if (cameraPosition !== null) {
-      this.cameraManager.camera.position.copy(cameraPosition);
+      this.cameraManager.camera.setLocalPosition(
+        cameraPosition.x,
+        cameraPosition.y,
+        cameraPosition.z,
+      );
       this.cameraManager.setTarget(
-        new Vector3().add(spawnPosition).add(this.characterManager.headTargetOffset),
+        new Vect3().add(spawnPosition).add(this.characterManager.headTargetOffset),
       );
       this.cameraManager.reverseUpdateFromPositions();
     }
@@ -698,10 +801,7 @@ export class Networked3dWebExperienceClient {
     this.mmlCompositionScene.dispose();
     this.composer.dispose();
     this.tweakPane?.dispose();
-    if (this.currentRequestAnimationFrame !== null) {
-      cancelAnimationFrame(this.currentRequestAnimationFrame);
-      this.currentRequestAnimationFrame = null;
-    }
+    this.playcanvasApp.destroy();
     this.cameraManager.dispose();
     this.loadingScreen.dispose();
     this.errorScreen?.dispose();
@@ -711,16 +811,15 @@ export class Networked3dWebExperienceClient {
     registerCustomElementsToWindow(window);
     this.mmlCompositionScene = new MMLCompositionScene({
       targetElement: this.element,
-      renderer: this.composer.renderer,
-      scene: this.scene,
+      playcanvasScene: this.playcanvasScene,
+      playcanvasApp: this.playcanvasApp,
       camera: this.cameraManager.camera,
-      audioListener: this.audioListener,
       collisionsManager: this.collisionsManager,
       getUserPositionAndRotation: () => {
         return this.characterManager.getLocalCharacterPositionAndRotation();
       },
     });
-    this.scene.add(this.mmlCompositionScene.group);
+    this.playcanvasApp.root.addChild(this.mmlCompositionScene.group);
     setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
     setGlobalDocumentTimeManager(this.mmlCompositionScene.documentTimeManager);
 

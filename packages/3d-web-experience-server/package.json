@@ -11,6 +11,7 @@
     "/build"
   ],
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
@@ -28,7 +29,6 @@
     "express": "^4.21.2",
     "express-ws": "^5.0.2",
     "micromatch": "^4.0.8",
-    "three": "0.163.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

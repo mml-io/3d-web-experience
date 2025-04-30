@@ -1,11 +1,11 @@
 export enum AnimationState {
-  "idle" = 0,
-  "walking" = 1,
-  "running" = 2,
-  "jumpToAir" = 3,
-  "air" = 4,
-  "airToGround" = 5,
-  "doubleJump" = 6,
+  "idle" = "idle",
+  "walking" = "walking",
+  "running" = "running",
+  "jumpToAir" = "jumpToAir",
+  "air" = "air",
+  "airToGround" = "airToGround",
+  "doubleJump" = "doubleJump",
 }
 
 export type CharacterState = {

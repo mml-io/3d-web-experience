@@ -21,3 +21,4 @@ export { GroundPlane } from "./ground-plane/GroundPlane";
 export { LoadingScreenConfig, LoadingScreen } from "./loading-screen/LoadingScreen";
 export { ErrorScreen } from "./error-screen/ErrorScreen";
 export { EnvironmentConfiguration } from "./rendering/composer";
+export * from "./math";

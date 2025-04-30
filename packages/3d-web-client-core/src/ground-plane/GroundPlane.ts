@@ -1,55 +1,70 @@
-import {
-  CanvasTexture,
-  FrontSide,
-  Group,
-  LinearMipMapLinearFilter,
-  Mesh,
-  MeshStandardMaterial,
-  NearestFilter,
-  PlaneGeometry,
-  RepeatWrapping,
-  Texture,
-} from "three";
+import * as playcanvas from "playcanvas";
 
-// Create a simple 2x2 checkerboard image
-const canvas = document.createElement("canvas");
-canvas.width = 2;
-canvas.height = 2;
-const ctx = canvas.getContext("2d")!;
-ctx.fillStyle = "#e0e0e0";
-ctx.fillRect(0, 0, 2, 2);
-ctx.fillStyle = "#606060";
-ctx.fillRect(0, 0, 1, 1);
-ctx.fillRect(1, 1, 1, 1);
-
-export class GroundPlane extends Group {
+/**
+ * GroundPlane class that creates a checkered plane using PlayCanvas
+ */
+export class GroundPlane extends playcanvas.Entity {
   private readonly floorSize = 210;
-  private readonly floorTexture: Texture | null = null;
-  private readonly floorGeometry = new PlaneGeometry(this.floorSize, this.floorSize, 1, 1);
-  private readonly floorMaterial: MeshStandardMaterial;
-  private readonly floorMesh: Mesh | null = null;
+  private readonly floorTexture: playcanvas.Texture | null = null;
 
-  constructor() {
-    super();
+  constructor(app: playcanvas.AppBase) {
+    super("GroundPlane", app);
 
-    this.floorMaterial = new MeshStandardMaterial({
-      color: 0xffffff,
-      side: FrontSide,
-      metalness: 0.05,
-      roughness: 0.95,
+    // Create a simple 2x2 checkerboard texture
+    const canvas = document.createElement("canvas");
+    canvas.width = 2;
+    canvas.height = 2;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#e0e0e0";
+    ctx.fillRect(0, 0, 2, 2);
+    ctx.fillStyle = "#606060";
+    ctx.fillRect(0, 0, 1, 1);
+    ctx.fillRect(1, 1, 1, 1);
+
+    // Create a texture from the canvas
+    this.floorTexture = new playcanvas.Texture(app.graphicsDevice, {
+      minFilter: playcanvas.FILTER_LINEAR_MIPMAP_LINEAR,
+      magFilter: playcanvas.FILTER_NEAREST,
+      addressU: playcanvas.ADDRESS_REPEAT,
+      addressV: playcanvas.ADDRESS_REPEAT,
+      width: 2,
+      height: 2,
     });
-    this.floorMesh = new Mesh(this.floorGeometry, this.floorMaterial);
-    this.floorMesh.receiveShadow = true;
-    this.floorMesh.rotation.x = Math.PI * -0.5;
-    this.add(this.floorMesh);
 
-    this.floorTexture = new CanvasTexture(canvas);
-    this.floorTexture!.wrapS = RepeatWrapping;
-    this.floorTexture!.wrapT = RepeatWrapping;
-    this.floorTexture!.magFilter = NearestFilter;
-    this.floorTexture!.minFilter = LinearMipMapLinearFilter;
-    this.floorTexture!.repeat.set(this.floorSize / 1.5, this.floorSize / 1.5);
-    this.floorMaterial.map = this.floorTexture;
-    this.floorMaterial.needsUpdate = true;
+    // Upload the canvas data to the texture
+    this.floorTexture.setSource(canvas);
+
+    // Create a material
+    const material = new playcanvas.StandardMaterial();
+    material.diffuse = new playcanvas.Color(1, 1, 1);
+    material.diffuseMap = this.floorTexture;
+    material.metalness = 0.05;
+    material.gloss = 0.05; // Low gloss (0.05) corresponds to high roughness (0.95)
+
+    // Set texture tiling
+    const textureRepeat = this.floorSize / 3;
+    material.diffuseMapTiling = new playcanvas.Vec2(textureRepeat, textureRepeat);
+    material.update();
+
+    // Add a render component with a plane
+    this.addComponent("render", {
+      type: "plane",
+      material: material,
+      castShadows: false,
+      receiveShadows: true,
+    });
+
+    // Set the plane size
+    const renderComponent = this.render as playcanvas.RenderComponent;
+    if (
+      renderComponent &&
+      renderComponent.meshInstances &&
+      renderComponent.meshInstances.length > 0
+    ) {
+      const meshInstance = renderComponent.meshInstances[0];
+      if (meshInstance && meshInstance.node) {
+        meshInstance.node.setLocalScale(this.floorSize, 1, this.floorSize);
+      }
+    }
   }
 }

@@ -1,5 +1,26 @@
 <m-group id="stairs" z="10" y="0.1"></m-group>
 
+<m-cube z="25" y="1.5" width="3" height="3" depth="3" id="my-cube"></m-cube>
+
+<script>
+  // Attach a click listener to the cube and spawn an m-sphere child of the cube wherever it is clicked
+  const cube = document.getElementById("my-cube");
+  console.log(cube);
+  cube.addEventListener("click", (event) => {
+    console.log("Clicked on cube", event, event.detail);
+    const x = event.detail.position.x;
+    const y = event.detail.position.y;
+    const z = event.detail.position.z;
+    const sphere = document.createElement("m-sphere");
+    sphere.setAttribute("x", x);
+    sphere.setAttribute("y", y);
+    sphere.setAttribute("z", z);
+    sphere.setAttribute("radius", 0.5);
+    sphere.setAttribute("color", "red");
+    cube.appendChild(sphere);
+  });
+</script>
+
 <script>
   const stairs = document.getElementById("stairs");
 

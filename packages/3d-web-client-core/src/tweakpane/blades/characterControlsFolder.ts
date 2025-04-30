@@ -4,16 +4,16 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 import { LocalController } from "../../character/LocalController";
 
 export const characterControllerValues = {
-  gravity: 35.5,
-  jumpForce: 18,
-  doubleJumpForce: 17.7,
+  gravity: 9.81,
+  jumpForce: 50,
+  doubleJumpForce: 40,
   coyoteJump: 120,
   airResistance: 0.5,
   groundResistance: 0,
   airControlModifier: 0.05,
   groundWalkControl: 0.75,
   groundRunControl: 1.0,
-  baseControlMultiplier: 200,
+  baseControlMultiplier: 400,
   minimumSurfaceAngle: 0.905,
 };
 

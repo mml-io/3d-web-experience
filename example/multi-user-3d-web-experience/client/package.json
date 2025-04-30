@@ -7,6 +7,7 @@
   ],
   "type": "module",
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "rimraf ./build && tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
@@ -15,9 +16,9 @@
   },
   "dependencies": {
     "@mml-io/3d-web-experience-client": "^0.21.6",
-    "three": "0.163.0"
+    "playcanvas": "1.73.5"
   },
   "devDependencies": {
-    "@types/three": "0.163.0"
+    "esbuild-plugin-copy": "2.1.1"
   }
 }
