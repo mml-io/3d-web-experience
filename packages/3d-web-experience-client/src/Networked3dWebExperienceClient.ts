@@ -11,7 +11,6 @@ import {
   decodeCharacterAndCamera,
   EnvironmentConfiguration,
   ErrorScreen,
-  getSpawnPositionInsideCircle,
   GroundPlane,
   Key,
   KeyInputManager,
@@ -20,6 +19,7 @@ import {
   MMLCompositionScene,
   TimeManager,
   TweakPane,
+  SpawnConfiguration,
   VirtualJoystick,
 } from "@mml-io/3d-web-client-core";
 import {
@@ -87,6 +87,7 @@ export type UpdatableConfig = {
   chatNetworkAddress?: string | null;
   mmlDocuments?: { [key: string]: MMLDocumentConfiguration };
   environmentConfiguration?: EnvironmentConfiguration;
+  spawnConfiguration?: SpawnConfiguration;
   avatarConfiguration?: AvatarConfiguration;
   allowCustomDisplayName?: boolean;
   enableTweakPane?: boolean;
@@ -131,6 +132,8 @@ export class Networked3dWebExperienceClient {
     characterState: null as null | CharacterState,
   };
   private characterControllerPaneSet: boolean = false;
+
+  private spawnConfiguration: SpawnConfiguration;
 
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
@@ -262,6 +265,29 @@ export class Networked3dWebExperienceClient {
       });
     }
 
+    this.spawnConfiguration = {
+      spawnPosition: {
+        x: this.config.spawnConfiguration?.spawnPosition?.x ?? 0,
+        y: this.config.spawnConfiguration?.spawnPosition?.y ?? 0,
+        z: this.config.spawnConfiguration?.spawnPosition?.z ?? 0,
+      },
+      spawnPositionvariance: {
+        x: this.config.spawnConfiguration?.spawnPositionvariance?.x ?? 0,
+        y: this.config.spawnConfiguration?.spawnPositionvariance?.y ?? 0,
+        z: this.config.spawnConfiguration?.spawnPositionvariance?.z ?? 0,
+      },
+      spawnYRotation: this.config.spawnConfiguration?.spawnYRotation ?? 0,
+      respawnTrigger: {
+        minX: this.config.spawnConfiguration?.respawnTrigger?.minX,
+        maxX: this.config.spawnConfiguration?.respawnTrigger?.maxX,
+        minY: this.config.spawnConfiguration?.respawnTrigger?.minY ?? -100,
+        maxY: this.config.spawnConfiguration?.respawnTrigger?.maxY,
+        minZ: this.config.spawnConfiguration?.respawnTrigger?.minZ,
+        maxZ: this.config.spawnConfiguration?.respawnTrigger?.maxZ,
+      },
+      enableRespawnButton: this.config.spawnConfiguration?.enableRespawnButton ?? false,
+    };
+
     this.characterManager = new CharacterManager({
       composer: this.composer,
       characterModelLoader: this.characterModelLoader,
@@ -276,6 +302,7 @@ export class Networked3dWebExperienceClient {
         this.networkClient.sendUpdate(characterState);
       },
       animationConfig: this.config.animationConfig,
+      spawnConfiguration: this.spawnConfiguration,
       characterResolve: (characterId: number) => {
         return this.resolveCharacterData(characterId);
       },
@@ -549,13 +576,42 @@ export class Networked3dWebExperienceClient {
     });
   }
 
+  private randomWithVariance(value: number, variance: number): number {
+    const min = value - variance;
+    const max = value + variance;
+    return Math.random() * (max - min) + min;
+  }
+
   private spawnCharacter() {
     if (this.clientId === null) {
       throw new Error("Client ID not set");
     }
-    const spawnPosition = getSpawnPositionInsideCircle(3, 30, this.clientId!, 0.4);
-    const spawnRotation = new Euler(0, 0, 0);
+    const spawnPosition = new Vector3();
+    spawnPosition.set(
+      this.randomWithVariance(
+        this.spawnConfiguration.spawnPosition!.x,
+        this.spawnConfiguration.spawnPositionvariance!.x,
+      ),
+      this.randomWithVariance(
+        this.spawnConfiguration.spawnPosition!.y,
+        this.spawnConfiguration.spawnPositionvariance!.y,
+      ),
+      this.randomWithVariance(
+        this.spawnConfiguration.spawnPosition!.z,
+        this.spawnConfiguration.spawnPositionvariance!.z,
+      ),
+    );
+    const spawnRotation = new Euler(
+      0,
+      -this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
+      0,
+    );
+
     let cameraPosition: Vector3 | null = null;
+    const offset = new Vector3(0, 0, 3.3);
+    offset.applyEuler(new Euler(0, spawnRotation.y, 0));
+    cameraPosition = spawnPosition.clone().sub(offset).add(this.characterManager.headTargetOffset);
+
     if (window.location.hash && window.location.hash.length > 1) {
       const urlParams = decodeCharacterAndCamera(window.location.hash.substring(1));
       spawnPosition.copy(urlParams.character.position);

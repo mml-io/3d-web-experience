@@ -8,6 +8,7 @@ import { TimeManager } from "../time/TimeManager";
 import { characterControllerValues } from "../tweakpane/blades/characterControlsFolder";
 
 import { Character } from "./Character";
+import { SpawnConfiguration } from "./CharacterManager";
 import { AnimationState, CharacterState } from "./CharacterState";
 
 const downVector = new Vector3(0, -1, 0);
@@ -20,6 +21,7 @@ export type LocalControllerConfig = {
   virtualJoystick?: VirtualJoystick;
   cameraManager: CameraManager;
   timeManager: TimeManager;
+  spawnConfiguration: SpawnConfiguration;
 };
 
 export class LocalController {
@@ -96,6 +98,13 @@ export class LocalController {
   private controlState: { direction: number | null; isSprinting: boolean; jump: boolean } | null =
     null;
 
+  private minimumX: number;
+  private maximumX: number;
+  private minimumY: number;
+  private maximumY: number;
+  private minimumZ: number;
+  private maximumZ: number;
+
   constructor(private config: LocalControllerConfig) {
     this.networkState = {
       id: this.config.id,
@@ -103,6 +112,51 @@ export class LocalController {
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: AnimationState.idle,
     };
+    this.minimumX = this.config.spawnConfiguration.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY;
+    this.maximumX = this.config.spawnConfiguration.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY;
+    this.minimumY = this.config.spawnConfiguration.respawnTrigger?.minY ?? Number.NEGATIVE_INFINITY;
+    this.maximumY = this.config.spawnConfiguration.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY;
+    this.minimumZ = this.config.spawnConfiguration.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY;
+    this.maximumZ = this.config.spawnConfiguration.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY;
+
+    const maxAbsSpawnX =
+      Math.abs(this.config.spawnConfiguration.spawnPosition!.x) +
+      Math.abs(this.config.spawnConfiguration.spawnPositionvariance!.x);
+
+    const maxAbsSpawnY =
+      Math.abs(this.config.spawnConfiguration.spawnPosition!.y) +
+      Math.abs(this.config.spawnConfiguration.spawnPositionvariance!.y);
+
+    const maxAbsSpawnZ =
+      Math.abs(this.config.spawnConfiguration.spawnPosition!.z) +
+      Math.abs(this.config.spawnConfiguration.spawnPositionvariance!.z);
+
+    if (Math.abs(this.minimumX) < maxAbsSpawnX || Math.abs(this.maximumX) < maxAbsSpawnX) {
+      // If the respawn trigger minX or maxX is out of bounds of the spawn position variance,
+      // set it to the spawn position variance +- a 1m skin to prevent a respawn infinite loop
+      // and warn the user. The same goes for all other axes.
+      this.minimumX = -maxAbsSpawnX - 1;
+      this.maximumX = maxAbsSpawnX + 1;
+      console.warn(
+        "The respawnTrigger X values are out of the bounds of the spawnPosition + spawnPositionvariance. Please check your respawnTrigger config.",
+      );
+    }
+
+    if (Math.abs(this.minimumY) < maxAbsSpawnY || Math.abs(this.maximumY) < maxAbsSpawnY) {
+      this.minimumY = -maxAbsSpawnY - 1;
+      this.maximumY = maxAbsSpawnY + 1;
+      console.warn(
+        "The respawnTrigger Y values are out of the bounds of the spawnPosition + spawnPositionvariance. Please check your respawnTrigger config.",
+      );
+    }
+
+    if (Math.abs(this.minimumZ) < maxAbsSpawnZ) {
+      this.minimumZ = -maxAbsSpawnZ - 1;
+      this.maximumZ = maxAbsSpawnZ + 1;
+      console.warn(
+        "The respawnTrigger Z values are out of the bounds of the spawnPosition + spawnPositionvariance. Please check your respawnTrigger config.",
+      );
+    }
   }
 
   public update(): void {
@@ -135,9 +189,16 @@ export class LocalController {
       );
     }
 
-    // Allow the user to fall far below zero before resetting
-    // TODO - Might want to make this a configurable value
-    if (this.config.character.position.y < -100) {
+    // bounds check
+    const outOfBounds =
+      this.config.character.position.x < this.minimumX || // left
+      this.config.character.position.x > this.maximumX || // right
+      this.config.character.position.z < this.minimumZ || // back
+      this.config.character.position.z > this.maximumZ || // front
+      this.config.character.position.y < this.minimumY || // down
+      this.config.character.position.y > this.maximumY; //   up
+
+    if (outOfBounds) {
       this.resetPosition();
     }
     this.updateNetworkState();
@@ -488,9 +549,38 @@ export class LocalController {
     };
   }
 
-  private resetPosition(): void {
+  public resetPosition(): void {
+    const randomWithVariance = (value: number, variance: number): number => {
+      const min = value - variance;
+      const max = value + variance;
+      return Math.random() * (max - min) + min;
+    };
+
+    this.characterVelocity.x = 0;
     this.characterVelocity.y = 0;
-    this.config.character.position.y = 3;
+    this.characterVelocity.z = 0;
+
+    this.config.character.position.set(
+      randomWithVariance(
+        this.config.spawnConfiguration.spawnPosition!.x,
+        this.config.spawnConfiguration.spawnPositionvariance!.x,
+      ),
+      randomWithVariance(
+        this.config.spawnConfiguration.spawnPosition!.y,
+        this.config.spawnConfiguration.spawnPositionvariance!.y,
+      ),
+      randomWithVariance(
+        this.config.spawnConfiguration.spawnPosition!.z,
+        this.config.spawnConfiguration.spawnPositionvariance!.z,
+      ),
+    );
+    const respawnRotation = new Euler(
+      0,
+      -this.config.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
+      0,
+    );
+    this.config.character.rotation.set(respawnRotation.x, respawnRotation.y, respawnRotation.z);
+
     this.characterOnGround = false;
     this.doubleJumpUsed = false;
     this.jumpReleased = true;

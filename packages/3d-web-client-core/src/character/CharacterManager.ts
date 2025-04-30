@@ -16,6 +16,29 @@ import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
 import { encodeCharacterAndCamera } from "./url-position";
 
+export type SpawnConfiguration = {
+  spawnPosition?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  spawnPositionvariance?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  spawnYRotation?: number;
+  respawnTrigger?: {
+    minX?: number;
+    maxX?: number;
+    minY?: number;
+    maxY?: number;
+    minZ?: number;
+    maxZ?: number;
+  };
+  enableRespawnButton?: boolean;
+};
+
 export type CharacterManagerConfig = {
   composer: Composer;
   characterModelLoader: CharacterModelLoader;
@@ -27,6 +50,7 @@ export type CharacterManagerConfig = {
   remoteUserStates: Map<number, CharacterState>;
   sendUpdate: (update: CharacterState) => void;
   animationConfig: AnimationConfig;
+  spawnConfiguration: SpawnConfiguration;
   characterResolve: (clientId: number) => {
     username: string;
     characterDescription: CharacterDescription;
@@ -50,6 +74,8 @@ export class CharacterManager {
 
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
+
+  private respawnButton: HTMLDivElement | null = null;
 
   constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
@@ -96,11 +122,38 @@ export class CharacterManager {
       virtualJoystick: this.config.virtualJoystick,
       cameraManager: this.config.cameraManager,
       timeManager: this.config.timeManager,
+      spawnConfiguration: this.config.spawnConfiguration,
     });
     this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
     this.group.add(character);
     this.localCharacterSpawned = true;
+    if (this.config.spawnConfiguration.enableRespawnButton) {
+      this.setupRespawnButton();
+    }
+  }
+
+  private setupRespawnButton() {
+    this.respawnButton = document.createElement("div");
+    this.respawnButton.className = "respawn-button";
+    this.respawnButton.innerText = "RESPAWN";
+    this.respawnButton.onclick = () => {
+      this.localController.resetPosition();
+    };
+    this.respawnButton.style.position = "absolute";
+    this.respawnButton.style.bottom = "12px";
+    this.respawnButton.style.right = "12px";
+    this.respawnButton.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+    this.respawnButton.style.color = "#dddddd";
+    this.respawnButton.style.padding = "7px";
+    this.respawnButton.style.borderRadius = "7px";
+    this.respawnButton.style.cursor = "pointer";
+    this.respawnButton.style.zIndex = "1000";
+    this.respawnButton.style.fontSize = "12px";
+    this.respawnButton.style.fontFamily = "Arial, sans-serif";
+    this.respawnButton.style.fontWeight = "bold";
+    this.respawnButton.style.userSelect = "none";
+    document.body.appendChild(this.respawnButton);
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
