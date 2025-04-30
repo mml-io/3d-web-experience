@@ -1,3 +1,4 @@
+import { SpawnConfiguration } from "@mml-io/3d-web-client-core";
 import { IframeWrapper, MMLScene, registerCustomElementsToWindow } from "@mml-io/mml-web";
 import {
   EditableNetworkedDOM,
@@ -46,16 +47,33 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Create a "local" server that the avatar clients can connect to to see each other
   const localAvatarServer = new LocalAvatarServer();
 
+  const client1SpawnConfig: SpawnConfiguration = {
+    spawnPosition: {
+      x: -0.5,
+      y: 0.5,
+      z: 5,
+    },
+  };
+
   // Create the first avatar client and append it to the first quadrant
   const client1 = new LocalAvatarClient(
     localAvatarServer,
     1,
     new Vector3(-0.5, 0.5, 5),
     new Euler(0, Math.PI, 0),
+    client1SpawnConfig,
   );
   client1.addDocument(networkedDOMDocument, iframeWindow, iframeBody);
   quadrant1.appendChild(client1.element);
   client1.update();
+
+  const client2SpawnConfig: SpawnConfiguration = {
+    spawnPosition: {
+      x: 0.5,
+      y: 0.5,
+      z: 5,
+    },
+  };
 
   // Create the second avatar client and append it to the second quadrant
   const client2 = new LocalAvatarClient(
@@ -63,6 +81,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     2,
     new Vector3(0.5, 0.5, 5),
     new Euler(0, Math.PI, 0),
+    client2SpawnConfig,
   );
   client2.addDocument(networkedDOMDocument, iframeWindow, iframeBody);
   quadrant2.appendChild(client2.element);

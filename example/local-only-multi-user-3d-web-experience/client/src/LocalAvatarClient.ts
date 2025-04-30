@@ -10,6 +10,7 @@ import {
   GroundPlane,
   KeyInputManager,
   MMLCompositionScene,
+  SpawnConfiguration,
   TimeManager,
 } from "@mml-io/3d-web-client-core";
 import { MMLWebRunnerClient } from "@mml-io/mml-web-runner";
@@ -67,11 +68,14 @@ export class LocalAvatarClient {
   private documentRunnerClients = new Set<MMLWebRunnerClient>();
   private animationFrameRequest: number | null = null;
 
+  private spawnConfiguration: SpawnConfiguration;
+
   constructor(
     private localAvatarServer: LocalAvatarServer,
     private localClientId: number,
     spawnPosition: Vector3,
     spawnRotation: Euler,
+    spawnConfiguration: SpawnConfiguration,
   ) {
     this.element = document.createElement("div");
     this.element.style.position = "absolute";
@@ -122,6 +126,29 @@ export class LocalAvatarClient {
       },
     );
 
+    this.spawnConfiguration = {
+      spawnPosition: {
+        x: spawnConfiguration?.spawnPosition?.x ?? 0,
+        y: spawnConfiguration?.spawnPosition?.y ?? 0,
+        z: spawnConfiguration?.spawnPosition?.z ?? 0,
+      },
+      spawnPositionvariance: {
+        x: spawnConfiguration?.spawnPositionvariance?.x ?? 0,
+        y: spawnConfiguration?.spawnPositionvariance?.y ?? 0,
+        z: spawnConfiguration?.spawnPositionvariance?.z ?? 0,
+      },
+      spawnYRotation: spawnConfiguration?.spawnYRotation ?? 0,
+      respawnTrigger: {
+        minX: spawnConfiguration?.respawnTrigger?.minX,
+        maxX: spawnConfiguration?.respawnTrigger?.maxX,
+        minY: spawnConfiguration?.respawnTrigger?.minY ?? -100,
+        maxY: spawnConfiguration?.respawnTrigger?.maxY,
+        minZ: spawnConfiguration?.respawnTrigger?.minZ,
+        maxZ: spawnConfiguration?.respawnTrigger?.maxZ,
+      },
+      enableRespawnButton: spawnConfiguration?.enableRespawnButton ?? false,
+    };
+
     this.characterManager = new CharacterManager({
       composer: this.composer,
       characterModelLoader: this.characterModelLoader,
@@ -137,6 +164,7 @@ export class LocalAvatarClient {
       characterResolve: () => {
         return { username: "User", characterDescription };
       },
+      spawnConfiguration: this.spawnConfiguration,
     });
     this.scene.add(this.characterManager.group);
 
