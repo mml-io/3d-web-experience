@@ -73,8 +73,6 @@ export class LocalAvatarClient {
   constructor(
     private localAvatarServer: LocalAvatarServer,
     private localClientId: number,
-    spawnPosition: Vector3,
-    spawnRotation: Euler,
     spawnConfiguration: SpawnConfiguration,
   ) {
     this.element = document.createElement("div");
@@ -185,6 +183,16 @@ export class LocalAvatarClient {
     this.collisionsManager.addMeshesGroup(groundPlane);
     this.scene.add(groundPlane);
 
+    const spawnPosition = new Vector3(
+      this.spawnConfiguration.spawnPosition!.x,
+      this.spawnConfiguration.spawnPosition!.y,
+      this.spawnConfiguration.spawnPosition!.z,
+    );
+    const spawnRotation = new Euler(
+      0,
+      this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
+      0,
+    );
     this.characterManager.spawnLocalCharacter(
       localClientId,
       "User",
@@ -192,6 +200,19 @@ export class LocalAvatarClient {
       spawnPosition,
       spawnRotation,
     );
+
+    let cameraPosition: Vector3 | null = null;
+    const offset = new Vector3(0, 0, 3.3);
+    offset.applyEuler(new Euler(0, spawnRotation.y, 0));
+    cameraPosition = spawnPosition.clone().sub(offset).add(this.characterManager.headTargetOffset);
+
+    if (cameraPosition !== null) {
+      this.cameraManager.camera.position.copy(cameraPosition);
+      this.cameraManager.setTarget(
+        new Vector3().add(spawnPosition).add(this.characterManager.headTargetOffset),
+      );
+      this.cameraManager.reverseUpdateFromPositions();
+    }
   }
 
   public dispose() {
