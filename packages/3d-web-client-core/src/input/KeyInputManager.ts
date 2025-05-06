@@ -57,7 +57,6 @@ export class KeyInputManager {
 
   public createKeyBinding(key: Key, callback: () => void): void {
     if (this.bindings.has(key)) {
-      console.warn(`Key binding for ${key} already exists.`);
       return;
     }
     this.bindings.set(key, callback);
@@ -65,7 +64,6 @@ export class KeyInputManager {
 
   public removeKeyBinding(key: Key): void {
     if (!this.bindings.has(key)) {
-      console.warn(`Can't remove key binding for ${key} as it does not exist.`);
       return;
     }
     this.bindings.delete(key);
