@@ -34,7 +34,7 @@ const app = new Networked3dWebExperienceClient(holder, {
   avatarConfiguration: {
     availableAvatars: [],
   },
-  allowOrbitalCamera: true,
+  allowOrbitalCamera: false,
   loadingScreen: {
     background: "#424242",
     color: "#ffffff",
