@@ -34,17 +34,6 @@ const app = new Networked3dWebExperienceClient(holder, {
   avatarConfiguration: {
     availableAvatars: [],
   },
-  spawnConfiguration: {
-    spawnPosition: {
-      y: 5,
-    },
-    spawnPositionVariance: {
-      x: 2,
-      y: 5,
-      z: 1,
-    },
-    enableRespawnButton: true,
-  },
   allowOrbitalCamera: true,
   loadingScreen: {
     background: "#424242",
