@@ -8,7 +8,7 @@ import { TimeManager } from "../time/TimeManager";
 import { characterControllerValues } from "../tweakpane/blades/characterControlsFolder";
 
 import { Character } from "./Character";
-import { SpawnConfiguration } from "./CharacterManager";
+import { SpawnConfigurationState } from "./CharacterManager";
 import { AnimationState, CharacterState } from "./CharacterState";
 
 const downVector = new Vector3(0, -1, 0);
@@ -21,7 +21,7 @@ export type LocalControllerConfig = {
   virtualJoystick?: VirtualJoystick;
   cameraManager: CameraManager;
   timeManager: TimeManager;
-  spawnConfiguration: SpawnConfiguration;
+  spawnConfiguration: SpawnConfigurationState;
 };
 
 export class LocalController {
@@ -112,24 +112,24 @@ export class LocalController {
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: AnimationState.idle,
     };
-    this.minimumX = this.config.spawnConfiguration.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY;
-    this.maximumX = this.config.spawnConfiguration.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY;
-    this.minimumY = this.config.spawnConfiguration.respawnTrigger?.minY ?? Number.NEGATIVE_INFINITY;
-    this.maximumY = this.config.spawnConfiguration.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY;
-    this.minimumZ = this.config.spawnConfiguration.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY;
-    this.maximumZ = this.config.spawnConfiguration.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY;
+    this.minimumX = this.config.spawnConfiguration.respawnTrigger.minX;
+    this.maximumX = this.config.spawnConfiguration.respawnTrigger.maxX;
+    this.minimumY = this.config.spawnConfiguration.respawnTrigger.minY;
+    this.maximumY = this.config.spawnConfiguration.respawnTrigger.maxY;
+    this.minimumZ = this.config.spawnConfiguration.respawnTrigger.minZ;
+    this.maximumZ = this.config.spawnConfiguration.respawnTrigger.maxZ;
 
     const maxAbsSpawnX =
-      Math.abs(this.config.spawnConfiguration.spawnPosition!.x) +
-      Math.abs(this.config.spawnConfiguration.spawnPositionvariance!.x);
+      Math.abs(this.config.spawnConfiguration.spawnPosition.x) +
+      Math.abs(this.config.spawnConfiguration.spawnPositionVariance.x);
 
     const maxAbsSpawnY =
-      Math.abs(this.config.spawnConfiguration.spawnPosition!.y) +
-      Math.abs(this.config.spawnConfiguration.spawnPositionvariance!.y);
+      Math.abs(this.config.spawnConfiguration.spawnPosition.y) +
+      Math.abs(this.config.spawnConfiguration.spawnPositionVariance.y);
 
     const maxAbsSpawnZ =
-      Math.abs(this.config.spawnConfiguration.spawnPosition!.z) +
-      Math.abs(this.config.spawnConfiguration.spawnPositionvariance!.z);
+      Math.abs(this.config.spawnConfiguration.spawnPosition.z) +
+      Math.abs(this.config.spawnConfiguration.spawnPositionVariance.z);
 
     if (Math.abs(this.minimumX) < maxAbsSpawnX || Math.abs(this.maximumX) < maxAbsSpawnX) {
       // If the respawn trigger minX or maxX is out of bounds of the spawn position variance,
@@ -138,7 +138,7 @@ export class LocalController {
       this.minimumX = -maxAbsSpawnX - 1;
       this.maximumX = maxAbsSpawnX + 1;
       console.warn(
-        "The respawnTrigger X values are out of the bounds of the spawnPosition + spawnPositionvariance. Please check your respawnTrigger config.",
+        "The respawnTrigger X values are out of the bounds of the spawnPosition + spawnPositionVariance. Please check your respawnTrigger config.",
       );
     }
 
@@ -146,7 +146,7 @@ export class LocalController {
       this.minimumY = -maxAbsSpawnY - 1;
       this.maximumY = maxAbsSpawnY + 1;
       console.warn(
-        "The respawnTrigger Y values are out of the bounds of the spawnPosition + spawnPositionvariance. Please check your respawnTrigger config.",
+        "The respawnTrigger Y values are out of the bounds of the spawnPosition + spawnPositionVariance. Please check your respawnTrigger config.",
       );
     }
 
@@ -154,9 +154,19 @@ export class LocalController {
       this.minimumZ = -maxAbsSpawnZ - 1;
       this.maximumZ = maxAbsSpawnZ + 1;
       console.warn(
-        "The respawnTrigger Z values are out of the bounds of the spawnPosition + spawnPositionvariance. Please check your respawnTrigger config.",
+        "The respawnTrigger Z values are out of the bounds of the spawnPosition + spawnPositionVariance. Please check your respawnTrigger config.",
       );
     }
+  }
+
+  public updateSpawnConfig(spawnConfig: SpawnConfigurationState): void {
+    this.config.spawnConfiguration = spawnConfig;
+    this.minimumX = spawnConfig.respawnTrigger.minX;
+    this.maximumX = spawnConfig.respawnTrigger.maxX;
+    this.minimumY = spawnConfig.respawnTrigger.minY;
+    this.maximumY = spawnConfig.respawnTrigger.maxY;
+    this.minimumZ = spawnConfig.respawnTrigger.minZ;
+    this.maximumZ = spawnConfig.respawnTrigger.maxZ;
   }
 
   public update(): void {
@@ -562,21 +572,21 @@ export class LocalController {
 
     this.config.character.position.set(
       randomWithVariance(
-        this.config.spawnConfiguration.spawnPosition!.x,
-        this.config.spawnConfiguration.spawnPositionvariance!.x,
+        this.config.spawnConfiguration.spawnPosition.x,
+        this.config.spawnConfiguration.spawnPositionVariance.x,
       ),
       randomWithVariance(
-        this.config.spawnConfiguration.spawnPosition!.y,
-        this.config.spawnConfiguration.spawnPositionvariance!.y,
+        this.config.spawnConfiguration.spawnPosition.y,
+        this.config.spawnConfiguration.spawnPositionVariance.y,
       ),
       randomWithVariance(
-        this.config.spawnConfiguration.spawnPosition!.z,
-        this.config.spawnConfiguration.spawnPositionvariance!.z,
+        this.config.spawnConfiguration.spawnPosition.z,
+        this.config.spawnConfiguration.spawnPositionVariance.z,
       ),
     );
     const respawnRotation = new Euler(
       0,
-      -this.config.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
+      -this.config.spawnConfiguration.spawnYRotation * (Math.PI / 180),
       0,
     );
     this.config.character.rotation.set(respawnRotation.x, respawnRotation.y, respawnRotation.z);

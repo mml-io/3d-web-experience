@@ -1,4 +1,4 @@
-import { SpawnConfiguration } from "@mml-io/3d-web-client-core";
+import { SpawnConfigurationState } from "@mml-io/3d-web-client-core";
 import { IframeWrapper, MMLScene, registerCustomElementsToWindow } from "@mml-io/mml-web";
 import {
   EditableNetworkedDOM,
@@ -46,13 +46,27 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Create a "local" server that the avatar clients can connect to to see each other
   const localAvatarServer = new LocalAvatarServer();
 
-  const client1SpawnConfig: SpawnConfiguration = {
+  const client1SpawnConfig: SpawnConfigurationState = {
     spawnPosition: {
       x: -0.5,
       y: 0.5,
       z: 5,
     },
+    spawnPositionVariance: {
+      x: 0,
+      y: 0,
+      z: 0,
+    },
+    respawnTrigger: {
+      minX: Number.NEGATIVE_INFINITY,
+      maxX: Number.POSITIVE_INFINITY,
+      minY: -100,
+      maxY: Number.POSITIVE_INFINITY,
+      minZ: Number.NEGATIVE_INFINITY,
+      maxZ: Number.POSITIVE_INFINITY,
+    },
     spawnYRotation: 180,
+    enableRespawnButton: false,
   };
 
   // Create the first avatar client and append it to the first quadrant
@@ -61,13 +75,27 @@ window.addEventListener("DOMContentLoaded", async () => {
   quadrant1.appendChild(client1.element);
   client1.update();
 
-  const client2SpawnConfig: SpawnConfiguration = {
+  const client2SpawnConfig: SpawnConfigurationState = {
     spawnPosition: {
       x: 0.5,
       y: 0.5,
       z: 5,
     },
+    spawnPositionVariance: {
+      x: 0,
+      y: 0,
+      z: 0,
+    },
     spawnYRotation: 180,
+    respawnTrigger: {
+      minX: Number.NEGATIVE_INFINITY,
+      maxX: Number.POSITIVE_INFINITY,
+      minY: -100,
+      maxY: Number.POSITIVE_INFINITY,
+      minZ: Number.NEGATIVE_INFINITY,
+      maxZ: Number.POSITIVE_INFINITY,
+    },
+    enableRespawnButton: false,
   };
 
   // Create the second avatar client and append it to the second quadrant

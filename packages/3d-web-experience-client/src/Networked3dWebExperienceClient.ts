@@ -20,6 +20,7 @@ import {
   TimeManager,
   TweakPane,
   SpawnConfiguration,
+  SpawnConfigurationState,
   VirtualJoystick,
 } from "@mml-io/3d-web-client-core";
 import {
@@ -133,7 +134,7 @@ export class Networked3dWebExperienceClient {
   };
   private characterControllerPaneSet: boolean = false;
 
-  private spawnConfiguration: SpawnConfiguration;
+  private spawnConfiguration: SpawnConfigurationState;
 
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
@@ -271,19 +272,19 @@ export class Networked3dWebExperienceClient {
         y: this.config.spawnConfiguration?.spawnPosition?.y ?? 0,
         z: this.config.spawnConfiguration?.spawnPosition?.z ?? 0,
       },
-      spawnPositionvariance: {
-        x: this.config.spawnConfiguration?.spawnPositionvariance?.x ?? 0,
-        y: this.config.spawnConfiguration?.spawnPositionvariance?.y ?? 0,
-        z: this.config.spawnConfiguration?.spawnPositionvariance?.z ?? 0,
+      spawnPositionVariance: {
+        x: this.config.spawnConfiguration?.spawnPositionVariance?.x ?? 0,
+        y: this.config.spawnConfiguration?.spawnPositionVariance?.y ?? 0,
+        z: this.config.spawnConfiguration?.spawnPositionVariance?.z ?? 0,
       },
       spawnYRotation: this.config.spawnConfiguration?.spawnYRotation ?? 0,
       respawnTrigger: {
-        minX: this.config.spawnConfiguration?.respawnTrigger?.minX,
-        maxX: this.config.spawnConfiguration?.respawnTrigger?.maxX,
+        minX: this.config.spawnConfiguration?.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY,
+        maxX: this.config.spawnConfiguration?.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY,
         minY: this.config.spawnConfiguration?.respawnTrigger?.minY ?? -100,
-        maxY: this.config.spawnConfiguration?.respawnTrigger?.maxY,
-        minZ: this.config.spawnConfiguration?.respawnTrigger?.minZ,
-        maxZ: this.config.spawnConfiguration?.respawnTrigger?.maxZ,
+        maxY: this.config.spawnConfiguration?.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY,
+        minZ: this.config.spawnConfiguration?.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
+        maxZ: this.config.spawnConfiguration?.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
       },
       enableRespawnButton: this.config.spawnConfiguration?.enableRespawnButton ?? false,
     };
@@ -382,6 +383,39 @@ export class Networked3dWebExperienceClient {
         this.connectToTextChat();
       }
     }
+
+    if (config.spawnConfiguration !== undefined) {
+      this.spawnConfiguration = {
+        spawnPosition: {
+          x: config.spawnConfiguration.spawnPosition?.x ?? 0,
+          y: config.spawnConfiguration.spawnPosition?.y ?? 0,
+          z: config.spawnConfiguration.spawnPosition?.z ?? 0,
+        },
+        spawnPositionVariance: {
+          x: config.spawnConfiguration.spawnPositionVariance?.x ?? 0,
+          y: config.spawnConfiguration.spawnPositionVariance?.y ?? 0,
+          z: config.spawnConfiguration.spawnPositionVariance?.z ?? 0,
+        },
+        spawnYRotation: config.spawnConfiguration.spawnYRotation ?? 0,
+        respawnTrigger: {
+          minX: config.spawnConfiguration.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY,
+          maxX: config.spawnConfiguration.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY,
+          minY: config.spawnConfiguration.respawnTrigger?.minY ?? -100,
+          maxY: config.spawnConfiguration.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY,
+          minZ: config.spawnConfiguration.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
+          maxZ: config.spawnConfiguration.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
+        },
+        enableRespawnButton:
+          config.spawnConfiguration.enableRespawnButton !== undefined
+            ? config.spawnConfiguration.enableRespawnButton
+            : false,
+      };
+
+      if (this.characterManager.localController) {
+        this.characterManager.localController.updateSpawnConfig(this.spawnConfiguration);
+      }
+    }
+
     if (config.mmlDocuments) {
       this.setMMLDocuments(config.mmlDocuments);
     }
@@ -589,16 +623,16 @@ export class Networked3dWebExperienceClient {
     const spawnPosition = new Vector3();
     spawnPosition.set(
       this.randomWithVariance(
-        this.spawnConfiguration.spawnPosition!.x,
-        this.spawnConfiguration.spawnPositionvariance!.x,
+        this.spawnConfiguration.spawnPosition.x,
+        this.spawnConfiguration.spawnPositionVariance.x,
       ),
       this.randomWithVariance(
-        this.spawnConfiguration.spawnPosition!.y,
-        this.spawnConfiguration.spawnPositionvariance!.y,
+        this.spawnConfiguration.spawnPosition.y,
+        this.spawnConfiguration.spawnPositionVariance.y,
       ),
       this.randomWithVariance(
         this.spawnConfiguration.spawnPosition!.z,
-        this.spawnConfiguration.spawnPositionvariance!.z,
+        this.spawnConfiguration.spawnPositionVariance.z,
       ),
     );
     const spawnRotation = new Euler(

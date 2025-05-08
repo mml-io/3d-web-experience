@@ -10,7 +10,7 @@ import {
   GroundPlane,
   KeyInputManager,
   MMLCompositionScene,
-  SpawnConfiguration,
+  SpawnConfigurationState,
   TimeManager,
 } from "@mml-io/3d-web-client-core";
 import { MMLWebRunnerClient } from "@mml-io/mml-web-runner";
@@ -68,12 +68,12 @@ export class LocalAvatarClient {
   private documentRunnerClients = new Set<MMLWebRunnerClient>();
   private animationFrameRequest: number | null = null;
 
-  private spawnConfiguration: SpawnConfiguration;
+  private spawnConfiguration: SpawnConfigurationState;
 
   constructor(
     private localAvatarServer: LocalAvatarServer,
     private localClientId: number,
-    spawnConfiguration: SpawnConfiguration,
+    spawnConfiguration: SpawnConfigurationState,
   ) {
     this.element = document.createElement("div");
     this.element.style.position = "absolute";
@@ -130,10 +130,10 @@ export class LocalAvatarClient {
         y: spawnConfiguration?.spawnPosition?.y ?? 0,
         z: spawnConfiguration?.spawnPosition?.z ?? 0,
       },
-      spawnPositionvariance: {
-        x: spawnConfiguration?.spawnPositionvariance?.x ?? 0,
-        y: spawnConfiguration?.spawnPositionvariance?.y ?? 0,
-        z: spawnConfiguration?.spawnPositionvariance?.z ?? 0,
+      spawnPositionVariance: {
+        x: spawnConfiguration?.spawnPositionVariance?.x ?? 0,
+        y: spawnConfiguration?.spawnPositionVariance?.y ?? 0,
+        z: spawnConfiguration?.spawnPositionVariance?.z ?? 0,
       },
       spawnYRotation: spawnConfiguration?.spawnYRotation ?? 0,
       respawnTrigger: {

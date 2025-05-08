@@ -16,27 +16,41 @@ import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
 import { encodeCharacterAndCamera } from "./url-position";
 
+type SpawnPosition = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+type SpawnPositionVariance = {
+  x: number;
+  y: number;
+  z: number;
+};
+
+type RespawnTrigger = {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+};
+
 export type SpawnConfiguration = {
-  spawnPosition?: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  spawnPositionvariance?: {
-    x: number;
-    y: number;
-    z: number;
-  };
+  spawnPosition?: Partial<SpawnPosition>;
+  spawnPositionVariance?: Partial<SpawnPositionVariance>;
   spawnYRotation?: number;
-  respawnTrigger?: {
-    minX?: number;
-    maxX?: number;
-    minY?: number;
-    maxY?: number;
-    minZ?: number;
-    maxZ?: number;
-  };
+  respawnTrigger?: Partial<RespawnTrigger>;
   enableRespawnButton?: boolean;
+};
+
+export type SpawnConfigurationState = {
+  spawnPosition: SpawnPosition;
+  spawnPositionVariance: SpawnPositionVariance;
+  spawnYRotation: number;
+  respawnTrigger: RespawnTrigger;
+  enableRespawnButton: boolean;
 };
 
 export type CharacterManagerConfig = {
@@ -50,7 +64,7 @@ export type CharacterManagerConfig = {
   remoteUserStates: Map<number, CharacterState>;
   sendUpdate: (update: CharacterState) => void;
   animationConfig: AnimationConfig;
-  spawnConfiguration: SpawnConfiguration;
+  spawnConfiguration: SpawnConfigurationState;
   characterResolve: (clientId: number) => {
     username: string;
     characterDescription: CharacterDescription;
