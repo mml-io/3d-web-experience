@@ -94,6 +94,31 @@ export type UpdatableConfig = {
   enableTweakPane?: boolean;
 };
 
+function normalizeSpawnConfiguration(spawnConfig?: SpawnConfiguration): SpawnConfigurationState {
+  return {
+    spawnPosition: {
+      x: spawnConfig?.spawnPosition?.x ?? 0,
+      y: spawnConfig?.spawnPosition?.y ?? 0,
+      z: spawnConfig?.spawnPosition?.z ?? 0,
+    },
+    spawnPositionVariance: {
+      x: spawnConfig?.spawnPositionVariance?.x ?? 0,
+      y: spawnConfig?.spawnPositionVariance?.y ?? 0,
+      z: spawnConfig?.spawnPositionVariance?.z ?? 0,
+    },
+    spawnYRotation: spawnConfig?.spawnYRotation ?? 0,
+    respawnTrigger: {
+      minX: spawnConfig?.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY,
+      maxX: spawnConfig?.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY,
+      minY: spawnConfig?.respawnTrigger?.minY ?? -100,
+      maxY: spawnConfig?.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY,
+      minZ: spawnConfig?.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
+      maxZ: spawnConfig?.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
+    },
+    enableRespawnButton: spawnConfig?.enableRespawnButton ?? false,
+  };
+}
+
 export class Networked3dWebExperienceClient {
   private element: HTMLDivElement;
   private canvasHolder: HTMLDivElement;
@@ -142,6 +167,7 @@ export class Networked3dWebExperienceClient {
   private errorScreen?: ErrorScreen;
   private currentRequestAnimationFrame: number | null = null;
   private groundPlane: GroundPlane | null = null;
+  private respawnButton: HTMLDivElement | null = null;
 
   constructor(
     private holderElement: HTMLElement,
@@ -266,28 +292,7 @@ export class Networked3dWebExperienceClient {
       });
     }
 
-    this.spawnConfiguration = {
-      spawnPosition: {
-        x: this.config.spawnConfiguration?.spawnPosition?.x ?? 0,
-        y: this.config.spawnConfiguration?.spawnPosition?.y ?? 0,
-        z: this.config.spawnConfiguration?.spawnPosition?.z ?? 0,
-      },
-      spawnPositionVariance: {
-        x: this.config.spawnConfiguration?.spawnPositionVariance?.x ?? 0,
-        y: this.config.spawnConfiguration?.spawnPositionVariance?.y ?? 0,
-        z: this.config.spawnConfiguration?.spawnPositionVariance?.z ?? 0,
-      },
-      spawnYRotation: this.config.spawnConfiguration?.spawnYRotation ?? 0,
-      respawnTrigger: {
-        minX: this.config.spawnConfiguration?.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY,
-        maxX: this.config.spawnConfiguration?.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY,
-        minY: this.config.spawnConfiguration?.respawnTrigger?.minY ?? -100,
-        maxY: this.config.spawnConfiguration?.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY,
-        minZ: this.config.spawnConfiguration?.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
-        maxZ: this.config.spawnConfiguration?.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
-      },
-      enableRespawnButton: this.config.spawnConfiguration?.enableRespawnButton ?? false,
-    };
+    this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
 
     this.characterManager = new CharacterManager({
       composer: this.composer,
@@ -310,6 +315,10 @@ export class Networked3dWebExperienceClient {
       updateURLLocation: this.config.updateURLLocation !== false,
     });
     this.scene.add(this.characterManager.group);
+
+    if (this.spawnConfiguration.enableRespawnButton) {
+      this.element.appendChild(this.characterManager.createRespawnButton());
+    }
 
     this.setGroundPlaneEnabled(this.config.environmentConfiguration?.groundPlane ?? true);
 
@@ -384,36 +393,16 @@ export class Networked3dWebExperienceClient {
       }
     }
 
-    if (config.spawnConfiguration !== undefined) {
-      this.spawnConfiguration = {
-        spawnPosition: {
-          x: config.spawnConfiguration.spawnPosition?.x ?? 0,
-          y: config.spawnConfiguration.spawnPosition?.y ?? 0,
-          z: config.spawnConfiguration.spawnPosition?.z ?? 0,
-        },
-        spawnPositionVariance: {
-          x: config.spawnConfiguration.spawnPositionVariance?.x ?? 0,
-          y: config.spawnConfiguration.spawnPositionVariance?.y ?? 0,
-          z: config.spawnConfiguration.spawnPositionVariance?.z ?? 0,
-        },
-        spawnYRotation: config.spawnConfiguration.spawnYRotation ?? 0,
-        respawnTrigger: {
-          minX: config.spawnConfiguration.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY,
-          maxX: config.spawnConfiguration.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY,
-          minY: config.spawnConfiguration.respawnTrigger?.minY ?? -100,
-          maxY: config.spawnConfiguration.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY,
-          minZ: config.spawnConfiguration.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
-          maxZ: config.spawnConfiguration.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
-        },
-        enableRespawnButton:
-          config.spawnConfiguration.enableRespawnButton !== undefined
-            ? config.spawnConfiguration.enableRespawnButton
-            : false,
-      };
-
-      if (this.characterManager.localController) {
-        this.characterManager.localController.updateSpawnConfig(this.spawnConfiguration);
-      }
+    this.spawnConfiguration = normalizeSpawnConfiguration(config.spawnConfiguration);
+    if (this.characterManager.localController) {
+      this.characterManager.localController.updateSpawnConfig(this.spawnConfiguration);
+    }
+    if (this.spawnConfiguration.enableRespawnButton && !this.respawnButton) {
+      this.respawnButton = this.characterManager.createRespawnButton();
+      this.element.appendChild(this.respawnButton);
+    } else if (!this.spawnConfiguration.enableRespawnButton && this.respawnButton) {
+      this.respawnButton.remove();
+      this.respawnButton = null;
     }
 
     if (config.mmlDocuments) {

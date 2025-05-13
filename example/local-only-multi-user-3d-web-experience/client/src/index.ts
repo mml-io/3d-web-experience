@@ -66,7 +66,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       maxZ: Number.POSITIVE_INFINITY,
     },
     spawnYRotation: 180,
-    enableRespawnButton: false,
+    enableRespawnButton: true,
   };
 
   // Create the first avatar client and append it to the first quadrant

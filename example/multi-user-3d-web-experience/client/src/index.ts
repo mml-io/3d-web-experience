@@ -32,7 +32,12 @@ const app = new Networked3dWebExperienceClient(holder, {
     },
   },
   avatarConfiguration: {
-    availableAvatars: [],
+    availableAvatars: [
+      {
+        name: "bot",
+        meshFileUrl: "/assets/models/bot.glb",
+      },
+    ],
   },
   allowOrbitalCamera: true,
   loadingScreen: {
@@ -42,6 +47,9 @@ const app = new Networked3dWebExperienceClient(holder, {
     backgroundBlurAmount: 12,
     title: "3D Web Experience",
     subtitle: "Powered by Metaverse Markup Language",
+  },
+  spawnConfiguration: {
+    enableRespawnButton: true,
   },
 });
 

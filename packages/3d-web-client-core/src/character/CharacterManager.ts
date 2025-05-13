@@ -89,8 +89,6 @@ export class CharacterManager {
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
 
-  private respawnButton: HTMLDivElement | null = null;
-
   constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
   }
@@ -142,32 +140,33 @@ export class CharacterManager {
     this.localCharacter.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
     this.group.add(character);
     this.localCharacterSpawned = true;
-    if (this.config.spawnConfiguration.enableRespawnButton) {
-      this.setupRespawnButton();
-    }
   }
 
-  private setupRespawnButton() {
-    this.respawnButton = document.createElement("div");
-    this.respawnButton.className = "respawn-button";
-    this.respawnButton.innerText = "RESPAWN";
-    this.respawnButton.onclick = () => {
+  public createRespawnButton(): HTMLDivElement {
+    const respawnButton = document.createElement("div");
+    respawnButton.className = "respawn-button";
+    respawnButton.textContent = "RESPAWN";
+    respawnButton.addEventListener("click", () => {
       this.localController.resetPosition();
-    };
-    this.respawnButton.style.position = "absolute";
-    this.respawnButton.style.bottom = "12px";
-    this.respawnButton.style.right = "12px";
-    this.respawnButton.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
-    this.respawnButton.style.color = "#dddddd";
-    this.respawnButton.style.padding = "7px";
-    this.respawnButton.style.borderRadius = "7px";
-    this.respawnButton.style.cursor = "pointer";
-    this.respawnButton.style.zIndex = "1000";
-    this.respawnButton.style.fontSize = "12px";
-    this.respawnButton.style.fontFamily = "Arial, sans-serif";
-    this.respawnButton.style.fontWeight = "bold";
-    this.respawnButton.style.userSelect = "none";
-    document.body.appendChild(this.respawnButton);
+    });
+    respawnButton.style.position = "absolute";
+    respawnButton.style.top = "14px";
+    respawnButton.style.left = "8px";
+    respawnButton.style.zIndex = "102";
+    respawnButton.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+    respawnButton.style.color = "#ffffff";
+    respawnButton.style.borderRadius = "8px";
+    respawnButton.style.border = "1px solid rgba(255, 255, 255, 0.21)";
+    respawnButton.style.height = "22px";
+    respawnButton.style.padding = "8px";
+    respawnButton.style.cursor = "pointer";
+    respawnButton.style.fontSize = "12px";
+    respawnButton.style.fontFamily = "Helvetica, sans-serif";
+    respawnButton.style.userSelect = "none";
+    respawnButton.style.display = "flex";
+    respawnButton.style.alignItems = "center";
+    respawnButton.style.justifyContent = "center";
+    return respawnButton;
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
