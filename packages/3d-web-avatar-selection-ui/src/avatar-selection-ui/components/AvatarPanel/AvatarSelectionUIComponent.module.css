@@ -1,9 +1,9 @@
 .menuButton {
   width: 70px;
   min-height: 70px;
-  position: fixed;
-  top: 12px;
-  right: 12px;
+  position: absolute;
+  top: 0px;
+  right: 0px;
   z-index: 102;
   user-select: none;
 }
@@ -27,7 +27,7 @@
   border-radius: 50%;
   width: 44px;
   height: 44px;
-  position: fixed;
+  position: absolute;
   top: 12px;
   right: 12px;
   border: 1px solid rgba(255, 255, 255, 0.21);
@@ -42,7 +42,7 @@
   border-radius: 50%;
   width: 42px;
   height: 42px;
-  position: fixed;
+  position: absolute;
   top: 12px;
   right: 12px;
   border: 1px solid rgba(255, 255, 255, 0.21);
@@ -64,11 +64,11 @@
 }
 
 .avatarSelectionContainer {
-  position: fixed;
+  position: absolute;
   top: 11px;
   right: 60px;
   width: 30%;
-  min-width: 290px;
+  min-width: 250px;
   max-width: 720px;
   max-height: calc(100vh - 22px);
   background: #000000b3;
