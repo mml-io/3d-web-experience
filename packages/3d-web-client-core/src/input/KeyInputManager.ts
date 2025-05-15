@@ -56,7 +56,17 @@ export class KeyInputManager {
   }
 
   public createKeyBinding(key: Key, callback: () => void): void {
+    if (this.bindings.has(key)) {
+      return;
+    }
     this.bindings.set(key, callback);
+  }
+
+  public removeKeyBinding(key: Key): void {
+    if (!this.bindings.has(key)) {
+      return;
+    }
+    this.bindings.delete(key);
   }
 
   public isMovementKeyPressed(): boolean {

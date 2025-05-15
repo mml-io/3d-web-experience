@@ -74,7 +74,6 @@ type MMLDocumentConfiguration = {
 export type Networked3dWebExperienceClientConfig = {
   userNetworkAddress: string;
   sessionToken: string;
-  allowOrbitalCamera?: boolean;
   chatVisibleByDefault?: boolean;
   userNameToColorOptions?: StringToHslOptions;
   animationConfig: AnimationConfig;
@@ -92,6 +91,7 @@ export type UpdatableConfig = {
   avatarConfiguration?: AvatarConfiguration;
   allowCustomDisplayName?: boolean;
   enableTweakPane?: boolean;
+  allowOrbitalCamera?: boolean;
 };
 
 function normalizeSpawnConfiguration(spawnConfig?: SpawnConfiguration): SpawnConfigurationState {
@@ -379,6 +379,24 @@ export class Networked3dWebExperienceClient {
         this.tweakPane = null;
       } else if (config.enableTweakPane === true && this.tweakPane === null) {
         this.setupTweakPane();
+      }
+    }
+
+    if (config.allowOrbitalCamera !== undefined) {
+      if (config.allowOrbitalCamera === false) {
+        this.keyInputManager.removeKeyBinding(Key.C);
+        if (this.cameraManager.isFlyCameraOn() === true) {
+          // Disable the fly camera if it was enabled
+          this.cameraManager.toggleFlyCamera();
+        }
+      } else if (config.allowOrbitalCamera === true) {
+        this.keyInputManager.createKeyBinding(Key.C, () => {
+          if (document.activeElement === document.body) {
+            // No input is selected - accept the key press
+            this.cameraManager.toggleFlyCamera();
+            this.composer.fitContainer();
+          }
+        });
       }
     }
 

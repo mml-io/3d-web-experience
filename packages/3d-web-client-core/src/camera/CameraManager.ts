@@ -292,6 +292,10 @@ export class CameraManager {
     }
   }
 
+  public isFlyCameraOn(): boolean {
+    return this.isMainCameraActive === false && this.orbitControls.enabled === true;
+  }
+
   public toggleFlyCamera(): void {
     this.isMainCameraActive = !this.isMainCameraActive;
     this.orbitControls.enabled = !this.isMainCameraActive;
