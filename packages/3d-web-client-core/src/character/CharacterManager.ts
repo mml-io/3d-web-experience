@@ -117,7 +117,7 @@ export class CharacterManager {
       composer: this.config.composer,
       isLocal: true,
     });
-    const quaternion = new Quat().setFromEulerXYZ(character.rotation);
+    const quaternion = character.getRotation();
     this.config.sendUpdate({
       id: id,
       position: {
@@ -199,9 +199,16 @@ export class CharacterManager {
       isLocal: false,
     });
 
+    const spawnQuaternion = new Quat().setFromEulerXYZ(spawnRotation);
+
     this.remoteCharacters.set(id, character);
-    character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-    character.rotation.set(spawnRotation.x, spawnRotation.y, spawnRotation.z);
+    character.setPosition(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    character.setRotation(
+      spawnQuaternion.x,
+      spawnQuaternion.y,
+      spawnQuaternion.z,
+      spawnQuaternion.w,
+    );
     const remoteController = new RemoteController({ character, id });
     this.remoteCharacterControllers.set(id, remoteController);
     this.group.addChild(character);
@@ -210,8 +217,8 @@ export class CharacterManager {
   public getLocalCharacterPositionAndRotation(): PositionAndRotation {
     if (this.localCharacter && this.localCharacter && this.localCharacter) {
       return {
-        position: this.localCharacter.position,
-        rotation: this.localCharacter.rotation,
+        position: this.localCharacter.getPosition(),
+        rotation: this.localCharacter.getRotation(),
       };
     }
     return {
@@ -222,12 +229,12 @@ export class CharacterManager {
 
   public clear() {
     for (const [id, character] of this.remoteCharacters) {
-      this.group.remove(character);
+      character.remove();
       this.remoteCharacters.delete(id);
       this.remoteCharacterControllers.delete(id);
     }
     if (this.localCharacter) {
-      this.group.remove(this.localCharacter);
+      this.localCharacter.remove();
       this.localCharacter = null;
     }
   }
@@ -274,8 +281,15 @@ export class CharacterManager {
       const targetOffset = new Vect3();
       targetOffset
         .add(this.headTargetOffset)
-        .applyQuat(this.localCharacter.getRotation())
-        .add(this.localCharacter.position);
+        .applyQuat(
+          new Quat(
+            this.localCharacter.getRotation().x,
+            this.localCharacter.getRotation().y,
+            this.localCharacter.getRotation().z,
+            this.localCharacter.getRotation().w,
+          ),
+        )
+        .add(this.localCharacter.getPosition());
       this.config.cameraManager.setTarget(targetOffset);
 
       for (const [id, update] of this.config.remoteUserStates) {
@@ -303,7 +317,7 @@ export class CharacterManager {
 
       for (const [id, character] of this.remoteCharacters) {
         if (!this.config.remoteUserStates.has(id)) {
-          this.group.remove(character);
+          character.remove();
           this.remoteCharacters.delete(id);
           this.remoteCharacterControllers.delete(id);
         }
