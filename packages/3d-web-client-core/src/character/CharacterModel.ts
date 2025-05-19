@@ -19,6 +19,16 @@ export type CharacterModelConfig = {
   isLocal: boolean;
 };
 
+export const AnimationStateStrings: string[] = [
+  "idle", //        0
+  "walking", //     1
+  "running", //     2
+  "jumpToAir", //   3
+  "air", //         4
+  "airToGround", // 5
+  "doubleJump", //  6
+];
+
 export class CharacterModel {
   public mesh: playcanvas.Entity | null = null;
   // public headBone: Bone | null = null;
@@ -218,17 +228,16 @@ export class CharacterModel {
         }
 
         const animTrack = animationAsset.resource.animations[0].resource;
-        this.animations[animationType] = animTrack;
-
-        // Add the animation state to the anim component
-        this.mesh.anim.addAnimationState(animationType, animTrack);
+        const animName = AnimationStateStrings[animationType];
+        this.animations[animName] = animTrack;
+        this.mesh.anim.addAnimationState(animName, animTrack);
 
         // Set animation properties
         if (!loop) {
           const layer = this.mesh.anim.findAnimationLayer("BaseLayer");
           if (layer) {
             // Configure the animation through assignAnimation which allows setting loop property
-            layer.assignAnimation(animationType, animTrack, playbackSpeed, loop);
+            layer.assignAnimation(animName, animTrack, playbackSpeed, loop);
           }
         }
 
@@ -244,15 +253,16 @@ export class CharacterModel {
     targetAnimation: AnimationState,
     transitionDuration: number = 0.15,
   ): void {
-    console.log("transitionToAnimation", targetAnimation);
     if (!this.mesh || !this.mesh.anim) {
       return;
     }
 
+    const animName = AnimationStateStrings[targetAnimation];
+
     // Check if the target animation exists in our loaded animations
-    if (targetAnimation in this.animations) {
+    if (animName in this.animations) {
       // Use the transition method with the specified duration
-      this.mesh.anim.baseLayer.transition(targetAnimation, transitionDuration);
+      this.mesh.anim.baseLayer.transition(animName, transitionDuration);
 
       // Update our current animation state
       this.currentAnimation = targetAnimation;
