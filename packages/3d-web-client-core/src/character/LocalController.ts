@@ -178,7 +178,7 @@ export class LocalController {
     this.controlState =
       this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
 
-    this.tempRay.set(this.config.character.position, this.vectorDown);
+    this.tempRay.set(this.config.character.getPosition(), this.vectorDown);
     const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.tempRay);
     if (firstRaycastHit !== null) {
       this.currentHeight = firstRaycastHit[0];
@@ -208,12 +208,12 @@ export class LocalController {
 
     // bounds check
     const outOfBounds =
-      this.config.character.position.x < this.minimumX || // left
-      this.config.character.position.x > this.maximumX || // right
-      this.config.character.position.z < this.minimumZ || // back
-      this.config.character.position.z > this.maximumZ || // front
-      this.config.character.position.y < this.minimumY || // down
-      this.config.character.position.y > this.maximumY; //   up
+      this.config.character.getPosition().x < this.minimumX || // left
+      this.config.character.getPosition().x > this.maximumX || // right
+      this.config.character.getPosition().z < this.minimumZ || // back
+      this.config.character.getPosition().z > this.maximumZ || // front
+      this.config.character.getPosition().y < this.minimumY || // down
+      this.config.character.getPosition().y > this.maximumY; //   up
 
     if (outOfBounds) {
       this.resetPosition();
@@ -249,18 +249,22 @@ export class LocalController {
   }
 
   private updateAzimuthalAngle(): void {
-    const cameraPos = new Vect3().copy(this.config.cameraManager.activeCamera.position);
-    const camToModelDistance = cameraPos.distanceTo(this.config.character.position);
+    const cameraPos = new Vect3().copy(this.config.cameraManager.activeCamera.getPosition());
+    const camToModelDistance = cameraPos.distanceTo(
+      new Vect3().copy(this.config.character.getPosition()),
+    );
     const isCameraFirstPerson = camToModelDistance < 2;
     if (isCameraFirstPerson) {
       const cameraForward = this.tempVector
         .set(0, 0, 1)
-        .applyQuat(this.config.cameraManager.activeCamera.getRotation());
+        .applyQuat(new Quat().copy(this.config.cameraManager.activeCamera.getRotation()));
       this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);
     } else {
       this.azimuthalAngle = Math.atan2(
-        this.config.cameraManager.activeCamera.position.x - this.config.character.position.x,
-        this.config.cameraManager.activeCamera.position.z - this.config.character.position.z,
+        this.config.cameraManager.activeCamera.getPosition().x -
+          this.config.character.getPosition().x,
+        this.config.cameraManager.activeCamera.getPosition().z -
+          this.config.character.getPosition().z,
       );
     }
   }
@@ -278,7 +282,7 @@ export class LocalController {
       this.azimuthalAngle + this.rotationOffset,
     );
     const angularDifference = this.computeAngularDifference(rotationQuat);
-    const desiredTime = 0.07;
+    const desiredTime = 1.1;
     const angularSpeed = angularDifference / desiredTime;
     const frameRotation = angularSpeed * this.config.timeManager.deltaTime;
     const rot = new Quat().copy(this.config.character.getRotation());

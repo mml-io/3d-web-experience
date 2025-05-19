@@ -187,61 +187,52 @@ export class Quat {
   }
 
   slerp(qb: Quat, t: number): this {
-    if (t === 0) return this;
-    if (t === 1) return this.copy(qb);
+    if (t <= 0) return this;
+    if (t >= 1) return this.copy(qb);
 
-    const x = this.x,
-      y = this.y,
-      z = this.z,
-      w = this.w;
+    const x1 = this.x,
+      y1 = this.y,
+      z1 = this.z,
+      w1 = this.w;
+    let x2 = qb.x,
+      y2 = qb.y,
+      z2 = qb.z,
+      w2 = qb.w;
 
-    let cosHalfTheta = w * qb.w + x * qb.x + y * qb.y + z * qb.z;
+    let cosHalfTheta = w1 * w2 + x1 * x2 + y1 * y2 + z1 * z2;
 
     if (cosHalfTheta < 0) {
-      this.w = -qb.w;
-      this.x = -qb.x;
-      this.y = -qb.y;
-      this.z = -qb.z;
-
+      w2 = -w2;
+      x2 = -x2;
+      y2 = -y2;
+      z2 = -z2;
       cosHalfTheta = -cosHalfTheta;
-    } else {
-      this.copy(qb);
     }
 
     if (cosHalfTheta >= 1.0) {
-      this.w = w;
-      this.x = x;
-      this.y = y;
-      this.z = z;
-
-      return this;
+      return this.set(x1, y1, z1, w1);
     }
 
-    const sqrSinHalfTheta = 1.0 - cosHalfTheta * cosHalfTheta;
+    const sinHalfTheta = Math.sqrt(1.0 - cosHalfTheta * cosHalfTheta);
 
-    if (sqrSinHalfTheta <= Number.EPSILON) {
-      const s = 1 - t;
-      this.w = s * w + t * this.w;
-      this.x = s * x + t * this.x;
-      this.y = s * y + t * this.y;
-      this.z = s * z + t * this.z;
-
-      this.normalize(); // normalize calls onChangeCallback()
-
-      return this;
+    if (sinHalfTheta < 0.001) {
+      this.w = 0.5 * (w1 + w2);
+      this.x = 0.5 * (x1 + x2);
+      this.y = 0.5 * (y1 + y2);
+      this.z = 0.5 * (z1 + z2);
+      return this.normalize();
     }
 
-    const sinHalfTheta = Math.sqrt(sqrSinHalfTheta);
-    const halfTheta = Math.atan2(sinHalfTheta, cosHalfTheta);
-    const ratioA = Math.sin((1 - t) * halfTheta) / sinHalfTheta,
-      ratioB = Math.sin(t * halfTheta) / sinHalfTheta;
+    const halfTheta = Math.acos(cosHalfTheta);
+    const ratioA = Math.sin((1 - t) * halfTheta) / sinHalfTheta;
+    const ratioB = Math.sin(t * halfTheta) / sinHalfTheta;
 
-    this.w = w * ratioA + this.w * ratioB;
-    this.x = x * ratioA + this.x * ratioB;
-    this.y = y * ratioA + this.y * ratioB;
-    this.z = z * ratioA + this.z * ratioB;
+    this.w = w1 * ratioA + w2 * ratioB;
+    this.x = x1 * ratioA + x2 * ratioB;
+    this.y = y1 * ratioA + y2 * ratioB;
+    this.z = z1 * ratioA + z2 * ratioB;
 
-    return this;
+    return this.normalize();
   }
 
   length(): number {
