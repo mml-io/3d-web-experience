@@ -558,22 +558,34 @@ export class LocalController {
   }
 
   private updateNetworkState(): void {
-    const characterQuat = this.tempQuat.copy(this.config.character.getRotation());
-    const cameraQuat = new Quat(this.config.cameraManager.camera.getRotation());
+    const cameraPosition = this.config.cameraManager.camera.getPosition();
+    const cameraRotation = this.config.cameraManager.activeCamera.getRotation();
+    const characterPosition = this.config.character.getPosition();
+    const characterRotation = this.config.character.getRotation();
+
+    const characterQuat = this.tempQuat.copy(characterRotation);
+
+    const cameraQuat = new Quat(
+      cameraRotation.x,
+      cameraRotation.y,
+      cameraRotation.z,
+      cameraRotation.w,
+    );
+
     this.networkState = {
       id: this.config.id,
       position: {
-        x: this.config.character.position.x,
-        y: this.config.character.position.y,
-        z: this.config.character.position.z,
+        x: characterPosition.x,
+        y: characterPosition.y,
+        z: characterPosition.z,
       },
       rotation: { quaternionY: characterQuat.y, quaternionW: characterQuat.w },
       camPosition: {
-        x: this.config.cameraManager.camera.position.x,
-        y: this.config.cameraManager.camera.position.y,
-        z: this.config.cameraManager.camera.position.z,
+        x: cameraPosition.x,
+        y: cameraPosition.y,
+        z: cameraPosition.z,
       },
-      camQuat: {
+      camQuaternion: {
         y: cameraQuat.y,
         w: cameraQuat.w,
       },
@@ -592,7 +604,7 @@ export class LocalController {
     this.characterVelocity.y = 0;
     this.characterVelocity.z = 0;
 
-    this.config.character.position.set(
+    this.config.character.setPosition(
       randomWithVariance(
         this.config.spawnConfiguration.spawnPosition.x,
         this.config.spawnConfiguration.spawnPositionVariance.x,
@@ -606,12 +618,20 @@ export class LocalController {
         this.config.spawnConfiguration.spawnPositionVariance.z,
       ),
     );
-    const respawnRotation = new Euler(
+
+    const respawnEuler = new EulXYZ(
       0,
       -this.config.spawnConfiguration.spawnYRotation * (Math.PI / 180),
       0,
     );
-    this.config.character.rotation.set(respawnRotation.x, respawnRotation.y, respawnRotation.z);
+    const respawnQuaternion = this.tempQuat.setFromEulerXYZ(respawnEuler);
+
+    this.config.character.setRotation(
+      respawnQuaternion.x,
+      respawnQuaternion.y,
+      respawnQuaternion.z,
+      respawnQuaternion.w,
+    );
 
     this.characterOnGround = false;
     this.doubleJumpUsed = false;

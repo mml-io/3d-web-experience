@@ -1,4 +1,4 @@
-import { Quat } from "../math";
+import { Quat, Vect3 } from "../math";
 
 import { Character } from "./Character";
 import { AnimationState, CharacterState } from "./CharacterState";
@@ -19,12 +19,12 @@ export class RemoteController {
     this.networkState = {
       id: this.config.id,
       position: {
-        x: this.config.character.position.x,
-        y: this.config.character.position.y,
-        z: this.config.character.position.z,
+        x: this.config.character.getPosition().x,
+        y: this.config.character.getPosition().y,
+        z: this.config.character.getPosition().z,
       },
       rotation: {
-        quaternionY: tempQuaternion.setFromEulerXYZ(this.config.character.rotation).y,
+        quaternionY: tempQuaternion.setFromEulerXYZ(this.config.character.getRotation()).y,
         quaternionW: 1,
       },
       state: this.currentAnimation as AnimationState,
@@ -41,7 +41,10 @@ export class RemoteController {
 
   private updateFromNetwork(clientUpdate: CharacterState): void {
     const { position, rotation, state } = clientUpdate;
-    const distanceSquared = this.config.character.position.distanceToSquared(position);
+
+    const characterPosition = new Vect3(this.config.character.getPosition());
+    const distanceSquared = characterPosition.distanceToSquared(characterPosition);
+
     if (distanceSquared > 5 * 5) {
       // More than 5m of movement in a tick - the character is likely teleporting rather than just moving quickly - snap to the new position
       this.config.character.setPosition(position.x, position.y, position.z);
@@ -49,6 +52,7 @@ export class RemoteController {
       // TODO - lerp
       this.config.character.setPosition(position.x, position.y, position.z);
     }
+
     const rotationQuaternion = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);
     this.config.character.setRotation(
       rotationQuaternion.x,
@@ -56,6 +60,7 @@ export class RemoteController {
       rotationQuaternion.z,
       rotationQuaternion.w,
     );
+
     if (state !== this.currentAnimation) {
       this.currentAnimation = state;
       this.config.character.updateAnimation(state);
