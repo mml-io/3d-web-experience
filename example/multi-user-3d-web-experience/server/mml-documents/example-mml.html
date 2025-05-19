@@ -2,6 +2,18 @@
 
 <m-cube z="25" y="1.5" width="3" height="3" depth="3" id="my-cube"></m-cube>
 
+<m-cube y="0.5" z="10" x="5" width="2" height="0.25" depth="2" color="blue">
+  <m-attr-anim
+    attr="x"
+    start="5"
+    end="10"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+</m-cube>
+
 <script>
   // Attach a click listener to the cube and spawn an m-sphere child of the cube wherever it is clicked
   const cube = document.getElementById("my-cube");
