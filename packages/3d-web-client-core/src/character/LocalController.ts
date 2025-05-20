@@ -374,11 +374,11 @@ export class LocalController {
       controlAcceleration.multiplyScalar(control * deltaTime);
     }
     acceleration.add(controlAcceleration);
-    this.characterVelocity.add(acceleration);
+    this.characterVelocity.addScaledVector(acceleration, deltaTime);
 
-    const position = new Vect3(this.config.character.getPosition());
-    position.addScaledVector(this.characterVelocity, deltaTime);
-    this.config.character.setPosition(position.x, position.y, position.z);
+    const newPosition = new Vect3(this.config.character.getPosition());
+    newPosition.addScaledVector(this.characterVelocity, deltaTime);
+    this.config.character.setPosition(newPosition.x, newPosition.y, newPosition.z);
   }
 
   private updatePosition(deltaTime: number, stepDeltaTime: number, iter: number): void {
@@ -405,8 +405,8 @@ export class LocalController {
 
     const avatarSegment = this.tempSegment;
     avatarSegment.copy(this.capsuleInfo.segment!);
-    avatarSegment.start.add(this.config.character.position);
-    avatarSegment.end.add(this.config.character.position);
+    avatarSegment.start.add(this.config.character.getPosition());
+    avatarSegment.end.add(this.config.character.getPosition());
 
     const positionBeforeCollisions = this.tempVector.copy(avatarSegment.start);
     this.config.collisionsManager.applyColliders(avatarSegment, this.capsuleInfo.radius!);
