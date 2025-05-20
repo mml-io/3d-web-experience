@@ -28,7 +28,7 @@ export class Sun extends playcanvas.Entity {
       intensity: 10 * 0.01,
       castShadows: true,
       color: new playcanvas.Color(1, 1, 1),
-      shadowBias: 0.001,
+      shadowBias: 0.2,
       normalOffsetBias: 0.0001,
       innerConeAngle: 45,
       outerConeAngle: 45,
