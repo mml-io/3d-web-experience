@@ -75,6 +75,7 @@ export class CharacterModel {
         false,
         1.45,
       );
+      console.log(this.mesh);
     }
   }
 
@@ -211,14 +212,28 @@ export class CharacterModel {
     animationType: AnimationState,
     loop: boolean = true,
     playbackSpeed: number = 1.0,
+    filterNonRotation: boolean = false,
   ): Promise<void> {
     return new Promise(async (resolve, reject) => {
       const fileName = animationFileUrl.split("/").pop() || "";
       const animationAsset = new playcanvas.Asset(
         fileName,
         "container",
-        { url: animationFileUrl, filename: fileName },
+        {
+          url: animationFileUrl,
+          filename: fileName,
+        },
         undefined,
+        // { // doesn't work on playcanvas 1.73.5
+        //   animation: {
+        //     preprocess: (data: any) => {
+        //       data.channels.forEach((item: any) => {
+        //         console.log(item.target);
+        //         return item.target.node <= 2 || item.target.path === "rotation";
+        //       });
+        //     },
+        //   },
+        // },
       );
 
       animationAsset.ready(() => {
@@ -227,21 +242,49 @@ export class CharacterModel {
           return;
         }
 
-        const animTrack = animationAsset.resource.animations[0].resource;
-        const animName = AnimationStateStrings[animationType];
-        this.animations[animName] = animTrack;
-        this.mesh.anim.addAnimationState(animName, animTrack);
+        const container = animationAsset.resource;
+        const animAsset = container.animations?.[0];
+        const anim = animAsset?.resource as playcanvas.Animation;
 
-        // Set animation properties
+        // TODO: update playcanvas to use the new way of filtering animation tracks
+        // that was commented out above
+
+        if (!anim || !anim.curves) {
+          reject("Animation resource or curves missing");
+          return;
+        }
+
+        if (filterNonRotation) {
+          let removed = 0;
+          anim.curves.forEach((curve: any) => {
+            const keep = curve._paths.some(
+              (path: any) => path.propertyPath?.[0] === "localRotation",
+            );
+
+            if (!keep) {
+              curve._keys = [];
+              curve._paths = [];
+              removed++;
+            }
+          });
+
+          console.log(
+            `[FILTER] Removed ${removed} non-rotation curves from animation '${anim.name}'`,
+          );
+        }
+
+        const animName = AnimationStateStrings[animationType];
+        this.animations[animName] = anim;
+        this.mesh.anim.addAnimationState(animName, anim);
+
         if (!loop) {
           const layer = this.mesh.anim.findAnimationLayer("BaseLayer");
           if (layer) {
-            // Configure the animation through assignAnimation which allows setting loop property
-            layer.assignAnimation(animName, animTrack, playbackSpeed, loop);
+            layer.assignAnimation(animName, anim, playbackSpeed, loop);
           }
         }
 
-        resolve(animTrack);
+        resolve();
       });
 
       this.config.playcanvasApp.assets.add(animationAsset);
