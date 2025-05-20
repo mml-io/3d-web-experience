@@ -52,7 +52,7 @@ export class RemoteController {
       if (distSq > 5 * 5) {
         this.config.character.setPosition(targetPos.x, targetPos.y, targetPos.z);
       } else {
-        const interpolatedPos = currentPos.lerp(targetPos, deltaTime);
+        const interpolatedPos = currentPos.lerp(targetPos, deltaTime * 1.5);
         this.config.character.setPosition(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z);
       }
     }
