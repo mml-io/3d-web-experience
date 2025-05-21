@@ -37,12 +37,12 @@ export class CharacterModel {
   private materials: Map<string, CharacterMaterial> = new Map();
 
   private animations: Record<string, playcanvas.Animation> = {};
-  // private animationMixer: AnimationMixer | null = null;
   public currentAnimation: AnimationState = AnimationState.idle;
 
   public mmlCharacterDescription: MMLCharacterDescription;
 
   private isPostDoubleJump = false;
+  private doubleJumpDuration: number | null = null;
 
   constructor(private config: CharacterModelConfig) {}
 
@@ -74,6 +74,7 @@ export class CharacterModel {
         AnimationState.doubleJump,
         false,
         1.45,
+        true,
       );
       console.log(this.mesh);
     }
@@ -82,10 +83,8 @@ export class CharacterModel {
   public updateAnimation(targetAnimation: AnimationState) {
     if (this.isPostDoubleJump) {
       if (targetAnimation === AnimationState.doubleJump) {
-        // Double jump is requested, but we're in the post double jump state so we play air instead
         targetAnimation = AnimationState.air;
       } else {
-        // Reset the post double jump flag if something other than double jump is requested
         this.isPostDoubleJump = false;
       }
     }
@@ -181,32 +180,6 @@ export class CharacterModel {
     }
   }
 
-  // private cleanAnimationClips(
-  //   skeletalMesh: Object3D | null,
-  //   animationClip: AnimationClip,
-  //   keepRootBonePositionAnimation: boolean,
-  // ): AnimationClip {
-  //   const availableBones = new Set<string>();
-  //   if (skeletalMesh) {
-  //     skeletalMesh.traverse((child) => {
-  //       const asBone = child as Bone;
-  //       if (asBone.isBone) {
-  //         availableBones.add(child.name);
-  //       }
-  //     });
-  //   }
-  //   animationClip.tracks = animationClip.tracks.filter((track) => {
-  //     const [trackName, trackProperty] = track.name.split(".");
-  //     if (keepRootBonePositionAnimation && trackName === "root" && trackProperty === "position") {
-  //       return true;
-  //     }
-  //     const shouldAnimate =
-  //       availableBones.has(trackName) && trackProperty !== "position" && trackProperty !== "scale";
-  //     return shouldAnimate;
-  //   });
-  //   return animationClip;
-  // }
-
   private async setAnimationFromFile(
     animationFileUrl: string,
     animationType: AnimationState,
@@ -244,16 +217,17 @@ export class CharacterModel {
 
         const container = animationAsset.resource;
         const animAsset = container.animations?.[0];
-        const anim = animAsset?.resource as playcanvas.Animation;
-
-        // TODO: update playcanvas to use the new way of filtering animation tracks
-        // that was commented out above
+        const anim = animAsset?.resource;
 
         if (!anim || !anim.curves) {
           reject("Animation resource or curves missing");
           return;
         }
 
+        const animName = AnimationStateStrings[animationType];
+
+        // TODO: update playcanvas to use the new way of filtering animation tracks
+        // that was commented out above
         if (filterNonRotation) {
           let removed = 0;
           anim.curves.forEach((curve: any) => {
@@ -268,21 +242,18 @@ export class CharacterModel {
             }
           });
 
-          console.log(
-            `[FILTER] Removed ${removed} non-rotation curves from animation '${anim.name}'`,
-          );
+          console.log(`[FILTER] Removed ${removed} non-rotation from '${anim.name}'`);
         }
 
-        const animName = AnimationStateStrings[animationType];
         this.animations[animName] = anim;
-        this.mesh.anim.addAnimationState(animName, anim);
+        this.mesh.anim.addAnimationState(animName, anim, playbackSpeed, loop);
 
-        if (!loop) {
-          const layer = this.mesh.anim.findAnimationLayer("BaseLayer");
-          if (layer) {
-            layer.assignAnimation(animName, anim, playbackSpeed, loop);
-          }
-        }
+        // TODO: add a way to bind a callback to the end of the animation
+        // playcanvas 1.73.5 doesn't seem to have a static event for that
+
+        // if (animName === AnimationStateStrings[AnimationState.doubleJump]) {
+        //   this.mesh.anim.on("end", () => {});
+        // }
 
         resolve();
       });
@@ -301,6 +272,9 @@ export class CharacterModel {
     }
 
     const animName = AnimationStateStrings[targetAnimation];
+    if (animName === AnimationStateStrings[AnimationState.doubleJump]) {
+      this.doubleJumpDuration = this.mesh.anim.baseLayer.activeStateDuration;
+    }
 
     // Check if the target animation exists in our loaded animations
     if (animName in this.animations) {
@@ -310,11 +284,9 @@ export class CharacterModel {
       // Update our current animation state
       this.currentAnimation = targetAnimation;
 
-      // Special handling for double jump animation
       if (targetAnimation === AnimationState.doubleJump) {
-        // Set a flag to track that we're in post-double-jump state
-        // This will be reset when any other animation is requested
-        this.isPostDoubleJump = true;
+        const duration = this.doubleJumpDuration ? this.doubleJumpDuration * 1000 : 500;
+        setTimeout(() => (this.isPostDoubleJump = true), duration);
       }
     } else {
       console.warn(`Animation ${targetAnimation} not found in loaded animations`);
