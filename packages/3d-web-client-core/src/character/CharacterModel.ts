@@ -32,7 +32,7 @@ export const AnimationStateStrings: string[] = [
 export class CharacterModel {
   public mesh: playcanvas.Entity | null = null;
   // public headBone: Bone | null = null;
-  public characterHeight: number | null = null;
+  public characterHeight: number | null = 1.8;
 
   private materials: Map<string, CharacterMaterial> = new Map();
 
@@ -45,6 +45,26 @@ export class CharacterModel {
   private doubleJumpDuration: number | null = null;
 
   constructor(private config: CharacterModelConfig) {}
+
+  private computeCharacterHeight(): number {
+    if (!this.mesh) {
+      console.warn("No mesh found, returning default height of 1.8");
+      this.characterHeight = 1.8;
+      return 1.8;
+    }
+    const aabb = new playcanvas.BoundingBox();
+    this.mesh.forEach((child: playcanvas.Entity) => {
+      if (child.render && child.render.meshInstances) {
+        for (const meshInstance of child.render.meshInstances) {
+          aabb.add(meshInstance.aabb);
+        }
+      }
+    });
+
+    const totalHeight = aabb.halfExtents.y * 2;
+    this.characterHeight = totalHeight;
+    return totalHeight;
+  }
 
   public async init(): Promise<void> {
     await this.loadMainMesh();
@@ -76,7 +96,7 @@ export class CharacterModel {
         1.45,
         true,
       );
-      console.log(this.mesh);
+      this.computeCharacterHeight();
     }
   }
 
