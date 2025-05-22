@@ -1,5 +1,7 @@
 import * as playcanvas from "playcanvas";
 
+import { CameraManager } from "../camera/CameraManager";
+
 import { CanvasText } from "./CanvasText";
 
 enum LabelAlignment {
@@ -17,6 +19,8 @@ const defaultLabelPadding = 10;
 const defaultVisibleOpacity = 0.85;
 const defaultSecondsToFadeOut = null;
 
+const defaultFadeSpeed = 0.02;
+
 export type CharacterTooltipConfig = {
   alignment: LabelAlignment;
   fontSize: number;
@@ -29,20 +33,28 @@ export type CharacterTooltipConfig = {
 };
 
 export class CharacterTooltip extends playcanvas.Entity {
-  private targetOpacity: number = 0;
-  private fadingSpeed: number = 0.02;
-  private config: CharacterTooltipConfig;
-  private content: string | null = null;
-  private hideTimeout: NodeJS.Timeout | null = null;
-  private canvasText: CanvasText;
-  private tooltipSprite: playcanvas.Entity;
+  private textCanvas: CanvasText = new CanvasText();
+  private planeEntity: playcanvas.Entity;
   private material: playcanvas.StandardMaterial;
   private texture: playcanvas.Texture | null = null;
-  private app: playcanvas.AppBase;
 
-  constructor(app: playcanvas.AppBase, configArg?: Partial<CharacterTooltipConfig>) {
+  private targetOpacity: number = 0;
+  private fadingSpeed: number = defaultFadeSpeed;
+  private currentContent: string | null = null;
+  private hideTimeout: NodeJS.Timeout | null = null;
+
+  private config: CharacterTooltipConfig;
+  private app: playcanvas.AppBase;
+  private cameraManager: CameraManager;
+
+  constructor(
+    app: playcanvas.AppBase,
+    cameraManager: CameraManager,
+    configArg?: Partial<CharacterTooltipConfig>,
+  ) {
     super();
     this.app = app;
+    this.cameraManager = cameraManager;
 
     this.config = {
       alignment: defaultLabelAlignment,
@@ -55,56 +67,52 @@ export class CharacterTooltip extends playcanvas.Entity {
       ...configArg,
     };
 
-    this.canvasText = new CanvasText();
-
-    // Create sprite entity
-    this.tooltipSprite = new playcanvas.Entity("TooltipSprite");
-    this.addChild(this.tooltipSprite);
-
-    // Create material
     this.material = new playcanvas.StandardMaterial();
     this.material.emissive = new playcanvas.Color(1, 1, 1);
     this.material.blendType = playcanvas.BLEND_NORMAL;
     this.material.opacity = this.config.visibleOpacity;
-    this.material.useGammaTonemap = false;
+    this.material.useGammaTonemap = true;
     this.material.useFog = false;
     this.material.useLighting = false;
     this.material.depthWrite = false;
     this.material.cull = playcanvas.CULLFACE_NONE;
     this.material.update();
 
-    // Add sprite component
-    this.tooltipSprite.addComponent("sprite", {
+    this.planeEntity = new playcanvas.Entity("TooltipPlane");
+    this.planeEntity.addComponent("render", {
+      type: "plane",
       material: this.material,
       width: 1,
       height: 1,
     });
-
-    // Set initial position
+    this.planeEntity.setLocalEulerAngles(90, 180, 0);
+    this.addChild(this.planeEntity);
     this.setLocalPosition(0, 1.6, 0);
-    this.tooltipSprite.enabled = false;
+    this.planeEntity.enabled = false;
   }
 
-  public getSpriteHeight(): number {
-    const spriteComp = this.tooltipSprite.sprite;
-    return spriteComp ? spriteComp.height : 0;
-  }
+  public setText(content: string, onRemove?: () => void) {
+    const sanitized = content.trim();
+    if (this.currentContent === sanitized) return;
 
-  public setHeightOffset(height: number) {
-    const pos = this.getLocalPosition();
-    const scale = this.getSpriteHeight();
-    this.setLocalPosition(pos.x, height + scale / 2, pos.z);
-  }
+    this.currentContent = sanitized;
+    this.planeEntity.enabled = true;
+    this.targetOpacity = this.config.visibleOpacity;
 
-  private redrawText(content: string) {
-    if (content === this.content) {
-      // No need to redraw if the content is the same
-      return;
+    if (this.hideTimeout) {
+      clearTimeout(this.hideTimeout);
+      this.hideTimeout = null;
     }
-    this.content = content;
 
-    // Generate canvas with text
-    const canvas = this.canvasText.renderText(content, {
+    if (this.config.secondsToFadeOut !== null) {
+      this.hideTimeout = setTimeout(() => {
+        this.hideTimeout = null;
+        this.hide();
+        onRemove?.();
+      }, this.config.secondsToFadeOut * 1000);
+    }
+
+    const canvas = this.textCanvas.renderText(sanitized, {
       bold: true,
       fontSize: this.config.fontSize * fontScale,
       paddingPx: this.config.padding,
@@ -130,77 +138,61 @@ export class CharacterTooltip extends playcanvas.Entity {
           : undefined,
     });
 
-    // Update texture
     if (this.texture) {
       this.texture.destroy();
       this.texture = null;
     }
 
-    // Create texture from canvas
-    this.texture = new playcanvas.Texture(this.app.graphicsDevice);
+    this.texture = new playcanvas.Texture(this.app.graphicsDevice, {
+      width: canvas.width,
+      height: canvas.height,
+    });
     this.texture.setSource(canvas);
     this.texture.minFilter = playcanvas.FILTER_LINEAR;
     this.texture.magFilter = playcanvas.FILTER_LINEAR;
     this.material.emissiveMap = this.texture;
+    this.material.diffuseMap = this.texture;
+    this.material.opacityMap = this.texture;
     this.material.update();
 
-    // Update sprite scale based on canvas size
     const width = canvas.width / (100 * fontScale);
     const height = canvas.height / (100 * fontScale);
-
-    const spriteComponent = this.tooltipSprite.sprite;
-    if (spriteComponent) {
-      spriteComponent.width = width;
-      spriteComponent.height = height;
-    }
+    this.planeEntity.setLocalScale(width, 1, height);
   }
 
-  setText(text: string, onRemove?: () => void) {
-    const sanitizedText = text.replace(/(\r\n|\n|\r)/gm, "");
-    this.tooltipSprite.enabled = true;
-    this.targetOpacity = this.config.visibleOpacity;
-    if (this.hideTimeout) {
-      clearTimeout(this.hideTimeout);
-      this.hideTimeout = null;
-    }
-    if (this.config.secondsToFadeOut !== null) {
-      this.hideTimeout = setTimeout(() => {
-        this.hideTimeout = null;
-        this.hide();
-        if (onRemove) {
-          onRemove();
-        }
-      }, this.config.secondsToFadeOut * 1000);
-    }
-    this.redrawText(sanitizedText);
+  public show() {
+    this.setText(this.currentContent || "");
   }
 
-  hide() {
+  public hide() {
     this.targetOpacity = 0;
   }
 
-  show() {
-    this.setText(this.content || "");
-  }
-
-  update() {
-    const opacity = this.material.opacity;
-    if (opacity < this.targetOpacity) {
-      this.material.opacity = Math.min(
-        this.material.opacity + this.fadingSpeed,
-        this.targetOpacity,
-      );
+  public update() {
+    if (!this.material) return;
+    const current = this.material.opacity;
+    if (current < this.targetOpacity) {
+      this.material.opacity = Math.min(current + this.fadingSpeed, this.targetOpacity);
       this.material.update();
-    } else if (opacity > this.targetOpacity) {
-      this.material.opacity = Math.max(
-        this.material.opacity - this.fadingSpeed,
-        this.targetOpacity,
-      );
+    } else if (current > this.targetOpacity) {
+      this.material.opacity = Math.max(current - this.fadingSpeed, this.targetOpacity);
       this.material.update();
-
       if (this.material.opacity <= 0) {
-        this.tooltipSprite.enabled = false;
+        this.planeEntity.enabled = false;
       }
     }
+    if (this.cameraManager.camera) {
+      this.lookAt(this.cameraManager.camera.getPosition());
+    }
+  }
+
+  public getSpriteHeight(): number {
+    return this.planeEntity.getLocalScale().z;
+  }
+
+  public setHeightOffset(height: number) {
+    const pos = this.getLocalPosition();
+    const spriteHeight = this.getSpriteHeight();
+    this.setLocalPosition(pos.x, height + spriteHeight / 2, pos.z);
   }
 }
