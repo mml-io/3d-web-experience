@@ -70,6 +70,7 @@ export class Character extends playcanvas.Entity {
     super();
     this.tooltip = new CharacterTooltip(
       this.playcanvasApp,
+      this.config.cameraManager,
       this.config.isLocal
         ? {
             secondsToFadeOut: 10,
@@ -103,7 +104,8 @@ export class Character extends playcanvas.Entity {
     if (this.characterModel && this.characterModel.characterHeight) {
       let height = characterHeightToTooltipHeightOffset(this.characterModel.characterHeight);
       this.tooltip.setHeightOffset(height);
-      height += this.tooltip.getSpriteHeight();
+
+      height = this.tooltip.getSpriteHeight();
 
       for (const chatTooltip of this.chatTooltips) {
         chatTooltip.setHeightOffset(height);
@@ -149,16 +151,16 @@ export class Character extends playcanvas.Entity {
   }
 
   addChatBubble(message: string) {
-    const tooltip = new CharacterTooltip(this.playcanvasApp, {
+    const tooltip = new CharacterTooltip(this.playcanvasApp, this.config.cameraManager, {
       maxWidth: 1000,
       secondsToFadeOut: 10,
       color: new playcanvas.Color(0.125, 0.125, 0.125),
     });
-    this.addChild(tooltip);
+    this.tooltip.addChild(tooltip);
     this.chatTooltips.unshift(tooltip);
     tooltip.setText(message, () => {
       this.chatTooltips = this.chatTooltips.filter((t) => t !== tooltip);
-      this.removeChild(tooltip);
+      this.tooltip.removeChild(tooltip);
       this.setTooltipHeights();
     });
     if (this.config.isLocal) {
