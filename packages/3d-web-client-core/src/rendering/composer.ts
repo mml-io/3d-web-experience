@@ -97,6 +97,10 @@ export class Composer {
       this.playcanvasApp.root.addChild(this.sun);
     }
 
+    this.playcanvasApp.on("update", (dt: number) => {
+      // no-op for now, but can be used to control aspects of the rendering
+    });
+
     // if (this.environmentConfiguration?.skybox) {
     //   if ("hdrJpgUrl" in this.environmentConfiguration.skybox) {
     //     this.useHDRJPG(this.environmentConfiguration.skybox.hdrJpgUrl);
