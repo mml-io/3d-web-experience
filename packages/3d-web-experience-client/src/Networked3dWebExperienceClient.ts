@@ -226,6 +226,7 @@ export class Networked3dWebExperienceClient {
       deviceTypes: ["webgpu", "webgl2"],
       glslangUrl: "data:text/javascript;base64," + glslangWasmJs,
       twgslUrl: "data:text/javascript;base64," + twgslWasmJs,
+      antialias: true,
     };
 
     const soundManager = new playcanvas.SoundManager();
