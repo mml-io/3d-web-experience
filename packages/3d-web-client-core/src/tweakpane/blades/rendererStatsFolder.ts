@@ -26,28 +26,43 @@ export class RendererStatsFolder {
     FPS: "0",
   };
 
+  private deltaTime: number = 0;
+  private lastUpdateTime: number = 0;
+  private fps: number = 0;
+
   constructor(parentFolder: FolderApi, expanded: boolean = true) {
     this.folder = parentFolder.addFolder({ title: "renderStats", expanded: expanded });
     this.folder.addBinding(this.statsData, "FPS", { readonly: true });
     this.folder.addBinding(this.statsData, "deltaTime", { readonly: true });
-    this.folder.addBinding(this.statsData, "rawDeltaTime", { readonly: true });
     this.folder.addBinding(this.statsData, "triangles", { readonly: true });
     this.folder.addBinding(this.statsData, "materials", { readonly: true });
     this.folder.addBinding(this.statsData, "shaders", { readonly: true });
     this.folder.addBinding(this.statsData, "drawCalls", { readonly: true });
   }
 
+  private calgulateFPS() {
+    const now = performance.now();
+    const dt = now - this.lastUpdateTime;
+    this.deltaTime = dt;
+    this.lastUpdateTime = now;
+
+    if (dt > 0) {
+      const fps = 1000 / dt;
+      this.fps = fps;
+    } else {
+      console.log("FPS: N/A");
+    }
+  }
+
   public update(renderer: playcanvas.AppBase, timeManager: TimeManager): void {
+    this.calgulateFPS();
     const { triangles, materials } = renderer.stats.frame;
     const { drawCalls } = renderer.stats;
     this.statsData.triangles = triangles.toString();
     this.statsData.materials = materials.toString();
     this.statsData.shaders = renderer.stats.shaders.materialShaders.toString();
     this.statsData.drawCalls = drawCalls.toString();
-    this.statsData.rawDeltaTime = (
-      Math.round(timeManager.rawDeltaTime * 100000) / 100000
-    ).toString();
-    this.statsData.deltaTime = (Math.round(timeManager.deltaTime * 100000) / 100000).toString();
-    this.statsData.FPS = timeManager.fps.toString();
+    this.statsData.deltaTime = `${this.deltaTime.toFixed(1)} ms`;
+    this.statsData.FPS = `${this.fps.toFixed(1)} FPS`;
   }
 }
