@@ -132,8 +132,7 @@ export class CharacterTooltip extends playcanvas.Entity {
       dimensions:
         this.config.maxWidth !== undefined
           ? {
-              width: this.config.maxWidth,
-              height: 100, // arbitrary height, will adjust based on content
+              maxWidth: this.config.maxWidth,
             }
           : undefined,
     });
