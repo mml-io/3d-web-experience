@@ -34,6 +34,10 @@ export class Sun extends playcanvas.Entity {
       outerConeAngle: 45,
       range: 100,
       falloffMode: playcanvas.LIGHTFALLOFF_INVERSESQUARED,
+      shadowResolution: 8192,
+      numCascades: 4,
+      cascadeDistribution: 0.75,
+      shadowDistance: 100,
       enabled: true,
     });
     this.setColor();
