@@ -10,6 +10,8 @@ export class TimeManager {
   private fpsUpdateTime: number = 0;
   private framesSinceLastFPSUpdate: number = 0;
 
+  private previousTime: number = 0;
+
   public time: number = 0;
   public deltaTime: number = 0;
   public rawDeltaTime: number = 0;
@@ -21,10 +23,14 @@ export class TimeManager {
   public static maxDeltaTime = 0.1; // 100ms
 
   update() {
-    this.rawDeltaTime = performance.now() - this.time;
+    const now = performance.now();
+    this.rawDeltaTime = (now - this.previousTime) / 1000;
+    this.previousTime = now;
+
     if (this.rawDeltaTime > TimeManager.maxDeltaTime) {
       this.rawDeltaTime = TimeManager.maxDeltaTime;
     }
+
     this.frame++;
     this.time += this.rawDeltaTime;
     this.deltaTimes.push(this.rawDeltaTime);
