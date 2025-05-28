@@ -282,7 +282,7 @@ export class LocalController {
       this.azimuthalAngle + this.rotationOffset,
     );
     const angularDifference = this.computeAngularDifference(rotationQuat);
-    const desiredTime = 1.1;
+    const desiredTime = 0.07;
     const angularSpeed = angularDifference / desiredTime;
     const frameRotation = angularSpeed * this.config.timeManager.deltaTime;
     const rot = new Quat().copy(this.config.character.getRotation());
@@ -306,29 +306,29 @@ export class LocalController {
       }
 
       if (jump && this.canJump && this.jumpReleased) {
-        currentAcceleration.y += this.jumpForce;
+        currentAcceleration.y += this.jumpForce / deltaTime;
         this.canJump = false;
         this.jumpReleased = false;
         this.jumpCounter++;
       } else {
         if (this.currentSurfaceAngle.y < this.minimumSurfaceAngle) {
-          currentAcceleration.y += this.gravity * deltaTime;
+          currentAcceleration.y += this.gravity;
         }
       }
     } else {
       if (jump && !this.coyoteJumped && this.coyoteTime) {
         this.coyoteJumped = true;
-        currentAcceleration.y += this.jumpForce;
+        currentAcceleration.y += this.jumpForce / deltaTime;
         this.canJump = false;
         this.jumpReleased = false;
         this.jumpCounter++;
       } else if (jump && this.canDoubleJump) {
-        currentAcceleration.y += this.doubleJumpForce;
+        currentAcceleration.y += this.doubleJumpForce / deltaTime;
         this.doubleJumpUsed = true;
         this.jumpReleased = false;
         this.jumpCounter++;
       } else {
-        currentAcceleration.y += this.gravity * deltaTime;
+        currentAcceleration.y += this.gravity;
         this.canJump = false;
       }
     }
@@ -336,21 +336,21 @@ export class LocalController {
     if (!jump) {
       this.jumpReleased = true;
       if (!this.characterOnGround) {
-        currentAcceleration.y += this.gravity * deltaTime;
+        currentAcceleration.y += this.gravity;
       }
     }
   }
 
-  private applyControls(deltaTime: number) {
+  private applyControls(stepDeltaTime: number): void {
     const resistance = this.characterOnGround ? this.groundResistance : this.airResistance;
 
     // Dampen the velocity based on the resistance
-    const speedFactor = Math.pow(1 - resistance, deltaTime);
+    const speedFactor = Math.pow(1 - resistance, stepDeltaTime);
     this.characterVelocity.multiplyScalar(speedFactor);
 
     const acceleration = this.tempVector.set(0, 0, 0);
     this.canDoubleJump = !this.doubleJumpUsed && this.jumpReleased && this.jumpCounter === 1;
-    this.processJump(acceleration, deltaTime);
+    this.processJump(acceleration, stepDeltaTime);
 
     const control =
       (this.characterOnGround
@@ -371,13 +371,13 @@ export class LocalController {
     }
     if (controlAcceleration.lengthSquared() > 0) {
       controlAcceleration.normalize();
-      controlAcceleration.multiplyScalar(control * deltaTime);
+      controlAcceleration.multiplyScalar(control);
     }
     acceleration.add(controlAcceleration);
-    this.characterVelocity.addScaledVector(acceleration, deltaTime);
+    this.characterVelocity.addScaledVector(acceleration, stepDeltaTime);
 
     const newPosition = new Vect3(this.config.character.getPosition());
-    newPosition.addScaledVector(this.characterVelocity, deltaTime);
+    newPosition.addScaledVector(this.characterVelocity, stepDeltaTime);
     this.config.character.setPosition(newPosition.x, newPosition.y, newPosition.z);
   }
 
