@@ -12,7 +12,6 @@ import {
   EnvironmentConfiguration,
   ErrorScreen,
   EulXYZ,
-  getSpawnPositionInsideCircle,
   GroundPlane,
   Key,
   KeyInputManager,
