@@ -4,30 +4,30 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 import { LocalController } from "../../character/LocalController";
 
 export const characterControllerValues = {
-  gravity: 65,
-  jumpForce: 250,
-  doubleJumpForce: 400,
+  gravity: 35.5,
+  jumpForce: 18,
+  doubleJumpForce: 17.7,
   coyoteJump: 120,
-  airResistance: 0.1,
+  airResistance: 0.5,
   groundResistance: 0,
   airControlModifier: 0.05,
-  groundWalkControl: 4.9,
-  groundRunControl: 7.3,
-  baseControlMultiplier: 400,
+  groundWalkControl: 0.75,
+  groundRunControl: 1.0,
+  baseControlMultiplier: 200,
   minimumSurfaceAngle: 0.905,
 };
 
 export const characterControllerOptions = {
-  gravity: { min: 0.1, max: 100, step: 0.01 },
-  jumpForce: { min: 1, max: 500, step: 0.05 },
-  doubleJumpForce: { min: 1, max: 500, step: 0.05 },
+  gravity: { min: 1, max: 100, step: 0.05 },
+  jumpForce: { min: 1, max: 50, step: 0.05 },
+  doubleJumpForce: { min: 1, max: 50, step: 0.05 },
   coyoteJump: { min: 60, max: 200, step: 1 },
-  airResistance: { min: 0.01, max: 10.0, step: 0.01 },
-  groundResistance: { min: -300, max: 0, step: 1 },
-  airControlModifier: { min: 0.001, max: 0.5, step: 0.01 },
-  groundWalkControl: { min: 0.1, max: 10.5, step: 0.01 },
-  groundRunControl: { min: 0.5, max: 20.0, step: 0.01 },
-  baseControlMultiplier: { min: 150, max: 500, step: 1 },
+  airResistance: { min: 0.01, max: 0.9, step: 0.01 },
+  groundResistance: { min: -100, max: 0, step: 1 },
+  airControlModifier: { min: 0.001, max: 0.15, step: 0.01 },
+  groundWalkControl: { min: 0.1, max: 1.5, step: 0.01 },
+  groundRunControl: { min: 0.5, max: 2.0, step: 0.01 },
+  baseControlMultiplier: { min: 150, max: 300, step: 1 },
   minimumSurfaceAngle: { min: 0.254, max: 1, step: 0.001 },
 };
 
