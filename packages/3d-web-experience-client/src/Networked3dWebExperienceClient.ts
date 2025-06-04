@@ -334,7 +334,7 @@ export class Networked3dWebExperienceClient {
     this.networkClient = new UserNetworkingClient({
       url: this.config.userNetworkAddress,
       sessionToken: this.config.sessionToken,
-      websocketFactory: (url: string) => new WebSocket(url),
+      websocketFactory: (url: string) => new WebSocket(url, "delta-net-v0.1"),
       statusUpdateCallback: (status: WebsocketStatus) => {
         if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
           // The connection was lost after being established - the connection may be re-established with a different client ID
@@ -450,6 +450,7 @@ export class Networked3dWebExperienceClient {
              When all content (in particular MML) has loaded, spawn the character (this is to avoid the character falling
              through as-yet-unloaded geometry)
             */
+        console.log("Initial load completed");
         this.connectToTextChat();
         this.mountAvatarSelectionUI();
         this.spawnCharacter();

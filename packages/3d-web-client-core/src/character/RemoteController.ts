@@ -1,7 +1,7 @@
 import { Quat, Vect3 } from "../math";
 
 import { Character } from "./Character";
-import { AnimationState, CharacterState } from "./CharacterState";
+import { CharacterState } from "./CharacterState";
 
 export type RemoteControllerConfig = {
   id: number;
@@ -11,20 +11,21 @@ export type RemoteControllerConfig = {
 const tempQuaternion = new Quat();
 
 export class RemoteController {
-  public currentAnimation: AnimationState = AnimationState.idle;
   public networkState: CharacterState;
 
   private hasReceivedInitialUpdate = false;
+  private interpolationRate = 8.0; // How quickly to interpolate (higher = faster)
 
   constructor(private config: RemoteControllerConfig) {
     const pos = this.config.character.getPosition();
     const rot = this.config.character.getRotation();
+    const currentAnimation = this.config.character.getCurrentAnimation();
 
     this.networkState = {
       id: this.config.id,
       position: { x: pos.x, y: pos.y, z: pos.z },
       rotation: { quaternionY: rot.y, quaternionW: 1 },
-      state: this.currentAnimation,
+      state: currentAnimation,
     };
   }
 
@@ -43,6 +44,16 @@ export class RemoteController {
     if (!this.hasReceivedInitialUpdate) {
       // First update, snap into position
       this.config.character.setPosition(targetPos.x, targetPos.y, targetPos.z);
+
+      // Also snap rotation on first update
+      const rotationQuaternion = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);
+      this.config.character.setRotation(
+        rotationQuaternion.x,
+        rotationQuaternion.y,
+        rotationQuaternion.z,
+        rotationQuaternion.w,
+      );
+
       this.hasReceivedInitialUpdate = true;
     } else {
       const distSq = currentPos.distanceToSquared(targetPos);
@@ -52,21 +63,30 @@ export class RemoteController {
       if (distSq > 5 * 5) {
         this.config.character.setPosition(targetPos.x, targetPos.y, targetPos.z);
       } else {
-        const interpolatedPos = currentPos.lerp(targetPos, deltaTime * 1.5);
+        // Frame-rate independent exponential smoothing
+        const lerpFactor = Math.min(1.0, 1.0 - Math.exp(-this.interpolationRate * deltaTime));
+        const interpolatedPos = currentPos.lerp(targetPos, lerpFactor);
         this.config.character.setPosition(interpolatedPos.x, interpolatedPos.y, interpolatedPos.z);
       }
+
+      // Smooth rotation interpolation
+      const currentRot = this.config.character.getRotation();
+      const currentRotQuat = new Quat(currentRot.x, currentRot.y, currentRot.z, currentRot.w);
+      const targetRotQuat = new Quat(0, rotation.quaternionY, 0, rotation.quaternionW);
+
+      // Frame-rate independent exponential smoothing for rotation
+      const lerpFactor = Math.min(1.0, 1.0 - Math.exp(-this.interpolationRate * deltaTime));
+      const interpolatedRot = currentRotQuat.slerp(targetRotQuat, lerpFactor);
+
+      this.config.character.setRotation(
+        interpolatedRot.x,
+        interpolatedRot.y,
+        interpolatedRot.z,
+        interpolatedRot.w,
+      );
     }
 
-    const rotationQuaternion = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);
-    this.config.character.setRotation(
-      rotationQuaternion.x,
-      rotationQuaternion.y,
-      rotationQuaternion.z,
-      rotationQuaternion.w,
-    );
-
-    if (state !== this.currentAnimation) {
-      this.currentAnimation = state;
+    if (state !== this.config.character.getCurrentAnimation()) {
       this.config.character.updateAnimation(state);
     }
   }

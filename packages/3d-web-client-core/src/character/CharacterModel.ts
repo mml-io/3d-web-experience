@@ -109,6 +109,7 @@ export class CharacterModel {
       }
     }
     if (this.currentAnimation !== targetAnimation) {
+      console.log(`CharacterModel updateAnimation for clientId=${this.config.characterId}`, targetAnimation);
       this.transitionToAnimation(targetAnimation);
     }
   }
@@ -158,7 +159,6 @@ export class CharacterModel {
       });
       return renderEntity;
     }
-    console.error("TODO - load character from MML description");
 
     let mmlCharacterSource: string;
     if (this.config.characterDescription.mmlCharacterUrl) {
@@ -303,6 +303,7 @@ export class CharacterModel {
 
       // Update our current animation state
       this.currentAnimation = targetAnimation;
+      console.log(`CharacterModel transitionToAnimation for clientId=${this.config.characterId}`, targetAnimation);
 
       if (targetAnimation === AnimationState.doubleJump) {
         const duration = this.doubleJumpDuration ? this.doubleJumpDuration * 1000 : 500;
