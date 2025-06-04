@@ -20,17 +20,6 @@ export class PlayCanvasMMLCharacter {
     return null;
   }
 
-  /**
-  in pc bones are not Entities, but rather part of an internal GraphNode hierarchy
-  used by SkinInstance. To achieve parity with ThreeJS we prob need to extract the
-  SkinInstance ( https://api.playcanvas.com/engine/classes/SkinInstance.html ),
-  then traverse the hierarchy starting from the root bone (made of GraphNodes?)
-
-  pc apparently doesn't have a thing to identify that something is a bone???
-
-  Then we can probably attach a mesh or entity to the bone by addding as child to the
-  GraphNode that represents the bone. I hate the opaqueness of the PlayCanvas's API
-   */
   private getSkinInstanceFromEntity(entity: playcanvas.Entity): playcanvas.SkinInstance | null {
     const render = entity.render;
 
@@ -42,7 +31,6 @@ export class PlayCanvasMMLCharacter {
       }
     }
 
-    // If no SkinInstance found in the render, check children
     for (const child of entity.children) {
       const skinInstance = this.getSkinInstanceFromEntity(child as playcanvas.Entity);
       if (skinInstance) return skinInstance;
@@ -84,7 +72,6 @@ export class PlayCanvasMMLCharacter {
       throw new Error("rawBodyGltf does not contain any bones");
     }
 
-    // ok we finally have the dammed bones
     bones.forEach((bone) => {
       const boneName = bone.name;
       const boneGraphNode = this.findBoneByName(rawBodyGltf, boneName);
@@ -117,7 +104,6 @@ export class PlayCanvasMMLCharacter {
           continue;
         }
 
-        // create an intermediate GraphNode to apply transform offsets
         const name = `socket_${socketName}`;
         const socketTransformNode = new playcanvas.GraphNode(name);
 
@@ -139,7 +125,7 @@ export class PlayCanvasMMLCharacter {
 
         boneNode.addChild(socketTransformNode);
         group.addChild(modelGroup);
-        modelGroup.reparent(socketTransformNode); // attach entire entity to bone
+        modelGroup.reparent(socketTransformNode);
       } else {
         const skinInstance = this.getSkinInstanceFromEntity(modelGroup);
         if (!skinInstance) {
@@ -147,7 +133,6 @@ export class PlayCanvasMMLCharacter {
           continue;
         }
 
-        // rebind skinInstance to main skeleton
         const mainSkinInstance = this.getSkinInstanceFromEntity(rawBodyGltf);
         if (!mainSkinInstance) throw new Error("No main skin instance found in base model");
 
