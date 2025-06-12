@@ -1,18 +1,15 @@
-import * as playcanvas from "playcanvas";
+import { Object3D } from "three";
 
 import { toArray } from "../helpers/math-helpers";
 import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
 
-export function encodeCharacterAndCamera(
-  character: playcanvas.Entity,
-  camera: playcanvas.Entity,
-): string {
+export function encodeCharacterAndCamera(character: Object3D, camera: Object3D): string {
   return [
-    ...toArray(character.getPosition()),
-    ...toArray(character.getRotation()),
-    ...toArray(camera.getPosition()),
-    ...toArray(camera.getRotation()),
+    ...toArray(new Vect3(character.position)),
+    ...toArray(new Quat().setFromEulerXYZ(character.rotation)),
+    ...toArray(new Vect3(camera.position)),
+    ...toArray(new Quat().setFromEulerXYZ(camera.rotation)),
   ].join(",");
 }
 
