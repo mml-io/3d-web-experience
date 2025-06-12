@@ -1,3 +1,5 @@
+import { Texture, LinearFilter, RGBAFormat } from "three";
+
 export type RGBA = {
   r: number;
   g: number;
@@ -62,6 +64,7 @@ function printAtWordWrap(
       const textWidth = context.measureText(str).width;
       if (textWidth + padding * 2 > fitWidth) {
         if (lastWordIndex === 1) {
+          // Handle case where single word is too long
           const word = words[0];
           let charIndex = 1;
           while (charIndex < word.length) {
@@ -121,12 +124,13 @@ export class CanvasText {
     const padding = options.paddingPx || 0;
     const font = options.font || "Arial";
     const fontString = (options.bold ? "bold " : "") + fontsize + "px " + font;
+
+    // calculate text alignment offset
     const textAlign = (options.alignment as CanvasTextAlign) ?? "left";
 
-    this.context.font = fontString;
-    this.context.textAlign = textAlign;
-
     if (options.dimensions && options.dimensions.maxWidth === undefined) {
+      // NOTE: setting the canvas dimensions resets the context properties, so
+      // we always do it first
       this.canvas.width = options.dimensions.width;
       this.canvas.height = options.dimensions.height;
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -146,43 +150,46 @@ export class CanvasText {
         padding,
       );
       return this.canvas;
-    }
-
-    if (options.dimensions && options.dimensions.maxWidth !== undefined) {
+    } else {
       this.context.font = fontString;
       this.context.textAlign = textAlign;
+      const metrics = this.context.measureText(message);
+      const textWidth = metrics.width;
+      const textHeight = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
 
-      const words = message.split(" ");
-      let currentLine = "";
-      const lines: string[] = [];
-
-      for (let i = 0; i < words.length; i++) {
-        const testLine = currentLine + words[i] + " ";
-        const testWidth = this.context.measureText(testLine).width;
-        if (testWidth > options.dimensions.maxWidth && i > 0) {
-          lines.push(currentLine.trim());
-          currentLine = words[i] + " ";
+      if (options.dimensions && options.dimensions.maxWidth !== undefined) {
+        const maxWidthWithoutPadding = options.dimensions.maxWidth - padding * 2;
+        if (textWidth > maxWidthWithoutPadding) {
+          // This is multiple lines - estimate the lines
+          const lineCount = Math.ceil(textWidth / maxWidthWithoutPadding);
+          this.canvas.width = options.dimensions.maxWidth;
+          this.canvas.height = textHeight * lineCount + padding * 2;
+          this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+          this.context.font = fontString;
+          this.context.textAlign = textAlign;
+          this.context.fillStyle = `rgba(${backgroundColor.r}, ${backgroundColor.g}, ${backgroundColor.b}, ${backgroundColor.a})`;
+          this.context.lineWidth = 0;
+          this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
+          this.context.fillStyle = `rgba(${textColor.r}, ${textColor.g}, ${textColor.b}, ${textColor.a})`;
+          printAtWordWrap(
+            this.context,
+            message,
+            textAlign,
+            fontsize,
+            fontsize,
+            this.canvas.width,
+            padding,
+          );
+          return this.canvas;
         } else {
-          currentLine = testLine;
+          // Allow the text to be rendered as a single line (below)
         }
       }
-      if (currentLine.length > 0) {
-        lines.push(currentLine.trim());
-      }
 
-      const textHeight = fontsize * lines.length;
-
-      const measuredLineWidths = lines.map(
-        (line) => this.context.measureText(line).width + padding * 2,
-      );
-      const maxLineWidth = Math.max(...measuredLineWidths);
-      const textWidth = Math.min(
-        maxLineWidth + padding * 2,
-        options.dimensions.maxWidth + padding * 2,
-      );
-
-      this.canvas.width = textWidth;
-
+      // NOTE: setting the this.canvas dimensions resets the context properties, so
+      // we always do it first. However, we also need to take into account the
+      // font size to measure the text in the first place.
+      this.canvas.width = textWidth + padding * 2;
       this.canvas.height = textHeight + padding * 2;
       this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.context.font = fontString;
@@ -191,36 +198,27 @@ export class CanvasText {
       this.context.lineWidth = 0;
       this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
       this.context.fillStyle = `rgba(${textColor.r}, ${textColor.g}, ${textColor.b}, ${textColor.a})`;
-
-      printAtWordWrap(
-        this.context,
+      this.context.fillText(
         message,
-        textAlign,
-        fontsize,
-        fontsize,
-        this.canvas.width,
-        padding,
+        padding + getTextAlignOffset(textAlign, textWidth),
+        textHeight,
       );
-
-      return this.canvas;
     }
 
-    const metrics = this.context.measureText(message);
-    const textWidth = metrics.width;
-    const textHeight =
-      (metrics.fontBoundingBoxAscent ?? fontsize * 0.8) +
-      (metrics.fontBoundingBoxDescent ?? fontsize * 0.2);
-
-    this.canvas.width = textWidth + padding * 2;
-    this.canvas.height = textHeight + padding * 2;
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.context.font = fontString;
-    this.context.textAlign = textAlign;
-    this.context.lineWidth = 0;
-    this.context.fillStyle = `rgba(${backgroundColor.r}, ${backgroundColor.g}, ${backgroundColor.b}, ${backgroundColor.a})`;
-    this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    this.context.fillStyle = `rgba(${textColor.r}, ${textColor.g}, ${textColor.b}, ${textColor.a})`;
-    this.context.fillText(message, padding + getTextAlignOffset(textAlign, textWidth), textHeight);
     return this.canvas;
   }
+}
+
+export function THREECanvasTextTexture(
+  text: string,
+  options: CanvasTextOptions,
+): { texture: Texture; width: number; height: number } {
+  const canvas = new CanvasText().renderText(text, options);
+  const texture = new Texture(canvas);
+  texture.minFilter = LinearFilter;
+  texture.magFilter = LinearFilter;
+  texture.format = RGBAFormat;
+  texture.needsUpdate = true;
+
+  return { texture, width: canvas.width, height: canvas.height };
 }
