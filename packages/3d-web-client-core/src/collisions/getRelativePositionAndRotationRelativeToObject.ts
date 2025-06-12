@@ -1,5 +1,5 @@
 import { PositionAndRotation } from "@mml-io/mml-web";
-import * as playcanvas from "playcanvas";
+import { Object3D } from "three";
 
 import { EulXYZ, Matr4, Quat, Vect3 } from "../math";
 
@@ -12,13 +12,13 @@ const tempScaleVector = new Vect3();
 
 export function getRelativePositionAndRotationRelativeToObject(
   positionAndRotation: PositionAndRotation,
-  container: playcanvas.Entity,
+  container: Object3D,
 ): PositionAndRotation {
   const { x, y, z } = positionAndRotation.position;
   const { x: rx, y: ry, z: rz } = positionAndRotation.rotation;
 
-  // container.updateWorldMatrix(true, false);
-  tempContainerMatrix.set(container.getWorldTransform().data).invert();
+  container.updateWorldMatrix(true, false);
+  tempContainerMatrix.set(new Float32Array(container.matrixWorld.elements)).invert();
 
   tempPositionVector.set(x, y, z);
   tempRotationEuler.set(rx, ry, rz);
@@ -32,7 +32,7 @@ export function getRelativePositionAndRotationRelativeToObject(
   tempRotationEuler.setFromQuaternion(tempRotationQuaternion);
 
   // Correct for the container's local scale
-  tempPositionVector.multiply(container.getLocalScale());
+  tempPositionVector.multiply(new Vect3(container.scale.x, container.scale.y, container.scale.z));
 
   return {
     position: {
