@@ -1,5 +1,5 @@
 import { PositionAndRotation } from "@mml-io/mml-web";
-import * as playcanvas from "playcanvas";
+import { Group } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -87,14 +87,11 @@ export class CharacterManager {
   public localController: LocalController;
   public localCharacter: Character | null = null;
 
-  public readonly group: playcanvas.Entity;
+  public readonly group: Group;
   private lastUpdateSentTime: number = 0;
 
-  constructor(
-    private playcanvasApp: playcanvas.AppBase,
-    private config: CharacterManagerConfig,
-  ) {
-    this.group = new playcanvas.Entity();
+  constructor(private config: CharacterManagerConfig) {
+    this.group = new Group();
   }
 
   public spawnLocalCharacter(
@@ -104,7 +101,7 @@ export class CharacterManager {
     spawnPosition: Vect3 = new Vect3(),
     spawnRotation: EulXYZ = new EulXYZ(),
   ) {
-    const character = new Character(this.playcanvasApp, {
+    const character = new Character({
       username,
       characterDescription,
       animationConfig: this.config.animationConfig,
@@ -117,7 +114,7 @@ export class CharacterManager {
       composer: this.config.composer,
       isLocal: true,
     });
-    const quaternion = character.getRotation();
+    const quaternion = character.quaternion;
     this.config.sendUpdate({
       id: id,
       position: {
@@ -140,10 +137,10 @@ export class CharacterManager {
       timeManager: this.config.timeManager,
       spawnConfiguration: this.config.spawnConfiguration,
     });
-    this.localCharacter.setLocalPosition(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
     const spawnQuat = new Quat().setFromEulerXYZ(spawnRotation);
-    this.localCharacter.setRotation(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w);
-    this.group.addChild(character);
+    this.localCharacter.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w);
+    this.group.add(character);
     this.localCharacterSpawned = true;
   }
 
@@ -185,7 +182,7 @@ export class CharacterManager {
     spawnPosition: Vect3 = new Vect3(),
     spawnRotation: EulXYZ = new EulXYZ(),
   ) {
-    const character = new Character(this.playcanvasApp, {
+    const character = new Character({
       username,
       characterDescription,
       animationConfig: this.config.animationConfig,
@@ -202,8 +199,8 @@ export class CharacterManager {
     const spawnQuaternion = new Quat().setFromEulerXYZ(spawnRotation);
 
     this.remoteCharacters.set(id, character);
-    character.setPosition(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-    character.setRotation(
+    character.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    character.quaternion.set(
       spawnQuaternion.x,
       spawnQuaternion.y,
       spawnQuaternion.z,
@@ -211,14 +208,14 @@ export class CharacterManager {
     );
     const remoteController = new RemoteController({ character, id });
     this.remoteCharacterControllers.set(id, remoteController);
-    this.group.addChild(character);
+    this.group.add(character);
   }
 
   public getLocalCharacterPositionAndRotation(): PositionAndRotation {
     if (this.localCharacter && this.localCharacter && this.localCharacter) {
       return {
-        position: this.localCharacter.getPosition(),
-        rotation: this.localCharacter.getRotation(),
+        position: this.localCharacter.position,
+        rotation: this.localCharacter.rotation,
       };
     }
     return {
@@ -283,13 +280,13 @@ export class CharacterManager {
         .add(this.headTargetOffset)
         .applyQuat(
           new Quat(
-            this.localCharacter.getRotation().x,
-            this.localCharacter.getRotation().y,
-            this.localCharacter.getRotation().z,
-            this.localCharacter.getRotation().w,
+            this.localCharacter.quaternion.x,
+            this.localCharacter.quaternion.y,
+            this.localCharacter.quaternion.z,
+            this.localCharacter.quaternion.w,
           ),
         )
-        .add(this.localCharacter.getPosition());
+        .add(this.localCharacter.position);
       this.config.cameraManager.setTarget(targetOffset);
 
       for (const [id, update] of this.config.remoteUserStates) {

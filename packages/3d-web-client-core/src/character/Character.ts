@@ -1,6 +1,7 @@
-import * as playcanvas from "playcanvas";
+import { Color, Group } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
+import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
 import { CharacterModel } from "./CharacterModel";
@@ -57,20 +58,16 @@ function characterDescriptionMatches(a: CharacterDescription, b: CharacterDescri
   );
 }
 
-export class Character extends playcanvas.Entity {
-  private characterModel: CharacterModel | null = null;
+export class Character extends Group {
+  private model: CharacterModel | null = null;
+  public color: Color = new Color();
   public tooltip: CharacterTooltip;
 
   public chatTooltips: CharacterTooltip[] = [];
 
-  constructor(
-    private playcanvasApp: playcanvas.AppBase,
-    private config: CharacterConfig,
-  ) {
+  constructor(private config: CharacterConfig) {
     super();
     this.tooltip = new CharacterTooltip(
-      this.playcanvasApp,
-      this.config.cameraManager,
       this.config.isLocal
         ? {
             secondsToFadeOut: 10,
@@ -78,7 +75,7 @@ export class Character extends playcanvas.Entity {
         : {},
     );
     this.tooltip.setText(this.config.username);
-    this.addChild(this.tooltip);
+    this.add(this.tooltip);
     this.load().then(() => {
       this.config.modelLoadedCallback();
       this.setTooltipHeights();
@@ -101,26 +98,24 @@ export class Character extends playcanvas.Entity {
   }
 
   private setTooltipHeights() {
-    if (this.characterModel && this.characterModel.characterHeight) {
-      let height = characterHeightToTooltipHeightOffset(this.characterModel.characterHeight);
+    if (this.model && this.model.characterHeight) {
+      let height = characterHeightToTooltipHeightOffset(this.model.characterHeight);
       this.tooltip.setHeightOffset(height);
-
-      height = this.tooltip.getSpriteHeight();
+      height += this.tooltip.scale.y;
 
       for (const chatTooltip of this.chatTooltips) {
         chatTooltip.setHeightOffset(height);
-        height += chatTooltip.getSpriteHeight();
+        height += chatTooltip.scale.y;
       }
     }
   }
 
   private async load(): Promise<void> {
-    const previousModel = this.characterModel;
+    const previousModel = this.model;
     if (previousModel && previousModel.mesh) {
-      this.removeChild(previousModel.mesh);
+      this.remove(previousModel.mesh);
     }
-    this.characterModel = new CharacterModel({
-      playcanvasApp: this.playcanvasApp,
+    this.model = new CharacterModel({
       characterDescription: this.config.characterDescription,
       animationConfig: this.config.animationConfig,
       characterModelLoader: this.config.characterModelLoader,
@@ -128,39 +123,55 @@ export class Character extends playcanvas.Entity {
       characterId: this.config.characterId,
       isLocal: this.config.isLocal,
     });
-    await this.characterModel.init();
-    if (this.characterModel.mesh) {
-      this.addChild(this.characterModel.mesh);
+    await this.model.init();
+    if (this.model.mesh) {
+      this.add(this.model.mesh);
     }
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
-    this.characterModel?.updateAnimation(targetAnimation);
+    this.model?.updateAnimation(targetAnimation);
   }
 
   public update(time: number, deltaTime: number) {
-    if (!this.characterModel) return;
+    if (!this.model) return;
     if (this.tooltip) {
       this.tooltip.update();
     }
-    this.characterModel.update(deltaTime);
+    this.model.update(deltaTime);
+  }
+
+  public getPosition(): Vect3 {
+    return new Vect3(
+      this.model?.mesh?.position.x || 0,
+      this.model?.mesh?.position.y || 0,
+      this.model?.mesh?.position.z || 0,
+    );
   }
 
   getCurrentAnimation(): AnimationState {
-    return this.characterModel?.currentAnimation || AnimationState.idle;
+    return this.model?.currentAnimation || AnimationState.idle;
+  }
+
+  public getLocalPosition(): Vect3 {
+    return new Vect3(
+      this.model?.mesh?.position.x || 0,
+      this.model?.mesh?.position.y || 0,
+      this.model?.mesh?.position.z || 0,
+    );
   }
 
   addChatBubble(message: string) {
-    const tooltip = new CharacterTooltip(this.playcanvasApp, this.config.cameraManager, {
+    const tooltip = new CharacterTooltip({
       maxWidth: 1000,
       secondsToFadeOut: 10,
-      color: new playcanvas.Color(0.125, 0.125, 0.125),
+      color: new Color(0.125, 0.125, 0.125),
     });
-    this.tooltip.addChild(tooltip);
+    this.add(tooltip);
     this.chatTooltips.unshift(tooltip);
     tooltip.setText(message, () => {
       this.chatTooltips = this.chatTooltips.filter((t) => t !== tooltip);
-      this.tooltip.removeChild(tooltip);
+      this.remove(tooltip);
       this.setTooltipHeights();
     });
     if (this.config.isLocal) {
