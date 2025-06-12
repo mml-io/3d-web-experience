@@ -249,7 +249,7 @@ export class LocalController {
   }
 
   private updateAzimuthalAngle(): void {
-    const cameraPos = new Vect3().copy(this.config.cameraManager.activeCamera.getPosition());
+    const cameraPos = new Vect3().copy(this.config.cameraManager.activeCamera.position);
     const camToModelDistance = cameraPos.distanceTo(
       new Vect3().copy(this.config.character.getPosition()),
     );
@@ -257,20 +257,18 @@ export class LocalController {
     if (isCameraFirstPerson) {
       const cameraForward = this.tempVector
         .set(0, 0, 1)
-        .applyQuat(new Quat().copy(this.config.cameraManager.activeCamera.getRotation()));
+        .applyQuat(new Quat().copy(this.config.cameraManager.activeCamera.quaternion));
       this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);
     } else {
       this.azimuthalAngle = Math.atan2(
-        this.config.cameraManager.activeCamera.getPosition().x -
-          this.config.character.getPosition().x,
-        this.config.cameraManager.activeCamera.getPosition().z -
-          this.config.character.getPosition().z,
+        this.config.cameraManager.activeCamera.position.x - this.config.character.position.x,
+        this.config.cameraManager.activeCamera.position.z - this.config.character.position.z,
       );
     }
   }
 
   private computeAngularDifference(rotationQuat: Quat): number {
-    const rotation = new Quat().copy(this.config.character.getRotation());
+    const rotation = new Quat().copy(this.config.character.quaternion);
     return 2 * Math.acos(Math.abs(rotation.dot(rotationQuat)));
   }
 
@@ -285,9 +283,9 @@ export class LocalController {
     const desiredTime = 0.07;
     const angularSpeed = angularDifference / desiredTime;
     const frameRotation = angularSpeed * this.config.timeManager.deltaTime;
-    const rot = new Quat().copy(this.config.character.getRotation());
+    const rot = new Quat().copy(this.config.character.quaternion);
     rot.rotateTowards(rotationQuat, frameRotation);
-    this.config.character.setRotation(rot.x, rot.y, rot.z, rot.w);
+    this.config.character.quaternion.copy(rot);
   }
 
   private processJump(currentAcceleration: Vect3, deltaTime: number) {
@@ -378,7 +376,7 @@ export class LocalController {
 
     const newPosition = new Vect3(this.config.character.getPosition());
     newPosition.addScaledVector(this.characterVelocity, stepDeltaTime);
-    this.config.character.setPosition(newPosition.x, newPosition.y, newPosition.z);
+    this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
   }
 
   private updatePosition(deltaTime: number, stepDeltaTime: number, iter: number): void {
@@ -392,21 +390,21 @@ export class LocalController {
       if (lastMovement) {
         const newPosition = this.tempVector.copy(this.config.character.getPosition());
         newPosition.add(lastMovement.position);
-        this.config.character.setPosition(newPosition.x, newPosition.y, newPosition.z);
-        const asQuat = this.tempQuat.copy(this.config.character.getRotation());
+        this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
+        const asQuat = this.tempQuat.copy(this.config.character.quaternion);
         const lastMovementEulXYZ = this.tempEulXYZ.setFromQuaternion(lastMovement.rotation);
         lastMovementEulXYZ.x = 0;
         lastMovementEulXYZ.z = 0;
         lastMovement.rotation.setFromEulerXYZ(lastMovementEulXYZ);
         asQuat.multiply(lastMovement.rotation);
-        this.config.character.setRotation(asQuat.x, asQuat.y, asQuat.z, asQuat.w);
+        this.config.character.quaternion.set(asQuat.x, asQuat.y, asQuat.z, asQuat.w);
       }
     }
 
     const avatarSegment = this.tempSegment;
     avatarSegment.copy(this.capsuleInfo.segment!);
-    avatarSegment.start.add(this.config.character.getPosition());
-    avatarSegment.end.add(this.config.character.getPosition());
+    avatarSegment.start.add(this.config.character.position);
+    avatarSegment.end.add(this.config.character.position);
 
     const positionBeforeCollisions = this.tempVector.copy(avatarSegment.start);
     this.config.collisionsManager.applyColliders(avatarSegment, this.capsuleInfo.radius!);
@@ -437,7 +435,7 @@ export class LocalController {
       avatarSegment.start.y += this.capsuleInfo.radius;
     }
 
-    this.config.character.setPosition(
+    this.config.character.position.set(
       avatarSegment.start.x,
       avatarSegment.start.y,
       avatarSegment.start.z,
@@ -558,10 +556,10 @@ export class LocalController {
   }
 
   private updateNetworkState(): void {
-    const cameraPosition = this.config.cameraManager.camera.getPosition();
-    const cameraRotation = this.config.cameraManager.activeCamera.getRotation();
-    const characterPosition = this.config.character.getPosition();
-    const characterRotation = this.config.character.getRotation();
+    const cameraPosition = this.config.cameraManager.camera.position;
+    const cameraRotation = this.config.cameraManager.activeCamera.quaternion;
+    const characterPosition = this.config.character.position;
+    const characterRotation = this.config.character.rotation;
 
     const characterQuat = this.tempQuat.copy(characterRotation);
 
@@ -604,7 +602,7 @@ export class LocalController {
     this.characterVelocity.y = 0;
     this.characterVelocity.z = 0;
 
-    this.config.character.setPosition(
+    this.config.character.position.set(
       randomWithVariance(
         this.config.spawnConfiguration.spawnPosition.x,
         this.config.spawnConfiguration.spawnPositionVariance.x,
@@ -626,7 +624,7 @@ export class LocalController {
     );
     const respawnQuaternion = this.tempQuat.setFromEulerXYZ(respawnEuler);
 
-    this.config.character.setRotation(
+    this.config.character.quaternion.set(
       respawnQuaternion.x,
       respawnQuaternion.y,
       respawnQuaternion.z,
