@@ -1,14 +1,14 @@
 import { SpawnConfigurationState } from "@mml-io/3d-web-client-core";
 import { IframeWrapper, MMLScene, registerCustomElementsToWindow } from "@mml-io/mml-web";
 import {
-  StandalonePlayCanvasAdapter,
-  StandalonePlayCanvasAdapterControlsType,
-} from "@mml-io/mml-web-playcanvas-standalone";
-import {
   EditableNetworkedDOM,
   IframeObservableDOMFactory,
   MMLWebRunnerClient,
 } from "@mml-io/mml-web-runner";
+import {
+  StandaloneThreeJSAdapter,
+  StandaloneThreeJSAdapterControlsType,
+} from "@mml-io/mml-web-threejs-standalone";
 
 import exampleMMLDocumentHTML from "./example-mml.html";
 import { LocalAvatarClient } from "./LocalAvatarClient";
@@ -125,8 +125,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   const mmlScene = new MMLScene(sceneElement);
   quadrant4.append(mmlScene.element);
 
-  StandalonePlayCanvasAdapter.create(sceneElement, {
-    controlsType: StandalonePlayCanvasAdapterControlsType.DragFly,
+  StandaloneThreeJSAdapter.create(sceneElement, {
+    controlsType: StandaloneThreeJSAdapterControlsType.DragFly,
   }).then((graphicsAdapter) => {
     mmlScene.init(graphicsAdapter);
 
