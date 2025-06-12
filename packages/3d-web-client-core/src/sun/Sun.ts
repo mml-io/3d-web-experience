@@ -1,52 +1,58 @@
-import * as playcanvas from "playcanvas";
+import { CameraHelper, Color, DirectionalLight, Group, OrthographicCamera } from "three";
 
+import { Vect3 } from "../math";
 import { sunValues } from "../tweakpane/blades/environmentFolder";
 
-export class Sun extends playcanvas.Entity {
+export class Sun extends Group {
   private readonly debug: boolean = false;
-  private readonly sunOffset: playcanvas.Vec3 = new playcanvas.Vec3(
+  private readonly sunOffset: Vect3 = new Vect3(
     sunValues.sunPosition.sunAzimuthalAngle * (Math.PI / 180),
     sunValues.sunPosition.sunPolarAngle * (Math.PI / 180),
     10,
   );
+  private readonly shadowResolution: number = 512;
+  private readonly shadowCamFrustum: number = 50;
+  private readonly camHelper: CameraHelper | null = null;
 
-  private readonly directionalLight: playcanvas.Entity;
+  private readonly shadowCamera: OrthographicCamera;
+  private readonly directionalLight: DirectionalLight;
 
-  public target: playcanvas.Vec3 | null = null;
+  public target: Vect3 | null = null;
 
-  constructor(app: playcanvas.AppBase) {
-    super("Sun", app);
+  constructor() {
+    super();
+
+    this.shadowCamera = new OrthographicCamera(
+      -this.shadowCamFrustum,
+      this.shadowCamFrustum,
+      this.shadowCamFrustum,
+      -this.shadowCamFrustum,
+      0.1,
+      200,
+    );
 
     if (this.debug === true) {
-      // TODO - debug helper
+      this.camHelper = new CameraHelper(this.shadowCamera);
     }
 
-    this.directionalLight = new playcanvas.Entity("SunDirectionalLight");
-    this.directionalLight.addComponent("light", {
-      type: "directional",
-      luminance: 10 * 4000,
-      intensity: 10 * 0.01,
-      castShadows: true,
-      color: new playcanvas.Color(1, 1, 1),
-      shadowBias: 0.2,
-      normalOffsetBias: 0.0001,
-      innerConeAngle: 45,
-      outerConeAngle: 45,
-      range: 100,
-      falloffMode: playcanvas.LIGHTFALLOFF_INVERSESQUARED,
-      shadowResolution: 8192,
-      numCascades: 4,
-      cascadeDistribution: 0.75,
-      shadowDistance: 100,
-      enabled: true,
-    });
+    this.directionalLight = new DirectionalLight(0xffffff);
+    this.directionalLight.intensity = sunValues.sunIntensity;
+    this.directionalLight.shadow.normalBias = 0.1;
+    this.directionalLight.shadow.radius = 0.02;
+    this.directionalLight.shadow.camera = this.shadowCamera;
+    this.directionalLight.shadow.mapSize.set(this.shadowResolution, this.shadowResolution);
+    this.directionalLight.castShadow = true;
     this.setColor();
-    this.addChild(this.directionalLight);
 
-    this.updateCharacterPosition(new playcanvas.Vec3(0, 0, 0));
+    this.updateCharacterPosition(new Vect3(0, 0, 0));
+
+    this.add(this.directionalLight);
+    if (this.debug === true && this.camHelper instanceof CameraHelper) {
+      this.add(this.camHelper);
+    }
   }
 
-  public updateCharacterPosition(position: playcanvas.Vec3 | undefined) {
+  public updateCharacterPosition(position: Vect3 | undefined) {
     if (!position) return;
     this.target = position;
     this.setSunPosition(this.sunOffset.x, this.sunOffset.y);
@@ -63,14 +69,14 @@ export class Sun extends playcanvas.Entity {
   }
 
   public setIntensity(intensity: number) {
-    if (this.directionalLight.light) {
-      this.directionalLight.light.intensity = intensity;
+    if (this.directionalLight) {
+      this.directionalLight.intensity = intensity;
     }
   }
 
   public setColor() {
-    if (this.directionalLight.light) {
-      this.directionalLight.light.color = new playcanvas.Color(
+    if (this.directionalLight) {
+      this.directionalLight.color = new Color().setRGB(
         sunValues.sunColor.r,
         sunValues.sunColor.g,
         sunValues.sunColor.b,
@@ -81,19 +87,23 @@ export class Sun extends playcanvas.Entity {
   private setSunPosition(azimuthalAngle: number, polarAngle: number) {
     if (!this.target) return;
     const distance = this.sunOffset.z;
-    const sphericalPosition = new playcanvas.Vec3(
+    // const sphericalPosition = new playcanvas.Vec3(
+    //   distance * Math.sin(polarAngle) * Math.cos(azimuthalAngle),
+    //   distance * Math.cos(polarAngle),
+    //   distance * Math.sin(polarAngle) * Math.sin(azimuthalAngle),
+    // );
+    const sphericalPosition = new Vect3(
       distance * Math.sin(polarAngle) * Math.cos(azimuthalAngle),
       distance * Math.cos(polarAngle),
       distance * Math.sin(polarAngle) * Math.sin(azimuthalAngle),
     );
-
-    // Create a new position by adding the spherical offset to the target
-    const newSunPosition = new playcanvas.Vec3().copy(this.target).add(sphericalPosition);
+    const newSunPosition = this.target.clone().add(sphericalPosition);
 
     // Position the directional light
-    this.directionalLight.setPosition(newSunPosition.x, newSunPosition.y, newSunPosition.z);
+    this.directionalLight.position.set(newSunPosition.x, newSunPosition.y, newSunPosition.z);
 
     // Look at the target
-    this.directionalLight.lookAt(this.target.x, this.target.y, this.target.z);
+    this.directionalLight.target.position.copy(this.target.clone());
+    this.directionalLight.target.updateMatrixWorld();
   }
 }
