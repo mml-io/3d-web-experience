@@ -87,11 +87,6 @@ export class Sun extends Group {
   private setSunPosition(azimuthalAngle: number, polarAngle: number) {
     if (!this.target) return;
     const distance = this.sunOffset.z;
-    // const sphericalPosition = new playcanvas.Vec3(
-    //   distance * Math.sin(polarAngle) * Math.cos(azimuthalAngle),
-    //   distance * Math.cos(polarAngle),
-    //   distance * Math.sin(polarAngle) * Math.sin(azimuthalAngle),
-    // );
     const sphericalPosition = new Vect3(
       distance * Math.sin(polarAngle) * Math.cos(azimuthalAngle),
       distance * Math.cos(polarAngle),
