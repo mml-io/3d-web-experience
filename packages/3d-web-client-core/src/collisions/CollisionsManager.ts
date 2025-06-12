@@ -1,8 +1,24 @@
 import { MElement, MMLCollisionTrigger } from "@mml-io/mml-web";
-import * as playcanvas from "playcanvas";
-import { BufferGeometry, InstancedMesh, DoubleSide, BufferAttribute, Matrix4 } from "three";
+import {
+  BufferGeometry,
+  InstancedMesh,
+  DoubleSide,
+  Matrix4,
+  Group,
+  Scene,
+  Ray as ThreeRay,
+  Vector3,
+  Mesh,
+  MeshBasicMaterial,
+  LineBasicMaterial,
+  Color,
+  Object3D,
+  Box3,
+  Line3,
+} from "three";
+import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper.js";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { MeshBVH } from "three-mesh-bvh";
+import { MeshBVH, MeshBVHHelper } from "three-mesh-bvh";
 
 import { Box } from "../math/Box";
 import { EulXYZ } from "../math/EulXYZ";
@@ -16,15 +32,15 @@ import { getRelativePositionAndRotationRelativeToObject } from "./getRelativePos
 
 export type CollisionMeshState = {
   matrix: Matr4;
-  source: playcanvas.Entity;
+  source: Group;
   meshBVH: MeshBVH;
-  debugGroup?: playcanvas.Entity;
+  debugGroup?: Group;
   trackCollisions: boolean;
 };
 
 export class CollisionsManager {
   private debug: boolean = false;
-  // private scene: Scene;
+  private scene: Scene;
   private tempVector: Vect3 = new Vect3();
   private tempVector2: Vect3 = new Vect3();
   private tempVect3: Vect3 = new Vect3();
@@ -37,14 +53,15 @@ export class CollisionsManager {
   private tempSegment = new Line();
   private tempSegment2 = new Line();
 
-  public collisionMeshState: Map<playcanvas.Entity, CollisionMeshState> = new Map();
-  private collisionTrigger: MMLCollisionTrigger<playcanvas.Entity>;
+  public collisionMeshState: Map<Group, CollisionMeshState> = new Map();
+  private collisionTrigger: MMLCollisionTrigger<Group>;
   private previouslyCollidingElements: null | Map<
-    playcanvas.Entity,
+    Group,
     { position: { x: number; y: number; z: number } }
   >;
 
-  constructor() {
+  constructor(scene: Scene) {
+    this.scene = scene;
     this.collisionTrigger = MMLCollisionTrigger.init();
   }
 
@@ -62,7 +79,11 @@ export class CollisionsManager {
       const originalRay = this.tempRay.copy(ray);
       originalRay.applyMatrix4(invertedMatrix);
 
-      const hit = collisionMeshState.meshBVH.raycastFirst(originalRay, DoubleSide);
+      const originalRayAsThreeRay = new ThreeRay(
+        new Vector3(...originalRay.origin.toArray()),
+        new Vector3(...originalRay.direction.toArray()),
+      );
+      const hit = collisionMeshState.meshBVH.raycastFirst(originalRayAsThreeRay, DoubleSide);
       if (hit) {
         this.tempSegment.start.copy(originalRay.origin);
         this.tempSegment.end.copy(hit.point);
@@ -99,71 +120,59 @@ export class CollisionsManager {
     return [minimumDistance, minimumNormal, minimumHit, minimumPoint];
   }
 
-  private createCollisionMeshState(
-    group: playcanvas.Entity,
-    trackCollisions: boolean,
-  ): CollisionMeshState {
+  private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
     const geometries: Array<BufferGeometry> = [];
-    // group.updateWorldMatrix(true, false);
-    const invertedRootMatrix = this.tempMatrix2.set(group.getWorldTransform().data).invert();
-    group.find((child: playcanvas.Entity) => {
-      // if (asMesh.isMesh) {
-      //   const asInstancedMesh = asMesh as InstancedMesh;
-      //   if (asInstancedMesh.isInstancedMesh) {
-      //     for (let i = 0; i < asInstancedMesh.count; i++) {
-      //       const clonedGeometry = asInstancedMesh.geometry.clone();
-      //       for (const key in clonedGeometry.attributes) {
-      //         if (key !== "position") {
-      //           clonedGeometry.deleteAttribute(key);
-      //         }
-      //       }
-      //       clonedGeometry.applyMatrix4(
-      //         this.tempMatrix2.fromArray(asInstancedMesh.instanceMatrix.array, i * 16),
-      //       );
-      //       if (clonedGeometry.index) {
-      //         geometries.push(clonedGeometry.toNonIndexed());
-      //       } else {
-      //         geometries.push(clonedGeometry);
-      //       }
-      //     }
-      //   } else {
-
-      const meshMatrix = this.tempMatrix.set(child.getWorldTransform().data);
-
-      for (const meshInstance of child.render?.meshInstances || []) {
-        const bufferGeometry = new BufferGeometry();
-        const positionBufferAttribute = new BufferAttribute(
-          new Float32Array(
-            meshInstance.mesh.vertexBuffer.storage,
-            0,
-            3 * meshInstance.mesh.vertexBuffer.numVertices,
-          ),
-          3,
-          true,
-        );
-        bufferGeometry.setAttribute("position", positionBufferAttribute);
-        const indexBuffer = meshInstance.mesh.indexBuffer[0];
-        if (indexBuffer) {
-          const indexBufferAttribute = new BufferAttribute(
-            new Uint16Array(indexBuffer.storage, 0, indexBuffer.numIndices),
-            1,
-            true,
-          );
-          bufferGeometry.setIndex(indexBufferAttribute);
-        }
-        bufferGeometry.applyMatrix4(
-          new Matrix4(...this.tempMatrix2.multiplyMatrices(invertedRootMatrix, meshMatrix).data),
-        );
-        if (bufferGeometry.index) {
-          geometries.push(bufferGeometry.toNonIndexed());
+    group.updateWorldMatrix(true, false);
+    const invertedRootMatrix = this.tempMatrix
+      .copy(new Matr4(new Float32Array(group.matrixWorld.elements)))
+      .invert();
+    group.traverse((child: Object3D) => {
+      const asMesh = child as Mesh;
+      if (asMesh.isMesh) {
+        const asInstancedMesh = asMesh as InstancedMesh;
+        if (asInstancedMesh.isInstancedMesh) {
+          for (let i = 0; i < asInstancedMesh.count; i++) {
+            const clonedGeometry = asInstancedMesh.geometry.clone();
+            for (const key in clonedGeometry.attributes) {
+              if (key !== "position") {
+                clonedGeometry.deleteAttribute(key);
+              }
+            }
+            const clonedMat4 = new Matrix4().fromArray(
+              asInstancedMesh.instanceMatrix.array,
+              i * 16,
+            );
+            clonedGeometry.applyMatrix4(clonedMat4);
+            if (clonedGeometry.index) {
+              geometries.push(clonedGeometry.toNonIndexed());
+            } else {
+              geometries.push(clonedGeometry);
+            }
+          }
         } else {
-          geometries.push(bufferGeometry);
+          const clonedGeometry = asMesh.geometry.clone();
+          asMesh.updateWorldMatrix(true, false);
+          for (const key in clonedGeometry.attributes) {
+            if (key !== "position") {
+              clonedGeometry.deleteAttribute(key);
+            }
+          }
+          clonedGeometry.applyMatrix4(
+            new Matrix4().fromArray(
+              this.tempMatrix2.multiplyMatrices(
+                invertedRootMatrix,
+                new Matr4(new Float32Array(asMesh.matrixWorld.elements)),
+              ).data,
+            ),
+          );
+          if (clonedGeometry.index) {
+            geometries.push(clonedGeometry.toNonIndexed());
+          } else {
+            geometries.push(clonedGeometry);
+          }
         }
       }
-      return false;
     });
-
-    const rootMatrix = this.tempMatrix.set(group.getWorldTransform().data);
 
     const newBufferGeometry = BufferGeometryUtils.mergeGeometries(geometries, false);
     newBufferGeometry.computeVertexNormals();
@@ -172,61 +181,64 @@ export class CollisionsManager {
     const meshState: CollisionMeshState = {
       source: group,
       meshBVH,
-      matrix: rootMatrix.clone(),
+      matrix: new Matr4(new Float32Array(group.matrixWorld.elements)),
       trackCollisions,
     };
-    // if (this.debug) {
-    //   // Have to cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
-    //   (newBufferGeometry as any).boundsTree = meshBVH;
-    //
-    //   const wireframeMesh = new Mesh(newBufferGeometry, new MeshBasicMaterial({ wireframe: true }));
-    //
-    //   const visualizer = new MeshBVHHelper(wireframeMesh, 4);
-    //   (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
-    //
-    //   const debugGroup = new playcanvas.Entity();
-    //   debugGroup.add(wireframeMesh, visualizer as unknown as Object3D);
-    //
-    //   group.matrixWorld.decompose(debugGroup.position, debugGroup.quaternion, debugGroup.scale);
-    //   visualizer.update();
-    //
-    //   meshState.debugGroup = debugGroup;
-    // }
+    if (this.debug) {
+      // Have to cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
+      (newBufferGeometry as any).boundsTree = meshBVH;
+
+      const wireframeMesh = new Mesh(newBufferGeometry, new MeshBasicMaterial({ wireframe: true }));
+
+      const normalsHelper = new VertexNormalsHelper(wireframeMesh, 0.25, 0x00ff00);
+
+      const visualizer = new MeshBVHHelper(wireframeMesh, 4);
+      (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
+
+      const debugGroup = new Group();
+      debugGroup.add(wireframeMesh, normalsHelper, visualizer as unknown as Object3D);
+
+      group.matrixWorld.decompose(debugGroup.position, debugGroup.quaternion, debugGroup.scale);
+      visualizer.update();
+
+      meshState.debugGroup = debugGroup;
+    }
     return meshState;
   }
 
-  public addMeshesGroup(group: playcanvas.Entity, mElement?: MElement): void {
+  public addMeshesGroup(group: Group, mElement?: MElement): void {
     if (mElement) {
       this.collisionTrigger.addCollider(group, mElement);
     }
     const meshState = this.createCollisionMeshState(group, mElement !== undefined);
-    // if (meshState.debugGroup) {
-    //   this.scene.add(meshState.debugGroup);
-    // }
+    if (meshState.debugGroup) {
+      this.scene.add(meshState.debugGroup);
+    }
     this.collisionMeshState.set(group, meshState);
   }
 
-  public updateMeshesGroup(group: playcanvas.Entity): void {
+  public updateMeshesGroup(group: Group): void {
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      meshState.matrix.set(group.getWorldTransform().data);
-      // if (meshState.debugGroup) {
-      //   group.matrixWorld.decompose(
-      //     meshState.debugGroup.position,
-      //     meshState.debugGroup.quaternion,
-      //     meshState.debugGroup.scale,
-      //   );
-      // }
+      group.updateWorldMatrix(true, false);
+      meshState.matrix.set(new Float32Array(group.matrixWorld.elements));
+      if (meshState.debugGroup) {
+        group.matrixWorld.decompose(
+          meshState.debugGroup.position,
+          meshState.debugGroup.quaternion,
+          meshState.debugGroup.scale,
+        );
+      }
     }
   }
 
-  public removeMeshesGroup(group: playcanvas.Entity): void {
+  public removeMeshesGroup(group: Group): void {
     this.collisionTrigger.removeCollider(group);
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      // if (meshState.debugGroup) {
-      //   this.scene.remove(meshState.debugGroup);
-      // }
+      if (meshState.debugGroup) {
+        this.scene.remove(meshState.debugGroup);
+      }
       this.collisionMeshState.delete(group);
     }
   }
@@ -264,16 +276,42 @@ export class CollisionsManager {
       intersectsBounds: (meshBox) => {
         // Determine if this portion of the mesh overlaps with the capsule bounding box and is therefore worth checking
         // all of the triangles within
-        return meshBox.intersectsBox(meshRelativeCapsuleBoundingBox);
+        return meshBox.intersectsBox(
+          new Box3(
+            new Vector3(
+              meshRelativeCapsuleBoundingBox.min.x,
+              meshRelativeCapsuleBoundingBox.min.y,
+              meshRelativeCapsuleBoundingBox.min.z,
+            ),
+            new Vector3(
+              meshRelativeCapsuleBoundingBox.max.x,
+              meshRelativeCapsuleBoundingBox.max.y,
+              meshRelativeCapsuleBoundingBox.max.z,
+            ),
+          ),
+        );
       },
       intersectsTriangle: (meshTriangle) => {
         const closestPointOnTriangle = this.tempVector;
         const closestPointOnSegment = this.tempVector2;
         // Find the closest point between this triangle and the capsule segment in mesh-space
+        const line3MeshRelativeCapsuleSegment = new Line3(
+          new Vector3(
+            meshRelativeCapsuleSegment.start.x,
+            meshRelativeCapsuleSegment.start.y,
+            meshRelativeCapsuleSegment.start.z,
+          ),
+          new Vector3(
+            meshRelativeCapsuleSegment.end.x,
+            meshRelativeCapsuleSegment.end.y,
+            meshRelativeCapsuleSegment.end.z,
+          ),
+        );
+
         meshTriangle.closestPointToSegment(
-          meshRelativeCapsuleSegment,
-          closestPointOnTriangle,
-          closestPointOnSegment,
+          line3MeshRelativeCapsuleSegment,
+          new Vector3(closestPointOnTriangle.x, closestPointOnTriangle.y, closestPointOnTriangle.z),
+          new Vector3(closestPointOnSegment.x, closestPointOnSegment.y, closestPointOnSegment.z),
         );
         // Create a line segment between the closest points
         const intersectionSegment = this.tempSegment2;
@@ -336,7 +374,7 @@ export class CollisionsManager {
 
   public applyColliders(tempSegment: Line, radius: number) {
     const collidedElements = new Map<
-      playcanvas.Entity,
+      Group,
       {
         position: { x: number; y: number; z: number };
       }

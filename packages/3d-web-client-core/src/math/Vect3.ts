@@ -227,4 +227,8 @@ export class Vect3 {
     this.z = v1.z + (v2.z - v1.z) * alpha;
     return this;
   }
+
+  toArray(): number[] {
+    return [this.x, this.y, this.z];
+  }
 }

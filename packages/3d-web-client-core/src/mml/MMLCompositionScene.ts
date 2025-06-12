@@ -100,13 +100,13 @@ export class MMLCompositionScene {
         return true;
       },
       addCollider: (object: Object3D, mElement: MElement<ThreeJSGraphicsAdapter>) => {
-        this.config.collisionsManager.addMeshesGroup(object as Object3D, mElement);
+        this.config.collisionsManager.addMeshesGroup(object as Group, mElement);
       },
       updateCollider: (object: Object3D) => {
-        this.config.collisionsManager.updateMeshesGroup(object as Object3D);
+        this.config.collisionsManager.updateMeshesGroup(object as Group);
       },
       removeCollider: (object: Object3D) => {
-        this.config.collisionsManager.removeMeshesGroup(object as Object3D);
+        this.config.collisionsManager.removeMeshesGroup(object as Group);
       },
       getUserPositionAndRotation: this.config.getUserPositionAndRotation,
       addInteraction: (interaction: Interaction<ThreeJSGraphicsAdapter>) => {
