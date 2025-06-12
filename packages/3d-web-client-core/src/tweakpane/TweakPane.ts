@@ -1,5 +1,5 @@
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
-import * as playcanvas from "playcanvas";
+import { Scene, WebGLRenderer } from "three";
 import { FolderApi, Pane } from "tweakpane";
 
 import { CameraManager } from "../camera/CameraManager";
@@ -35,8 +35,8 @@ export class TweakPane {
 
   constructor(
     private holderElement: HTMLElement,
-    private playcanvasApp: playcanvas.AppBase,
-    private playcanvasScene: playcanvas.Scene,
+    private renderer: WebGLRenderer,
+    private scene: Scene,
   ) {
     this.tweakPaneWrapper = document.createElement("div");
     this.tweakPaneWrapper.style.position = "fixed";
@@ -112,7 +112,7 @@ export class TweakPane {
     setFog: () => void,
   ): void {
     this.environment.setupChangeEvent(
-      this.playcanvasScene,
+      this.scene,
       setHDR,
       setSkyboxAzimuthalAngle,
       setSkyboxPolarAngle,
@@ -149,7 +149,7 @@ export class TweakPane {
   }
 
   public updateStats(timeManager: TimeManager): void {
-    this.renderStatsFolder.update(this.playcanvasApp, timeManager);
+    this.renderStatsFolder.update(this.renderer, timeManager);
   }
 
   public updateCameraData(cameraManager: CameraManager) {
