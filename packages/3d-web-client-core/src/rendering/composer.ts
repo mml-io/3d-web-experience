@@ -1,12 +1,12 @@
-import * as playcanvas from "playcanvas";
+import { Scene, WebGLRenderer } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { Sun } from "../sun/Sun";
+import { TimeManager } from "../time/TimeManager";
 import { TweakPane } from "../tweakpane/TweakPane";
 
 type ComposerContructorArgs = {
-  playcanvasApp: playcanvas.AppBase;
-  playcanvasScene: playcanvas.Scene;
+  scene: Scene;
   cameraManager: CameraManager;
   spawnSun: boolean;
   environmentConfiguration?: EnvironmentConfiguration;
@@ -56,10 +56,10 @@ export class Composer {
   private width: number = 1;
   private height: number = 1;
   private resizeListener: () => void;
+  private readonly scene: Scene;
 
-  private readonly playcanvasApp: playcanvas.AppBase;
-  private readonly playcanvasScene: playcanvas.Scene;
   private readonly cameraManager: CameraManager;
+  public readonly renderer: WebGLRenderer;
 
   private environmentConfiguration?: EnvironmentConfiguration;
 
@@ -75,31 +75,31 @@ export class Composer {
   public spawnSun: boolean;
 
   constructor({
-    playcanvasApp,
-    playcanvasScene,
+    scene,
     cameraManager,
     spawnSun = false,
     environmentConfiguration,
   }: ComposerContructorArgs) {
-    this.playcanvasApp = playcanvasApp;
-    this.playcanvasScene = playcanvasScene;
+    this.scene = scene;
     this.cameraManager = cameraManager;
     this.spawnSun = spawnSun;
 
     this.environmentConfiguration = environmentConfiguration;
+
+    this.renderer = new WebGLRenderer({
+      powerPreference: "high-performance",
+    });
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = 2;
 
     // this.updateSkyboxAndEnvValues();
     // this.updateAmbientLightValues();
     // this.updateFogValues();
 
     if (this.spawnSun === true) {
-      this.sun = new Sun(this.playcanvasApp);
-      this.playcanvasApp.root.addChild(this.sun);
+      this.sun = new Sun();
+      this.scene.add(this.sun);
     }
-
-    this.playcanvasApp.on("update", (dt: number) => {
-      // no-op for now, but can be used to control aspects of the rendering
-    });
 
     // if (this.environmentConfiguration?.skybox) {
     //   if ("hdrJpgUrl" in this.environmentConfiguration.skybox) {
@@ -166,14 +166,23 @@ export class Composer {
       console.error("Composer not initialized");
       return;
     }
-    const parentElement = this.playcanvasApp.graphicsDevice.canvas.parentNode as HTMLElement;
+    const parentElement = this.renderer.domElement.parentNode as HTMLElement;
     if (!parentElement) {
       return;
     }
     this.width = parentElement.clientWidth;
     this.height = parentElement.clientHeight;
-    this.playcanvasApp.resizeCanvas(this.width, this.height);
-    this.playcanvasApp.graphicsDevice.resizeCanvas(this.width, this.height);
+    this.renderer.setSize(this.width, this.height);
+    this.cameraManager.camera.aspect = this.width / this.height;
+    this.cameraManager.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+  }
+
+  public render(timeManager: TimeManager) {
+    if (!this.renderer || !this.scene) {
+      return;
+    }
+    this.renderer.render(this.scene, this.cameraManager.activeCamera);
   }
 
   // public updateSkyboxRotation() {
