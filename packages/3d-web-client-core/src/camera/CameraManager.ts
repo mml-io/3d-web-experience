@@ -1,5 +1,5 @@
-import * as playcanvas from "playcanvas";
-import { Vec3 } from "playcanvas";
+import { PerspectiveCamera, Vector3 } from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { remap } from "../helpers/math-helpers";
@@ -9,16 +9,14 @@ import { camValues } from "../tweakpane/blades/cameraFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
 
-import { PlayCanvasOrbitCameraControls } from "./PlayCanvasOrbitCameraControls";
-
 const cameraPanSensitivity = 20;
 const scrollZoomSensitivity = 0.1;
 const pinchZoomSensitivity = 0.025;
 
 export class CameraManager {
-  public readonly camera: playcanvas.Entity;
-  private flyCamera: playcanvas.Entity;
-  private orbitControls: PlayCanvasOrbitCameraControls;
+  public readonly camera: PerspectiveCamera;
+  private flyCamera: PerspectiveCamera;
+  private orbitControls: OrbitControls;
   private isMainCameraActive: boolean = true;
 
   public initialDistance: number = camValues.initialDistance;
@@ -64,7 +62,6 @@ export class CameraManager {
   private activePointers = new Map<number, { x: number; y: number }>();
 
   constructor(
-    private playcanvasApp: playcanvas.AppBase,
     private targetElement: HTMLElement,
     private collisionsManager: CollisionsManager,
     initialPhi = Math.PI / 2,
@@ -78,27 +75,19 @@ export class CameraManager {
 
     const aspect = window.innerWidth / window.innerHeight;
 
-    this.camera = new playcanvas.Entity("MainCamera", this.playcanvasApp);
-    this.camera.addComponent("audiolistener");
-    this.camera.addComponent("camera", {
-      // fov: this.fov,
-      // clearColor: new playcanvas.Color(1, 1, 1, 1),
-    } as playcanvas.CameraComponent);
-    this.camera.setPosition(0, 1.4, -this.initialDistance);
-    console.log("this.camera", this.camera);
-    this.playcanvasApp.root.addChild(this.camera);
+    this.camera = new PerspectiveCamera(this.fov, aspect, 0.1, 400);
+    this.camera.position.set(0, 1.4, -this.initialDistance);
+    this.camera.name = "MainCamera";
+    this.flyCamera = new PerspectiveCamera(this.initialFOV, aspect, 0.1, 400);
+    this.flyCamera.name = "FlyCamera";
+    this.flyCamera.position.copy(this.camera.position);
+    this.flyCamera.name = "FlyCamera";
 
-    // this.flyCamera = new playcanvas.Entity("FlyCamera", this.playcanvasApp);
-    // this.flyCamera.addComponent("audiolistener");
-    // this.flyCamera.addComponent("camera", {
-    //   fov: this.fov,
-    //   clearColor: new playcanvas.Color(1, 1, 1, 1),
-    // } as playcanvas.CameraComponent);
-    // this.flyCamera.setPosition(0, 1.4, -this.initialDistance);
-    // this.playcanvasApp.root.addChild(this.flyCamera);
-
-    // this.orbitControls = new PlayCanvasOrbitCameraControls(this.flyCamera, this.targetElement);
-    // this.orbitControls.disable();
+    this.orbitControls = new OrbitControls(this.flyCamera, this.targetElement);
+    this.orbitControls.enableDamping = true;
+    this.orbitControls.dampingFactor = 0.05;
+    this.orbitControls.enablePan = true;
+    this.orbitControls.enabled = false;
 
     this.createEventHandlers();
   }
@@ -243,7 +232,7 @@ export class CameraManager {
   }
 
   public reverseUpdateFromPositions(): void {
-    const position = this.camera.getPosition();
+    const position = this.camera.position;
     const dx = position.x - this.target.x;
     const dy = position.y - this.target.y;
     const dz = position.z - this.target.z;
@@ -260,9 +249,9 @@ export class CameraManager {
   public adjustCameraPosition(): void {
     const offsetDistance = 0.5;
     const offset = new Vect3(0, 0, offsetDistance);
-    const matr4 = new Matr4().setRotationFromQuaternion(this.camera.getLocalRotation());
+    const matr4 = new Matr4().setRotationFromQuaternion(this.camera.quaternion);
     offset.applyMatrix4(matr4);
-    const rayOrigin = this.tempVec3.copy(this.camera.getPosition()).add(offset);
+    const rayOrigin = this.tempVec3.copy(this.camera.position).add(offset);
     const rayDirection = rayOrigin.sub(this.target.clone()).normalize();
 
     this.cameraRay.set(this.target.clone(), rayDirection);
@@ -287,8 +276,8 @@ export class CameraManager {
   }
 
   public updateAspect(aspect: number): void {
-    this.camera.camera!.aspectRatio = aspect;
-    this.flyCamera.camera!.aspectRatio = aspect;
+    this.camera.aspect = aspect;
+    this.flyCamera.aspect = aspect;
   }
 
   public recomputeFoV(immediately: boolean = false): void {
@@ -311,9 +300,9 @@ export class CameraManager {
   public toggleFlyCamera(): void {
     this.isMainCameraActive = !this.isMainCameraActive;
     if (this.isMainCameraActive) {
-      this.orbitControls.disable();
+      this.orbitControls.enabled = false;
     } else {
-      this.orbitControls.enable();
+      this.orbitControls.enabled = true;
     }
 
     if (!this.isMainCameraActive) {
@@ -321,7 +310,8 @@ export class CameraManager {
       this.flyCamera.position.copy(this.camera.position);
       this.flyCamera.rotation.copy(this.camera.rotation);
       const target = new Vect3();
-      this.camera.getWorldDirection(target);
+      const direction = this.camera.getWorldDirection(new Vector3());
+      target.set(direction.x, direction.y, direction.z);
       target.multiplyScalar(this.targetDistance).add(this.camera.position);
       this.orbitControls.target.copy(target);
       this.orbitControls.update();
@@ -331,7 +321,7 @@ export class CameraManager {
     }
   }
 
-  get activeCamera(): playcanvas.Entity {
+  get activeCamera(): PerspectiveCamera {
     return this.isMainCameraActive ? this.camera : this.flyCamera;
   }
 
@@ -362,8 +352,8 @@ export class CameraManager {
     // this.camera.camera!.fov = this.fov;
     // this.camera.updateProjectionMatrix();
 
-    this.camera.setPosition(x, y, z);
-    this.camera.lookAt(new Vec3(this.target.x, this.target.y, this.target.z));
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(new Vector3(this.target.x, this.target.y, this.target.z));
 
     if (this.isLerping && this.lerpFactor >= 1) {
       this.isLerping = false;
