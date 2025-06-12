@@ -220,4 +220,11 @@ export class Vect3 {
     this.z += (target.z - this.z) * alpha;
     return this;
   }
+
+  lerpVectors(v1: Vect3, v2: Vect3, alpha: number): Vect3 {
+    this.x = v1.x + (v2.x - v1.x) * alpha;
+    this.y = v1.y + (v2.y - v1.y) * alpha;
+    this.z = v1.z + (v2.z - v1.z) * alpha;
+    return this;
+  }
 }
