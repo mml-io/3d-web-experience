@@ -1,5 +1,5 @@
 import { BladeController, View } from "@tweakpane/core";
-import * as playcanvas from "playcanvas";
+import { Scene } from "three";
 import { BladeApi, ButtonApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 import { Sun } from "../../sun/Sun";
@@ -101,7 +101,7 @@ export class EnvironmentFolder {
   }
 
   public setupChangeEvent(
-    playcanvasScene: playcanvas.Scene,
+    scene: Scene,
     setHDR: () => void,
     setSkyboxAzimuthalAngle: (azimuthalAngle: number) => void,
     setSkyboxPolarAngle: (polarAngle: number) => void,
@@ -163,7 +163,7 @@ export class EnvironmentFolder {
           break;
         }
         case "skyboxIntensity":
-          playcanvasScene.skyboxIntensity = e.value as number;
+          scene.backgroundIntensity = e.value as number;
           break;
       }
     });
