@@ -59,6 +59,12 @@ import glslangWasmJs from "base64:./wasm/glslang.js";
 import twgslWasmJs from "base64:./wasm/twgsl.js";
 import * as playcanvas from "playcanvas";
 
+declare global {
+  interface Window {
+    playcanvasApp?: playcanvas.AppBase;
+  }
+}
+
 type MMLDocumentConfiguration = {
   url: string;
   position?: {
@@ -142,7 +148,7 @@ export class Networked3dWebExperienceClient {
 
   private collisionsManager: CollisionsManager;
 
-  private characterModelLoader;
+  private characterModelLoader: CharacterModelLoader;
   private characterManager: CharacterManager;
 
   private timeManager = new TimeManager();
