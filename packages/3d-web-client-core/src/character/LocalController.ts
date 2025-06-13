@@ -1,3 +1,5 @@
+import { Vector3 } from "three";
+
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsManager";
 import { KeyInputManager } from "../input/KeyInputManager";
@@ -178,7 +180,12 @@ export class LocalController {
     this.controlState =
       this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
 
-    this.tempRay.set(this.config.character.getPosition(), this.vectorDown);
+    const position = new Vect3(
+      this.config.character.position.x,
+      this.config.character.position.y,
+      this.config.character.position.z,
+    );
+    this.tempRay.set(position, this.vectorDown);
     const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.tempRay);
     if (firstRaycastHit !== null) {
       this.currentHeight = firstRaycastHit[0];
@@ -373,8 +380,14 @@ export class LocalController {
     }
     acceleration.add(controlAcceleration);
     this.characterVelocity.addScaledVector(acceleration, stepDeltaTime);
+    // console.log(this.characterVelocity);
+    // this.config.character.position.addScaledVector(
+    //   new Vector3(this.characterVelocity.x, this.characterVelocity.y, this.characterVelocity.z),
+    //   stepDeltaTime,
+    // );
 
-    const newPosition = new Vect3(this.config.character.getPosition());
+    const currentPosition = this.config.character.position;
+    const newPosition = new Vect3(currentPosition.x, currentPosition.y, currentPosition.z);
     newPosition.addScaledVector(this.characterVelocity, stepDeltaTime);
     this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
   }
@@ -388,9 +401,10 @@ export class LocalController {
         deltaTime,
       );
       if (lastMovement) {
-        const newPosition = this.tempVector.copy(this.config.character.getPosition());
-        newPosition.add(lastMovement.position);
-        this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
+        // const newPosition = this.tempVector.copy(this.config.character.getPosition());
+        // newPosition.add(lastMovement.position);
+        // this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
+        this.config.character.position.add(lastMovement.position);
         const asQuat = this.tempQuat.copy(this.config.character.quaternion);
         const lastMovementEulXYZ = this.tempEulXYZ.setFromQuaternion(lastMovement.rotation);
         lastMovementEulXYZ.x = 0;
