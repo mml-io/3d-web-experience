@@ -33,6 +33,9 @@ export class RendererStatsFolder {
   private deltaTime: number = 0;
   private lastUpdateTime: number = 0;
   private fps: number = 0;
+  private rawFPS: number = 0;
+  private fpsSamples: Array<number> = [];
+  private fpsSampleSize: number = 60;
 
   constructor(parentFolder: FolderApi, expanded: boolean = true) {
     this.folder = parentFolder.addFolder({ title: "renderStats", expanded: expanded });
@@ -55,10 +58,16 @@ export class RendererStatsFolder {
 
     if (dt > 0) {
       const fps = 1000 / dt;
-      this.fps = fps;
+      this.rawFPS = fps;
     } else {
       console.log("FPS: N/A");
     }
+
+    this.fpsSamples.push(this.rawFPS);
+    if (this.fpsSamples.length > this.fpsSampleSize) {
+      this.fpsSamples.shift();
+    }
+    this.fps = this.fpsSamples.reduce((sum, sample) => sum + sample, 0) / this.fpsSamples.length;
   }
 
   public update(renderer: WebGLRenderer, timeManager: TimeManager): void {
