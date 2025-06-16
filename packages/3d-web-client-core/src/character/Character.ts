@@ -142,11 +142,7 @@ export class Character extends Group {
   }
 
   public getPosition(): Vect3 {
-    return new Vect3(
-      this.model?.mesh?.position.x || 0,
-      this.model?.mesh?.position.y || 0,
-      this.model?.mesh?.position.z || 0,
-    );
+    return this.position as unknown as Vect3;
   }
 
   getCurrentAnimation(): AnimationState {

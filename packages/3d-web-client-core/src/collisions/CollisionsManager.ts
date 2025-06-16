@@ -47,7 +47,8 @@ export class CollisionsManager {
   private tempQuat: Quat = new Quat();
   private tempRay: Ray = new Ray();
   private tempMatrix = new Matr4();
-  private tempMatrix2 = new Matr4();
+  private tempMatrixThree = new Matrix4();
+  private tempMatrix2Three = new Matrix4();
   private tempBox = new Box();
   private tempEulXYZ = new EulXYZ();
   private tempSegment = new Line();
@@ -79,11 +80,10 @@ export class CollisionsManager {
       const originalRay = this.tempRay.copy(ray);
       originalRay.applyMatrix4(invertedMatrix);
 
-      const originalRayAsThreeRay = new ThreeRay(
-        new Vector3(...originalRay.origin.toArray()),
-        new Vector3(...originalRay.direction.toArray()),
+      const hit = collisionMeshState.meshBVH.raycastFirst(
+        originalRay as unknown as ThreeRay,
+        DoubleSide,
       );
-      const hit = collisionMeshState.meshBVH.raycastFirst(originalRayAsThreeRay, DoubleSide);
       if (hit) {
         this.tempSegment.start.copy(originalRay.origin);
         this.tempSegment.end.copy(hit.point);
@@ -123,9 +123,7 @@ export class CollisionsManager {
   private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
     const geometries: Array<BufferGeometry> = [];
     group.updateWorldMatrix(true, false);
-    const invertedRootMatrix = this.tempMatrix
-      .copy(new Matr4(new Float32Array(group.matrixWorld.elements)))
-      .invert();
+    const invertedRootMatrix = this.tempMatrixThree.copy(group.matrixWorld).invert();
     group.traverse((child: Object3D) => {
       const asMesh = child as Mesh;
       if (asMesh.isMesh) {
@@ -138,11 +136,9 @@ export class CollisionsManager {
                 clonedGeometry.deleteAttribute(key);
               }
             }
-            const clonedMat4 = new Matrix4().fromArray(
-              asInstancedMesh.instanceMatrix.array,
-              i * 16,
+            clonedGeometry.applyMatrix4(
+              this.tempMatrix2Three.fromArray(asInstancedMesh.instanceMatrix.array, i * 16),
             );
-            clonedGeometry.applyMatrix4(clonedMat4);
             if (clonedGeometry.index) {
               geometries.push(clonedGeometry.toNonIndexed());
             } else {
@@ -158,12 +154,7 @@ export class CollisionsManager {
             }
           }
           clonedGeometry.applyMatrix4(
-            new Matrix4().fromArray(
-              this.tempMatrix2.multiplyMatrices(
-                invertedRootMatrix,
-                new Matr4(new Float32Array(asMesh.matrixWorld.elements)),
-              ).data,
-            ),
+            this.tempMatrix2Three.multiplyMatrices(invertedRootMatrix, asMesh.matrixWorld),
           );
           if (clonedGeometry.index) {
             geometries.push(clonedGeometry.toNonIndexed());
@@ -181,7 +172,7 @@ export class CollisionsManager {
     const meshState: CollisionMeshState = {
       source: group,
       meshBVH,
-      matrix: new Matr4(new Float32Array(group.matrixWorld.elements)),
+      matrix: new Matr4(group.matrixWorld.elements),
       trackCollisions,
     };
     if (this.debug) {
@@ -221,7 +212,7 @@ export class CollisionsManager {
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
       group.updateWorldMatrix(true, false);
-      meshState.matrix.set(new Float32Array(group.matrixWorld.elements));
+      meshState.matrix.set(group.matrixWorld.elements);
       if (meshState.debugGroup) {
         group.matrixWorld.decompose(
           meshState.debugGroup.position,
@@ -276,42 +267,16 @@ export class CollisionsManager {
       intersectsBounds: (meshBox) => {
         // Determine if this portion of the mesh overlaps with the capsule bounding box and is therefore worth checking
         // all of the triangles within
-        return meshBox.intersectsBox(
-          new Box3(
-            new Vector3(
-              meshRelativeCapsuleBoundingBox.min.x,
-              meshRelativeCapsuleBoundingBox.min.y,
-              meshRelativeCapsuleBoundingBox.min.z,
-            ),
-            new Vector3(
-              meshRelativeCapsuleBoundingBox.max.x,
-              meshRelativeCapsuleBoundingBox.max.y,
-              meshRelativeCapsuleBoundingBox.max.z,
-            ),
-          ),
-        );
+        return meshBox.intersectsBox(meshRelativeCapsuleBoundingBox as unknown as Box3);
       },
       intersectsTriangle: (meshTriangle) => {
         const closestPointOnTriangle = this.tempVector;
         const closestPointOnSegment = this.tempVector2;
         // Find the closest point between this triangle and the capsule segment in mesh-space
-        const line3MeshRelativeCapsuleSegment = new Line3(
-          new Vector3(
-            meshRelativeCapsuleSegment.start.x,
-            meshRelativeCapsuleSegment.start.y,
-            meshRelativeCapsuleSegment.start.z,
-          ),
-          new Vector3(
-            meshRelativeCapsuleSegment.end.x,
-            meshRelativeCapsuleSegment.end.y,
-            meshRelativeCapsuleSegment.end.z,
-          ),
-        );
-
         meshTriangle.closestPointToSegment(
-          line3MeshRelativeCapsuleSegment,
-          new Vector3(closestPointOnTriangle.x, closestPointOnTriangle.y, closestPointOnTriangle.z),
-          new Vector3(closestPointOnSegment.x, closestPointOnSegment.y, closestPointOnSegment.z),
+          meshRelativeCapsuleSegment as unknown as Line3,
+          closestPointOnTriangle as unknown as Vector3,
+          closestPointOnSegment as unknown as Vector3,
         );
         // Create a line segment between the closest points
         const intersectionSegment = this.tempSegment2;

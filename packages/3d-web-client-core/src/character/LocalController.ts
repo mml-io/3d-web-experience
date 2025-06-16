@@ -401,10 +401,9 @@ export class LocalController {
         deltaTime,
       );
       if (lastMovement) {
-        // const newPosition = this.tempVector.copy(this.config.character.getPosition());
-        // newPosition.add(lastMovement.position);
-        // this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
-        this.config.character.position.add(lastMovement.position);
+        const newPosition = this.tempVector.copy(this.config.character.getPosition());
+        newPosition.add(lastMovement.position);
+        this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
         const asQuat = this.tempQuat.copy(this.config.character.quaternion);
         const lastMovementEulXYZ = this.tempEulXYZ.setFromQuaternion(lastMovement.rotation);
         lastMovementEulXYZ.x = 0;
