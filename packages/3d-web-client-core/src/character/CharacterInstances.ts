@@ -50,6 +50,9 @@ export class CharacterInstances {
 
   private characterScale = 1;
 
+  // track current animation binding state
+  private currentBindingMode: "full" | "lod" | null = null;
+
   private instanceCount: number;
   private spawnRadius: number;
 
@@ -275,12 +278,6 @@ export class CharacterInstances {
     if (this.instancedMesh.boneTexture) {
       this.instancedMesh.boneTexture.partialUpdate = false;
     }
-
-    const material = this.skinnedMesh.material;
-    if (material) {
-      const baseMaterial = Array.isArray(material) ? material[0] : material;
-      this.instancedMesh.addLOD(this.skinnedMesh.geometry, baseMaterial.clone(), 10);
-    }
   }
 
   private setupAnimationOptimization(): void {
@@ -318,12 +315,12 @@ ${this.propertyBindingsLOD.length} LOD bindings
   private addInstances(): void {
     if (!this.instancedMesh) return;
 
+    const rnd = () => Math.random() * 2 - 1;
+
     this.instancedMesh.addInstances(this.instanceCount, (obj: any, index: number) => {
-      obj.position.set(
-        (Math.random() * 2 - 1) * this.spawnRadius,
-        0,
-        (Math.random() * 2 - 1) * this.spawnRadius,
-      );
+      obj.position
+        .set(rnd() * this.spawnRadius, 0, rnd() * this.spawnRadius)
+        .divideScalar(this.characterScale);
 
       obj.color = `hsl(${Math.random() * 360}, 50%, 75%)`;
       obj.time = 0;
@@ -360,8 +357,8 @@ ${this.propertyBindingsLOD.length} LOD bindings
   public setupFrustumCulling(): void {
     if (!this.instancedMesh || !this.mixer || !this.action) return;
 
-    const maxFps = 60;
-    const minFps = 5;
+    const maxFps = 30;
+    const minFps = 2;
 
     this.instancedMesh.onFrustumEnter = (
       index: number,
@@ -371,7 +368,8 @@ ${this.propertyBindingsLOD.length} LOD bindings
     ) => {
       const instance = this.instancedMesh.instances[index];
 
-      const cameraDistance = this.cameraLocalPosition.distanceTo(instance.position);
+      const cameraDistance =
+        this.cameraLocalPosition.distanceTo(instance.position) * this.characterScale;
 
       const fps = Math.min(maxFps, Math.max(minFps, 70 - cameraDistance));
 
@@ -380,27 +378,31 @@ ${this.propertyBindingsLOD.length} LOD bindings
       if (instance.time >= 1 / fps) {
         instance.time %= 1 / fps;
 
-        // distance determines animation complexity
-        if (cameraDistance < 10) {
-          // full anim for close instances
-          (this.mixer as any)._bindings = this.propertyBindings;
-          (this.mixer as any)._nActiveBindings = this.propertyBindings.length;
-          (this.action as any)._propertyBindings = this.propertyBindings;
-          (this.action as any)._interpolants = this.interpolants;
-          // total time multiplied by speed (like documentation example)
+        // hysteresis to prevent rapid switching at boundaries
+        const currentMode = this.currentBindingMode;
+        const useFullAnimation =
+          currentMode === "full"
+            ? cameraDistance < 12 // stay in full until distance > 12
+            : cameraDistance < 8; // switch to full when distance < 8
+
+        if (useFullAnimation) {
+          if (this.currentBindingMode !== "full") {
+            (this.mixer as any)._bindings = this.propertyBindings;
+            (this.mixer as any)._nActiveBindings = this.propertyBindings.length;
+            (this.action as any)._propertyBindings = this.propertyBindings;
+            (this.action as any)._interpolants = this.interpolants;
+            this.currentBindingMode = "full";
+          }
           this.mixer!.setTime(this.total * instance.speed + instance.offset);
           instance.updateBones();
         } else {
-          if (index === 10) {
-            console.log(
-              `instance ${index} distance: ${cameraDistance} update frequency: ${fps} Hz`,
-            );
+          if (this.currentBindingMode !== "lod") {
+            (this.mixer as any)._bindings = this.propertyBindingsLOD;
+            (this.mixer as any)._nActiveBindings = this.propertyBindingsLOD.length;
+            (this.action as any)._propertyBindings = this.propertyBindingsLOD;
+            (this.action as any)._interpolants = this.interpolantsLOD;
+            this.currentBindingMode = "lod";
           }
-          // simplified anim for distant instances
-          (this.mixer as any)._bindings = this.propertyBindingsLOD;
-          (this.mixer as any)._nActiveBindings = this.propertyBindingsLOD.length;
-          (this.action as any)._propertyBindings = this.propertyBindingsLOD;
-          (this.action as any)._interpolants = this.interpolantsLOD;
           this.mixer!.setTime(this.total * instance.speed + instance.offset);
           instance.updateBones(true, this.excludedBones);
         }
