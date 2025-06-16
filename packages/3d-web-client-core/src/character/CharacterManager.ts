@@ -13,6 +13,7 @@ import { TimeManager } from "../time/TimeManager";
 import { TweakPane } from "../tweakpane/TweakPane";
 
 import { AnimationConfig, Character, CharacterDescription } from "./Character";
+import { CharacterInstances } from "./CharacterInstances";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
 import { LocalController } from "./LocalController";
@@ -86,6 +87,7 @@ export class CharacterManager {
   private localCharacterSpawned: boolean = false;
   public localController: LocalController;
   public localCharacter: Character | null = null;
+  public characterInstances: CharacterInstances | null = null;
 
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
@@ -108,7 +110,7 @@ export class CharacterManager {
       characterModelLoader: this.config.characterModelLoader,
       characterId: id,
       modelLoadedCallback: () => {
-        // character loaded callback
+        this.initializeCharacterInstances();
       },
       cameraManager: this.config.cameraManager,
       composer: this.config.composer,
@@ -175,6 +177,44 @@ export class CharacterManager {
     tweakPane.setupCharacterController(this.localController);
   }
 
+  private async initializeCharacterInstances() {
+    try {
+      if (!this.localCharacter) {
+        console.error("no local character");
+        return;
+      }
+
+      const mesh = this.localCharacter.getMesh();
+      if (!mesh) {
+        console.error("no mesh available from local character");
+        return;
+      }
+
+      this.characterInstances = new CharacterInstances({
+        mesh,
+        animationConfig: this.config.animationConfig,
+        characterModelLoader: this.config.characterModelLoader,
+        cameraManager: this.config.cameraManager,
+        timeManager: this.config.timeManager,
+        instanceCount: 1000,
+        spawnRadius: 30,
+      });
+
+      const instancedMesh = await this.characterInstances.initialize();
+      if (instancedMesh) {
+        this.group.add(instancedMesh);
+        this.characterInstances.setupFrustumCulling();
+        console.log("character instances initialized");
+      } else {
+        console.error("failed to initialize character instances");
+        this.characterInstances = null;
+      }
+    } catch (error) {
+      console.error("error initializing instances:", error);
+      this.characterInstances = null;
+    }
+  }
+
   public spawnRemoteCharacter(
     id: number,
     username: string,
@@ -234,6 +274,10 @@ export class CharacterManager {
       this.localCharacter.remove();
       this.localCharacter = null;
     }
+    if (this.characterInstances) {
+      this.characterInstances.dispose();
+      this.characterInstances = null;
+    }
   }
 
   public addSelfChatBubble(message: string) {
@@ -267,6 +311,14 @@ export class CharacterManager {
       this.localCharacter.update(this.config.timeManager.time, this.config.timeManager.deltaTime);
 
       this.localController.update();
+
+      if (this.characterInstances) {
+        this.characterInstances.update(
+          this.config.timeManager.deltaTime,
+          this.config.timeManager.time,
+        );
+      }
+
       const currentTime = new Date().getTime();
       const timeSinceLastUpdate = currentTime - this.lastUpdateSentTime;
       if (timeSinceLastUpdate > 30) {

@@ -1,4 +1,4 @@
-import { Color, Group } from "three";
+import { Color, Group, Object3D } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { Vect3 } from "../math/Vect3";
@@ -175,5 +175,9 @@ export class Character extends Group {
       this.tooltip.show();
     }
     this.setTooltipHeights();
+  }
+
+  public getMesh(): Object3D | null {
+    return this.model?.mesh || null;
   }
 }
