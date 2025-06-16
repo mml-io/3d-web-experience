@@ -3,6 +3,7 @@ import {
   AnimationAction,
   AnimationClip,
   AnimationMixer,
+  Bone,
   Interpolant,
   Matrix4,
   Object3D,
@@ -10,13 +11,13 @@ import {
   SkinnedMesh,
   Vector3,
 } from "three";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import { CameraManager } from "../camera/CameraManager";
 import { TimeManager } from "../time/TimeManager";
 
-import { AnimationConfig, CharacterDescription } from "./Character";
+import { AnimationConfig } from "./Character";
 import { CharacterModelLoader } from "./CharacterModelLoader";
-import { AnimationState } from "./CharacterState";
 
 export type CharacterInstancesConfig = {
   mesh: Object3D;
@@ -36,15 +37,18 @@ export class CharacterInstances {
   private skinnedMesh: SkinnedMesh | null = null;
   private animationClip: AnimationClip | null = null;
 
-  // anim optimization data
   private propertyBindings: PropertyMixer[] = [];
   private interpolants: Interpolant[] = [];
   private propertyBindingsLOD: PropertyMixer[] = [];
   private interpolantsLOD: Interpolant[] = [];
 
-  // camera frustum culling
   private invMatrixWorld = new Matrix4();
   private cameraLocalPosition = new Vector3();
+
+  private delta = 0;
+  private total = 0;
+
+  private characterScale = 1;
 
   private instanceCount: number;
   private spawnRadius: number;
@@ -199,7 +203,13 @@ export class CharacterInstances {
   }
 
   private setMainMesh(mesh: Object3D): void {
-    this.mainMesh = mesh;
+    this.mainMesh = SkeletonUtils.clone(mesh);
+    this.characterScale = mesh.scale.x;
+
+    this.mainMesh.position.set(0, 0, 0);
+    this.mainMesh.rotation.set(0, 0, 0);
+    this.mainMesh.scale.set(1, 1, 1);
+
     this.mainMesh.traverse((child) => {
       if (child instanceof SkinnedMesh && !this.skinnedMesh) {
         this.skinnedMesh = child;
@@ -229,6 +239,21 @@ export class CharacterInstances {
       )) as AnimationClip) || null;
 
     if (this.animationClip && this.mainMesh) {
+      const availableBones = new Set<string>();
+      this.mainMesh.traverse((child) => {
+        const asBone = child as Bone;
+        if (asBone.isBone) {
+          availableBones.add(child.name);
+        }
+      });
+      this.animationClip.tracks = this.animationClip.tracks.filter((track) => {
+        const [trackName, trackProperty] = track.name.split(".");
+        if (trackName === "root" && trackProperty === "position") {
+          return true;
+        }
+        const shouldAnimate = availableBones.has(trackName) && !this.excludedBones.has(trackName);
+        return shouldAnimate;
+      });
       this.mixer = new AnimationMixer(this.mainMesh);
       this.action = this.mixer.clipAction(this.animationClip);
       this.action.play();
@@ -249,6 +274,12 @@ export class CharacterInstances {
 
     if (this.instancedMesh.boneTexture) {
       this.instancedMesh.boneTexture.partialUpdate = false;
+    }
+
+    const material = this.skinnedMesh.material;
+    if (material) {
+      const baseMaterial = Array.isArray(material) ? material[0] : material;
+      this.instancedMesh.addLOD(this.skinnedMesh.geometry, baseMaterial.clone(), 10);
     }
   }
 
@@ -288,7 +319,6 @@ ${this.propertyBindingsLOD.length} LOD bindings
     if (!this.instancedMesh) return;
 
     this.instancedMesh.addInstances(this.instanceCount, (obj: any, index: number) => {
-      // random pos within spawn radius
       obj.position.set(
         (Math.random() * 2 - 1) * this.spawnRadius,
         0,
@@ -315,14 +345,8 @@ ${this.propertyBindingsLOD.length} LOD bindings
   public update(deltaTime: number, totalTime: number): void {
     if (!this.instancedMesh || !this.mixer || !this.action) return;
 
-    this.updateCameraPosition();
-
-    // frustum culling and animation updates will be handled by the onFrustumEnter cb
-    // it is set when the instanced mesh is added to the scene
-  }
-
-  private updateCameraPosition(): void {
-    if (!this.instancedMesh) return;
+    this.delta = deltaTime;
+    this.total = totalTime;
 
     const camera = this.config.cameraManager.camera;
     camera.updateMatrixWorld();
@@ -338,7 +362,6 @@ ${this.propertyBindingsLOD.length} LOD bindings
 
     const maxFps = 60;
     const minFps = 5;
-    const timeManager = this.config.timeManager;
 
     this.instancedMesh.onFrustumEnter = (
       index: number,
@@ -347,30 +370,38 @@ ${this.propertyBindingsLOD.length} LOD bindings
       LODindex: number,
     ) => {
       const instance = this.instancedMesh.instances[index];
+
       const cameraDistance = this.cameraLocalPosition.distanceTo(instance.position);
 
-      // adjust FPS based on distance
       const fps = Math.min(maxFps, Math.max(minFps, 70 - cameraDistance));
-      instance.time += timeManager.deltaTime;
+
+      instance.time += this.delta;
 
       if (instance.time >= 1 / fps) {
         instance.time %= 1 / fps;
 
-        if (LODindex === 0) {
-          // full anim
+        // distance determines animation complexity
+        if (cameraDistance < 10) {
+          // full anim for close instances
           (this.mixer as any)._bindings = this.propertyBindings;
           (this.mixer as any)._nActiveBindings = this.propertyBindings.length;
           (this.action as any)._propertyBindings = this.propertyBindings;
           (this.action as any)._interpolants = this.interpolants;
-          this.mixer!.setTime(timeManager.time * instance.speed + instance.offset);
+          // total time multiplied by speed (like documentation example)
+          this.mixer!.setTime(this.total * instance.speed + instance.offset);
           instance.updateBones();
         } else {
-          // light anim
+          if (index === 10) {
+            console.log(
+              `instance ${index} distance: ${cameraDistance} update frequency: ${fps} Hz`,
+            );
+          }
+          // simplified anim for distant instances
           (this.mixer as any)._bindings = this.propertyBindingsLOD;
           (this.mixer as any)._nActiveBindings = this.propertyBindingsLOD.length;
           (this.action as any)._propertyBindings = this.propertyBindingsLOD;
           (this.action as any)._interpolants = this.interpolantsLOD;
-          this.mixer!.setTime(timeManager.time * instance.speed + instance.offset);
+          this.mixer!.setTime(this.total * instance.speed + instance.offset);
           instance.updateBones(true, this.excludedBones);
         }
       }
