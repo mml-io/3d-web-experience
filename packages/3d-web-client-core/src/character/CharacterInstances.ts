@@ -4,13 +4,17 @@ import {
   AnimationClip,
   AnimationMixer,
   Bone,
+  BufferGeometry,
+  Color,
   Interpolant,
+  Material,
   Matrix4,
   Object3D,
   PropertyMixer,
   SkinnedMesh,
   Vector3,
 } from "three";
+import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import { CameraManager } from "../camera/CameraManager";
@@ -112,7 +116,7 @@ export class CharacterInstances {
     "pinky_03_r",
     "pinky_03_r_end",
 
-    // foot parts (TODO: check if needed. I have no clue so far)
+    // foot parts (TODO: check if needed. I have no clue what these bones are)
     "ball_l",
     "ball_l_end",
     "ball_r",
@@ -206,18 +210,165 @@ export class CharacterInstances {
   }
 
   private setMainMesh(mesh: Object3D): void {
-    this.mainMesh = SkeletonUtils.clone(mesh);
+    // Debug the original mesh structure
+    let originalSkinnedMeshes = 0;
+    const originalMaterials: any[] = [];
+
+    mesh.traverse((child) => {
+      if (child instanceof SkinnedMesh) {
+        originalSkinnedMeshes++;
+        if (Array.isArray(child.material)) {
+          originalMaterials.push(...child.material);
+        } else {
+          originalMaterials.push(child.material);
+        }
+      }
+    });
+
+    console.log(
+      `Original mesh: ${originalSkinnedMeshes} SkinnedMeshes, ${originalMaterials.length} materials`,
+    );
+
+    try {
+      console.log("Attempting SkeletonUtils.clone...");
+      this.mainMesh = SkeletonUtils.clone(mesh);
+
+      // Check if clone preserved everything
+      let clonedSkinnedMeshes = 0;
+      const clonedMaterials: any[] = [];
+
+      this.mainMesh.traverse((child) => {
+        if (child instanceof SkinnedMesh) {
+          clonedSkinnedMeshes++;
+          if (Array.isArray(child.material)) {
+            clonedMaterials.push(...child.material);
+          } else {
+            clonedMaterials.push(child.material);
+          }
+        }
+      });
+
+      console.log(
+        `SkeletonUtils clone: ${clonedSkinnedMeshes} SkinnedMeshes, ${clonedMaterials.length} materials`,
+      );
+
+      if (
+        clonedSkinnedMeshes !== originalSkinnedMeshes ||
+        clonedMaterials.length !== originalMaterials.length
+      ) {
+        throw new Error(
+          `SkeletonUtils.clone lost parts: ${originalSkinnedMeshes}->${clonedSkinnedMeshes} meshes, ${originalMaterials.length}->${clonedMaterials.length} materials`,
+        );
+      }
+    } catch (error) {
+      console.error("SkeletonUtils.clone failed:", error);
+      console.log("Falling back to regular clone...");
+
+      // Fallback to regular clone
+      this.mainMesh = mesh.clone();
+    }
+
     this.characterScale = mesh.scale.x;
 
     this.mainMesh.position.set(0, 0, 0);
     this.mainMesh.rotation.set(0, 0, 0);
     this.mainMesh.scale.set(1, 1, 1);
 
+    // let's merge all skinnedMeshes
+    const skinnedMeshes: SkinnedMesh[] = [];
     this.mainMesh.traverse((child) => {
-      if (child instanceof SkinnedMesh && !this.skinnedMesh) {
-        this.skinnedMesh = child;
+      if (child instanceof SkinnedMesh) {
+        skinnedMeshes.push(child);
       }
     });
+
+    if (skinnedMeshes.length === 0) {
+      throw new Error("No SkinnedMeshes found after cloning");
+    }
+
+    if (skinnedMeshes.length === 1) {
+      // single mesh we're done here
+      this.skinnedMesh = skinnedMeshes[0];
+    } else {
+      console.log(`Merging ${skinnedMeshes.length} SkinnedMeshes into one...`);
+      this.skinnedMesh = this.mergeSkinnedMeshes(skinnedMeshes);
+    }
+
+    this.validateAndCleanSkeleton(); // cleanup
+
+    console.log(
+      `Final result: Single SkinnedMesh with ${this.skinnedMesh.skeleton?.bones?.length || 0} bones`,
+    );
+  }
+
+  private mergeSkinnedMeshes(skinnedMeshes: SkinnedMesh[]): SkinnedMesh {
+    const geometries: BufferGeometry[] = [];
+    const materials: Material[] = [];
+    const skeleton = skinnedMeshes[0].skeleton; // Use the first skeleton (they should all be the same)
+
+    for (const skinnedMesh of skinnedMeshes) {
+      const geometry = skinnedMesh.geometry.clone();
+
+      const materialIndex = materials.length;
+      if (Array.isArray(skinnedMesh.material)) {
+        materials.push(...skinnedMesh.material);
+        for (let i = 0; i < skinnedMesh.material.length; i++) {
+          geometry.addGroup(
+            0,
+            geometry.index ? geometry.index.count : geometry.attributes.position.count,
+            materialIndex + i,
+          );
+        }
+      } else {
+        materials.push(skinnedMesh.material);
+        geometry.addGroup(
+          0,
+          geometry.index ? geometry.index.count : geometry.attributes.position.count,
+          materialIndex,
+        );
+      }
+
+      geometries.push(geometry);
+    }
+
+    const mergedGeometry = BufferGeometryUtils.mergeGeometries(geometries, true);
+
+    if (!mergedGeometry) {
+      throw new Error("Failed to merge geometries");
+    }
+
+    const mergedMesh = new SkinnedMesh(mergedGeometry, materials);
+    mergedMesh.skeleton = skeleton;
+    mergedMesh.bindMatrix.copy(skinnedMeshes[0].bindMatrix);
+    mergedMesh.bindMatrixInverse.copy(skinnedMeshes[0].bindMatrixInverse);
+    mergedMesh.bind(skeleton, mergedMesh.bindMatrix);
+
+    console.log(`Merged into single mesh with ${materials.length} materials`);
+
+    return mergedMesh;
+  }
+
+  private validateAndCleanSkeleton(): void {
+    if (!this.skinnedMesh || !this.skinnedMesh.skeleton) {
+      throw new Error("No skeleton found in SkinnedMesh");
+    }
+
+    const skeleton = this.skinnedMesh.skeleton;
+    const originalBoneCount = skeleton.bones.length;
+
+    // cause I was having issues with null bones
+    const nullBoneIndices: number[] = [];
+    for (let i = 0; i < skeleton.bones.length; i++) {
+      if (!skeleton.bones[i]) {
+        nullBoneIndices.push(i);
+      }
+    }
+
+    if (nullBoneIndices.length > 0) {
+      // filter them out
+      skeleton.bones = skeleton.bones.filter((bone) => bone !== null && bone !== undefined);
+      skeleton.update();
+    }
   }
 
   public listAllBoneNames(): string[] {
@@ -251,12 +402,16 @@ export class CharacterInstances {
       });
       this.animationClip.tracks = this.animationClip.tracks.filter((track) => {
         const [trackName, trackProperty] = track.name.split(".");
+
         if (trackName === "root" && trackProperty === "position") {
-          return true;
+          const hasRoot = availableBones.has("root");
+          return hasRoot;
         }
+
         const shouldAnimate = availableBones.has(trackName) && !this.excludedBones.has(trackName);
         return shouldAnimate;
       });
+
       this.mixer = new AnimationMixer(this.mainMesh);
       this.action = this.mixer.clipAction(this.animationClip);
       this.action.play();
@@ -322,7 +477,6 @@ ${this.propertyBindingsLOD.length} LOD bindings
         .set(rnd() * this.spawnRadius, 0, rnd() * this.spawnRadius)
         .divideScalar(this.characterScale);
 
-      obj.color = `hsl(${Math.random() * 360}, 50%, 75%)`;
       obj.time = 0;
       obj.offset = Math.random() * 5;
       obj.speed = 0.5 + Math.random() * 3;
@@ -371,7 +525,7 @@ ${this.propertyBindingsLOD.length} LOD bindings
       const cameraDistance =
         this.cameraLocalPosition.distanceTo(instance.position) * this.characterScale;
 
-      const fps = Math.min(maxFps, Math.max(minFps, 70 - cameraDistance));
+      const fps = Math.min(maxFps, Math.max(minFps, 40 - cameraDistance));
 
       instance.time += this.delta;
 

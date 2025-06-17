@@ -196,8 +196,8 @@ export class CharacterManager {
         characterModelLoader: this.config.characterModelLoader,
         cameraManager: this.config.cameraManager,
         timeManager: this.config.timeManager,
-        instanceCount: 700,
-        spawnRadius: 20,
+        instanceCount: 3000,
+        spawnRadius: 30,
       });
 
       const instancedMesh = await this.characterInstances.initialize();
