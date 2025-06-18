@@ -196,8 +196,8 @@ export class CharacterManager {
         characterModelLoader: this.config.characterModelLoader,
         cameraManager: this.config.cameraManager,
         timeManager: this.config.timeManager,
-        instanceCount: 3000,
-        spawnRadius: 30,
+        instanceCount: 4096,
+        spawnRadius: 50,
       });
 
       const instancedMesh = await this.characterInstances.initialize();
@@ -322,7 +322,6 @@ export class CharacterManager {
       const currentTime = new Date().getTime();
       const timeSinceLastUpdate = currentTime - this.lastUpdateSentTime;
       if (timeSinceLastUpdate > 30) {
-        // Limit updates to per 30ms
         this.lastUpdateSentTime = currentTime;
         this.config.sendUpdate(this.localController.networkState);
       }
