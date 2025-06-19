@@ -9,10 +9,13 @@ import {
   Interpolant,
   Material,
   Matrix4,
+  NumberKeyframeTrack,
   Object3D,
   PropertyMixer,
+  QuaternionKeyframeTrack,
   SkinnedMesh,
   Vector3,
+  VectorKeyframeTrack,
 } from "three";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
@@ -39,6 +42,9 @@ export type InstanceData = {
   time: number;
   speed: number;
   offset: number;
+
+  currentAnimationState: string;
+  animationTime: number;
 
   skinColor: Color;
   eyesBlackColor: Color;
@@ -99,6 +105,11 @@ export class CharacterInstances {
     lips: [0.788235294117647, 0.43529411764705883, 0.39215686274509803],
     shoes: [0.8666666666666667, 0.8666666666666667, 0.8666666666666667],
   };
+
+  // MEGA-timeline (single merged animation with time segments)
+  private megaAnimationClip: AnimationClip | null = null;
+  private animationSegments: Map<string, { startTime: number; endTime: number; duration: number }> =
+    new Map();
 
   constructor(private config: CharacterInstancesConfig) {
     this.instanceCount = config.instanceCount || 100;
@@ -362,6 +373,115 @@ export class CharacterInstances {
     console.log(`Added per-material vertex colors to ${vertexCount} vertices`);
   }
 
+  private createMegaTimeline(individualClips: Map<string, AnimationClip>): void {
+    const segments: Array<{
+      name: string;
+      clip: AnimationClip;
+      startTime: number;
+      endTime: number;
+      duration: number;
+    }> = [];
+    let currentTime = 0;
+
+    // small gap between animations to prevent (maybe we'd have blending issues?)
+    const gap = 0.1;
+
+    // segments for each animation
+    for (const [name, clip] of individualClips.entries()) {
+      const startTime = currentTime;
+      const duration = clip.duration;
+      const endTime = startTime + duration;
+
+      segments.push({ name, clip, startTime, endTime, duration });
+      this.animationSegments.set(name, { startTime, endTime, duration });
+
+      currentTime = endTime + gap;
+    }
+
+    // create the tracks
+    const megaTracks: any[] = [];
+    const totalDuration = currentTime - gap;
+
+    // name 'em all from the respective clips
+    const allTrackNames = new Set<string>();
+    for (const segment of segments) {
+      for (const track of segment.clip.tracks) {
+        allTrackNames.add(track.name);
+      }
+    }
+
+    // create a merged track for each
+    for (const trackName of allTrackNames) {
+      const mergedTimes: number[] = [];
+      const mergedValues: number[] = [];
+      let valueSize = 0;
+
+      for (const segment of segments) {
+        // find the track in this segment's clip
+        const track = segment.clip.tracks.find((t) => t.name === trackName);
+
+        if (track) {
+          valueSize = track.getValueSize();
+
+          // add track's keyframes, offset by the segment's start time
+          for (let i = 0; i < track.times.length; i++) {
+            const offsetTime = track.times[i] + segment.startTime;
+            mergedTimes.push(offsetTime);
+
+            // copy the values for the keyframe
+            for (let j = 0; j < valueSize; j++) {
+              mergedValues.push(track.values[i * valueSize + j]);
+            }
+          }
+        } else {
+          // here the track doesn't exist in the segment, so we'll use identity/default
+          // values
+          const defaultValues = this.getDefaultTrackValues(trackName, valueSize || 3);
+
+          // start of segment
+          mergedTimes.push(segment.startTime);
+          mergedValues.push(...defaultValues);
+          // end of segment
+          mergedTimes.push(segment.endTime);
+          mergedValues.push(...defaultValues);
+        }
+      }
+
+      // create the merged track
+      if (mergedTimes.length > 0 && valueSize > 0) {
+        const TrackType = this.getTrackTypeFromName(trackName);
+        const mergedTrack = new TrackType(trackName, mergedTimes, mergedValues);
+        megaTracks.push(mergedTrack);
+      }
+    }
+    // create the MEGA animation clip (everything is cooler when you call it mega-something)
+    this.megaAnimationClip = new AnimationClip("MegaTimeline", totalDuration, megaTracks);
+  }
+
+  private getDefaultTrackValues(trackName: string, valueSize: number): number[] {
+    const [, property] = trackName.split(".");
+    if (property === "position") {
+      return [0, 0, 0];
+    } else if (property === "quaternion") {
+      return [0, 0, 0, 1];
+    } else if (property === "scale") {
+      return [1, 1, 1];
+    }
+    return new Array(valueSize).fill(0);
+  }
+
+  private getTrackTypeFromName(trackName: string): any {
+    const [, property] = trackName.split(".");
+    if (property === "position") {
+      return VectorKeyframeTrack;
+    } else if (property === "quaternion") {
+      return QuaternionKeyframeTrack;
+    } else if (property === "scale") {
+      return VectorKeyframeTrack;
+    }
+    return NumberKeyframeTrack;
+  }
+
   public listAllBoneNames(): string[] {
     const boneNames: string[] = [];
     if (!this.mainMesh) {
@@ -377,13 +497,43 @@ export class CharacterInstances {
   }
 
   private async loadAnimation(): Promise<void> {
-    this.animationClip =
-      ((await this.config.characterModelLoader.load(
-        this.config.animationConfig.idleAnimationFileUrl,
-        "animation",
-      )) as AnimationClip) || null;
+    if (!this.mainMesh) return;
 
-    if (this.animationClip && this.mainMesh) {
+    const animationConfigs = {
+      idle: this.config.animationConfig.idleAnimationFileUrl,
+      walking: this.config.animationConfig.jogAnimationFileUrl,
+      running: this.config.animationConfig.sprintAnimationFileUrl,
+      air: this.config.animationConfig.airAnimationFileUrl,
+      doubleJump: this.config.animationConfig.doubleJumpAnimationFileUrl,
+    };
+
+    const individualClips: Map<string, AnimationClip> = new Map();
+
+    for (const [stateName, url] of Object.entries(animationConfigs)) {
+      try {
+        const clip = (await this.config.characterModelLoader.load(
+          url,
+          "animation",
+        )) as AnimationClip;
+        if (clip) {
+          individualClips.set(stateName, clip);
+          console.log(`Loaded ${stateName} animation: ${clip.duration.toFixed(3)}s`);
+        }
+      } catch (error) {
+        console.warn(`Failed to load animation ${stateName}:`, error);
+      }
+    }
+
+    if (individualClips.size === 0) {
+      console.error("No animations loaded!");
+      return;
+    }
+
+    // create the MEGAtimeline by merging all animations
+    this.createMegaTimeline(individualClips);
+
+    if (this.megaAnimationClip && this.mainMesh) {
+      // filter tracks for available bones
       const availableBones = new Set<string>();
       this.mainMesh.traverse((child) => {
         const asBone = child as Bone;
@@ -391,21 +541,28 @@ export class CharacterInstances {
           availableBones.add(child.name);
         }
       });
-      this.animationClip.tracks = this.animationClip.tracks.filter((track) => {
+
+      this.megaAnimationClip.tracks = this.megaAnimationClip.tracks.filter((track) => {
         const [trackName, trackProperty] = track.name.split(".");
 
         if (trackName === "root" && trackProperty === "position") {
-          const hasRoot = availableBones.has("root");
-          return hasRoot;
+          return availableBones.has("root");
         }
 
-        const shouldAnimate = availableBones.has(trackName) && !this.excludedBones.has(trackName);
-        return shouldAnimate;
+        return availableBones.has(trackName) && !this.excludedBones.has(trackName);
       });
 
       this.mixer = new AnimationMixer(this.mainMesh);
-      this.action = this.mixer.clipAction(this.animationClip);
+      this.action = this.mixer.clipAction(this.megaAnimationClip);
       this.action.play();
+      this.animationClip = this.megaAnimationClip;
+
+      console.log(`Created mega-timeline with ${this.animationSegments.size} animation segments:`);
+      for (const [name, segment] of this.animationSegments.entries()) {
+        console.log(
+          `  ${name}: ${segment.startTime.toFixed(3)}s - ${segment.endTime.toFixed(3)}s (${segment.duration.toFixed(3)}s)`,
+        );
+      }
     }
   }
 
@@ -503,7 +660,9 @@ export class CharacterInstances {
 
         obj.time = 0;
         obj.offset = Math.random() * 5;
-        obj.speed = 0.5 + Math.random() * 3;
+        obj.speed = 1.0;
+        obj.currentAnimationState = "idle";
+        obj.animationTime = 0;
 
         obj.skinColor = new Color(...this.immutableColors.skin);
         obj.eyesBlackColor = new Color(...this.immutableColors.eyes_black);
@@ -541,6 +700,9 @@ export class CharacterInstances {
 
     // TODO: remove this stupid test before pushing to the rem branch!!!!
     setTimeout(() => this.testPerInstanceColoring(), 3000);
+
+    // test MEGAtimeline animation switching
+    setTimeout(() => this.testMegaTimelineAnimations(), 500);
   }
 
   private initializeSkeletonData(): void {
@@ -583,8 +745,8 @@ export class CharacterInstances {
 
     console.log(`Setting up frustum culling for ${this.instanceCount} instances`);
 
-    const maxFps = 30;
-    const minFps = 2;
+    const maxFps = 60;
+    const minFps = 10;
 
     this.instancedMesh.onFrustumEnter = (
       index: number,
@@ -600,40 +762,66 @@ export class CharacterInstances {
       const cameraDistance =
         this.cameraLocalPosition.distanceTo(instance.position) * this.characterScale;
 
-      const fps = Math.min(maxFps, Math.max(minFps, 40 - cameraDistance));
+      const fps = Math.min(maxFps, Math.max(minFps, 60 - cameraDistance * 2));
 
       instance.time += this.delta;
 
-      if (instance.time >= 1 / fps) {
-        instance.time %= 1 / fps;
+      // for very close instances (dist < 5), update every frame for smoothness
+      const shouldUpdate = cameraDistance < 5 || instance.time >= 1 / fps;
 
-        // hysteresis to prevent rapid switching at boundaries
-        const currentMode = this.currentBindingMode;
-        const useFullAnimation =
-          currentMode === "full"
-            ? cameraDistance < 12 // stay in full until distance > 12
-            : cameraDistance < 8; // switch to full when distance < 8
+      if (shouldUpdate) {
+        // calculate delta since last update for this instance
+        const timeSinceLastUpdate = cameraDistance >= 5 ? 1 / fps : this.delta;
 
-        if (useFullAnimation) {
-          if (this.currentBindingMode !== "full") {
-            (this.mixer as any)._bindings = this.propertyBindings;
-            (this.mixer as any)._nActiveBindings = this.propertyBindings.length;
-            (this.action as any)._propertyBindings = this.propertyBindings;
-            (this.action as any)._interpolants = this.interpolants;
-            this.currentBindingMode = "full";
+        if (cameraDistance >= 5) {
+          instance.time %= 1 / fps;
+        }
+
+        // get animation segment for instance's current state
+        const segment = this.animationSegments.get(instance.currentAnimationState);
+
+        if (segment && this.mixer) {
+          // update instance's animation time within the segment
+          // all instances have to animate at the same speed regardless of distance
+          // they get stuttery when far tho, but that'sok
+          instance.animationTime += timeSinceLastUpdate * instance.speed;
+
+          // segment looping
+          if (instance.animationTime >= segment.duration) {
+            instance.animationTime %= segment.duration;
           }
-          this.mixer!.setTime(this.total * instance.speed + instance.offset);
-          (instance as any).updateBones();
-        } else {
-          if (this.currentBindingMode !== "lod") {
-            (this.mixer as any)._bindings = this.propertyBindingsLOD;
-            (this.mixer as any)._nActiveBindings = this.propertyBindingsLOD.length;
-            (this.action as any)._propertyBindings = this.propertyBindingsLOD;
-            (this.action as any)._interpolants = this.interpolantsLOD;
-            this.currentBindingMode = "lod";
+
+          // absolute time in the mega-timeline
+          const megaTimelineTime = segment.startTime + instance.animationTime + instance.offset;
+
+          // hysteresis to prevent rapid switching at boundaries
+          const currentMode = this.currentBindingMode;
+          const useFullAnimation =
+            currentMode === "full"
+              ? cameraDistance < 12 // stay in full until distance > 12
+              : cameraDistance < 8; // switch to full when distance < 8
+
+          if (useFullAnimation) {
+            if (this.currentBindingMode !== "full") {
+              (this.mixer as any)._bindings = this.propertyBindings;
+              (this.mixer as any)._nActiveBindings = this.propertyBindings.length;
+              (this.action as any)._propertyBindings = this.propertyBindings;
+              (this.action as any)._interpolants = this.interpolants;
+              this.currentBindingMode = "full";
+            }
+            this.mixer.setTime(megaTimelineTime);
+            (instance as any).updateBones();
+          } else {
+            if (this.currentBindingMode !== "lod") {
+              (this.mixer as any)._bindings = this.propertyBindingsLOD;
+              (this.mixer as any)._nActiveBindings = this.propertyBindingsLOD.length;
+              (this.action as any)._propertyBindings = this.propertyBindingsLOD;
+              (this.action as any)._interpolants = this.interpolantsLOD;
+              this.currentBindingMode = "lod";
+            }
+            this.mixer.setTime(megaTimelineTime);
+            (instance as any).updateBones(true, this.excludedBones);
           }
-          this.mixer!.setTime(this.total * instance.speed + instance.offset);
-          (instance as any).updateBones(true, this.excludedBones);
         }
       }
 
@@ -700,6 +888,75 @@ export class CharacterInstances {
         console.error(`Could not retrieve colors for instance ${i}`);
       }
     }
+  }
+
+  private testMegaTimelineAnimations(): void {
+    if (!this.instancedMesh?.instances) {
+      console.warn("Cannot test mega-timeline animations: instancedMesh not initialized");
+      return;
+    }
+    console.log("Testing mega-timeline animation switching...");
+    console.log("Available animation segments:", Array.from(this.animationSegments.keys()));
+    const testInstances = Math.min(5, this.instancedMesh.instances.length);
+
+    for (let i = 0; i < testInstances; i++) {
+      const animations = ["idle", "walking", "running", "air"];
+      const randomAnimation = animations[i % animations.length];
+
+      console.log(`Setting instance ${i} to animation: ${randomAnimation}`);
+      this.setInstanceAnimationState(i, randomAnimation);
+    }
+
+    // scheduling more changes to check runtime switching
+    setTimeout(() => {
+      console.log("Switching animations again...");
+      for (let i = 0; i < testInstances; i++) {
+        const animations = ["running", "air", "idle", "walking"];
+        const newAnimation = animations[i % animations.length];
+
+        console.log(`Switching instance ${i} to: ${newAnimation}`);
+        this.setInstanceAnimationState(i, newAnimation);
+      }
+    }, 10000);
+  }
+
+  public setInstanceAnimationState(instanceIndex: number, animationState: string): void {
+    if (!this.instancedMesh?.instances || instanceIndex >= this.instancedMesh.instances.length) {
+      console.warn(`Invalid instance index: ${instanceIndex}`);
+      return;
+    }
+
+    if (!this.animationSegments.has(animationState)) {
+      console.warn(
+        `Unknown animation state: ${animationState}. Available: ${Array.from(this.animationSegments.keys()).join(", ")}`,
+      );
+      return;
+    }
+
+    const instance = this.instancedMesh.instances[instanceIndex];
+    if (instance.currentAnimationState !== animationState) {
+      instance.currentAnimationState = animationState;
+      instance.animationTime = 0; // Reset animation time when changing states
+      console.log(`Instance ${instanceIndex} animation changed to: ${animationState}`);
+    }
+  }
+
+  public getInstanceAnimationState(instanceIndex: number): string | null {
+    if (!this.instancedMesh?.instances || instanceIndex >= this.instancedMesh.instances.length) {
+      return null;
+    }
+    return this.instancedMesh.instances[instanceIndex].currentAnimationState;
+  }
+
+  public getAvailableAnimationStates(): string[] {
+    return Array.from(this.animationSegments.keys());
+  }
+
+  public getAnimationSegments(): Map<
+    string,
+    { startTime: number; endTime: number; duration: number }
+  > {
+    return new Map(this.animationSegments);
   }
 
   private addTextureToDOM(texture: any): void {
