@@ -1,14 +1,5 @@
 import { ModelLoadResult } from "@mml-io/model-loader";
-import {
-  Bone,
-  BufferAttribute,
-  Group,
-  InterleavedBufferAttribute,
-  MathUtils,
-  Object3D,
-  Skeleton,
-  SkinnedMesh,
-} from "three";
+import { Bone, Group, MathUtils, Object3D, Skeleton, SkinnedMesh } from "three";
 
 import { MMLCharacterDescriptionPart } from "../helpers/parseMMLDescription";
 

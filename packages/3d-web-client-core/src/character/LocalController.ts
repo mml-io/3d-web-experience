@@ -574,7 +574,7 @@ export class LocalController {
     const characterPosition = this.config.character.position;
     const characterRotation = this.config.character.rotation;
 
-    const characterQuat = this.tempQuat.copy(characterRotation);
+    const characterQuat = this.tempQuat.setFromEulerXYZ(characterRotation);
 
     const cameraQuat = new Quat(
       cameraRotation.x,
