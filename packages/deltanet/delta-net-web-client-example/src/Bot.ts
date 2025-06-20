@@ -1,0 +1,231 @@
+import { deltaNetProtocolSubProtocol_v0_1 } from "@deltanet/delta-net-protocol";
+import {
+  DeltaNetClientWebsocket,
+  DeltaNetClientWebsocketInitialCheckout,
+  DeltaNetClientWebsocketStatus,
+  DeltaNetClientWebsocketStatusToString,
+  DeltaNetClientWebsocketTick,
+  DeltaNetClientWebsocketUserIndex,
+} from "@deltanet/delta-net-web";
+import ws from "ws";
+
+import { BotConfig } from "./BotRunner";
+
+// WebSocket fallback for Node.js versions without native WebSocket
+function createWebSocket(url: string, protocols?: string | string[]): WebSocket {
+  if (typeof WebSocket !== "undefined") {
+    // Use native WebSocket if available
+    return new WebSocket(url, protocols);
+  } else {
+    // Fallback to ws package for Node.js
+    try {
+      // Dynamic import for Node.js compatibility
+      return new ws(url, protocols) as unknown as WebSocket;
+    } catch (error) {
+      throw new Error(
+        'WebSocket is not available. Please install the "ws" package for Node.js compatibility.',
+        { cause: error },
+      );
+    }
+  }
+}
+
+const textEncoder = new TextEncoder();
+
+const tlds = ["com", "net", "org", "io", "ai", "dev", "app", "co"];
+
+function randomDomain() {
+  // Between 3 and 20 characters
+  const domainLength = Math.floor(Math.random() * 18) + 3;
+  const domain = Math.random()
+    .toString(36)
+    .substring(2, domainLength + 2);
+  // Randomly select a TLD
+  const tld = tlds[Math.floor(Math.random() * tlds.length)];
+  return domain + "." + tld;
+}
+
+function generateRandomUrl() {
+  return `https://${randomDomain()}/${Math.floor(Math.random() * 1000000)}.glb`;
+}
+
+const xComponent = 1;
+const yComponent = 2;
+const zComponent = 3;
+const rotationYComponent = 4;
+const rotationWComponent = 5;
+const stateComponent = 6;
+
+export class Bot {
+  private client: DeltaNetClientWebsocket;
+  private values = new Map<number, bigint>();
+  private myIndex: number | null = null;
+  private updateIntervalId: NodeJS.Timeout | null = null;
+  private connected = false;
+
+  // Circular motion parameters
+  private radius1: number;
+  private center1: number;
+  private angle1: number;
+  private rate1: number;
+
+  private radius2: number;
+  private center2: number;
+  private angle2: number;
+  private rate2: number;
+
+  constructor(
+    private readonly url: string,
+    private readonly config: BotConfig,
+  ) {
+    // Initialize circular motion parameters
+    this.radius1 = (Math.random() * config.randomRange) / 2;
+    this.center1 = 0;
+    this.angle1 = Math.random() * 2 * Math.PI;
+    this.rate1 = 0.01 * Math.random() + 0.01;
+
+    this.radius2 = (Math.random() * config.randomRange) / 2;
+    this.center2 = 0;
+    this.angle2 = Math.random() * 2 * Math.PI;
+    this.rate2 = 0.01 * Math.random() + 0.01;
+
+    // Initialize values
+    for (const key of config.valuesToUpdate ?? [xComponent, zComponent]) {
+      this.values.set(key, 0n);
+    }
+
+    this.client = new DeltaNetClientWebsocket(
+      this.url,
+      (url: string) => {
+        return createWebSocket(url, deltaNetProtocolSubProtocol_v0_1);
+      },
+      `bot-token-${this.config.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`, // Placeholder authentication token for bot
+      {
+        onUserIndex: (userIndex: DeltaNetClientWebsocketUserIndex) => {
+          this.myIndex = userIndex.userIndex;
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        onInitialCheckout: (initialCheckout: DeltaNetClientWebsocketInitialCheckout) => {
+          // Bots ignore data
+        },
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        onTick: (tick: DeltaNetClientWebsocketTick) => {
+          // Bots ignore ticks
+        },
+        onError: (error: string, retryable: boolean) => {
+          console.error(`Bot ${this.config.id} error: ${error} (retryable: ${retryable})`);
+        },
+        onWarning: (warning: string) => {
+          console.warn(`Bot ${this.config.id} warning: ${warning}`);
+        },
+        ignoreData: true,
+      },
+      undefined,
+      this.handleStatusUpdate.bind(this),
+    );
+  }
+
+  public start(): void {
+    const updateInterval = this.config.updateInterval ?? 50; // Use smaller interval for smoother motion
+    this.updateIntervalId = setInterval(() => {
+      if (!this.connected) return;
+
+      this.updateValues();
+    }, updateInterval);
+  }
+
+  public stop(): void {
+    if (this.updateIntervalId) {
+      clearInterval(this.updateIntervalId);
+      this.updateIntervalId = null;
+    }
+  }
+
+  private updateValues(): void {
+    const x1 = this.center1 + this.radius1 * Math.cos(this.angle1);
+    const y1 = this.center1 + this.radius1 * Math.sin(this.angle1);
+    this.angle1 += this.rate1;
+
+    const x2 = this.center2 + this.radius2 * Math.cos(this.angle2);
+    const y2 = this.center2 + this.radius2 * Math.sin(this.angle2);
+    this.angle2 -= this.rate2;
+
+    // Calculate x and y positions based on combined circular motion
+    const x = BigInt(Math.round(x1 + x2));
+    const y = BigInt(Math.round(this.config.yValue));
+    const z = BigInt(Math.round(y1 + y2));
+
+    // Calculate rotation based on movement direction
+    // Get the velocity components by calculating the tangent to the circles
+    const dx1 = -this.radius1 * Math.sin(this.angle1) * this.rate1;
+    const dy1 = this.radius1 * Math.cos(this.angle1) * this.rate1;
+
+    const dx2 = this.radius2 * Math.sin(this.angle2) * this.rate2;
+    const dy2 = -this.radius2 * Math.cos(this.angle2) * this.rate2;
+
+    // Combined velocity
+    const velocityX = dx1 + dx2;
+    const velocityZ = dy1 + dy2;
+
+    // Calculate the Y rotation (yaw) based on velocity direction
+    // This makes the bot face the direction it's moving
+    const rotationY = Math.atan2(velocityX, velocityZ);
+
+    // Convert to quaternion components (Y rotation around Y axis)
+    // For a Y rotation, quaternionY = sin(angle/2), quaternionW = cos(angle/2)
+    const quaternionY = Math.sin(rotationY / 2);
+    const quaternionW = Math.cos(rotationY / 2);
+
+    // Apply rotation multiplier (same as DeltaNetComponentMapping.ts)
+    const rotationMultiplier = 360;
+
+    this.values.set(xComponent, x);
+    this.values.set(yComponent, y);
+    this.values.set(zComponent, z);
+    this.values.set(rotationYComponent, BigInt(Math.round(quaternionY * rotationMultiplier)));
+    this.values.set(rotationWComponent, BigInt(Math.round(quaternionW * rotationMultiplier)));
+    this.values.set(stateComponent, BigInt(1));
+
+    const states = new Map<number, Uint8Array>();
+
+    if (this.config.colorStateId) {
+      if (Math.random() > 0.99) {
+        const color = Math.floor(Math.random() * 16777215);
+        const colorBytes = new Uint8Array(3);
+        colorBytes[0] = (color >> 16) & 0xff;
+        colorBytes[1] = (color >> 8) & 0xff;
+        colorBytes[2] = color & 0xff;
+        states.set(this.config.colorStateId, colorBytes);
+      }
+    }
+
+    this.client.setUserComponents(new Map(this.values), states);
+  }
+
+  private handleStatusUpdate(status: DeltaNetClientWebsocketStatus): void {
+    console.log(`Bot ${this.config.id} status: ${DeltaNetClientWebsocketStatusToString(status)}`);
+    if (
+      status === DeltaNetClientWebsocketStatus.Connected ||
+      status === DeltaNetClientWebsocketStatus.ConnectionOpen
+    ) {
+      this.connected = true;
+    } else if (
+      status === DeltaNetClientWebsocketStatus.Disconnected ||
+      status === DeltaNetClientWebsocketStatus.Reconnecting
+    ) {
+      this.connected = false;
+    }
+  }
+
+  public getValues(): Map<number, bigint> {
+    return new Map(this.values);
+  }
+
+  public getMyIndex(): number | null {
+    return this.myIndex;
+  }
+
+  public getStatus(): string {
+    return `Bot ${this.config.id}: Index=${this.myIndex ?? "unknown"}`;
+  }
+}

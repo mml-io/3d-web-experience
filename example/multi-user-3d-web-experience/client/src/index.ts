@@ -17,7 +17,7 @@ const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
   userNetworkAddress,
-  chatNetworkAddress,
+  chatNetworkAddress: undefined,//TODO: Add chat network back
   animationConfig: {
     airAnimationFileUrl,
     idleAnimationFileUrl,

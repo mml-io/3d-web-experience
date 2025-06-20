@@ -15,5 +15,12 @@
     "baseUrl": ".",
     "incremental": true,
     "skipLibCheck": true
-  }
+  },
+  "include": [
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "packages/**/*.js",
+    "packages/**/*.jsx",
+    "packages/**/*.json"
+  ]
 }
