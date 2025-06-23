@@ -136,6 +136,24 @@ export function captureCharacterColors(characterMesh: SkinnedMesh): Map<string, 
   return sampledColors;
 }
 
+function findBoneCenter(bone: Bone): Vector3 {
+  const boneStart = new Vector3();
+  bone.getWorldPosition(boneStart);
+
+  // if bone has child bones we'll use the first child as the end point
+  const childBones = bone.children.filter((child) => child instanceof Bone) as Bone[];
+  if (childBones.length > 0) {
+    const boneEnd = new Vector3();
+    childBones[0].getWorldPosition(boneEnd);
+
+    // midpoint between start and end
+    return boneStart.clone().add(boneEnd).multiplyScalar(0.5);
+  }
+
+  // leaf bone, so all we can do is to return the start position
+  return boneStart;
+}
+
 function getBoneRegionsForColorSampling(
   characterMesh: SkinnedMesh,
   camera: Camera,
@@ -143,25 +161,25 @@ function getBoneRegionsForColorSampling(
 ): Array<{ name: string; screenPos: Vector2; radius: number }> {
   const regions: Array<{ name: string; screenPos: Vector2; radius: number }> = [];
 
-  console.log("📋 Available bones:", listAllBoneNames(characterMesh).join(", "));
+  console.log("Available bones:");
+  console.table(listAllBoneNames(characterMesh));
 
   const boneTargets = [
-    { name: "Face/Chin", boneName: "head", offset: new Vector3(0, 0, 0) },
-    { name: "Chest", boneName: "spine_04", offset: new Vector3(0, 0, 0) },
-    { name: "Left Forearm", boneName: "lowerarm_l", offset: new Vector3(0, 0, 0) },
-    { name: "Right Forearm", boneName: "lowerarm_r", offset: new Vector3(0, 0, 0) },
-    { name: "Left Thigh", boneName: "thigh_l", offset: new Vector3(0, 0, 0) },
-    { name: "Right Thigh", boneName: "thigh_r", offset: new Vector3(0, 0, 0) },
-    { name: "Left Shin", boneName: "calf_l", offset: new Vector3(0, 0, 0) },
-    { name: "Right Shin", boneName: "calf_r", offset: new Vector3(0, 0, 0) },
-    { name: "Left Hand", boneName: "hand_l", offset: new Vector3(0, 0, 0) },
-    { name: "Right Hand", boneName: "hand_r", offset: new Vector3(0, 0, 0) },
-    { name: "Left Foot", boneName: "foot_l", offset: new Vector3(0, 0, 0) },
-    { name: "Right Foot", boneName: "foot_r", offset: new Vector3(0, 0, 0) },
-    { name: "Hair/Head Top", boneName: "head", offset: new Vector3(0, 0, 0) },
+    { name: "Face/Chin", boneName: "head" },
+    { name: "Chest", boneName: "spine_04" },
+    { name: "Left Forearm", boneName: "lowerarm_l" },
+    { name: "Right Forearm", boneName: "lowerarm_r" },
+    { name: "Left Thigh", boneName: "thigh_l" },
+    { name: "Right Thigh", boneName: "thigh_r" },
+    { name: "Left Shin", boneName: "calf_l" },
+    { name: "Right Shin", boneName: "calf_r" },
+    { name: "Left Hand", boneName: "hand_l" },
+    { name: "Right Hand", boneName: "hand_r" },
+    { name: "Left Foot", boneName: "foot_l" },
+    { name: "Right Foot", boneName: "foot_r" },
+    { name: "Hair/Head Top", boneName: "head" },
   ];
 
-  const worldPos = new Vector3();
   const screenPos = new Vector3();
 
   for (const target of boneTargets) {
@@ -170,9 +188,7 @@ function getBoneRegionsForColorSampling(
     );
 
     if (bone) {
-      (bone as Object3D).getWorldPosition(worldPos);
-      worldPos.add(target.offset);
-
+      const worldPos = findBoneCenter(bone);
       screenPos.copy(worldPos);
       screenPos.project(camera);
 
