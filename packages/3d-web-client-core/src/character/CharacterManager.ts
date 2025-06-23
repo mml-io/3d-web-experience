@@ -198,6 +198,7 @@ export class CharacterManager {
         timeManager: this.config.timeManager,
         instanceCount: 4096,
         spawnRadius: 50,
+        debug: false,
       });
 
       const instancedMesh = await this.characterInstances.initialize();

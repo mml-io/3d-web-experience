@@ -40,6 +40,7 @@ export type CharacterInstancesConfig = {
   timeManager: TimeManager;
   instanceCount?: number;
   spawnRadius?: number;
+  debug?: boolean;
 };
 
 export type InstanceData = {
@@ -96,6 +97,7 @@ export class CharacterInstances {
   private updateCallCount = 0;
 
   // debug
+  private debug = false;
   private readonly instanceId = Math.random().toString(36).substr(2, 5);
 
   private immutableColors = {
@@ -114,7 +116,10 @@ export class CharacterInstances {
   constructor(private config: CharacterInstancesConfig) {
     this.instanceCount = config.instanceCount || 100;
     this.spawnRadius = config.spawnRadius || 50;
-    console.log(`CharacterInstances created with ID: ${this.instanceId}`);
+    this.debug = config.debug || false;
+    if (this.debug) {
+      console.log(`CharacterInstances created with ID: ${this.instanceId}`);
+    }
   }
 
   public async initialize(): Promise<Object3D | null> {
@@ -122,15 +127,19 @@ export class CharacterInstances {
       const setFromFile = true;
       if (setFromFile) {
         const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
-        console.log("lowPolyLoDModelURL", lowPolyLoDModelURL);
+        if (this.debug) {
+          console.log("lowPolyLoDModelURL", lowPolyLoDModelURL);
+        }
         const lowPolyModel = await mmlCharacter.mergeBodyParts(lowPolyLoDModelURL, []);
         if (!lowPolyModel) {
           throw new Error(`Failed to load model from file ${lowPolyLoDModelURL}`);
         }
         this.setMainMesh(lowPolyModel);
       } else {
-        console.log("Using provided mesh from config", this.config.mesh);
-        debugger;
+        if (this.debug) {
+          console.log("Using provided mesh from config", this.config.mesh);
+          debugger;
+        }
         this.setMainMesh(this.config.mesh);
       }
 
@@ -190,9 +199,13 @@ export class CharacterInstances {
         }
       });
 
-      console.log(
-        `SkeletonUtils clone: ${clonedSkinnedMeshes} SkinnedMeshes, ${clonedMaterials.length} materials`,
-      );
+      if (this.debug) {
+        console.log(
+          `SkeletonUtils clone:
+          ${clonedSkinnedMeshes} SkinnedMeshes
+          ${clonedMaterials.length} materials`,
+        );
+      }
 
       if (
         clonedSkinnedMeshes !== originalSkinnedMeshes ||
@@ -229,7 +242,9 @@ export class CharacterInstances {
       // single mesh we're done here
       this.skinnedMesh = skinnedMeshes[0];
     } else {
-      console.log(`Merging ${skinnedMeshes.length} SkinnedMeshes into one...`);
+      if (this.debug) {
+        console.log(`Merging ${skinnedMeshes.length} SkinnedMeshes into one...`);
+      }
       this.skinnedMesh = mergeSkinnedMeshes(skinnedMeshes);
     }
 
@@ -255,7 +270,9 @@ export class CharacterInstances {
         )) as AnimationClip;
         if (clip) {
           individualClips.set(stateName, clip);
-          console.log(`Loaded ${stateName} animation: ${clip.duration.toFixed(3)}s`);
+          if (this.debug) {
+            console.log(`Loaded ${stateName} animation: ${clip.duration.toFixed(3)}s`);
+          }
         }
       } catch (error) {
         console.warn(`Failed to load animation ${stateName}:`, error);
@@ -294,11 +311,15 @@ export class CharacterInstances {
       this.action.play();
       this.animationClip = this.animationClip;
 
-      console.log(`Created mega-timeline with ${this.animationSegments.size} animation segments:`);
-      for (const [name, segment] of this.animationSegments.entries()) {
+      if (this.debug) {
         console.log(
-          `  ${name}: ${segment.startTime.toFixed(3)}s - ${segment.endTime.toFixed(3)}s (${segment.duration.toFixed(3)}s)`,
+          `Created mega-timeline with ${this.animationSegments.size} animation segments:`,
         );
+        for (const [name, segment] of this.animationSegments.entries()) {
+          console.log(
+            `  ${name}: ${segment.startTime.toFixed(3)}s - ${segment.endTime.toFixed(3)}s (${segment.duration.toFixed(3)}s)`,
+          );
+        }
       }
     }
   }
@@ -346,11 +367,15 @@ export class CharacterInstances {
         ].includes(material.name);
 
         if (material.color && isClothing) {
-          console.log(`Original color for ${material.name}: #${material.color.getHexString()} `);
+          if (this.debug) {
+            console.log(`Original color for ${material.name}: #${material.color.getHexString()} `);
+            console.log(`Set material color to white for clothing: ${material.name}`);
+          }
           material.color.setHex(0xffffff);
-          console.log(`Set material color to white for clothing: ${material.name}`);
         } else {
-          console.log(`Keeping original color for non-clothing material: ${material.name}`);
+          if (this.debug) {
+            console.log(`Keeping original color for non-clothing material: ${material.name}`);
+          }
         }
         material.vertexColors = true;
         material.needsUpdate = true;
@@ -377,7 +402,9 @@ export class CharacterInstances {
       }
     }
 
-    console.log(`${this.propertyBindings.length} bindings (bones to animate)`);
+    if (this.debug) {
+      console.log(`${this.propertyBindings.length} bindings (bones to animate)`);
+    }
   }
 
   private addInstances(): void {
@@ -426,20 +453,32 @@ export class CharacterInstances {
     );
 
     if (this.instancedMesh!.materialColorsTexture) {
-      addTextureToDOM(this.instancedMesh!.materialColorsTexture);
+      if (this.debug) {
+        addTextureToDOM(this.instancedMesh!.materialColorsTexture);
+      }
     } else {
       console.error("MaterialColorsTexture was NOT created!");
     }
 
     // Capture character colors and apply to instances (with delay to ensure rendering)
     if (this.skinnedMesh) {
-      const sampledColors = captureCharacterColors(this.skinnedMesh);
-      setTimeout(() => {
-        // let's test it out
-        console.log("sampledColors size:", sampledColors.size);
-        console.log("sampledColors entries:", Array.from(sampledColors.entries()));
-        this.testPerInstanceColoring(sampledColors);
-      }, 5000);
+      const sampledColors = captureCharacterColors(
+        this.skinnedMesh,
+        12,
+        {
+          width: 5,
+          height: 150,
+        },
+        this.debug,
+      );
+      if (this.debug) {
+        setTimeout(() => {
+          // let's test it out
+          console.log("sampledColors size:", sampledColors.size);
+          console.log("sampledColors entries:", Array.from(sampledColors.entries()));
+          this.testPerInstanceColoring(sampledColors);
+        }, 5000);
+      }
     }
 
     // test MEGAtimeline animation switching
@@ -483,7 +522,9 @@ export class CharacterInstances {
   public setupFrustumCulling(): void {
     if (!this.instancedMesh || !this.mixer || !this.action) return;
 
-    console.log(`Setting up frustum culling for ${this.instanceCount} instances`);
+    if (this.debug) {
+      console.log(`Setting up frustum culling for ${this.instanceCount} instances`);
+    }
 
     const maxFps = 60;
     const minFps = 10;
@@ -609,7 +650,7 @@ export class CharacterInstances {
         console.log(`Forced material colors texture update for ${instanceCountToChange} instances`);
 
         // Update the debug texture canvas to show the new colors
-        updateDebugTextureCanvas();
+        updateDebugTextureCanvas(this.instancedMesh);
       }
     } else {
       // Original hardcoded test colors for the first few instances
@@ -631,21 +672,23 @@ export class CharacterInstances {
         console.log("Forced material colors texture update for all instances");
 
         // Update the debug texture canvas to show the new colors
-        updateDebugTextureCanvas();
+        updateDebugTextureCanvas(this.instancedMesh);
       }
     }
 
     for (let i = 0; i < Math.min(3, this.instancedMesh.instancesCount); i++) {
       const colors = this.instancedMesh.getMaterialColorsAt(i);
       if (colors) {
-        console.log(`Instance ${i} material colors:`, {
-          hair: colors.hair.getHexString(),
-          shirt_short: colors.shirt_short.getHexString(),
-          pants_short: colors.pants_short.getHexString(),
-          shoes: colors.shoes.getHexString(),
-          skin: colors.skin.getHexString(),
-          lips: colors.lips.getHexString(),
-        });
+        if (this.debug) {
+          console.log(`Instance ${i} material colors:`, {
+            hair: colors.hair.getHexString(),
+            shirt_short: colors.shirt_short.getHexString(),
+            pants_short: colors.pants_short.getHexString(),
+            shoes: colors.shoes.getHexString(),
+            skin: colors.skin.getHexString(),
+            lips: colors.lips.getHexString(),
+          });
+        }
       } else {
         console.error(`Could not retrieve colors for instance ${i}`);
       }
@@ -657,28 +700,32 @@ export class CharacterInstances {
       console.warn("Cannot test mega-timeline animations: instancedMesh not initialized");
       return;
     }
-    console.log("Testing mega-timeline animation switching...");
-    console.log("Available animation segments:", Array.from(this.animationSegments.keys()));
+    if (this.debug) {
+      console.log("Testing mega-timeline animation switching...");
+      console.log("Available animation segments:", Array.from(this.animationSegments.keys()));
+    }
     const testInstances = Math.min(5, this.instancedMesh.instances.length);
 
     for (let i = 0; i < testInstances; i++) {
       const animations = ["idle", "walking", "running", "air"];
       const randomAnimation = animations[i % animations.length];
 
-      console.log(`Setting instance ${i} to animation: ${randomAnimation}`);
+      if (this.debug) {
+        console.log(`Setting instance ${i} to animation: ${randomAnimation}`);
+      }
       this.setInstanceAnimationState(i, randomAnimation);
     }
 
-    // scheduling more changes to check runtime switching
-    setTimeout(() => {
-      for (let i = 0; i < testInstances; i++) {
-        const animations = ["running", "air", "idle", "walking"];
-        const newAnimation = animations[i % animations.length];
-
-        // console.log(`Switching instance ${i} to: ${newAnimation}`);
-        this.setInstanceAnimationState(i, newAnimation);
-      }
-    }, 10000);
+    if (this.debug) {
+      // scheduling more changes to check runtime switching
+      setTimeout(() => {
+        for (let i = 0; i < testInstances; i++) {
+          const animations = ["running", "air", "idle", "walking"];
+          const newAnimation = animations[i % animations.length];
+          this.setInstanceAnimationState(i, newAnimation);
+        }
+      }, 10000);
+    }
   }
 
   public setInstanceAnimationState(instanceIndex: number, animationState: string): void {

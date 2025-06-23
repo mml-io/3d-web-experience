@@ -1,7 +1,7 @@
 import { BufferAttribute, BufferGeometry, Material, SkinnedMesh } from "three";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
-export function mergeSkinnedMeshes(skinnedMeshes: SkinnedMesh[]): SkinnedMesh {
+export function mergeSkinnedMeshes(skinnedMeshes: SkinnedMesh[], debug?: boolean): SkinnedMesh {
   const geometries: BufferGeometry[] = [];
   const materials: Material[] = [];
   const skeleton = skinnedMeshes[0].skeleton;
@@ -43,9 +43,11 @@ export function mergeSkinnedMeshes(skinnedMeshes: SkinnedMesh[]): SkinnedMesh {
   mergedMesh.bindMatrixInverse.copy(skinnedMeshes[0].bindMatrixInverse);
   mergedMesh.bind(skeleton, mergedMesh.bindMatrix);
 
-  console.log(`Merged into single mesh with ${materials.length} materials`);
+  if (debug) {
+    console.log(`Merged into single mesh with ${materials.length} materials`);
+  }
 
-  addVertexColorsToGeometry(mergedGeometry, materials);
+  addVertexColorsToGeometry(mergedGeometry, materials, debug);
 
   return mergedMesh;
 }
@@ -64,7 +66,11 @@ export function validateAndCleanSkeleton(skinnedMesh: SkinnedMesh): void {
   }
 }
 
-function addVertexColorsToGeometry(geometry: BufferGeometry, materials: Material[]): void {
+function addVertexColorsToGeometry(
+  geometry: BufferGeometry,
+  materials: Material[],
+  debug?: boolean,
+): void {
   const positionAttribute = geometry.getAttribute("position");
 
   if (!positionAttribute) {
@@ -73,7 +79,9 @@ function addVertexColorsToGeometry(geometry: BufferGeometry, materials: Material
   }
 
   const vertexCount = positionAttribute.count;
-  console.log(`Geometry has ${vertexCount} vertices`);
+  if (debug) {
+    console.log(`Geometry has ${vertexCount} vertices`);
+  }
 
   const colors = new Float32Array(vertexCount * 3);
 
@@ -97,11 +105,13 @@ function addVertexColorsToGeometry(geometry: BufferGeometry, materials: Material
     eyes_white: [0.0, 0.5, 0.0],
   };
 
-  console.log("Geometry groups:", geometry.groups);
-  console.log(
-    "Materials:",
-    materials.map((m: any) => m.name),
-  );
+  if (debug) {
+    console.log("Geometry groups:", geometry.groups);
+    console.log(
+      "Materials:",
+      materials.map((m: any) => m.name),
+    );
+  }
 
   // apply colors based on groups
   if (geometry.groups && geometry.groups.length > 0) {
@@ -109,16 +119,20 @@ function addVertexColorsToGeometry(geometry: BufferGeometry, materials: Material
       const material = materials[group.materialIndex || groupIndex];
       const materialName = material?.name || `material_${groupIndex}`;
 
-      console.log(
-        `Processing group ${groupIndex}: material "${materialName}", start: ${group.start}, count: ${group.count}`,
-      );
+      if (debug) {
+        console.log(
+          `Processing group ${groupIndex}: material "${materialName}", start: ${group.start}, count: ${group.count}`,
+        );
+      }
 
       const materialColor = materialColorCodes[materialName as keyof typeof materialColorCodes] || [
         1.0, 1.0, 1.0,
       ];
-      console.log(
-        `Using ID color [${materialColor.join(", ")}] for material "${materialName}" (${materialColor[0] === 1.0 && materialColor[1] === 1.0 && materialColor[2] === 0.0 ? "YELLOW=SKIN" : materialColor[0] === 0.0 && materialColor[1] === 0.0 && materialColor[2] === 1.0 ? "BLUE=SHIRT" : "OTHER"})`,
-      );
+      if (debug) {
+        console.log(
+          `Using ID color [${materialColor.join(", ")}] for material "${materialName}" (${materialColor[0] === 1.0 && materialColor[1] === 1.0 && materialColor[2] === 0.0 ? "YELLOW=SKIN" : materialColor[0] === 0.0 && materialColor[1] === 0.0 && materialColor[2] === 1.0 ? "BLUE=SHIRT" : "OTHER"})`,
+        );
+      }
 
       const indexAttribute = geometry.getIndex();
       if (indexAttribute) {
@@ -144,5 +158,7 @@ function addVertexColorsToGeometry(geometry: BufferGeometry, materials: Material
   }
 
   geometry.setAttribute("color", new BufferAttribute(colors, 3));
-  console.log(`Added per-material vertex colors to ${vertexCount} vertices`);
+  if (debug) {
+    console.log(`Added per-material vertex colors to ${vertexCount} vertices`);
+  }
 }
