@@ -275,12 +275,9 @@ export class CharacterInstances {
     if (this.animationClip && this.skinnedMesh) {
       // filter tracks for available bones
       const availableBones = new Set<string>();
-      this.skinnedMesh.traverse((child) => {
-        const asBone = child as Bone;
-        if (asBone.isBone) {
-          availableBones.add(child.name);
-        }
-      });
+      for (const bone of this.skinnedMesh.skeleton.bones) {
+        availableBones.add(bone.name);
+      }
 
       this.animationClip.tracks = this.animationClip.tracks.filter((track) => {
         const [trackName, trackProperty] = track.name.split(".");

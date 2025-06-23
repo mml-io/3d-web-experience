@@ -7,27 +7,27 @@ import {
   Object3D,
   OrthographicCamera,
   Scene,
+  SkinnedMesh,
   Vector2,
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
 } from "three";
+
 import { SquareDataTexture } from "./instancing";
 
-function listAllBoneNames(obj: Object3D): string[] {
+function listAllBoneNames(obj: SkinnedMesh): string[] {
   const boneNames: string[] = [];
   if (!obj) {
     console.log("no main mesh available");
     return boneNames;
   }
-  obj.traverse((child) => {
-    if (child.type === "Bone") {
-      boneNames.push(child.name);
-    }
-  });
+  for (const bone of obj.skeleton.bones) {
+    boneNames.push(bone.name);
+  }
   return boneNames;
 }
-export function captureCharacterColors(characterMesh: Object3D): Map<string, Color> {
+export function captureCharacterColors(characterMesh: SkinnedMesh): Map<string, Color> {
   console.log("starting character color capture");
   console.log("characterMesh provided:", !!characterMesh);
 
@@ -137,7 +137,7 @@ export function captureCharacterColors(characterMesh: Object3D): Map<string, Col
 }
 
 function getBoneRegionsForColorSampling(
-  characterMesh: Object3D,
+  characterMesh: SkinnedMesh,
   camera: Camera,
   renderSize: number,
 ): Array<{ name: string; screenPos: Vector2; radius: number }> {
@@ -165,12 +165,9 @@ function getBoneRegionsForColorSampling(
   const screenPos = new Vector3();
 
   for (const target of boneTargets) {
-    let bone: Bone | null = null;
-    characterMesh.traverse((child) => {
-      if (child.type === "Bone" && child.name === target.boneName) {
-        bone = child as Bone;
-      }
-    });
+    const bone: Bone | undefined = characterMesh.skeleton.bones.find(
+      (child) => child.name === target.boneName,
+    );
 
     if (bone) {
       (bone as Object3D).getWorldPosition(worldPos);
