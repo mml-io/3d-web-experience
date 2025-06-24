@@ -1,5 +1,5 @@
-import { PositionAndRotation } from "@mml-io/mml-web";
-import { Group } from "three";
+import { PositionAndRotation, radToDeg } from "@mml-io/mml-web";
+import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -254,9 +254,14 @@ export class CharacterManager {
 
   public getLocalCharacterPositionAndRotation(): PositionAndRotation {
     if (this.localCharacter && this.localCharacter && this.localCharacter) {
+      const rotation = this.localCharacter.rotation;
       return {
         position: this.localCharacter.position,
-        rotation: this.localCharacter.rotation,
+        rotation: {
+          x: radToDeg(rotation.x),
+          y: radToDeg(rotation.y),
+          z: radToDeg(rotation.z),
+        },
       };
     }
     return {
