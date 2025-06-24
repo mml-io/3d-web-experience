@@ -5,9 +5,15 @@ import {
   VectorKeyframeTrack,
 } from "three";
 
+export type SegmentTime = {
+  startTime: number;
+  endTime: number;
+  duration: number;
+};
+
 export function createMegaTimeline(
   individualClips: Map<string, AnimationClip>,
-): [Map<string, { startTime: number; endTime: number; duration: number }>, AnimationClip] {
+): [Map<string, SegmentTime>, AnimationClip] {
   const segments = new Map<
     string,
     { clip: AnimationClip; startTime: number; endTime: number; duration: number }

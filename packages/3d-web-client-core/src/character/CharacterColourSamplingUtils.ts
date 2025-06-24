@@ -11,9 +11,18 @@ import {
   Vector3,
   WebGLRenderer,
   WebGLRenderTarget,
+  Object3D,
 } from "three";
+import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
+import { mergeSkinnedMeshes, validateAndCleanSkeleton } from "./CharacterInstancingUtils";
 import { InstancedMesh2, SquareDataTexture } from "./instancing";
+
+export type ColorSamplingOptions = {
+  circularSamplingRadius?: number;
+  topDownSamplingSize?: { width: number; height: number };
+  debug?: boolean;
+};
 
 function listAllBoneNames(obj: SkinnedMesh): string[] {
   const boneNames: string[] = [];
@@ -26,13 +35,12 @@ function listAllBoneNames(obj: SkinnedMesh): string[] {
   }
   return boneNames;
 }
+
 export function captureCharacterColors(
   characterMesh: SkinnedMesh,
-  circularSamplingRadius?: number,
-  topDownSamplingSize?: { width: number; height: number },
-  debug?: boolean,
+  options: ColorSamplingOptions,
 ): Map<string, Color> {
-  if (debug) {
+  if (options.debug) {
     console.log("starting character color capture");
     console.log("characterMesh provided:", !!characterMesh);
   }
@@ -93,11 +101,11 @@ export function captureCharacterColors(
       characterMesh,
       camera,
       renderSize,
-      circularSamplingRadius,
-      topDownSamplingSize,
-      debug,
+      options.circularSamplingRadius,
+      options.topDownSamplingSize,
+      options.debug,
     );
-    if (debug) {
+    if (options.debug) {
       createDebugCanvas(pixels, renderSize, "Character Screenshot", boneRegions);
       console.log(`found ${boneRegions.length} bone regions to sample`);
     }
@@ -113,7 +121,7 @@ export function captureCharacterColors(
           width: region.width,
           height: region.height,
           imageWidth: renderSize,
-          debug,
+          debug: options.debug,
         });
       } else {
         if (region.name === "Face/Chin") {
@@ -124,7 +132,7 @@ export function captureCharacterColors(
             radius: region.radius!,
             imageWidth: renderSize,
             getMostCommonColor: true,
-            debug,
+            debug: options.debug,
           });
         } else {
           avgColor = sampleCircularRegion({
@@ -133,12 +141,12 @@ export function captureCharacterColors(
             center: region.screenPos,
             radius: region.radius!,
             imageWidth: renderSize,
-            debug,
+            debug: options.debug,
           });
         }
       }
 
-      if (debug) {
+      if (options.debug) {
         console.log(
           `${region.name} at (${region.screenPos.x}, ${region.screenPos.y}): rgb(${avgColor.r}, ${avgColor.g}, ${avgColor.b}) - #${avgColor.r.toString(16).padStart(2, "0")}${avgColor.g.toString(16).padStart(2, "0")}${avgColor.b.toString(16).padStart(2, "0")}`,
         );
@@ -182,10 +190,45 @@ export function captureCharacterColors(
     scene.remove(characterMesh);
   }
 
-  if (debug) {
+  if (options.debug) {
     console.log("character color capture completed!");
   }
   return sampledColors;
+}
+
+export function captureCharacterColorsFromObject3D(
+  object3D: Object3D,
+  options: ColorSamplingOptions,
+): Map<string, Color> {
+  const clone = SkeletonUtils.clone(object3D);
+  clone.position.set(0, 0, 0);
+  clone.rotation.set(0, 0, 0);
+  clone.scale.set(1, 1, 1);
+  const skinnedMeshes: SkinnedMesh[] = [];
+  clone.traverse((child) => {
+    if (child instanceof SkinnedMesh) {
+      skinnedMeshes.push(child);
+    }
+  });
+
+  if (skinnedMeshes.length === 0) {
+    console.warn("No SkinnedMesh objects found in Object3D hierarchy");
+    return new Map();
+  }
+
+  let skinnedMesh: SkinnedMesh;
+  if (skinnedMeshes.length === 1) {
+    skinnedMesh = skinnedMeshes[0];
+  } else {
+    skinnedMesh = mergeSkinnedMeshes(skinnedMeshes);
+  }
+
+  const skeleton = skinnedMesh.skeleton;
+  skeleton.pose();
+  skeleton.update();
+  skinnedMesh.updateMatrixWorld(true);
+  validateAndCleanSkeleton(skinnedMesh);
+  return captureCharacterColors(skinnedMesh, options);
 }
 
 function findBoneCenter(bone: Bone): Vector3 {

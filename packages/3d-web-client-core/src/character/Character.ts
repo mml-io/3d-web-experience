@@ -2,6 +2,7 @@ import { Color, Group, Object3D, Quaternion } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { EulXYZ } from "../math/EulXYZ";
+import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
@@ -9,7 +10,6 @@ import { CharacterModel } from "./CharacterModel";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
-import { Quat } from "../math/Quat";
 
 export type AnimationConfig = {
   idleAnimationFileUrl: string;
@@ -21,20 +21,20 @@ export type AnimationConfig = {
 
 export type CharacterDescription =
   | {
-  meshFileUrl: string;
-  mmlCharacterString?: null;
-  mmlCharacterUrl?: null;
-}
+      meshFileUrl: string;
+      mmlCharacterString?: null;
+      mmlCharacterUrl?: null;
+    }
   | {
-  meshFileUrl?: null;
-  mmlCharacterString: string;
-  mmlCharacterUrl?: null;
-}
+      meshFileUrl?: null;
+      mmlCharacterString: string;
+      mmlCharacterUrl?: null;
+    }
   | {
-  meshFileUrl?: null;
-  mmlCharacterString?: null;
-  mmlCharacterUrl: string;
-};
+      meshFileUrl?: null;
+      mmlCharacterString?: null;
+      mmlCharacterUrl: string;
+    };
 
 export type CharacterConfig = {
   username: string;
@@ -72,8 +72,8 @@ export class Character extends Group {
     this.tooltip = new CharacterTooltip(
       this.config.isLocal
         ? {
-          secondsToFadeOut: 10,
-        }
+            secondsToFadeOut: 10,
+          }
         : {},
     );
     this.tooltip.setText(this.config.username);

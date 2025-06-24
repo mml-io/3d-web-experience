@@ -22,7 +22,12 @@ const characterDescription: CharacterDescription = {
   // mmlCharacterUrl: "https://...",
   // Option 3 - Use an MML Character from a string
   mmlCharacterString: `
-  <m-character src="/assets/models/low_poly_male_a.glb">
+  <m-character src="/assets/models/mml_body_male.glb">
+    <m-model src="/assets/models/mml_head_hispanic_male.glb"></m-model>
+    <m-model src="/assets/models/mml_hair_black.glb"></m-model>
+    <m-model src="/assets/models/mml_torso_hoodie.glb"></m-model>
+    <m-model src="/assets/models/mml_legs_grey_pants.glb"></m-model>
+    <m-model src="/assets/models/mml_shoes_retro_white.glb"></m-model>
   </m-character>
   `,
 };

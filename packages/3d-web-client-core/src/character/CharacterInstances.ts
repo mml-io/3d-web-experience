@@ -3,30 +3,35 @@ import {
   AnimationAction,
   AnimationClip,
   AnimationMixer,
-  Bone,
   Color,
   Interpolant,
   Matrix4,
   Object3D,
   PropertyMixer,
   SkinnedMesh,
+  Quaternion,
   Vector3,
+  Euler,
 } from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import { CameraManager } from "../camera/CameraManager";
+import { EulXYZ, Vect3 } from "../math";
 import { TimeManager } from "../time/TimeManager";
 
 import { AnimationConfig } from "./Character";
 import {
   addTextureToDOM,
   captureCharacterColors,
+  captureCharacterColorsFromObject3D,
+  ColorSamplingOptions,
   updateDebugTextureCanvas,
 } from "./CharacterColourSamplingUtils";
-import { createMegaTimeline } from "./CharacterInstancingAnimationUtils";
+import { createMegaTimeline, SegmentTime } from "./CharacterInstancingAnimationUtils";
 import { mergeSkinnedMeshes, validateAndCleanSkeleton } from "./CharacterInstancingUtils";
 import { CharacterModel } from "./CharacterModel";
 import { CharacterModelLoader } from "./CharacterModelLoader";
+import { AnimationState } from "./CharacterState";
 import { createInstancedMesh2From, Entity, InstancedMesh2 } from "./instancing";
 import { unrealLodBones } from "./unreal-lod-bones";
 
@@ -44,6 +49,10 @@ export type CharacterInstancesConfig = {
 };
 
 export type InstanceData = {
+  characterId: number;
+  instanceId: number;
+  isActive: boolean;
+
   time: number;
   speed: number;
   offset: number;
@@ -110,8 +119,28 @@ export class CharacterInstances {
 
   // MEGA-timeline (single merged animation with time segments)
   private animationClip: AnimationClip | null = null;
-  private animationSegments: Map<string, { startTime: number; endTime: number; duration: number }> =
-    new Map();
+  private animationSegments: Map<string, SegmentTime> = new Map();
+
+  private startWithHiddenInstances = true;
+  private characterIdToInstanceIdMap = new Map<number, number>();
+
+  private animationStateToSegmentName(state: AnimationState): string {
+    switch (state) {
+      case AnimationState.idle:
+        return "idle";
+      case AnimationState.walking:
+        return "walking";
+      case AnimationState.running:
+        return "running";
+      case AnimationState.air:
+        return "air";
+      case AnimationState.doubleJump:
+        return "doubleJump";
+      default:
+        console.warn(`Unknown AnimationState: ${state}, defaulting to idle`);
+        return "idle";
+    }
+  }
 
   constructor(private config: CharacterInstancesConfig) {
     this.instanceCount = config.instanceCount || 100;
@@ -124,30 +153,22 @@ export class CharacterInstances {
 
   public async initialize(): Promise<Object3D | null> {
     try {
-      const setFromFile = true;
-      if (setFromFile) {
-        const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
-        if (this.debug) {
-          console.log("lowPolyLoDModelURL", lowPolyLoDModelURL);
-        }
-        const lowPolyModel = await mmlCharacter.mergeBodyParts(lowPolyLoDModelURL, []);
-        if (!lowPolyModel) {
-          throw new Error(`Failed to load model from file ${lowPolyLoDModelURL}`);
-        }
-        this.setMainMesh(lowPolyModel);
-      } else {
-        if (this.debug) {
-          console.log("Using provided mesh from config", this.config.mesh);
-          debugger;
-        }
-        this.setMainMesh(this.config.mesh);
+      const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
+      if (this.debug) {
+        console.log("lowPolyLoDModelURL", lowPolyLoDModelURL);
       }
+      const lowPolyModel = await mmlCharacter.mergeBodyParts(lowPolyLoDModelURL, []);
+      if (!lowPolyModel) {
+        throw new Error(`Failed to load model from file ${lowPolyLoDModelURL}`);
+      }
+      this.setMainMesh(lowPolyModel);
 
       if (!this.skinnedMesh) {
         console.error("Failed to set character mesh for instancing");
         return null;
       }
 
+      // prepare the single animation clip combining all animations
       await this.loadAnimation();
 
       if (!this.animationClip) {
@@ -155,6 +176,7 @@ export class CharacterInstances {
         return null;
       }
 
+      // create the instanced mesh
       await this.createInstancedMesh();
       this.setupAnimationOptimization();
       this.addInstances();
@@ -164,6 +186,182 @@ export class CharacterInstances {
     } catch (error) {
       console.error("Failed to initialize CharacterInstances:", error);
       return null;
+    }
+  }
+
+  public spawnInstance(
+    characterId: number,
+    characterMesh: Object3D,
+    position: Vect3,
+    rotation: EulXYZ,
+  ): void {
+    if (!this.instancedMesh) {
+      console.error("CharacterInstances: Cannot spawn instance, mesh not initialized.");
+      return;
+    }
+
+    const colors = captureCharacterColorsFromObject3D(characterMesh, {
+      circularSamplingRadius: 12,
+      topDownSamplingSize: { width: 5, height: 150 },
+      debug: true,
+    });
+    console.log("colors", colors);
+
+    const instances = this.instancedMesh.instances!;
+    let assigned = false;
+    let index = -1;
+
+    for (let i = 0; i < instances.length; i++) {
+      const instance = instances[i];
+
+      if (!instance.isActive) {
+        // set position and rotation
+        const newPosition = new Vector3(position.x, position.y, position.z);
+        const newQuaternion = new Quaternion().setFromEuler(
+          new Euler(rotation.x, rotation.y, rotation.z),
+        );
+        instance.position.copy(newPosition);
+        instance.quaternion.copy(newQuaternion);
+
+        // mark as active and visible
+        instance.isActive = true;
+        instance.visible = true;
+
+        // set character ID
+        instance.characterId = characterId;
+        this.characterIdToInstanceIdMap.set(characterId, i);
+
+        // reset animation data and set it as idle
+        instance.time = 0;
+        instance.animationTime = 0;
+        instance.offset = Math.random() * 0.5; // slight time offset to avoid synchronicity
+        instance.speed = 1.0;
+        instance.currentAnimationState = "idle";
+
+        instance.updateMatrix();
+        this.updateInstancedMeshBounds();
+
+        console.log(`Spawned character instance ${characterId} at index ${i}`);
+        if (this.debug) {
+        }
+
+        assigned = true;
+        index = i;
+        break;
+      }
+    }
+
+    if (index !== -1) {
+      console.log(`index: ${index} assigned: ${assigned} =================`);
+      this.instancedMesh.setMaterialColorsAt(index, {
+        hair: colors.get("hair"),
+        shirt_short: colors.get("shirt_short"),
+        shirt_long: colors.get("shirt_long"),
+        pants_short: colors.get("pants_short"),
+        pants_long: colors.get("pants_long"),
+        shoes: colors.get("shoes"),
+        skin: colors.get("skin"),
+        lips: colors.get("lips"),
+      });
+      if (this.instancedMesh.materialColorsTexture) {
+        this.instancedMesh.materialColorsTexture.needsUpdate = true;
+        if (typeof (this.instancedMesh as any).materialsNeedsUpdate === "function") {
+          (this.instancedMesh as any).materialsNeedsUpdate();
+        }
+      }
+    }
+
+    if (!assigned) {
+      console.warn(
+        `CharacterInstances: No available instance to spawn character ${characterId}. Consider increasing instanceCount.`,
+      );
+    }
+  }
+
+  public despawnInstance(characterId: number): void {
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (this.instancedMesh && instanceId !== undefined) {
+      this.instancedMesh.instances![instanceId].isActive = false;
+      this.instancedMesh.instances![instanceId].visible = false;
+      this.instancedMesh.instances![instanceId].characterId = -1;
+      this.instancedMesh.instances![instanceId].instanceId = -1;
+      this.instancedMesh.instances![instanceId].updateMatrix();
+      this.updateInstancedMeshBounds();
+    }
+    this.characterIdToInstanceIdMap.delete(characterId);
+  }
+
+  public updateInstance(
+    characterId: number,
+    position: Vect3,
+    rotation: EulXYZ,
+    animationState: AnimationState,
+  ): void {
+    if (!this.instancedMesh) {
+      console.error("CharacterInstances: Cannot update instance, mesh not initialized.");
+      return;
+    }
+
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (instanceId === undefined) {
+      console.warn(`CharacterInstances: Instance not found for character ${characterId}`);
+      return;
+    }
+
+    const instance = this.instancedMesh.instances![instanceId];
+    if (!instance || !instance.isActive) {
+      console.warn(
+        `CharacterInstances: Instance ${instanceId} is not active for character ${characterId}`,
+      );
+      return;
+    }
+
+    const newPosition = new Vector3(position.x, position.y, position.z).sub(
+      new Vector3(0, 0.45, 0),
+    );
+    const newQuaternion = new Quaternion().setFromEuler(
+      new Euler(rotation.x, rotation.y, rotation.z),
+    );
+    instance.position.copy(newPosition);
+    instance.quaternion.copy(newQuaternion);
+
+    const animationSegmentName = this.animationStateToSegmentName(animationState);
+
+    if (instance.currentAnimationState !== animationSegmentName) {
+      if (this.animationSegments.has(animationSegmentName)) {
+        instance.currentAnimationState = animationSegmentName;
+        instance.animationTime = 0;
+
+        if (this.debug) {
+          console.log(
+            `Updated character ${characterId} animation from ${instance.currentAnimationState} to ${animationSegmentName}`,
+          );
+        }
+      } else {
+        console.warn(
+          `CharacterInstances: Unknown animation state: ${animationSegmentName}. Available: ${Array.from(this.animationSegments.keys()).join(", ")}`,
+        );
+        return;
+      }
+    }
+    instance.updateMatrix();
+    this.updateInstancedMeshBounds();
+  }
+
+  private updateInstancedMeshBounds(): void {
+    if (!this.instancedMesh) return;
+
+    try {
+      if (this.instancedMesh.geometry) {
+        this.instancedMesh.geometry.computeBoundingBox();
+        this.instancedMesh.geometry.computeBoundingSphere();
+      }
+
+      this.instancedMesh.computeBoundingBox();
+      this.instancedMesh.computeBoundingSphere();
+      this.instancedMesh.instanceMatrix.needsUpdate = true;
+    } catch (error) {
+      console.warn("Error updating bounds:", error);
     }
   }
 
@@ -414,15 +612,23 @@ export class CharacterInstances {
     this.instancedMesh!.addInstances(
       this.instanceCount,
       (obj: Entity<InstanceData>, index: number) => {
-        obj.position
-          .set(rnd() * this.spawnRadius, 0, rnd() * this.spawnRadius)
-          .divideScalar(this.characterScale);
+        if (this.startWithHiddenInstances) {
+          obj.visible = false;
+        } else {
+          obj.position
+            .set(rnd() * this.spawnRadius, 0, rnd() * this.spawnRadius)
+            .divideScalar(this.characterScale);
+        }
 
-        obj.time = 0;
-        obj.offset = Math.random() * 5;
-        obj.speed = 1.0;
-        obj.currentAnimationState = "idle";
-        obj.animationTime = 0;
+        obj.time = 0; // animation time
+        obj.offset = Math.random() * 5; // animation track offset (prevents synchronicity)
+        obj.speed = 1.0; // animation speed multiplier
+        obj.currentAnimationState = "idle"; // initial animation state
+        obj.animationTime = 0; // animation time within the segment
+
+        obj.isActive = !this.startWithHiddenInstances;
+        obj.characterId = -1; // -1 means no character is assigned yet
+        obj.instanceId = index; // instance ID
 
         obj.skinColor = new Color(...this.immutableColors.skin);
         obj.eyesBlackColor = new Color(...this.immutableColors.eyes_black);
@@ -452,37 +658,8 @@ export class CharacterInstances {
       },
     );
 
-    if (this.instancedMesh!.materialColorsTexture) {
-      if (this.debug) {
-        addTextureToDOM(this.instancedMesh!.materialColorsTexture);
-      }
-    } else {
-      console.error("MaterialColorsTexture was NOT created!");
-    }
-
-    // Capture character colors and apply to instances (with delay to ensure rendering)
-    if (this.skinnedMesh) {
-      const sampledColors = captureCharacterColors(
-        this.skinnedMesh,
-        12,
-        {
-          width: 5,
-          height: 150,
-        },
-        this.debug,
-      );
-      if (this.debug) {
-        setTimeout(() => {
-          // let's test it out
-          console.log("sampledColors size:", sampledColors.size);
-          console.log("sampledColors entries:", Array.from(sampledColors.entries()));
-          this.testPerInstanceColoring(sampledColors);
-        }, 5000);
-      }
-    }
-
     // test MEGAtimeline animation switching
-    setTimeout(() => this.testMegaTimelineAnimations(), 500);
+    // setTimeout(() => this.testMegaTimelineAnimations(), 500);
   }
 
   private initializeSkeletonData(): void {

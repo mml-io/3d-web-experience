@@ -1,5 +1,5 @@
 import { PositionAndRotation, radToDeg } from "@mml-io/mml-web";
-import { Euler, Group, Quaternion, Vector3 } from "three";
+import { Euler, Group, Quaternion, SkinnedMesh, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -231,11 +231,26 @@ export class CharacterManager {
       characterId: id,
       modelLoadedCallback: () => {
         // character loaded callback
+        const mesh = character.getMesh();
+        if (this.characterInstances) {
+          this.characterInstances.spawnInstance(
+            id,
+            mesh!,
+            new Vect3().copy(spawnPosition),
+            new EulXYZ().copy(spawnRotation),
+          );
+          // despawn test
+          // setTimeout(() => {
+          //   this.characterInstances!.despawnInstance(id);
+          // }, 5000);
+        }
       },
       cameraManager: this.config.cameraManager,
       composer: this.config.composer,
       isLocal: false,
     });
+    const characterMesh = character.getMesh();
+    console.log("characterMesh", characterMesh);
 
     const spawnQuaternion = new Quat().setFromEulerXYZ(spawnRotation);
 
@@ -351,7 +366,7 @@ export class CharacterManager {
         if (id === this.localClientId) {
           continue;
         }
-        
+
         const { position } = update;
 
         if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
@@ -371,6 +386,17 @@ export class CharacterManager {
             this.config.timeManager.time,
             this.config.timeManager.deltaTime,
           );
+          if (this.characterInstances) {
+            const euler = new Euler().setFromQuaternion(
+              new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
+            );
+            this.characterInstances.updateInstance(
+              id,
+              new Vect3(position.x, position.y, position.z),
+              new EulXYZ(euler.x, euler.y, euler.z),
+              update.state,
+            );
+          }
         }
       }
 
