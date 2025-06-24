@@ -75,7 +75,6 @@ export type InstanceData = {
   pantsShortColor: Color;
   pantsLongColor: Color;
 
-  // Lerp properties
   targetPosition: Vector3;
   targetQuaternion: Quaternion;
   lerpSpeed: number;
@@ -201,56 +200,101 @@ export class CharacterInstances {
     characterMesh: Object3D,
     position: Vect3,
     rotation: EulXYZ,
-  ): void {
+  ): boolean {
     if (!this.instancedMesh) {
       console.error("CharacterInstances: Cannot spawn instance, mesh not initialized.");
-      return;
+      return false;
+    }
+
+    // Check if character is already spawned
+    if (this.characterIdToInstanceIdMap.has(characterId)) {
+      console.warn(
+        `CharacterInstances: Character ${characterId} already spawned, ignoring duplicate spawn`,
+      );
+      return false;
     }
 
     const colors = captureCharacterColorsFromObject3D(characterMesh, {
       circularSamplingRadius: 12,
       topDownSamplingSize: { width: 5, height: 150 },
-      debug: true,
+      debug: false, // Reduced debug spam
     });
-    console.log("colors", colors);
+
+    return this.spawnInstanceWithColors(characterId, colors, position, rotation, "idle");
+  }
+
+  public spawnInstanceWithCachedColors(
+    characterId: number,
+    colors: Map<string, Color>,
+    position: Vect3,
+    rotation: EulXYZ,
+    animationState: AnimationState,
+  ): boolean {
+    const animationSegmentName = this.animationStateToSegmentName(animationState);
+    return this.spawnInstanceWithColors(
+      characterId,
+      colors,
+      position,
+      rotation,
+      animationSegmentName,
+    );
+  }
+
+  private spawnInstanceWithColors(
+    characterId: number,
+    colors: Map<string, Color>,
+    position: Vect3,
+    rotation: EulXYZ,
+    animationState: string,
+  ): boolean {
+    if (!this.instancedMesh) {
+      console.error("CharacterInstances: Cannot spawn instance, mesh not initialized.");
+      return false;
+    }
+
+    if (this.characterIdToInstanceIdMap.has(characterId)) {
+      console.warn(
+        `CharacterInstances: Character ${characterId} already spawned, ignoring duplicate spawn`,
+      );
+      return false;
+    }
 
     const instances = this.instancedMesh.instances!;
     let assigned = false;
     let index = -1;
 
+    const activeCount = instances.filter((inst) => inst.isActive).length;
+
     for (let i = 0; i < instances.length; i++) {
       const instance = instances[i];
 
       if (!instance.isActive) {
-        // set position and rotation
-        const newPosition = new Vector3(position.x, position.y, position.z);
+        const newPosition = new Vector3(position.x, position.y, position.z).sub(
+          new Vector3(0, 0.45, 0),
+        );
         const newQuaternion = new Quaternion().setFromEuler(
           new Euler(rotation.x, rotation.y, rotation.z),
         );
         instance.position.copy(newPosition);
         instance.quaternion.copy(newQuaternion);
-
-        // mark as active and visible
         instance.isActive = true;
         instance.visible = true;
 
-        // set character ID
         instance.characterId = characterId;
         this.characterIdToInstanceIdMap.set(characterId, i);
 
-        // reset animation data and set it as idle
         instance.time = 0;
         instance.animationTime = 0;
         instance.offset = Math.random() * 0.5; // slight time offset to avoid synchronicity
         instance.speed = 1.0;
-        instance.currentAnimationState = "idle";
+        instance.currentAnimationState = animationState; // Use provided animation state instead of defaulting to "idle"
 
         instance.updateMatrix();
         this.updateInstancedMeshBounds();
 
-        console.log(`Spawned character instance ${characterId} at index ${i}`);
-        if (this.debug) {
-        }
+        console.log(
+          `CharacterInstances: Spawned character instance ${characterId} at index ${i} with animation ${animationState} (${activeCount + 1}/${instances.length} instances active)`,
+        );
 
         assigned = true;
         index = i;
@@ -259,7 +303,6 @@ export class CharacterInstances {
     }
 
     if (index !== -1) {
-      console.log(`index: ${index} assigned: ${assigned} =================`);
       this.instancedMesh.setMaterialColorsAt(index, {
         hair: colors.get("hair"),
         shirt_short: colors.get("shirt_short"),
@@ -279,10 +322,13 @@ export class CharacterInstances {
     }
 
     if (!assigned) {
-      console.warn(
-        `CharacterInstances: No available instance to spawn character ${characterId}. Consider increasing instanceCount.`,
+      console.error(
+        `CharacterInstances: Failed to spawn instance for character ${characterId}. ${activeCount}/${instances.length} instances active. All instances are in use!`,
       );
+      return false;
     }
+
+    return true;
   }
 
   public despawnInstance(characterId: number): void {
@@ -294,8 +340,25 @@ export class CharacterInstances {
       this.instancedMesh.instances![instanceId].instanceId = -1;
       this.instancedMesh.instances![instanceId].updateMatrix();
       this.updateInstancedMeshBounds();
+
+      const activeCount = this.instancedMesh.instances!.filter((inst) => inst.isActive).length;
+      console.log(
+        `CharacterInstances: Despawned character instance ${characterId} (${activeCount}/${this.instancedMesh.instances!.length} instances active)`,
+      );
     }
     this.characterIdToInstanceIdMap.delete(characterId);
+  }
+
+  public getInstanceInfo(): { active: number; total: number; available: number } {
+    if (!this.instancedMesh?.instances) {
+      return { active: 0, total: 0, available: 0 };
+    }
+
+    const active = this.instancedMesh.instances.filter((inst) => inst.isActive).length;
+    const total = this.instancedMesh.instances.length;
+    const available = total - active;
+
+    return { active, total, available };
   }
 
   public updateInstance(
@@ -334,13 +397,11 @@ export class CharacterInstances {
     instance.enableLerp = enableLerp;
 
     if (enableLerp) {
-      // Set target for lerping
       instance.targetPosition.copy(newPosition);
       instance.targetQuaternion.copy(newQuaternion);
       instance.hasNewTarget = true;
-      instance.lerpSpeed = 6.0;
+      instance.lerpSpeed = 15.0;
     } else {
-      // Direct assignment
       instance.position.copy(newPosition);
       instance.quaternion.copy(newQuaternion);
       instance.hasNewTarget = false;
@@ -668,10 +729,9 @@ export class CharacterInstances {
         obj.pantsShortColor = obj.pantsColor;
         obj.pantsLongColor = obj.pantsColor;
 
-        // Initialize lerp properties
         obj.targetPosition = new Vector3();
         obj.targetQuaternion = new Quaternion();
-        obj.lerpSpeed = 6.0;
+        obj.lerpSpeed = 15.0;
         obj.hasNewTarget = false;
         obj.enableLerp = false;
 
@@ -710,21 +770,17 @@ export class CharacterInstances {
       if (instance.isActive && instance.enableLerp && instance.hasNewTarget) {
         const lerpFactor = Math.min(this.delta * instance.lerpSpeed, 1.0);
 
-        // Perform lerping
         instance.position.lerp(instance.targetPosition, lerpFactor);
         instance.quaternion.slerp(instance.targetQuaternion, lerpFactor);
 
-        // Stop lerping when close enough
         if (lerpFactor >= 0.99) {
           instance.hasNewTarget = false;
         }
 
-        // Update matrix
         instance.updateMatrix();
       }
     }
 
-    // Update bounds once for all changes
     this.updateInstancedMeshBounds();
   }
 
