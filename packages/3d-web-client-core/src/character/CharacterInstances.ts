@@ -74,6 +74,13 @@ export type InstanceData = {
   shirtLongColor: Color;
   pantsShortColor: Color;
   pantsLongColor: Color;
+
+  // Lerp properties
+  targetPosition: Vector3;
+  targetQuaternion: Quaternion;
+  lerpSpeed: number;
+  hasNewTarget: boolean;
+  enableLerp: boolean;
 };
 
 export class CharacterInstances {
@@ -296,6 +303,7 @@ export class CharacterInstances {
     position: Vect3,
     rotation: EulXYZ,
     animationState: AnimationState,
+    enableLerp: boolean = false,
   ): void {
     if (!this.instancedMesh) {
       console.error("CharacterInstances: Cannot update instance, mesh not initialized.");
@@ -322,8 +330,21 @@ export class CharacterInstances {
     const newQuaternion = new Quaternion().setFromEuler(
       new Euler(rotation.x, rotation.y, rotation.z),
     );
-    instance.position.copy(newPosition);
-    instance.quaternion.copy(newQuaternion);
+
+    instance.enableLerp = enableLerp;
+
+    if (enableLerp) {
+      // Set target for lerping
+      instance.targetPosition.copy(newPosition);
+      instance.targetQuaternion.copy(newQuaternion);
+      instance.hasNewTarget = true;
+      instance.lerpSpeed = 6.0;
+    } else {
+      // Direct assignment
+      instance.position.copy(newPosition);
+      instance.quaternion.copy(newQuaternion);
+      instance.hasNewTarget = false;
+    }
 
     const animationSegmentName = this.animationStateToSegmentName(animationState);
 
@@ -344,8 +365,12 @@ export class CharacterInstances {
         return;
       }
     }
-    instance.updateMatrix();
-    this.updateInstancedMeshBounds();
+
+    // Only update matrix immediately if not lerping
+    if (!enableLerp) {
+      instance.updateMatrix();
+      this.updateInstancedMeshBounds();
+    }
   }
 
   private updateInstancedMeshBounds(): void {
@@ -643,6 +668,13 @@ export class CharacterInstances {
         obj.pantsShortColor = obj.pantsColor;
         obj.pantsLongColor = obj.pantsColor;
 
+        // Initialize lerp properties
+        obj.targetPosition = new Vector3();
+        obj.targetQuaternion = new Quaternion();
+        obj.lerpSpeed = 6.0;
+        obj.hasNewTarget = false;
+        obj.enableLerp = false;
+
         if (this.instancedMesh) {
           this.instancedMesh.setMaterialColorsAt(index, {
             hair: obj.hairColor,
@@ -671,6 +703,31 @@ export class CharacterInstances {
     }
   }
 
+  private updateAllInstanceLerping(): void {
+    if (!this.instancedMesh?.instances) return;
+
+    for (const instance of this.instancedMesh.instances) {
+      if (instance.isActive && instance.enableLerp && instance.hasNewTarget) {
+        const lerpFactor = Math.min(this.delta * instance.lerpSpeed, 1.0);
+
+        // Perform lerping
+        instance.position.lerp(instance.targetPosition, lerpFactor);
+        instance.quaternion.slerp(instance.targetQuaternion, lerpFactor);
+
+        // Stop lerping when close enough
+        if (lerpFactor >= 0.99) {
+          instance.hasNewTarget = false;
+        }
+
+        // Update matrix
+        instance.updateMatrix();
+      }
+    }
+
+    // Update bounds once for all changes
+    this.updateInstancedMeshBounds();
+  }
+
   public update(deltaTime: number, totalTime: number): void {
     if (!this.instancedMesh || !this.mixer || !this.action) return;
 
@@ -691,6 +748,9 @@ export class CharacterInstances {
     this.cameraLocalPosition
       .setFromMatrixPosition(camera.matrixWorld)
       .applyMatrix4(this.invMatrixWorld);
+
+    // Simple brute-force lerping for ALL instances (no frustum optimization)
+    this.updateAllInstanceLerping();
 
     this.lastFrameVisibleCount = this.visibleInstancesThisFrame.size;
     this.visibleInstancesThisFrame.clear();

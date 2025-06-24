@@ -92,6 +92,8 @@ export class CharacterManager {
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
 
+  private readonly MAX_REAL_REMOTE_CHARACTERS = 3;
+
   constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
   }
@@ -395,6 +397,7 @@ export class CharacterManager {
               new Vect3(position.x, position.y, position.z),
               new EulXYZ(euler.x, euler.y, euler.z),
               update.state,
+              true, // lerping test
             );
           }
         }
