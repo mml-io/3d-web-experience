@@ -4,3 +4,4 @@ export * from "./UserNetworkingClient";
 export * from "./UserData";
 export * from "./ReconnectingWebSocket";
 export * from "./UserNetworkingMessages";
+export * from "./DeltaNetComponentMapping";

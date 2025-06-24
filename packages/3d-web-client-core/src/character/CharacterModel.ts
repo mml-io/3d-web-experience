@@ -81,6 +81,7 @@ export class CharacterModel {
       }
     }
     if (this.currentAnimation !== targetAnimation) {
+      console.log(`CharacterModel updateAnimation for clientId=${this.config.characterId}`, targetAnimation);
       this.transitionToAnimation(targetAnimation);
     }
   }

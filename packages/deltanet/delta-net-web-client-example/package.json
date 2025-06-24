@@ -1,0 +1,44 @@
+{
+  "name": "delta-net-web-client-example",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:ui && npm run build:server",
+    "build:docker": "docker build ./deploy -f ./Dockerfile --platform=linux/x86_64 -t delta-net-web-client-example --progress=plain",
+    "build:rush": "rush deploy --target-folder ./deploy --project delta-net-web-client-example --overwrite",
+    "clear:rush": "rimraf ./deploy",
+    "build:server": "tsx ./build.ts --build",
+    "build:ui": "tsx ./ui-build.ts --build",
+    "depcheck": "depcheck --quiet",
+    "iterate": "concurrently \"npm run iterate:ui\" \"npm run iterate:server\"",
+    "iterate:server": "tsx ./build.ts --watch",
+    "iterate:ui": "tsx ./ui-build.ts --watch",
+    "link": "npm link",
+    "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "pre:build": "npm run build",
+    "publish:docker": "./publish.sh",
+    "start-bots": "tsx ./src/startBots.ts",
+    "start-bots-web-world": "tsx ./src/startBots.ts --config=web-world",
+    "start-server": "node --enable-source-maps ./build/server/src/index.js",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@deltanet/delta-net-server": "^0.1.0",
+    "@deltanet/delta-net-web": "^0.1.0",
+    "@ez-elements/core": "^0.0.6",
+    "chokidar": "4.0.1",
+    "express": "4.21.2",
+    "express-ws": "5.0.2",
+    "ws": "8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "9.1.2",
+    "@types/cors": "2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/express-ws": "^3.0.5",
+    "esbuild-css-modules-plugin": "3.1.5"
+  }
+}

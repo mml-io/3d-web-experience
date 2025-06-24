@@ -347,6 +347,11 @@ export class CharacterManager {
       this.config.cameraManager.setTarget(targetOffset);
 
       for (const [id, update] of this.config.remoteUserStates) {
+        // Skip creating remote character for local user
+        if (id === this.localClientId) {
+          continue;
+        }
+        
         const { position } = update;
 
         if (!this.remoteCharacters.has(id) && this.localCharacterSpawned === true) {
