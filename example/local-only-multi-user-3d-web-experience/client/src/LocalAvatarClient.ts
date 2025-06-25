@@ -160,7 +160,7 @@ export class LocalAvatarClient {
       },
       animationConfig,
       characterResolve: () => {
-        return { username: "User", characterDescription };
+        return { username: "User", characterDescription, colors: [] };
       },
       spawnConfiguration: this.spawnConfiguration,
     });

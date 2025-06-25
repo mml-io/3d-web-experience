@@ -62,7 +62,6 @@ function characterDescriptionMatches(a: CharacterDescription, b: CharacterDescri
 
 export class Character extends Group {
   private model: CharacterModel | null = null;
-  public color: Color = new Color();
   public tooltip: CharacterTooltip;
 
   public chatTooltips: CharacterTooltip[] = [];
@@ -82,6 +81,10 @@ export class Character extends Group {
       this.config.modelLoadedCallback();
       this.setTooltipHeights();
     });
+  }
+
+  getColors(): Array<[number, number, number]> {
+    return this.model?.getColors() || [];
   }
 
   updateCharacter(username: string, characterDescription: CharacterDescription) {

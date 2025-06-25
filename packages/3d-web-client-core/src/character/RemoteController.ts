@@ -26,6 +26,7 @@ export class RemoteController {
       position: { x: pos.x, y: pos.y, z: pos.z },
       rotation: { quaternionY: rot.y, quaternionW: 1 },
       state: currentAnimation,
+      colors: [],
     };
   }
 

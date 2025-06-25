@@ -1,3 +1,4 @@
+import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
 import { UserNetworkingClientUpdate } from "./UserNetworkingCodec";
 import { CharacterDescription } from "./UserNetworkingMessages";
 
@@ -12,6 +13,7 @@ export const COMPONENT_STATE = 6;
 // State IDs for binary data
 export const STATE_CHARACTER_DESCRIPTION = 1;
 export const STATE_USERNAME = 2;
+export const STATE_COLORS = 3;
 
 const rotationMultiplier = 360;
 const positionMultiplier = 100;
@@ -67,22 +69,53 @@ export class DeltaNetComponentMapping {
    * Encode character description and username to binary states
    */
   static toStates(
-    username: string,
-    characterDescription: CharacterDescription,
+    username?: string,
+    characterDescription?: CharacterDescription,
+    colors?: Array<[number, number, number]>,
   ): Map<number, Uint8Array> {
+    console.log("toStates", username, characterDescription, colors);
     const states = new Map<number, Uint8Array>();
     const textEncoder = new TextEncoder();
 
-    // Encode username
-    states.set(STATE_USERNAME, textEncoder.encode(username));
+    if (username) {
+      // Encode username
+      states.set(STATE_USERNAME, textEncoder.encode(username));
+    }
 
     // Encode character description as JSON
-    states.set(
-      STATE_CHARACTER_DESCRIPTION,
-      textEncoder.encode(JSON.stringify(characterDescription)),
-    );
+    if (characterDescription) {
+      states.set(
+        STATE_CHARACTER_DESCRIPTION,
+        textEncoder.encode(JSON.stringify(characterDescription)),
+      );
+    }
+
+    if (colors) {
+      states.set(STATE_COLORS, DeltaNetComponentMapping.encodeColors(colors));
+    }
 
     return states;
+  }
+
+  static encodeColors(colors: Array<[number, number, number]>): Uint8Array {
+    const bufferWriter = new BufferWriter(3 * colors.length + 1);
+    bufferWriter.writeUVarint(colors.length);
+    for (const color of colors) {
+      bufferWriter.writeUVarint(color[0]);
+      bufferWriter.writeUVarint(color[1]);
+      bufferWriter.writeUVarint(color[2]);
+    }
+    return bufferWriter.getBuffer();
+  }
+
+  static decodeColors(colors: Uint8Array): Array<[number, number, number]> {
+    const bufferReader = new BufferReader(colors);
+    const colorsArray: Array<[number, number, number]> = [];
+    const count = bufferReader.readUVarint();
+    for (let i = 0; i < count; i++) {
+      colorsArray.push([bufferReader.readUVarint(), bufferReader.readUVarint(), bufferReader.readUVarint()]);
+    }
+    return colorsArray;
   }
 
   /**
@@ -91,6 +124,7 @@ export class DeltaNetComponentMapping {
   static fromStates(states: Map<number, Uint8Array>): {
     username: string;
     characterDescription: CharacterDescription;
+    colors: Array<[number, number, number]>;
   } {
     const textDecoder = new TextDecoder();
 
@@ -108,6 +142,9 @@ export class DeltaNetComponentMapping {
       }
     }
 
-    return { username, characterDescription };
+    const colors = states.get(STATE_COLORS);
+    const colorsArray = colors ? DeltaNetComponentMapping.decodeColors(colors) : [];
+
+    return { username, characterDescription, colors: colorsArray };
   }
 }

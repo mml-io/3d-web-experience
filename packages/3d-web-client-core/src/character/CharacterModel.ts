@@ -4,13 +4,47 @@ import {
   parseMMLDescription,
 } from "@mml-io/3d-web-avatar";
 import { ModelLoader } from "@mml-io/model-loader";
-import { AnimationAction, AnimationClip, AnimationMixer, Bone, LoopRepeat, Object3D } from "three";
+import { AnimationAction, AnimationClip, AnimationMixer, Bone, Color, LoopRepeat, Object3D, SkinnedMesh } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 
 import { AnimationConfig, CharacterDescription } from "./Character";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
+import { captureCharacterColors, captureCharacterColorsFromObject3D } from "./CharacterColourSamplingUtils";
+
+export const colorPartNamesIndex = [
+"hair",
+"skin",
+"lips",
+"shirt_short",
+"shirt_long",
+"pants_short",
+"pants_long",
+"shoes",
+]
+
+export function colorsToColorArray(colors: Map<string, Color>): Array<[number, number, number]> {
+  const colorArray: Array<[number, number, number]> = [];
+  for (const partName of colorPartNamesIndex) {
+    const color = colors.get(partName);
+    if (color) {
+      colorArray.push([Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255)]);
+    }
+  }
+  return colorArray;
+}
+
+export function colorArrayToColors(colorArray: Array<[number, number, number]>): Map<string, Color> {
+  const colors = new Map<string, Color>();
+  for (let i = 0; i < colorPartNamesIndex.length; i++) {
+    const color = colorArray[i];
+    if (color) {
+      colors.set(colorPartNamesIndex[i], new Color(color[0] / 255, color[1] / 255, color[2] / 255));
+    }
+  }
+  return colors;
+}
 
 export type CharacterModelConfig = {
   characterDescription: CharacterDescription;
@@ -35,6 +69,8 @@ export class CharacterModel {
   public mmlCharacterDescription: MMLCharacterDescription;
 
   private isPostDoubleJump = false;
+  
+  private colors: Array<[number, number, number]> | null = null;
 
   constructor(private config: CharacterModelConfig) {}
 
@@ -156,6 +192,23 @@ export class CharacterModel {
       return mmlCharacterBody;
     }
     return null;
+  }
+
+  public getColors(): Array<[number, number, number]> {
+    if (!this.mesh) {
+      return [];
+    }
+    if (this.colors) {
+      return this.colors;
+    }
+    const colors = captureCharacterColorsFromObject3D(this.mesh, {
+      circularSamplingRadius: 12,
+      topDownSamplingSize: { width: 5, height: 150 },
+      debug: false, // Reduced debug spam
+    });
+    this.colors = colorsToColorArray(colors);
+    console.log("CharacterModel.getColors", this.colors);
+    return this.colors;
   }
 
   private async loadMainMesh(): Promise<void> {

@@ -21,10 +21,7 @@ import { TimeManager } from "../time/TimeManager";
 
 import { AnimationConfig } from "./Character";
 import {
-  addTextureToDOM,
-  captureCharacterColors,
   captureCharacterColorsFromObject3D,
-  ColorSamplingOptions,
   updateDebugTextureCanvas,
 } from "./CharacterColourSamplingUtils";
 import { createMegaTimeline, SegmentTime } from "./CharacterInstancingAnimationUtils";
@@ -432,6 +429,49 @@ export class CharacterInstances {
       instance.updateMatrix();
       this.updateInstancedMeshBounds();
     }
+  }
+
+  public updateInstanceColors(characterId: number, colors: Map<string, Color>): boolean {
+    if (!this.instancedMesh) {
+      console.error("CharacterInstances: Cannot update instance colors, mesh not initialized.");
+      return false;
+    }
+
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (instanceId === undefined) {
+      console.warn(`CharacterInstances: Instance not found for character ${characterId}`);
+      return false;
+    }
+
+    const instance = this.instancedMesh.instances![instanceId];
+    if (!instance || !instance.isActive) {
+      console.warn(
+        `CharacterInstances: Instance ${instanceId} is not active for character ${characterId}`,
+      );
+      return false;
+    }
+
+    // Update the colors using the existing setMaterialColorsAt method
+    this.instancedMesh.setMaterialColorsAt(instanceId, {
+      hair: colors.get("hair"),
+      shirt_short: colors.get("shirt_short"),
+      shirt_long: colors.get("shirt_long"),
+      pants_short: colors.get("pants_short"),
+      pants_long: colors.get("pants_long"),
+      shoes: colors.get("shoes"),
+      skin: colors.get("skin"),
+      lips: colors.get("lips"),
+    });
+
+    // Force texture update
+    if (this.instancedMesh.materialColorsTexture) {
+      this.instancedMesh.materialColorsTexture.needsUpdate = true;
+      if (typeof (this.instancedMesh as any).materialsNeedsUpdate === "function") {
+        (this.instancedMesh as any).materialsNeedsUpdate();
+      }
+    }
+
+    return true;
   }
 
   private updateInstancedMeshBounds(): void {

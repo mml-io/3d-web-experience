@@ -274,7 +274,7 @@ export class UserNetworkingServer {
       // Observers don't have user data, so no state overrides
       let stateOverrides: Array<[number, Uint8Array]> = [];
       if (userData) {
-        const officialStates = DeltaNetComponentMapping.toStates(userData.username, userData.characterDescription);
+        const officialStates = DeltaNetComponentMapping.toStates(userData.username, userData.characterDescription, userData.colors);
         stateOverrides = Array.from(officialStates.entries());
 
         console.log(`Created state overrides for client ${clientId}:`, {
@@ -315,6 +315,7 @@ export class UserNetworkingServer {
         const states = DeltaNetComponentMapping.toStates(
           userData.username,
           userData.characterDescription,
+          userData.colors,
         );
         const components = DeltaNetComponentMapping.toComponents(client.update);
         const componentsArray = Array.from(components.entries());
@@ -389,6 +390,7 @@ export class UserNetworkingServer {
     const states = DeltaNetComponentMapping.toStates(
       userData.username,
       userData.characterDescription,
+      userData.colors,
     );
     const components = DeltaNetComponentMapping.toComponents(client.update);
     const componentsArray = Array.from(components.entries());

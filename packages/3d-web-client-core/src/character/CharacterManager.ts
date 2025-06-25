@@ -1,5 +1,5 @@
 import { PositionAndRotation, radToDeg } from "@mml-io/mml-web";
-import { Euler, Group, Object3D, Quaternion, SkinnedMesh, Vector3 } from "three";
+import { Color, Euler, Group, Object3D, Quaternion, SkinnedMesh, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -13,9 +13,9 @@ import { TimeManager } from "../time/TimeManager";
 import { TweakPane } from "../tweakpane/TweakPane";
 
 import { AnimationConfig, Character, CharacterDescription } from "./Character";
-import { captureCharacterColorsFromObject3D } from "./CharacterColourSamplingUtils";
 import { CharacterInstances } from "./CharacterInstances";
 import { CharacterModelLoader } from "./CharacterModelLoader";
+import { colorArrayToColors } from "./CharacterModel";
 import { AnimationState, CharacterState } from "./CharacterState";
 import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
@@ -73,6 +73,7 @@ export type CharacterManagerConfig = {
   characterResolve: (clientId: number) => {
     username: string;
     characterDescription: CharacterDescription;
+    colors: Array<[number, number, number]>;
   };
   updateURLLocation?: boolean;
 };
@@ -106,29 +107,19 @@ export class CharacterManager {
     isReal: boolean;
     dirty: boolean; // needs distance recalculation
     lastLODChange: number; // timestamp of last promotion/demotion
+    loadingState?: 'loading' | 'loaded'; // track loading state for smooth transitions
   }> = [];
-
-  private characterColorCache = new Map<
-    number,
-    {
-      colors: Map<string, import("three").Color>;
-      characterDescriptionHash: string;
-      lastInstanceSlot?: number;
-    }
-  >();
 
   private pendingSpawns = new Set<number>();
   private lodCheckIndex = 0;
   private lastLodCheck = 0;
+  // Track characters that are loading to keep instances visible
+  private loadingCharacters = new Set<number>();
 
   constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
   }
 
-  private getCharacterDescriptionHash(id: number): string {
-    const characterInfo = this.config.characterResolve(id);
-    return JSON.stringify(characterInfo.characterDescription).slice(0, 50);
-  }
 
   public spawnLocalCharacter(
     id: number,
@@ -160,6 +151,7 @@ export class CharacterManager {
       },
       rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
       state: AnimationState.idle,
+      colors: character.getColors(),
     });
     this.localClientId = id;
     this.localCharacter = character;
@@ -366,10 +358,18 @@ export class CharacterManager {
   }
 
   private promoteToReal(id: number): void {
+    console.log(`CharacterManager: Promoting character ${id} to real character`);
     const networkState = this.config.remoteUserStates.get(id);
     if (!networkState) {
       console.error(`CharacterManager: Cannot promote character ${id}: no network state`);
       return;
+    }
+
+    // Mark character as loading and update active character state
+    this.loadingCharacters.add(id);
+    const activeChar = this.activeCharacters.find((c) => c.id === id);
+    if (activeChar) {
+      activeChar.loadingState = 'loading';
     }
 
     const characterInfo = this.config.characterResolve(id);
@@ -383,70 +383,62 @@ export class CharacterManager {
     );
     const rotation = new EulXYZ(euler.x, euler.y, euler.z);
 
-    this.spawnRemoteCharacter(
+    // Spawn the real character with a callback to handle loading completion
+    this.spawnRemoteCharacterWithLoadingCallback(
       id,
       characterInfo.username,
       characterInfo.characterDescription,
       position,
       rotation,
       networkState.state,
+      () => {
+        // Called when the real character has finished loading
+        this.onRealCharacterLoaded(id);
+      }
     );
 
-    if (this.characterInstances) {
-      setTimeout(() => {
-        if (this.characterInstances) {
-          this.characterInstances.despawnInstance(id);
-          console.log(
-            `CharacterManager: Removed character ${id} from instances after promotion (smooth transition)`,
-          );
-        }
-      }, 100);
+    console.log(
+      `CharacterManager: Started promoting character ${id} to real character with animation: ${AnimationState[networkState.state]}`,
+    );
+  }
+
+  private onRealCharacterLoaded(id: number): void {
+    // Mark as loaded
+    this.loadingCharacters.delete(id);
+    const activeChar = this.activeCharacters.find((c) => c.id === id);
+    if (activeChar) {
+      activeChar.loadingState = 'loaded';
     }
 
-    const character = this.remoteCharacters.get(id);
-    const mesh = character?.getMesh();
-    if (mesh) {
-      try {
-        const colors = captureCharacterColorsFromObject3D(mesh, {
-          circularSamplingRadius: 12,
-          topDownSamplingSize: { width: 5, height: 150 },
-          debug: false,
-        });
-
-        const characterHash = this.getCharacterDescriptionHash(id);
-        this.characterColorCache.set(id, {
-          colors,
-          characterDescriptionHash: characterHash,
-        });
-
-        console.log(
-          `CharacterManager: Cached colors for character ${id} for future smooth demotion`,
-        );
-      } catch (error) {
-        console.warn(`CharacterManager: Failed to cache colors for character ${id}:`, error);
-      }
+    // Now it's safe to remove the instance
+    if (this.characterInstances) {
+      this.characterInstances.despawnInstance(id);
+      console.log(
+        `CharacterManager: Removed character ${id} from instances after real character loaded (smooth transition)`,
+      );
     }
 
     console.log(
-      `CharacterManager: Successfully promoted character ${id} to real character with animation: ${AnimationState[networkState.state]}`,
+      `CharacterManager: Successfully completed promotion of character ${id} to real character`,
     );
   }
+
+
 
   private demoteToInstance(id: number): void {
     const networkState = this.config.remoteUserStates.get(id);
     if (!networkState) return;
 
-    const cachedData = this.characterColorCache.get(id);
-    const currentHash = this.getCharacterDescriptionHash(id);
-    const canUseCachedColors = cachedData && cachedData.characterDescriptionHash === currentHash;
-
-    const character = this.remoteCharacters.get(id);
-    let characterMesh: Object3D | undefined;
-
-    if (!canUseCachedColors) {
-      characterMesh = character?.getMesh() || undefined;
+    this.loadingCharacters.delete(id);
+    const activeChar = this.activeCharacters.find((c) => c.id === id);
+    if (activeChar) {
+      activeChar.loadingState = undefined;
     }
 
+    const characterInfo = this.config.characterResolve(id);
+    const colorsToUse = colorArrayToColors(characterInfo.colors);
+
+    const character = this.remoteCharacters.get(id);
     if (character) {
       this.group.remove(character);
       this.remoteCharacters.delete(id);
@@ -464,31 +456,20 @@ export class CharacterManager {
         new Quaternion(0, networkState.rotation.quaternionY, 0, networkState.rotation.quaternionW),
       );
       const rotation = new EulXYZ(euler.x, euler.y, euler.z);
-      let spawnSuccess = false;
 
-      if (canUseCachedColors) {
-        spawnSuccess = this.characterInstances.spawnInstanceWithCachedColors(
-          id,
-          cachedData.colors,
-          position,
-          rotation,
-          networkState.state, // pass current animation state
+      const spawnSuccess = this.characterInstances.spawnInstanceWithCachedColors(
+        id,
+        colorsToUse,
+        position,
+        rotation,
+        networkState.state, // pass current animation state
+      );
+
+      if (spawnSuccess) {
+        console.log(
+          `CharacterManager: Successfully demoted character ${id} to instance using colors`,
         );
-        if (spawnSuccess) {
-          console.log(
-            `CharacterManager: Successfully demoted character ${id} to instance using cached colors (smooth)`,
-          );
-        }
-      } else if (characterMesh) {
-        spawnSuccess = this.characterInstances.spawnInstance(id, characterMesh, position, rotation);
-        if (spawnSuccess) {
-          console.log(
-            `CharacterManager: Successfully demoted character ${id} to instance (re-sampled colors)`,
-          );
-        }
-      }
-
-      if (!spawnSuccess) {
+      } else {
         console.error(
           `CharacterManager: Failed to demote character ${id} to instance - no capacity`,
         );
@@ -578,6 +559,26 @@ export class CharacterManager {
     spawnRotation: EulXYZ = new EulXYZ(),
     initialAnimationState?: AnimationState,
   ) {
+    this.spawnRemoteCharacterWithLoadingCallback(
+      id,
+      username,
+      characterDescription,
+      spawnPosition,
+      spawnRotation,
+      initialAnimationState,
+      undefined // no loading callback for the basic method
+    );
+  }
+
+  private spawnRemoteCharacterWithLoadingCallback(
+    id: number,
+    username: string,
+    characterDescription: CharacterDescription,
+    spawnPosition: Vect3 = new Vect3(),
+    spawnRotation: EulXYZ = new EulXYZ(),
+    initialAnimationState?: AnimationState,
+    onLoaded?: () => void,
+  ) {
     const character = new Character({
       username,
       characterDescription,
@@ -603,6 +604,11 @@ export class CharacterManager {
           console.log(
             `CharacterManager: Applied current network state to character ${id} (animation: ${AnimationState[networkState.state]})`,
           );
+        }
+
+        // Call the loading callback if provided
+        if (onLoaded) {
+          onLoaded();
         }
       },
       cameraManager: this.config.cameraManager,
@@ -660,9 +666,9 @@ export class CharacterManager {
 
     this.activeCharacters.length = 0;
     this.pendingSpawns.clear();
+    this.loadingCharacters.clear(); // Clean up loading state
     this.lodCheckIndex = 0;
     this.lastLodCheck = 0;
-    this.characterColorCache.clear();
   }
 
   public addSelfChatBubble(message: string) {
@@ -675,8 +681,9 @@ export class CharacterManager {
     this.remoteCharacters.get(id)?.addChatBubble(message);
   }
 
-  public respawnIfPresent(id: number) {
+  public remoteCharacterInfoUpdated(id: number) {
     const characterInfo = this.config.characterResolve(id);
+    const colors = colorArrayToColors(characterInfo.colors);
 
     if (this.localCharacter && this.localClientId == id) {
       this.localCharacter.updateCharacter(
@@ -688,6 +695,17 @@ export class CharacterManager {
     const remoteCharacter = this.remoteCharacters.get(id);
     if (remoteCharacter) {
       remoteCharacter.updateCharacter(characterInfo.username, characterInfo.characterDescription);
+    }
+
+    // If this character is currently an instance, update its colors
+    const activeChar = this.activeCharacters.find((c) => c.id === id);
+    if (activeChar && !activeChar.isReal && this.characterInstances) {
+      const success = this.characterInstances.updateInstanceColors(id, colors);
+      if (success) {
+        console.log(`CharacterManager: Updated instance colors for character ${id}`);
+      } else {
+        console.warn(`CharacterManager: Failed to update instance colors for character ${id}`);
+      }
     }
   }
 
@@ -780,56 +798,40 @@ export class CharacterManager {
           } else {
             if (this.characterInstances) {
               const characterInfo = this.config.characterResolve(id);
-              const tempCharacter = new Character({
-                username: characterInfo.username,
-                characterDescription: characterInfo.characterDescription,
-                animationConfig: this.config.animationConfig,
-                characterModelLoader: this.config.characterModelLoader,
-                characterId: id,
-                modelLoadedCallback: () => {
-                  const mesh = tempCharacter.getMesh();
-                  if (mesh && this.characterInstances) {
-                    const euler = new Euler().setFromQuaternion(
-                      new Quaternion(
-                        0,
-                        update.rotation.quaternionY,
-                        0,
-                        update.rotation.quaternionW,
-                      ),
-                    );
-                    const rotation = new EulXYZ(euler.x, euler.y, euler.z);
+              
+              // Convert characterInfo colors to Map<string, Color> format
+              const colorMap = colorArrayToColors(characterInfo.colors);
 
-                    const spawnSuccess = this.characterInstances.spawnInstance(
-                      id,
-                      mesh,
-                      new Vect3(position.x, position.y, position.z),
-                      rotation,
-                    );
+              const euler = new Euler().setFromQuaternion(
+                new Quaternion(
+                  0,
+                  update.rotation.quaternionY,
+                  0,
+                  update.rotation.quaternionW,
+                ),
+              );
+              const rotation = new EulXYZ(euler.x, euler.y, euler.z);
 
-                    if (spawnSuccess) {
-                      console.log(
-                        `CharacterManager: Successfully spawned character ${id} as instance with proper mesh`,
-                      );
-                      this.pendingSpawns.delete(id);
-                      this.addActiveCharacter(id, currentPosition, false);
-                    } else {
-                      this.pendingSpawns.delete(id);
-                      console.error(
-                        `CharacterManager: Failed to spawn instance for character ${id} - no available instances`,
-                      );
-                    }
-                  } else {
-                    this.pendingSpawns.delete(id);
-                    console.warn(
-                      `CharacterManager: Failed to spawn instance for character ${id} - no mesh or CharacterInstances unavailable`,
-                    );
-                  }
-                  tempCharacter.remove();
-                },
-                cameraManager: this.config.cameraManager,
-                composer: this.config.composer,
-                isLocal: false,
-              });
+              const spawnSuccess = this.characterInstances.spawnInstanceWithCachedColors(
+                id,
+                colorMap,
+                new Vect3(position.x, position.y, position.z),
+                rotation,
+                update.state,
+              );
+
+              if (spawnSuccess) {
+                console.log(
+                  `CharacterManager: Successfully spawned character ${id} as instance using characterInfo colors`,
+                );
+                this.pendingSpawns.delete(id);
+                this.addActiveCharacter(id, currentPosition, false);
+              } else {
+                this.pendingSpawns.delete(id);
+                console.error(
+                  `CharacterManager: Failed to spawn instance for character ${id} - no available instances`,
+                );
+              }
             } else {
               this.pendingSpawns.delete(id);
               console.warn(
@@ -899,8 +901,9 @@ export class CharacterManager {
             }
           }
 
+          // Clean up loading state to prevent memory leaks
+          this.loadingCharacters.delete(activeChar.id);
           this.removeActiveCharacter(activeChar.id);
-          this.characterColorCache.delete(activeChar.id);
         }
       }
 
@@ -908,6 +911,7 @@ export class CharacterManager {
         if (!this.config.remoteUserStates.has(pendingId)) {
           console.log(`CharacterManager: Cleaning up disconnected pending character ${pendingId}`);
           this.pendingSpawns.delete(pendingId);
+          this.loadingCharacters.delete(pendingId); // Clean up loading state
         }
       }
 
@@ -917,7 +921,7 @@ export class CharacterManager {
           this.group.remove(character);
           this.remoteCharacters.delete(id);
           this.remoteCharacterControllers.delete(id);
-          this.characterColorCache.delete(id);
+          this.loadingCharacters.delete(id); // Clean up loading state
         }
       }
 

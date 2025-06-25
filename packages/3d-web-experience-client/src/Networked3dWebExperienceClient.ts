@@ -258,10 +258,12 @@ export class Networked3dWebExperienceClient {
         clientId: number,
         username: string,
         characterDescription: CharacterDescription,
+        colors: Array<[number, number, number]>,
       ): void => {
         this.updateUserProfile(clientId, {
           username,
           characterDescription,
+          colors,
         });
       },
       onServerError: (error: { message: string; errorType: UserNetworkingServerErrorType }) => {
@@ -307,6 +309,11 @@ export class Networked3dWebExperienceClient {
       virtualJoystick: this.virtualJoystick,
       remoteUserStates: this.remoteUserStates,
       sendUpdate: (characterState: CharacterState) => {
+        if (this.latestCharacterObject.characterState?.colors !== characterState.colors) {
+          // TODO - this is a hack to update the colors, but it should be done in a reactive way when the colors are actually set
+          console.log("Updating colors", characterState.colors);
+          this.networkClient.updateUserProfile(undefined, undefined, characterState.colors);
+        }
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
@@ -448,6 +455,7 @@ export class Networked3dWebExperienceClient {
   private resolveCharacterData(clientId: number): {
     username: string;
     characterDescription: CharacterDescription;
+    colors: Array<[number, number, number]>;
   } {
     const user = this.userProfiles.get(clientId)!;
 
@@ -458,11 +466,12 @@ export class Networked3dWebExperienceClient {
     return {
       username: user.username,
       characterDescription: user.characterDescription,
+      colors: user.colors,
     };
   }
 
   private updateUserProfile(id: number, userData: UserData) {
-    console.log(`Update user_profile for id=${id} (username=${userData.username})`);
+    console.log(`Update user_profile for id=${id} (username=${userData.username}), colors=${userData.colors}`);
 
     this.userProfiles.set(id, userData);
 
@@ -470,7 +479,7 @@ export class Networked3dWebExperienceClient {
       this.textChatUI.setClientName(userData.username);
     }
 
-    this.characterManager.respawnIfPresent(id);
+    this.characterManager.remoteCharacterInfoUpdated(id);
   }
 
   private sendIdentityUpdateToServer(

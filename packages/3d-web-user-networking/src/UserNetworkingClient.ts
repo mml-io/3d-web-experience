@@ -29,6 +29,7 @@ export type UserNetworkingClientConfig = {
     id: number,
     username: string,
     characterDescription: CharacterDescription,
+    colors: Array<[number, number, number]>,
   ) => void;
   onServerError: (error: { message: string; errorType: UserNetworkingServerErrorType }) => void;
   onServerBroadcast?: (broadcast: { broadcastType: string; payload: any }) => void;
@@ -41,7 +42,7 @@ export class UserNetworkingClient {
   private myUserIndex: number | null = null;
   private userProfiles: Map<
     number,
-    { username: string; characterDescription: CharacterDescription }
+    { username: string; characterDescription: CharacterDescription; colors: Array<[number, number, number]> }
   > = new Map();
   private isAuthenticated = false;
   private hasReceivedInitialCheckout = false;
@@ -183,7 +184,7 @@ export class UserNetworkingClient {
 
     // Create initial states for user data (no session token needed here)
     // Add empty username and character description for now
-    const states = DeltaNetComponentMapping.toStates("", { meshFileUrl: "" });
+    const states = DeltaNetComponentMapping.toStates("", { meshFileUrl: "" }, []);
 
     // Send to deltanet - this makes the client "ready" and triggers authentication
     // The session token is now passed via the deltanet token field
@@ -203,13 +204,13 @@ export class UserNetworkingClient {
         }
 
         if (nonNullStates.size > 0) {
-          const { username, characterDescription } =
+          const { username, characterDescription, colors } =
             DeltaNetComponentMapping.fromStates(nonNullStates);
           
           console.log(`Initial profile for user ${stableUserId}:`, { username, characterDescription });
           
-          this.userProfiles.set(stableUserId, { username, characterDescription });
-          this.config.clientProfileUpdated(stableUserId, username, characterDescription);
+          this.userProfiles.set(stableUserId, { username, characterDescription, colors });
+          this.config.clientProfileUpdated(stableUserId, username, characterDescription, colors);
         }
       }
     }
@@ -254,20 +255,21 @@ export class UserNetworkingClient {
             }
 
             if (nonNullStates.size > 0) {
-              const { username, characterDescription } =
+              const { username, characterDescription, colors } =
                 DeltaNetComponentMapping.fromStates(nonNullStates);
               
-              // Check if this is actually a profile change
+              // TODO - do a cleaner way to check if this is a partial profile change
               const existingProfile = this.userProfiles.get(stableUserId);
               const profileChanged = !existingProfile || 
                 existingProfile.username !== username || 
-                JSON.stringify(existingProfile.characterDescription) !== JSON.stringify(characterDescription);
+                JSON.stringify(existingProfile.characterDescription) !== JSON.stringify(characterDescription) ||
+                JSON.stringify(existingProfile.colors) !== JSON.stringify(colors);
               
               if (profileChanged) {
                 console.log(`Profile changed for user ${stableUserId}:`, { username, characterDescription });
                 
-                this.userProfiles.set(stableUserId, { username, characterDescription });
-                this.config.clientProfileUpdated(stableUserId, username, characterDescription);
+                this.userProfiles.set(stableUserId, { username, characterDescription, colors });
+                this.config.clientProfileUpdated(stableUserId, username, characterDescription, colors);
                 
                 console.log(`Total user profiles now:`, this.userProfiles.size);
               }
@@ -312,13 +314,13 @@ export class UserNetworkingClient {
     console.warn("sendMessage is deprecated in deltanet implementation:", message);
   }
 
-  public updateUserProfile(username: string, characterDescription: CharacterDescription): void {
+  public updateUserProfile(username?: string, characterDescription?: CharacterDescription, colors?: Array<[number, number, number]>): void {
     if (!this.isAuthenticated || this.myUserId === null) {
       return;
     }
-
+    
     // Update user profile by sending new states
-    const states = DeltaNetComponentMapping.toStates(username, characterDescription);
+    const states = DeltaNetComponentMapping.toStates(username, characterDescription, colors);
     const components = this.pendingUpdate
       ? DeltaNetComponentMapping.toComponents(this.pendingUpdate)
       : new Map();
