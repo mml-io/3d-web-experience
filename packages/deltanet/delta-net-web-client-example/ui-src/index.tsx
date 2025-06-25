@@ -139,7 +139,7 @@ window.addEventListener("DOMContentLoaded", () => {
         onUserIndex: (userIndex: DeltaNetClientWebsocketUserIndex) => {
           console.log("userIndex", userIndex);
           if (!isObserverMode) {
-            networkState.setUserIndex(userIndex.userIndex);
+            networkState.setLocalIndex(userIndex.userIndex);
           }
         },
         onError: (error: string, retryable: boolean) => {

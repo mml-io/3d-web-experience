@@ -11,13 +11,12 @@ import sprintAnimationFileUrl from "../../../assets/models/anim_run_new.glb";
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
 const userNetworkAddress = `${protocol}//${host}/network`;
-const chatNetworkAddress = `${protocol}//${host}/chat-network`;
 
 const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
   userNetworkAddress,
-  chatNetworkAddress: undefined,//TODO: Add chat network back
+  enableChat: true,
   animationConfig: {
     airAnimationFileUrl,
     idleAnimationFileUrl,

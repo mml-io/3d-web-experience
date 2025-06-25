@@ -17,7 +17,7 @@ describe("DeltaNetClientState", () => {
       expect(clientState.getAllStates()).toEqual(new Map());
       expect(clientState.getMyIndex()).toBe(-1);
       expect(clientState.getIndicesCount()).toBe(0);
-      expect(clientState.getUserIds()).toEqual([]);
+      expect(clientState.getStableIds()).toEqual([]);
     });
   });
 
@@ -48,7 +48,7 @@ describe("DeltaNetClientState", () => {
       const { stateUpdates } = clientState.handleInitialCheckout(initialCheckout);
 
       expect(clientState.getIndicesCount()).toBe(2);
-      expect(clientState.getUserIds().length).toBe(2);
+      expect(clientState.getStableIds().length).toBe(2);
       expect(stateUpdates.length).toBe(2);
 
       const componentValues = clientState.getComponentValues();
@@ -61,16 +61,16 @@ describe("DeltaNetClientState", () => {
         new Uint8Array([115, 116, 97, 116, 101, 50]),
       ]);
 
-      // Verify byUserId map after initial checkout
-      const userIds = clientState.getUserIds();
-      expect(clientState.byUserId.size).toBe(2);
+      // Verify byStableId map after initial checkout
+      const stableIds = clientState.getStableIds();
+      expect(clientState.byStableId.size).toBe(2);
 
-      const user1 = clientState.byUserId.get(userIds[0]);
+      const user1 = clientState.byStableId.get(stableIds[0]);
       expect(user1).toBeDefined();
       expect(user1?.components.get(1)).toBe(BigInt(100));
       expect(user1?.states.get(1)).toStrictEqual(new Uint8Array([115, 116, 97, 116, 101, 49]));
 
-      const user2 = clientState.byUserId.get(userIds[1]);
+      const user2 = clientState.byStableId.get(stableIds[1]);
       expect(user2).toBeDefined();
       expect(user2?.components.get(1)).toBe(BigInt(200));
       expect(user2?.states.get(1)).toStrictEqual(new Uint8Array([115, 116, 97, 116, 101, 50]));
@@ -114,17 +114,17 @@ describe("DeltaNetClientState", () => {
       expect(componentValues.get(1)?.values[1]).toBe(BigInt(220));
       expect(componentValues.get(1)?.values[2]).toBe(BigInt(330));
 
-      // Verify byUserId map after component updates
-      const userIds = clientState.getUserIds();
-      expect(clientState.byUserId.size).toBe(3);
+      // Verify byStableId map after component updates
+      const stableIds = clientState.getStableIds();
+      expect(clientState.byStableId.size).toBe(3);
 
-      const user1 = clientState.byUserId.get(userIds[0]);
+      const user1 = clientState.byStableId.get(stableIds[0]);
       expect(user1?.components.get(1)).toBe(BigInt(110));
 
-      const user2 = clientState.byUserId.get(userIds[1]);
+      const user2 = clientState.byStableId.get(stableIds[1]);
       expect(user2?.components.get(1)).toBe(BigInt(220));
 
-      const user3 = clientState.byUserId.get(userIds[2]);
+      const user3 = clientState.byStableId.get(stableIds[2]);
       expect(user3?.components.get(1)).toBe(BigInt(330));
     });
 
@@ -156,19 +156,19 @@ describe("DeltaNetClientState", () => {
       expect(states?.[0]).toStrictEqual(new Uint8Array([110, 101, 119, 83, 116, 97, 116, 101, 49]));
       expect(states?.[1]).toStrictEqual(new Uint8Array([]));
 
-      // Verify byUserId map after state changes
-      const userIds = clientState.getUserIds();
-      expect(clientState.byUserId.size).toBe(3);
+      // Verify byStableId map after state changes
+      const stableIds = clientState.getStableIds();
+      expect(clientState.byStableId.size).toBe(3);
 
-      const user1 = clientState.byUserId.get(userIds[0]);
+      const user1 = clientState.byStableId.get(stableIds[0]);
       expect(user1?.states.get(1)).toStrictEqual(
         new Uint8Array([110, 101, 119, 83, 116, 97, 116, 101, 49]),
       );
 
-      const user2 = clientState.byUserId.get(userIds[1]);
+      const user2 = clientState.byStableId.get(stableIds[1]);
       expect(user2?.states.get(1)).toStrictEqual(new Uint8Array([]));
 
-      const user3 = clientState.byUserId.get(userIds[2]);
+      const user3 = clientState.byStableId.get(stableIds[2]);
       expect(user3?.states.get(1)).toBeUndefined();
     });
 
@@ -183,26 +183,26 @@ describe("DeltaNetClientState", () => {
       clientState.handleTick(tick);
 
       expect(clientState.getIndicesCount()).toBe(2);
-      expect(clientState.getUserIds().length).toBe(2);
+      expect(clientState.getStableIds().length).toBe(2);
 
-      // Verify byUserId map after unoccupying
-      expect(clientState.byUserId.size).toBe(2);
-      const userIds = clientState.getUserIds();
+      // Verify byStableId map after unoccupying
+      expect(clientState.byStableId.size).toBe(2);
+      const stableIds = clientState.getStableIds();
 
       // The first user should still exist
-      const user1 = clientState.byUserId.get(userIds[0]);
+      const user1 = clientState.byStableId.get(stableIds[0]);
       expect(user1).toBeDefined();
 
       // The second user should be the new user (not the one that was unoccupied)
-      const user2 = clientState.byUserId.get(userIds[1]);
+      const user2 = clientState.byStableId.get(stableIds[1]);
       expect(user2).toBeDefined();
-      expect(user2?.userId).toBe(userIds[1]);
+      expect(user2?.stableId).toBe(stableIds[1]);
     });
   });
 
   describe("User Index Management", () => {
     it("should set and get user index correctly", () => {
-      clientState.setUserIndex(5);
+      clientState.setLocalIndex(5);
       expect(clientState.getMyIndex()).toBe(5);
     });
   });
@@ -226,14 +226,14 @@ describe("DeltaNetClientState", () => {
     });
 
     it("should get component value for user ID", () => {
-      const userId = clientState.getUserIds()[0];
-      const value = clientState.getComponentValueForUserId(userId, 1);
+      const stableId = clientState.getStableIds()[0];
+      const value = clientState.getComponentValueForStableId(stableId, 1);
       expect(value).toBe(BigInt(100));
     });
 
     it("should get all components for user", () => {
-      const userId = clientState.getUserIds()[0];
-      const components = clientState.getComponentsForUser(userId);
+      const stableId = clientState.getStableIds()[0];
+      const components = clientState.getComponentsForStableId(stableId);
       expect(components?.get(1)).toBe(BigInt(100));
     });
   });
@@ -263,27 +263,27 @@ describe("DeltaNetClientState", () => {
         ]),
       };
       clientState.handleInitialCheckout(initialCheckout);
-      
+
       // Verify state is populated
       expect(clientState.getIndicesCount()).toBe(2);
-      expect(clientState.getUserIds().length).toBe(2);
+      expect(clientState.getStableIds().length).toBe(2);
       expect(clientState.getComponentValues().size).toBe(1);
       expect(clientState.getAllStates().size).toBe(1);
-      expect(clientState.byUserId.size).toBe(2);
-      
+      expect(clientState.byStableId.size).toBe(2);
+
       // Reset the state
       clientState.reset();
-      
+
       // Verify everything is reset to initial values
       expect(clientState.getComponentValues()).toEqual(new Map());
       expect(clientState.getAllStates()).toEqual(new Map());
       expect(clientState.getMyIndex()).toBe(-1);
       expect(clientState.getIndicesCount()).toBe(0);
-      expect(clientState.getUserIds()).toEqual([]);
-      expect(clientState.byUserId.size).toBe(0);
+      expect(clientState.getStableIds()).toEqual([]);
+      expect(clientState.byStableId.size).toBe(0);
     });
 
-    it("should handle reconnection scenario without duplicate user IDs", () => {
+    it("should handle reconnection scenario without duplicate stable IDs", () => {
       // First connection
       const initialCheckout1: DeltaNetClientWebsocketInitialCheckout = {
         indicesCount: 2,
@@ -291,11 +291,11 @@ describe("DeltaNetClientState", () => {
         initialStates: new Map(),
       };
       clientState.handleInitialCheckout(initialCheckout1);
-      const userIds1 = clientState.getUserIds();
-      
+      const stableIds1 = clientState.getStableIds();
+
       // Reset for reconnection
       clientState.reset();
-      
+
       // Second connection (simulating reconnection)
       const initialCheckout2: DeltaNetClientWebsocketInitialCheckout = {
         indicesCount: 2,
@@ -303,17 +303,17 @@ describe("DeltaNetClientState", () => {
         initialStates: new Map(),
       };
       clientState.handleInitialCheckout(initialCheckout2);
-      const userIds2 = clientState.getUserIds();
-      
+      const stableIds2 = clientState.getStableIds();
+
       // User IDs should start from the same base value (1000) after reset
-      expect(userIds2[0]).toBe(1000);
-      expect(userIds2[1]).toBe(1001);
-      expect(userIds2.length).toBe(2);
-      expect(clientState.byUserId.size).toBe(2);
-      
+      expect(stableIds2[0]).toBe(1000);
+      expect(stableIds2[1]).toBe(1001);
+      expect(stableIds2.length).toBe(2);
+      expect(clientState.byStableId.size).toBe(2);
+
       // Should not contain any user IDs from previous connection
-      expect(userIds2).not.toContain(userIds1[0]);
-      expect(userIds2).not.toContain(userIds1[1]);
+      expect(stableIds2).not.toContain(stableIds1[0]);
+      expect(stableIds2).not.toContain(stableIds1[1]);
     });
   });
 });

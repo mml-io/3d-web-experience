@@ -4,6 +4,7 @@ import {
   encodeConnectUser,
   encodePong,
   encodeSetUserComponents,
+  encodeClientCustom,
 } from "./messages";
 
 export function encodeClientMessage(message: DeltaNetV01ClientMessage, writer: BufferWriter) {
@@ -15,6 +16,8 @@ export function encodeClientMessage(message: DeltaNetV01ClientMessage, writer: B
       return encodeSetUserComponents(message, writer);
     case "pong":
       return encodePong(message, writer);
+    case "clientCustom":
+      return encodeClientCustom(message, writer);
     default:
       throw new Error(`Unknown message type: ${type}`);
   }

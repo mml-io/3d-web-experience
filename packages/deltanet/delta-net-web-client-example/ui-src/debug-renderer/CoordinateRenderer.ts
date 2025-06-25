@@ -104,7 +104,7 @@ export class CoordinateRenderer {
   }
 
   private renderFrame(deltaNetClientState: DeltaNetClientState): void {
-    const userIds = deltaNetClientState.getUserIds();
+    const userIds = deltaNetClientState.getStableIds();
     const myIndex = deltaNetClientState.getMyIndex();
     const indicesCount = deltaNetClientState.getIndicesCount();
     const componentValues = deltaNetClientState.getComponentValues();

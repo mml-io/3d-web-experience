@@ -28,7 +28,6 @@ export type ChatUIInstance = {
 
 export type TextChatUIProps = {
   holderElement: HTMLElement;
-  clientname: string;
   sendMessageToServerMethod: (message: string) => void;
   visibleByDefault?: boolean;
   stringToHslOptions?: StringToHslOptions;
@@ -51,11 +50,6 @@ export class TextChatUI {
     this.root = createRoot(this.wrapper);
   }
 
-  setClientName(clientname: string) {
-    this.config.clientname = clientname;
-    this.init();
-  }
-
   dispose() {
     this.root.unmount();
     this.wrapper.remove();
@@ -66,7 +60,6 @@ export class TextChatUI {
       this.root.render(
         <ForwardedChatUIComponent
           ref={this.appRef}
-          clientName={this.config.clientname}
           sendMessageToServer={this.config.sendMessageToServerMethod}
           visibleByDefault={this.config.visibleByDefault}
           stringToHslOptions={this.config.stringToHslOptions}

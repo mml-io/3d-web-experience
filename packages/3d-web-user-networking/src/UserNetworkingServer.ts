@@ -1,29 +1,24 @@
+import { encodeError, USER_AUTHENTICATION_FAILED_ERROR_TYPE } from "@deltanet/delta-net-protocol";
 import {
   DeltaNetServer,
   DeltaNetServerError,
   DeltaNetV01Connection,
+  onComponentsUpdateOptions,
+  onCustomMessageOptions,
+  onJoinerOptions,
+  onLeaveOptions,
 } from "@deltanet/delta-net-server";
 import WebSocket from "ws";
 
 import { DeltaNetComponentMapping } from "./DeltaNetComponentMapping";
 import { UserData } from "./UserData";
-import { UserNetworkingClientUpdate, UserNetworkingCodec } from "./UserNetworkingCodec";
+import { UserNetworkingClientUpdate } from "./types";
 import {
-  FromUserNetworkingClientMessage,
-  FromUserNetworkingServerMessage,
-  USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
-  USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
-  USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
-  USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
-  USER_NETWORKING_PONG_MESSAGE_TYPE,
-  USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-  USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
-  USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
-  USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
+  FROM_CLIENT_CHAT_MESSAGE_TYPE,
+  FROM_SERVER_CHAT_MESSAGE_TYPE,
+  parseClientChatMessage,
+  ServerChatMessage,
   UserIdentity,
-  UserNetworkingAuthenticateMessage,
-  UserNetworkingServerError,
-  UserNetworkingUserUpdateMessage,
 } from "./UserNetworkingMessages";
 
 export type UserNetworkingServerClient = {
@@ -54,25 +49,24 @@ export type UserNetworkingServerOptions = {
 export class UserNetworkingServer {
   private deltaNetServer: DeltaNetServer;
   private authenticatedClientsById: Map<number, UserNetworkingServerClient> = new Map();
-  private userIdToWebSocket: Map<number, WebSocket> = new Map();
-  private webSocketToUserId: Map<WebSocket, number> = new Map();
-  private deltaNetConnectionToUserId: Map<DeltaNetV01Connection, number> = new Map();
   private nextClientId = 1;
   private tickInterval: NodeJS.Timeout;
 
   constructor(private options: UserNetworkingServerOptions) {
     this.deltaNetServer = new DeltaNetServer({
       serverConnectionIdStateId: 0,
-      onJoiner: (joiner) => {
+      onJoiner: (joiner: onJoinerOptions) => {
         return this.handleJoiner(joiner);
       },
-      onLeave: (leave) => {
+      onLeave: (leave: onLeaveOptions) => {
         this.handleLeave(leave);
       },
-      onComponentsUpdate: (update) => {
-        // Handle component updates from clients
-        this.handleComponentUpdate(update);
+      onComponentsUpdate: (update: onComponentsUpdateOptions) => {
+        // TODO - potentially check that components are valid (e.g. rotation is 0 to 2pi)
         return; // No error
+      },
+      onCustomMessage: (customMessage: onCustomMessageOptions) => {
+        this.handleCustomMessage(customMessage);
       },
     });
 
@@ -82,58 +76,59 @@ export class UserNetworkingServer {
     }, 50);
   }
 
-  private handleJoiner(joiner: any): DeltaNetServerError | void | Promise<DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]> }> {
+  private handleJoiner(
+    joiner: onJoinerOptions,
+  ):
+    | DeltaNetServerError
+    | void
+    | Promise<
+        DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+      > {
     const deltaNetConnection = joiner.deltaNetV01Connection as DeltaNetV01Connection;
     const webSocket = deltaNetConnection.webSocket as unknown as WebSocket;
     const states = joiner.states as Array<[number, Uint8Array]>;
-    const sessionToken = joiner.token as string; // Get session token from deltanet token field
     const clientId = this.nextClientId++;
 
-    console.log(`Client ID: ${clientId} joined (observer: ${deltaNetConnection.isObserver}), authenticating...`);
-
-    // Store the client connection info
-    this.webSocketToUserId.set(webSocket, clientId);
-    this.userIdToWebSocket.set(clientId, webSocket);
-    this.deltaNetConnectionToUserId.set(deltaNetConnection, clientId);
-
-    if (!sessionToken) {
-      console.log(`No session token provided for client ID: ${clientId}`);
-      return new DeltaNetServerError("No session token provided", false);
-    }
+    console.log(
+      `Client ID: ${clientId} joined (observer: ${deltaNetConnection.isObserver}), authenticating...`,
+    );
 
     // Handle authentication and return the result with state overrides
-    return this.handleDeltaNetAuthentication(clientId, webSocket, deltaNetConnection, sessionToken)
+    return this.handleDeltaNetAuthentication(clientId, webSocket, deltaNetConnection, joiner.token)
       .then((authResult) => {
         if (!authResult.success) {
           // Authentication failed - return error to reject connection
           console.log(`Authentication failed for client ID: ${clientId}`);
-          // Clean up connection mappings since auth failed
-          this.webSocketToUserId.delete(webSocket);
-          this.userIdToWebSocket.delete(clientId);
-          this.deltaNetConnectionToUserId.delete(deltaNetConnection);
-          return new DeltaNetServerError("Authentication failed", false);
+          return new DeltaNetServerError(
+            USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            "Authentication failed",
+            false,
+          );
         } else {
-          console.log(`Client ID: ${clientId} authenticated successfully`, authResult.stateOverrides);
+          console.log(
+            `Client ID: ${clientId} authenticated successfully`,
+            authResult.stateOverrides,
+          );
           // Return success with state overrides
           return {
             success: true as const,
-            stateOverrides: authResult.stateOverrides
+            stateOverrides: authResult.stateOverrides,
           };
         }
       })
       .catch((error) => {
         console.error(`Authentication error for client ID: ${clientId}:`, error);
-        // Clean up connection mappings since auth failed
-        this.webSocketToUserId.delete(webSocket);
-        this.userIdToWebSocket.delete(clientId);
-        this.deltaNetConnectionToUserId.delete(deltaNetConnection);
-        return new DeltaNetServerError("Authentication error", false);
+        return new DeltaNetServerError(
+          USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+          "Authentication error",
+          false,
+        );
       });
   }
 
-  private handleLeave(leave: any): void {
+  private handleLeave(leave: onLeaveOptions): void {
     const deltaNetConnection = leave.deltaNetV01Connection as DeltaNetV01Connection;
-    const clientId = this.deltaNetConnectionToUserId.get(deltaNetConnection);
+    const clientId = deltaNetConnection.internalConnectionId;
 
     if (clientId !== undefined) {
       const client = this.authenticatedClientsById.get(clientId);
@@ -141,80 +136,39 @@ export class UserNetworkingServer {
         console.log(`Client ID: ${clientId} left`);
         this.options.onClientDisconnect(clientId);
         this.authenticatedClientsById.delete(clientId);
-
-        // Notify other clients about disconnection
-        this.broadcastDisconnection(clientId);
-      }
-
-      this.webSocketToUserId.delete(deltaNetConnection.webSocket as unknown as WebSocket);
-      this.userIdToWebSocket.delete(clientId);
-      this.deltaNetConnectionToUserId.delete(deltaNetConnection);
-    }
-  }
-
-  private handleComponentUpdate(update: any): void {
-    const deltaNetConnection = update.deltaNetV01Connection as DeltaNetV01Connection;
-    const components = update.components as Array<[number, bigint]>;
-    const clientId = this.deltaNetConnectionToUserId.get(deltaNetConnection);
-
-    // Observers don't send component updates, so this should not happen
-    if (deltaNetConnection.isObserver) {
-      console.warn(`Observer client ${clientId} attempted to send component update - ignoring`);
-      return;
-    }
-
-    if (clientId !== undefined) {
-      const client = this.authenticatedClientsById.get(clientId);
-      if (client) {
-        // Convert deltanet components back to UserNetworkingClientUpdate
-        const componentsMap = new Map(components);
-        const clientUpdate = DeltaNetComponentMapping.fromComponents(componentsMap, clientId);
-        client.update = clientUpdate;
       }
     }
   }
 
-  private async handleWebSocketMessage(clientId: number, message: WebSocket.Data): Promise<void> {
-    const webSocket = this.userIdToWebSocket.get(clientId);
-    if (!webSocket) return;
+  private handleCustomMessage(customMessage: onCustomMessageOptions): void {
+    const deltaNetConnection = customMessage.deltaNetV01Connection;
+    const clientId = deltaNetConnection.internalConnectionId;
 
-    if (message instanceof Buffer) {
-      // Binary update - decode and convert to deltanet components
-      const update = UserNetworkingCodec.decodeUpdate(new Uint8Array(message).buffer);
-      update.id = clientId;
+    const client = this.authenticatedClientsById.get(clientId);
+    if (client && client.authenticatedUser) {
+      console.log(
+        `Custom message from client ${clientId} (${client.authenticatedUser.username}): type=${customMessage.customType}, content=${customMessage.contents}`,
+      );
 
-      const client = this.authenticatedClientsById.get(clientId);
-      if (client && client.deltaNetConnection) {
-        client.update = update;
-
-        // Convert to deltanet components and update
-        const components = DeltaNetComponentMapping.toComponents(update);
-        const componentsArray = Array.from(components.entries());
-        this.deltaNetServer.setUserComponents(client.deltaNetConnection, clientId, componentsArray);
-      }
-    } else {
-      // JSON message
-      let parsed: FromUserNetworkingClientMessage;
-      try {
-        parsed = JSON.parse(message as string);
-      } catch (e) {
-        console.error("Error parsing JSON message", message, e);
-        return;
-      }
-
-      const client = this.authenticatedClientsById.get(clientId);
-
-      if (client) {
-        // Handle messages from authenticated clients
-        switch (parsed.type) {
-          case "pong":
-            client.lastPong = Date.now();
-            break;
-          case USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE:
-            await this.handleUserUpdate(clientId, parsed);
-            break;
+      // Handle chat messages
+      if (customMessage.customType === FROM_CLIENT_CHAT_MESSAGE_TYPE) {
+        const chatMessage = parseClientChatMessage(customMessage.contents);
+        if (chatMessage instanceof Error) {
+          console.error(`Invalid chat message from client ${clientId}:`, chatMessage);
+        } else {
+          const serverChatMessage: ServerChatMessage = {
+            fromUserId: clientId,
+            message: chatMessage.message,
+          };
+          // Broadcast the chat message to all other clients
+          this.deltaNetServer.broadcastCustomMessage(
+            FROM_SERVER_CHAT_MESSAGE_TYPE,
+            JSON.stringify(serverChatMessage),
+          );
         }
       }
+    } else {
+      console.warn(`Custom message from unauthenticated client ${clientId} - ignoring`);
     }
   }
 
@@ -225,10 +179,12 @@ export class UserNetworkingServer {
     sessionToken: string,
   ): Promise<{ success: boolean; stateOverrides?: Array<[number, Uint8Array]> }> {
     try {
-      console.log(`Authenticating client ${clientId} (observer: ${deltaNetConnection.isObserver}) with session token: ${sessionToken.substring(0, 10)}...`);
-      
+      console.log(
+        `Authenticating client ${clientId} (observer: ${deltaNetConnection.isObserver}) with session token: ${sessionToken.substring(0, 10)}...`,
+      );
+
       // For observers, we might want to allow anonymous access or use a different authentication flow
-      const userData = deltaNetConnection.isObserver 
+      const userData = deltaNetConnection.isObserver
         ? null // Observers don't need user data
         : await this.options.onClientConnect(clientId, sessionToken, undefined);
 
@@ -236,7 +192,7 @@ export class UserNetworkingServer {
         success: deltaNetConnection.isObserver || !!userData,
         isObserver: deltaNetConnection.isObserver,
         username: userData?.username,
-        characterDescription: userData?.characterDescription
+        characterDescription: userData?.characterDescription,
       });
 
       if (!deltaNetConnection.isObserver && !userData) {
@@ -274,82 +230,29 @@ export class UserNetworkingServer {
       // Observers don't have user data, so no state overrides
       let stateOverrides: Array<[number, Uint8Array]> = [];
       if (userData) {
-        const officialStates = DeltaNetComponentMapping.toStates(userData.username, userData.characterDescription, userData.colors);
+        const officialStates = DeltaNetComponentMapping.toStates(
+          userData.username,
+          userData.characterDescription,
+          userData.colors,
+        );
         stateOverrides = Array.from(officialStates.entries());
 
         console.log(`Created state overrides for client ${clientId}:`, {
           username: userData.username,
           characterDescription: userData.characterDescription,
-          overridesCount: stateOverrides.length
+          overridesCount: stateOverrides.length,
         });
       } else {
         console.log(`Observer client ${clientId} - no state overrides needed`);
       }
 
-      return { 
-        success: true, 
-        stateOverrides: stateOverrides 
+      return {
+        success: true,
+        stateOverrides: stateOverrides,
       };
     } catch (error) {
       console.error("Authentication error:", error);
       return { success: false };
-    }
-  }
-
-  private async handleUserUpdate(
-    clientId: number,
-    message: UserNetworkingUserUpdateMessage,
-  ): Promise<void> {
-    const client = this.authenticatedClientsById.get(clientId);
-    if (!client || !client.deltaNetConnection) return;
-
-    try {
-      const userData = await this.options.onClientUserIdentityUpdate(
-        clientId,
-        message.userIdentity,
-      );
-      if (userData && client.authenticatedUser) {
-        client.authenticatedUser = userData;
-
-        // Update deltanet states
-        const states = DeltaNetComponentMapping.toStates(
-          userData.username,
-          userData.characterDescription,
-          userData.colors,
-        );
-        const components = DeltaNetComponentMapping.toComponents(client.update);
-        const componentsArray = Array.from(components.entries());
-        this.deltaNetServer.setUserComponents(client.deltaNetConnection, clientId, componentsArray);
-
-        // Broadcast profile update to all clients
-        const profileMessage = JSON.stringify({
-          id: clientId,
-          type: USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
-          username: userData.username,
-          characterDescription: userData.characterDescription,
-        } as FromUserNetworkingServerMessage);
-
-        for (const [, otherClient] of this.authenticatedClientsById) {
-          if (otherClient.socket.readyState === WebSocketOpenStatus) {
-            otherClient.socket.send(profileMessage);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("User update error:", error);
-    }
-  }
-
-  private broadcastDisconnection(clientId: number): void {
-    const message = JSON.stringify({
-      type: USER_NETWORKING_DISCONNECTED_MESSAGE_TYPE,
-      id: clientId,
-    } as FromUserNetworkingServerMessage);
-
-    for (const [, client] of this.authenticatedClientsById) {
-      if (client.socket.readyState === WebSocketOpenStatus) {
-        client.socket.send(message);
-      }
     }
   }
 
@@ -362,18 +265,8 @@ export class UserNetworkingServer {
     });
   }
 
-  public broadcastMessage(broadcastType: string, broadcastPayload: any): void {
-    const message: FromUserNetworkingServerMessage = {
-      type: "broadcast",
-      broadcastType,
-      payload: broadcastPayload,
-    };
-    const messageString = JSON.stringify(message);
-    for (const [, client] of this.authenticatedClientsById) {
-      if (client.socket.readyState === WebSocketOpenStatus) {
-        client.socket.send(messageString);
-      }
-    }
+  public broadcastMessage(broadcastType: number, broadcastPayload: string): void {
+    this.deltaNetServer.broadcastCustomMessage(broadcastType, broadcastPayload);
   }
 
   public updateUserCharacter(clientId: number, userData: UserData): void {
@@ -394,44 +287,33 @@ export class UserNetworkingServer {
     );
     const components = DeltaNetComponentMapping.toComponents(client.update);
     const componentsArray = Array.from(components.entries());
-    this.deltaNetServer.setUserComponents(client.deltaNetConnection, clientId, componentsArray);
-
-    // Broadcast to all clients
-    const profileMessage = JSON.stringify({
-      id: clientId,
-      type: USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
-      username: userData.username,
-      characterDescription: userData.characterDescription,
-    } as FromUserNetworkingServerMessage);
-
-    for (const [, otherClient] of this.authenticatedClientsById) {
-      if (otherClient.socket.readyState === WebSocketOpenStatus) {
-        otherClient.socket.send(profileMessage);
-      }
-    }
+    // TODO - set states - setUserStates method doesn't exist in DeltaNetServer yet
+    // this.deltaNetServer.setUserStates(client.deltaNetConnection, clientId, states);
   }
 
-  public dispose(clientCloseError?: UserNetworkingServerError): void {
+  public dispose(clientCloseError?: DeltaNetServerError): void {
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
     }
 
+    let errorMessage: Uint8Array | null = null;
+    if (clientCloseError) {
+      errorMessage = encodeError({
+        type: "error",
+        errorType: clientCloseError.errorType,
+        message: clientCloseError.message,
+        retryable: clientCloseError.retryable,
+      }).getBuffer();
+    }
+
     // Close all client connections
     for (const [, client] of this.authenticatedClientsById) {
-      if (clientCloseError) {
-        const errorMessage = JSON.stringify({
-          type: USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-          errorType: clientCloseError.errorType,
-          message: clientCloseError.message,
-        } as FromUserNetworkingServerMessage);
+      if (errorMessage) {
         client.socket.send(errorMessage);
       }
       client.socket.close();
     }
 
     this.authenticatedClientsById.clear();
-    this.userIdToWebSocket.clear();
-    this.webSocketToUserId.clear();
-    this.deltaNetConnectionToUserId.clear();
   }
 }

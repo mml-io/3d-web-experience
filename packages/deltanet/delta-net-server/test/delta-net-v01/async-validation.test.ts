@@ -450,6 +450,7 @@ describe("DeltaNetServer - Async Validation", () => {
       // Should get error message for premature state update
       expect(clientWs.getMessage(0)).toEqual({
         type: "error",
+        errorType: "USER_NOT_AUTHENTICATED",
         message: "Event sent, but user has not been authenticated yet.",
         retryable: false,
       });

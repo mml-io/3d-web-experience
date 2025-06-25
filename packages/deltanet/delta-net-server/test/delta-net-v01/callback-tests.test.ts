@@ -1,4 +1,4 @@
-import { DeltaNetV01Tick } from "@deltanet/delta-net-protocol";
+import { DeltaNetV01Tick, USER_NETWORKING_UNKNOWN_ERROR_TYPE } from "@deltanet/delta-net-protocol";
 import { jest } from "@jest/globals";
 
 import { DeltaNetServer, DeltaNetServerError } from "../../src";
@@ -82,6 +82,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       await jest.advanceTimersByTimeAsync(10);
       expect(clientWs.getMessage(0)).toEqual({
         type: "error",
+        errorType: "USER_NETWORKING_UNKNOWN_ERROR",
         message: "Invalid token",
         retryable: false,
       });
@@ -126,7 +127,7 @@ describe("DeltaNetServer - Callback Tests", () => {
     test("rejects connection asynchronously", async () => {
       const onJoinerMock = jest
         .fn<() => Promise<DeltaNetServerError>>()
-        .mockRejectedValue(new DeltaNetServerError("Async validation failed", false));
+        .mockRejectedValue(new DeltaNetServerError(USER_NETWORKING_UNKNOWN_ERROR_TYPE, "Async validation failed", false));
       const doc = new DeltaNetServer({
         onJoiner: onJoinerMock,
       });
@@ -151,6 +152,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       // Check that an error message was sent
       expect(clientWs.getMessage(0)).toEqual({
         type: "error",
+        errorType: "USER_NETWORKING_UNKNOWN_ERROR",
         message: "Async validation failed",
         retryable: false,
       });
@@ -239,6 +241,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       // The error message should be the third message (after userIndex and initialCheckout)
       expect(clientWs.getMessage(2)).toEqual({
         type: "error",
+        errorType: "USER_NETWORKING_UNKNOWN_ERROR",
         message: "Component update rejected",
         retryable: true,
       });
@@ -396,6 +399,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       await clientWs.waitForTotalMessageCount(3);
       expect(clientWs.getMessage(2)).toEqual({
         type: "error",
+        errorType: "USER_NETWORKING_UNKNOWN_ERROR",
         message: "State validation failed",
         retryable: false,
       });

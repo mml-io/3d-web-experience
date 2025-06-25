@@ -45,7 +45,7 @@ export type DeltaNetClientWebsocketTick = {
   unoccupying: Array<number>;
   indicesCount: number;
   componentDeltaDeltas: Map<number, BigInt64Array>;
-  stateChanges: Map<number, Map<number, Uint8Array | null>>;
+  stateChanges: Map<number, Map<number, Uint8Array>>;
 };
 
 export type DeltaNetClientWebsocketUserIndex = {
@@ -58,8 +58,9 @@ export type DeltaNetClientWebsocketOptions = {
   onUserIndex: (userIndex: DeltaNetClientWebsocketUserIndex) => void;
   onInitialCheckout: (initialCheckout: DeltaNetClientWebsocketInitialCheckout) => void;
   onTick: (tick: DeltaNetClientWebsocketTick) => void;
-  onError: (error: string, retryable: boolean) => void;
+  onError: (errorType: string, errorMessage: string, retryable: boolean) => void;
   onWarning: (warning: string) => void;
+  onServerCustom?: (customType: number, contents: string) => void;
 };
 
 export type DeltaNetClientWebsocketAdapter = {
@@ -68,6 +69,7 @@ export type DeltaNetClientWebsocketAdapter = {
     components: Map<number, bigint>,
     changedStates: Map<number, Uint8Array>,
   ) => void;
+  sendCustomMessage: (customType: number, contents: string) => void;
   didConnect: () => boolean;
   dispose: () => void;
 };
@@ -185,8 +187,8 @@ export class DeltaNetClientWebsocket {
                   now,
                 );
               },
-              onError: (error: string, retryable: boolean) => {
-                this.options.onError(error, retryable);
+              onError: (errorType: string, errorMessage: string, retryable: boolean) => {
+                this.options.onError(errorType, errorMessage, retryable);
                 if (this.websocket === websocket) {
                   this.websocket?.close();
                   this.websocket = null;
@@ -319,6 +321,12 @@ export class DeltaNetClientWebsocket {
   ) {
     if (this.websocketAdapter) {
       this.websocketAdapter.setUserComponents(components, changedStates);
+    }
+  }
+
+  public sendCustomMessage(customType: number, contents: string) {
+    if (this.websocketAdapter) {
+      this.websocketAdapter.sendCustomMessage(customType, contents);
     }
   }
 }

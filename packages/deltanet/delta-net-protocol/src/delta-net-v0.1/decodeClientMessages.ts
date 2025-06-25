@@ -3,10 +3,12 @@ import { DeltaNetV01ClientMessage } from "./messages";
 import { decodeConnectUser } from "./messages/from-client/connectUser";
 import { decodePong } from "./messages/from-client/pong";
 import { decodeSetUserComponents } from "./messages/from-client/setUserComponents";
+import { decodeClientCustom } from "./messages/from-client/clientCustom";
 import {
   ConnectUserMessageType,
   PongMessageType,
   SetUserComponentsMessageType,
+  ClientCustomMessageType,
 } from "./messageTypes";
 
 export function decodeClientMessages(buffer: BufferReader): Array<DeltaNetV01ClientMessage> {
@@ -22,6 +24,9 @@ export function decodeClientMessages(buffer: BufferReader): Array<DeltaNetV01Cli
         break;
       case PongMessageType:
         messages.push(decodePong(buffer));
+        break;
+      case ClientCustomMessageType:
+        messages.push(decodeClientCustom(buffer));
         break;
       default:
         throw new Error(`Unknown message type: ${messageType}`);
