@@ -22,14 +22,14 @@ export function prepareData(size: number): Array<DeltaNetV01ServerMessage> {
       states: [
         {
           stateId: 1,
-          states: [
+          updatedStates: [
             [0, new Uint8Array([1, 2, 3])],
             [1, new Uint8Array([4, 5, 6])],
           ],
         },
         {
           stateId: 2,
-          states: [
+          updatedStates: [
             [0, new Uint8Array([7, 8, 9])],
             [1, new Uint8Array([10, 11, 12])],
           ],

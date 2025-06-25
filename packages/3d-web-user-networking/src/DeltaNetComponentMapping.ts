@@ -1,5 +1,6 @@
 import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
-import { UserNetworkingClientUpdate } from "./UserNetworkingCodec";
+
+import { UserNetworkingClientUpdate } from "./types";
 import { CharacterDescription } from "./UserNetworkingMessages";
 
 // Component IDs used in the deltanet implementation
@@ -11,6 +12,7 @@ export const COMPONENT_ROTATION_W = 5;
 export const COMPONENT_STATE = 6;
 
 // State IDs for binary data
+export const STATE_INTERNAL_CONNECTION_ID = 0;
 export const STATE_CHARACTER_DESCRIPTION = 1;
 export const STATE_USERNAME = 2;
 export const STATE_COLORS = 3;
@@ -27,14 +29,29 @@ export class DeltaNetComponentMapping {
 
     // Convert position values to fixed-point representation
     // Using 1000x scale for precision with 3 decimal places
-    components.set(COMPONENT_POSITION_X, BigInt(Math.round(update.position.x * positionMultiplier)));
-    components.set(COMPONENT_POSITION_Y, BigInt(Math.round(update.position.y * positionMultiplier)));
-    components.set(COMPONENT_POSITION_Z, BigInt(Math.round(update.position.z * positionMultiplier)));
+    components.set(
+      COMPONENT_POSITION_X,
+      BigInt(Math.round(update.position.x * positionMultiplier)),
+    );
+    components.set(
+      COMPONENT_POSITION_Y,
+      BigInt(Math.round(update.position.y * positionMultiplier)),
+    );
+    components.set(
+      COMPONENT_POSITION_Z,
+      BigInt(Math.round(update.position.z * positionMultiplier)),
+    );
 
     // Convert quaternion values to fixed-point representation
     // Using 32767 scale to match original codec precision
-    components.set(COMPONENT_ROTATION_Y, BigInt(Math.round(update.rotation.quaternionY * rotationMultiplier)));
-    components.set(COMPONENT_ROTATION_W, BigInt(Math.round(update.rotation.quaternionW * rotationMultiplier)));
+    components.set(
+      COMPONENT_ROTATION_Y,
+      BigInt(Math.round(update.rotation.quaternionY * rotationMultiplier)),
+    );
+    components.set(
+      COMPONENT_ROTATION_W,
+      BigInt(Math.round(update.rotation.quaternionW * rotationMultiplier)),
+    );
 
     // State is already an integer
     components.set(COMPONENT_STATE, BigInt(update.state));
@@ -49,11 +66,16 @@ export class DeltaNetComponentMapping {
     components: Map<number, bigint>,
     userId: number,
   ): UserNetworkingClientUpdate {
-    const positionX = Number(components.get(COMPONENT_POSITION_X) || BigInt(0)) / positionMultiplier;
-    const positionY = Number(components.get(COMPONENT_POSITION_Y) || BigInt(0)) / positionMultiplier;
-    const positionZ = Number(components.get(COMPONENT_POSITION_Z) || BigInt(0)) / positionMultiplier;
-    const rotationY = Number(components.get(COMPONENT_ROTATION_Y) || BigInt(0)) / rotationMultiplier;
-    const rotationW = Number(components.get(COMPONENT_ROTATION_W) || BigInt(rotationMultiplier)) / rotationMultiplier;
+    const positionX =
+      Number(components.get(COMPONENT_POSITION_X) || BigInt(0)) / positionMultiplier;
+    const positionY =
+      Number(components.get(COMPONENT_POSITION_Y) || BigInt(0)) / positionMultiplier;
+    const positionZ =
+      Number(components.get(COMPONENT_POSITION_Z) || BigInt(0)) / positionMultiplier;
+    const rotationY =
+      Number(components.get(COMPONENT_ROTATION_Y) || BigInt(0)) / rotationMultiplier;
+    const rotationW =
+      Number(components.get(COMPONENT_ROTATION_W) || BigInt(0)) / rotationMultiplier;
 
     const state = Number(components.get(COMPONENT_STATE) || BigInt(0));
 
@@ -109,42 +131,62 @@ export class DeltaNetComponentMapping {
   }
 
   static decodeColors(colors: Uint8Array): Array<[number, number, number]> {
+    try {
     const bufferReader = new BufferReader(colors);
     const colorsArray: Array<[number, number, number]> = [];
     const count = bufferReader.readUVarint();
     for (let i = 0; i < count; i++) {
-      colorsArray.push([bufferReader.readUVarint(), bufferReader.readUVarint(), bufferReader.readUVarint()]);
+      colorsArray.push([
+        bufferReader.readUVarint(),
+        bufferReader.readUVarint(),
+        bufferReader.readUVarint(),
+        ]);
+      }
+      return colorsArray;
+    } catch (e) {
+      console.error("Error decoding colors", colors, e);
+      return [];
     }
-    return colorsArray;
   }
 
   /**
    * Decode binary states back to username and character description
    */
   static fromStates(states: Map<number, Uint8Array>): {
-    username: string;
-    characterDescription: CharacterDescription;
-    colors: Array<[number, number, number]>;
+    userId: number;
+    username?: string;
+    characterDescription?: CharacterDescription;
+    colors?: Array<[number, number, number]>;
   } {
     const textDecoder = new TextDecoder();
 
+    const userIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
     const usernameBytes = states.get(STATE_USERNAME);
-    const username = usernameBytes ? textDecoder.decode(usernameBytes) : "";
+    const username = usernameBytes ? textDecoder.decode(usernameBytes) : undefined;
+
+    let userId: number | undefined;
+    if (userIdBytes) {
+      const reader = new BufferReader(userIdBytes);
+      userId = reader.readUVarint(false);
+    }
 
     const characterDescBytes = states.get(STATE_CHARACTER_DESCRIPTION);
-    let characterDescription: CharacterDescription = { meshFileUrl: "" };
-
+    let characterDescription: CharacterDescription | undefined;
     if (characterDescBytes) {
       try {
         characterDescription = JSON.parse(textDecoder.decode(characterDescBytes));
-      } catch (e) {
-        console.error("Failed to parse character description:", e);
+      } catch {
+        // Ignore
       }
     }
 
     const colors = states.get(STATE_COLORS);
     const colorsArray = colors ? DeltaNetComponentMapping.decodeColors(colors) : [];
 
-    return { username, characterDescription, colors: colorsArray };
+    if (userId === undefined || username === undefined || characterDescription === undefined) {
+      throw new Error("Invalid states");
+    }
+
+    return { userId, username, characterDescription, colors: colorsArray };
   }
 }

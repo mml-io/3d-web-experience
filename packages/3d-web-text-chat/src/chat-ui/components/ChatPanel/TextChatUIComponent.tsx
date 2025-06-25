@@ -18,7 +18,6 @@ import { Messages } from "../Messages/Messages";
 
 import styles from "./TextChatUIComponent.module.css";
 type ChatUIProps = {
-  clientName: string;
   sendMessageToServer: (message: string) => void;
   visibleByDefault?: boolean;
   stringToHslOptions?: StringToHslOptions;
@@ -151,7 +150,6 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
 
   const handleSendMessage = (message: string) => {
     props.sendMessageToServer(message);
-    appendMessages(props.clientName, message);
   };
 
   const setFocus = () => setIsFocused(true);

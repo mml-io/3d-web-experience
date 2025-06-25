@@ -168,7 +168,7 @@ export class NetworkStateVirtualDataTable extends VirtualDataTable<
   private updateData(): void {
     if (!this.deltaNetClientState) return;
 
-    const userIds = this.deltaNetClientState.getUserIds();
+    const userIds = this.deltaNetClientState.getStableIds();
     const componentValues = this.deltaNetClientState.getComponentValues();
     const allStates = this.deltaNetClientState.getAllStates();
 

@@ -26,6 +26,7 @@ export function createDeltaNetServerConnectionForWebsocket(
     const errorMessage: Array<DeltaNetV01ServerMessage> = [
       {
         type: "error",
+        errorType: "UNSUPPORTED_WEBSOCKET_SUBPROTOCOL",
         message: errorMessageString,
         retryable: false,
       },

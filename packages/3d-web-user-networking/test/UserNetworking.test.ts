@@ -6,7 +6,7 @@ import express from "express";
 import enableWs from "express-ws";
 
 import { UserData, UserIdentity, UserNetworkingClientUpdate } from "../src";
-import { WebsocketStatus } from "../src/ReconnectingWebSocket";
+import { WebsocketStatus } from "../src/types";
 import { UserNetworkingClient } from "../src/UserNetworkingClient";
 import { UserNetworkingServer } from "../src/UserNetworkingServer";
 

@@ -3,7 +3,7 @@ import {
   decodeError,
   decodeInitialCheckout,
   decodePing,
-  decodeServerBroadcast,
+  decodeServerCustom,
   decodeTick,
   decodeUserIndex,
   decodeWarning,
@@ -13,7 +13,7 @@ import {
   ErrorMessageType,
   InitialCheckoutMessageType,
   PingMessageType,
-  ServerBroadcastMessageType,
+  ServerCustomMessageType,
   TickMessageType,
   UserIndexMessageType,
   WarningMessageType,
@@ -40,8 +40,8 @@ export function decodeServerMessages(
       case TickMessageType:
         messages.push(decodeTick(buffer, opts));
         break;
-      case ServerBroadcastMessageType:
-        messages.push(decodeServerBroadcast(buffer));
+      case ServerCustomMessageType:
+        messages.push(decodeServerCustom(buffer));
         break;
       case PingMessageType:
         messages.push(decodePing(buffer));

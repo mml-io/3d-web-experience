@@ -5,11 +5,13 @@ import {
   DeltaNetV01InitialCheckoutMessage,
   DeltaNetV01InitialCheckoutState,
   DeltaNetV01PingMessage,
+  DeltaNetV01ServerErrorType,
   DeltaNetV01StateUpdates,
   DeltaNetV01Tick,
   encodeInitialCheckout,
   encodePing,
   encodeTick,
+  encodeServerMessage,
 } from "@deltanet/delta-net-protocol";
 
 import { ComponentCollection } from "./ComponentCollection";
@@ -47,8 +49,16 @@ export type onLeaveOptions = {
   states: Array<[number, Uint8Array]>;
 };
 
+export type onCustomMessageOptions = {
+  deltaNetV01Connection: DeltaNetV01Connection;
+  internalConnectionId: number;
+  customType: number;
+  contents: string;
+};
+
 export class DeltaNetServerError extends Error {
   constructor(
+    public errorType: DeltaNetV01ServerErrorType,
     message: string,
     public retryable: boolean,
   ) {
@@ -78,6 +88,7 @@ type DeltaNetServerOptions = {
     | DeltaNetServerError
     | Promise<true | void | Error | DeltaNetServerError>;
   onLeave?: (opts: onLeaveOptions) => void;
+  onCustomMessage?: (opts: onCustomMessageOptions) => void;
   // If provided, the server will create a state for each user that contains their connection id
   serverConnectionIdStateId?: number;
 };
@@ -163,7 +174,7 @@ export class DeltaNetServer {
 
     // Call onLeave callback if provided and connection has an ID (but not if disposed)
     if (!this.disposed && this.opts.onLeave) {
-      const internalConnectionId = deltaNetV01Connection.connectionId;
+      const internalConnectionId = deltaNetV01Connection.internalConnectionId;
       const index = this.connectionIdToComponentIndex.get(internalConnectionId);
 
       if (index !== undefined) {
@@ -197,7 +208,7 @@ export class DeltaNetServer {
       }
     }
 
-    const internalConnectionId = deltaNetV01Connection.connectionId;
+    const internalConnectionId = deltaNetV01Connection.internalConnectionId;
     this.connectionIdToDeltaNetServerConnection.delete(internalConnectionId);
     if (this.preTickData.newJoinerConnections.has(deltaNetV01Connection)) {
       // This connection is still pending, so we need to remove it from the pending joiner list
@@ -223,11 +234,13 @@ export class DeltaNetServer {
   private disconnectWithError(
     deltaNetV01Connection: DeltaNetV01Connection,
     error: Error,
+    errorType: DeltaNetV01ServerErrorType,
     retryable: boolean = true,
   ): void {
     try {
       deltaNetV01Connection.sendMessage({
         type: "error",
+        errorType,
         message: error.message,
         retryable,
       });
@@ -297,7 +310,7 @@ export class DeltaNetServer {
         components,
         states,
         token,
-        internalConnectionId: deltaNetV01Connection.connectionId,
+        internalConnectionId: deltaNetV01Connection.internalConnectionId,
       });
       if (rawResult instanceof Promise) {
         return rawResult
@@ -317,12 +330,12 @@ export class DeltaNetServer {
   }
 
   public addAuthenticatedConnection(deltaNetV01Connection: DeltaNetV01Connection): void {
-    if (deltaNetV01Connection.connectionId === null) {
+    if (deltaNetV01Connection.internalConnectionId === null) {
       throw new Error("Connection ID must be set before adding to authenticated connections");
     }
 
     this.connectionIdToDeltaNetServerConnection.set(
-      deltaNetV01Connection.connectionId,
+      deltaNetV01Connection.internalConnectionId,
       deltaNetV01Connection,
     );
 
@@ -353,7 +366,7 @@ export class DeltaNetServer {
 
     // Observers cannot send state updates
     if (deltaNetV01Connection.isObserver) {
-      return new DeltaNetServerError("Observers cannot send state updates", false);
+      return new DeltaNetServerError("OBSERVER_CANNOT_SEND_STATE_UPDATES", "Observers cannot send state updates", false);
     }
 
     // Call onStatesUpdate callback if provided
@@ -508,7 +521,7 @@ export class DeltaNetServer {
 
     // handle new joiners
     for (const deltaNetV01Connection of this.preTickData.newJoinerConnections) {
-      const internalConnectionId = deltaNetV01Connection.connectionId;
+      const internalConnectionId = deltaNetV01Connection.internalConnectionId;
 
       if (deltaNetV01Connection.isObserver) {
         // Observers don't get indices assigned but still need userIndex message for protocol compatibility
@@ -758,6 +771,57 @@ export class DeltaNetServer {
       }
       collection.setValue(index, stateValue);
     }
+  }
+
+  public handleCustomMessage(
+    deltaNetV01Connection: DeltaNetV01Connection,
+    internalConnectionId: number,
+    customType: number,
+    contents: string,
+  ): void {
+    if (this.disposed) {
+      return;
+    }
+
+    // Call custom message callback if provided
+    if (this.opts.onCustomMessage) {
+      try {
+        this.opts.onCustomMessage({
+          deltaNetV01Connection,
+          internalConnectionId,
+          customType,
+          contents,
+        });
+      } catch (error) {
+        console.warn("Error in onCustomMessage callback:", error);
+      }
+    }
+  }
+
+  public broadcastCustomMessage(customType: number, contents: string): void {
+    console.log("Broadcasting custom message", customType, contents);
+    if (this.disposed) {
+      return;
+    }
+
+    const writer = new BufferWriter(contents.length + 16);
+    const message = {
+      type: "serverCustom" as const,
+      customType,
+      contents,
+    };
+    
+    const encodedMessage = encodeServerMessage(message, writer);
+    const messageBytes = encodedMessage.getBuffer();
+
+    // Broadcast to all authenticated connections
+    this.authenticatedDeltaNetV01Connections.forEach((connection) => {
+      try {
+        connection.sendEncodedBytes(messageBytes);
+      } catch (error) {
+        console.warn("Failed to send custom message to connection:", error);
+      }
+    });
   }
 
   public dispose(): void {

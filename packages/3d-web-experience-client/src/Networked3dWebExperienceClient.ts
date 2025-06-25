@@ -1,4 +1,5 @@
 import { AvatarConfiguration, AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
+import { USER_AUTHENTICATION_FAILED_ERROR_TYPE, USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE, USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE } from "@deltanet/delta-net-protocol";
 import {
   AnimationConfig,
   CameraManager,
@@ -26,23 +27,19 @@ import {
   VirtualJoystick,
 } from "@mml-io/3d-web-client-core";
 import {
-  ChatNetworkingClient,
-  ChatNetworkingClientChatMessage,
-  ChatNetworkingServerErrorType,
   StringToHslOptions,
   TextChatUI,
   TextChatUIProps,
 } from "@mml-io/3d-web-text-chat";
 import {
-  USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
-  USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
-  USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
-  USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
+  FROM_SERVER_CHAT_MESSAGE_TYPE,
+  FROM_CLIENT_CHAT_MESSAGE_TYPE,
+  ClientChatMessage,
   UserData,
   UserNetworkingClient,
   UserNetworkingClientUpdate,
-  UserNetworkingServerErrorType,
   WebsocketStatus,
+  parseServerChatMessage,
 } from "@mml-io/3d-web-user-networking";
 import {
   IMMLScene,
@@ -80,13 +77,13 @@ export type Networked3dWebExperienceClientConfig = {
   animationConfig: AnimationConfig;
   voiceChatAddress?: string;
   updateURLLocation?: boolean;
-  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any }) => void;
+  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any; }) => void;
   loadingScreen?: LoadingScreenConfig;
 } & UpdatableConfig;
 
 export type UpdatableConfig = {
-  chatNetworkAddress?: string | null;
-  mmlDocuments?: { [key: string]: MMLDocumentConfiguration };
+  enableChat?: boolean;
+  mmlDocuments?: { [key: string]: MMLDocumentConfiguration; };
   environmentConfiguration?: EnvironmentConfiguration;
   spawnConfiguration?: SpawnConfiguration;
   avatarConfiguration?: AvatarConfiguration;
@@ -142,14 +139,13 @@ export class Networked3dWebExperienceClient {
   private virtualJoystick: VirtualJoystick;
 
   private mmlCompositionScene: MMLCompositionScene;
-  private mmlFrames: { [key: string]: HTMLElement } = {};
+  private mmlFrames: { [key: string]: HTMLElement; } = {};
 
   private clientId: number | null = null;
   private networkClient: UserNetworkingClient;
   private remoteUserStates = new Map<number, CharacterState>();
   private userProfiles = new Map<number, UserData>();
 
-  private networkChat: ChatNetworkingClient | null = null;
   private textChatUI: TextChatUI | null = null;
 
   private avatarSelectionUI: AvatarSelectionUI | null = null;
@@ -266,9 +262,9 @@ export class Networked3dWebExperienceClient {
           colors,
         });
       },
-      onServerError: (error: { message: string; errorType: UserNetworkingServerErrorType }) => {
+      onServerError: (error: { message: string; errorType: string; }) => {
         switch (error.errorType) {
-          case USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE:
+          case USER_AUTHENTICATION_FAILED_ERROR_TYPE:
             this.disposeWithError(error.message);
             break;
           case USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE:
@@ -282,8 +278,20 @@ export class Networked3dWebExperienceClient {
             this.disposeWithError(error.message);
         }
       },
-      onServerBroadcast: (broadcast: { broadcastType: string; payload: any }) => {
+      onServerBroadcast: (broadcast: { broadcastType: string; payload: any; }) => {
         this.config.onServerBroadcast?.(broadcast);
+      },
+      onCustomMessage: (customType: number, contents: string) => {
+        if (customType === FROM_SERVER_CHAT_MESSAGE_TYPE) {
+          const serverChatMessage = parseServerChatMessage(contents);
+          if (serverChatMessage instanceof Error) {
+            console.error(`Invalid server chat message: ${contents}`);
+          } else {
+            this.handleChatMessage(serverChatMessage.fromUserId, serverChatMessage.message);
+          }
+        } else {
+          console.warn(`Did not recognize custom message type ${customType}`);
+        }
       },
     });
 
@@ -345,7 +353,7 @@ export class Networked3dWebExperienceClient {
          When all content (in particular MML) has loaded, spawn the character (this is to avoid the character falling
          through as-yet-unloaded geometry)
         */
-         console.log("Initial load completed");
+        console.log("Initial load completed");
 
         this.connectToTextChat();
         this.mountAvatarSelectionUI();
@@ -411,11 +419,9 @@ export class Networked3dWebExperienceClient {
       }
     }
 
-    if (config.chatNetworkAddress !== undefined) {
-      if (config.chatNetworkAddress === null && this.networkChat !== null) {
-        this.networkChat.stop();
-        this.networkChat = null;
-        this.textChatUI?.dispose();
+    if (config.enableChat) {
+      if (!config.enableChat && this.textChatUI !== null) {
+        this.textChatUI.dispose();
         this.textChatUI = null;
       } else {
         this.connectToTextChat();
@@ -476,7 +482,7 @@ export class Networked3dWebExperienceClient {
     this.userProfiles.set(id, userData);
 
     if (this.textChatUI && id === this.clientId) {
-      this.textChatUI.setClientName(userData.username);
+      this.textChatUI.init();
     }
 
     this.characterManager.remoteCharacterInfoUpdated(id);
@@ -490,13 +496,8 @@ export class Networked3dWebExperienceClient {
       throw new Error("Client ID not set");
     }
 
-    this.networkClient.sendMessage({
-      type: USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
-      userIdentity: {
-        username: displayName,
-        characterDescription: characterDescription,
-      },
-    });
+    // Use the new updateUserProfile method instead of deprecated sendMessage
+    this.networkClient.updateUserProfile(displayName, characterDescription);
   }
 
   private setupTweakPane() {
@@ -508,58 +509,56 @@ export class Networked3dWebExperienceClient {
     this.composer.setupTweakPane(this.tweakPane);
   }
 
+  private handleChatMessage(fromUserId: number, message: string) {
+    if (this.textChatUI === null) {
+      return;
+    }
+
+    if (fromUserId === 0) {
+      // Server message - handle as system message
+      this.textChatUI.addTextMessage("System", message);
+    } else {
+      // User message
+      const user = this.userProfiles.get(fromUserId);
+      if (!user) {
+        console.error(`User not found for clientId ${fromUserId}`);
+        return;
+      }
+      console.log(`Adding chat message from user ${user.username}`);
+      const username = user.username;
+      this.textChatUI.addTextMessage(username, message);
+      this.characterManager.addChatBubble(fromUserId, message);
+    }
+  }
+
   private connectToTextChat() {
     if (this.clientId === null) {
       return;
     }
-    if (this.networkChat === null && this.config.chatNetworkAddress) {
+    
+    // Chat is now integrated into the main deltanet connection
+    // Only create the UI if chat is enabled (not explicitly disabled)
+    if (this.config.enableChat && this.textChatUI === null) {
       const user = this.userProfiles.get(this.clientId);
       if (!user) {
         throw new Error("User not found");
       }
 
-      if (this.textChatUI === null) {
-        const textChatUISettings: TextChatUIProps = {
-          holderElement: this.element,
-          clientname: user.username,
-          sendMessageToServerMethod: (message: string) => {
-            this.characterManager.addSelfChatBubble(message);
-
-            this.mmlCompositionScene.onChatMessage(message);
-            if (this.clientId === null || this.networkChat === null) return;
-            this.networkChat.sendChatMessage(message);
-          },
-          visibleByDefault: this.config.chatVisibleByDefault,
-          stringToHslOptions: this.config.userNameToColorOptions,
-        };
-        this.textChatUI = new TextChatUI(textChatUISettings);
-        this.textChatUI.init();
-      }
-
-      this.networkChat = new ChatNetworkingClient({
-        url: this.config.chatNetworkAddress,
-        sessionToken: this.config.sessionToken,
-        websocketFactory: (url: string) => new WebSocket(url),
-        statusUpdateCallback: (status: WebsocketStatus) => {
-          if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
-            // The connection was lost after being established - the connection may be re-established with a different client ID
-          }
+      const textChatUISettings: TextChatUIProps = {
+        holderElement: this.element,
+        clientname: user.username,
+        sendMessageToServerMethod: (message: string) => {
+          this.characterManager.addSelfChatBubble(message);
+          this.mmlCompositionScene.onChatMessage(message);
+          
+          // Send chat message through deltanet custom message
+          this.networkClient.sendCustomMessage(FROM_CLIENT_CHAT_MESSAGE_TYPE, JSON.stringify({ message } satisfies ClientChatMessage));
         },
-        clientChatUpdate: (
-          clientId: number,
-          chatNetworkingUpdate: null | ChatNetworkingClientChatMessage,
-        ) => {
-          if (chatNetworkingUpdate !== null && this.textChatUI !== null) {
-            const username = this.userProfiles.get(clientId)?.username || "Unknown";
-            this.textChatUI.addTextMessage(username, chatNetworkingUpdate.text);
-            this.characterManager.addChatBubble(clientId, chatNetworkingUpdate.text);
-          }
-        },
-        onServerError: (error: { message: string; errorType: ChatNetworkingServerErrorType }) => {
-          console.error(`Chat server error: ${error.message}. errorType: ${error.errorType}`);
-          this.disposeWithError(error.message);
-        },
-      });
+        visibleByDefault: this.config.chatVisibleByDefault,
+        stringToHslOptions: this.config.userNameToColorOptions,
+      };
+      this.textChatUI = new TextChatUI(textChatUISettings);
+      this.textChatUI.init();
     }
   }
 
@@ -681,7 +680,6 @@ export class Networked3dWebExperienceClient {
 
   public dispose() {
     this.networkClient.stop();
-    this.networkChat?.stop();
     for (const [key, element] of Object.entries(this.mmlFrames)) {
       element.remove();
     }
@@ -773,8 +771,8 @@ export class Networked3dWebExperienceClient {
     }
   }
 
-  private setMMLDocuments(mmlDocuments: { [key: string]: MMLDocumentConfiguration }) {
-    const newFramesMap: { [key: string]: HTMLElement } = {};
+  private setMMLDocuments(mmlDocuments: { [key: string]: MMLDocumentConfiguration; }) {
+    const newFramesMap: { [key: string]: HTMLElement; } = {};
     for (const [key, mmlDocSpec] of Object.entries(mmlDocuments)) {
       const existing = this.mmlFrames[key];
       if (!existing) {

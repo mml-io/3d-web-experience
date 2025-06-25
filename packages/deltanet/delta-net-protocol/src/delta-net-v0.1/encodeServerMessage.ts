@@ -2,7 +2,7 @@ import { BufferWriter } from "../BufferWriter";
 import {
   DeltaNetV01ServerMessage,
   encodeInitialCheckout,
-  encodeServerBroadcast,
+  encodeServerCustom,
   encodeUserIndex,
 } from "./messages";
 import { encodeError } from "./messages/from-server/error";
@@ -23,8 +23,8 @@ export function encodeServerMessage(
       return encodeUserIndex(message, writer);
     case "ping":
       return encodePing(message, writer);
-    case "serverBroadcast":
-      return encodeServerBroadcast(message, writer);
+    case "serverCustom":
+      return encodeServerCustom(message, writer);
     case "warning":
       return encodeWarning(message, writer);
     case "error":

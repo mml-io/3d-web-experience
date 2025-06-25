@@ -3,9 +3,11 @@ import {
   BufferWriter,
   decodeServerMessages,
   DeltaNetV01ClientMessage,
+  DeltaNetV01ClientCustomMessage,
   DeltaNetV01InitialCheckoutMessage,
   DeltaNetV01PingMessage,
   DeltaNetV01ServerMessage,
+  DeltaNetV01ServerCustomMessage,
   DeltaNetV01SetUserComponentsMessage,
   DeltaNetV01Tick,
   DeltaNetV01UserIndexMessage,
@@ -45,7 +47,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       receivedBytes: (bytes: number, now: number) => void;
       receivedComponentBytes: (bytes: number, now: number) => void;
       receivedStateBytes: (bytes: number, now: number) => void;
-      onError: (error: string, retryable: boolean) => void;
+      onError: (errorType: string, errorMessage: string, retryable: boolean) => void;
       onWarning: (warning: string) => void;
     },
     private timeCallback?: (time: number) => void,
@@ -133,6 +135,20 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     this.websocket.send(writer.getBuffer());
   }
 
+  public sendCustomMessage(customType: number, contents: string) {
+    if (this.disposed) {
+      return;
+    }
+
+    const customMessage: DeltaNetV01ClientCustomMessage = {
+      type: "clientCustom",
+      customType,
+      contents,
+    };
+
+    this.send(customMessage);
+  }
+
   public receiveMessage(event: MessageEvent) {
     if (this.disposed) {
       return;
@@ -154,7 +170,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     switch (message.type) {
       case "error":
         console.error("Error from server", message);
-        this.internalOptions.onError(message.message, message.retryable);
+        this.internalOptions.onError(message.errorType, message.message, message.retryable);
         break;
       case "warning":
         console.warn("Warning from server", message);
@@ -172,6 +188,9 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
         break;
       case "ping":
         this.handlePing(message);
+        break;
+      case "serverCustom":
+        this.handleServerCustom(message);
         break;
       default:
         console.warn("unknown message type", message);
@@ -210,6 +229,10 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       type: "pong",
       pong: message.ping,
     });
+  }
+
+  private handleServerCustom(message: DeltaNetV01ServerCustomMessage) {
+    this.options.onServerCustom?.(message.customType, message.contents);
   }
 
   public didConnect(): boolean {

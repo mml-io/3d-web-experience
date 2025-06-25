@@ -285,12 +285,12 @@ export class CharacterModel {
     }
 
     const currentAction = this.animations[this.currentAnimation];
-    this.currentAnimation = targetAnimation;
     const targetAction = this.animations[targetAnimation];
 
     if (!targetAction) {
       return;
     }
+    this.currentAnimation = targetAnimation;
 
     if (currentAction) {
       currentAction.fadeOut(transitionDuration);

@@ -1,9 +1,13 @@
 import {
+  AUTHENTICATION_IN_PROGRESS_ERROR_TYPE,
   BufferReader,
   decodeClientMessages,
   DeltaNetV01ClientMessage,
+  DeltaNetV01ServerErrorType,
   DeltaNetV01ServerMessage,
   encodeServerMessage,
+  USER_ALREADY_AUTHENTICATED_ERROR_TYPE,
+  USER_NETWORKING_UNKNOWN_ERROR_TYPE,
 } from "@deltanet/delta-net-protocol";
 
 import { DeltaNetServer, DeltaNetServerError } from "./DeltaNetServer";
@@ -11,7 +15,7 @@ import { DeltaNetServer, DeltaNetServerError } from "./DeltaNetServer";
 export class DeltaNetV01Connection {
   private websocketListener: (messageEvent: MessageEvent) => void;
 
-  public readonly connectionId: number;
+  public readonly internalConnectionId: number;
   public isObserver: boolean = false; // Track observer mode
 
   // Pending state for new joiners (before they're authenticated)
@@ -35,7 +39,7 @@ export class DeltaNetV01Connection {
     public readonly deltaNetServer: DeltaNetServer,
   ) {
     // Get connection ID immediately upon creation
-    this.connectionId = deltaNetServer.getNextConnectionId();
+    this.internalConnectionId = deltaNetServer.getNextConnectionId();
 
     this.websocketListener = (messageEvent: MessageEvent) => {
       const buffer = new Uint8Array(messageEvent.data as ArrayBuffer);
@@ -71,10 +75,11 @@ export class DeltaNetV01Connection {
     }
   }
 
-  private disconnectWithError(error: Error, retryable: boolean = true): void {
+  private disconnectWithError(error: Error, errorType: DeltaNetV01ServerErrorType, retryable: boolean = true): void {
     try {
       this.sendMessage({
         type: "error",
+        errorType,
         message: error.message,
         retryable,
       });
@@ -97,12 +102,12 @@ export class DeltaNetV01Connection {
   ): Promise<void> {
     // Reject if already authenticated or currently authenticating
     if (this.isAuthenticated) {
-      this.disconnectWithError(new Error("User is already authenticated"), false);
+      this.disconnectWithError(new Error("User is already authenticated"), USER_ALREADY_AUTHENTICATED_ERROR_TYPE, false);
       return;
     }
 
     if (this.isAuthenticating) {
-      this.disconnectWithError(new Error("Authentication already in progress"), false);
+      this.disconnectWithError(new Error("Authentication already in progress"), AUTHENTICATION_IN_PROGRESS_ERROR_TYPE, false);
       return;
     }
 
@@ -148,16 +153,16 @@ export class DeltaNetV01Connection {
     this.authenticationAbortController = null;
 
     if (result instanceof DeltaNetServerError) {
-      this.disconnectWithError(result, result.retryable);
+      this.disconnectWithError(result, result.errorType, result.retryable);
     } else if (result instanceof Error) {
-      this.disconnectWithError(result, false);
+      this.disconnectWithError(result, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
     } else if (typeof result !== "object") {
-      this.disconnectWithError(new Error("Invalid authentication result"), false);
+      this.disconnectWithError(new Error("Invalid authentication result"), USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
     } else {
       if (result.success) {
         // Apply state overrides if provided
         if (result.stateOverrides) {
-          console.log(`Applying ${result.stateOverrides.length} state overrides for connection ${this.connectionId}`);
+          console.log(`Applying ${result.stateOverrides.length} state overrides for connection ${this.internalConnectionId}`);
           for (const [stateId, stateValue] of result.stateOverrides) {
             this.states.set(stateId, stateValue);
           }
@@ -166,7 +171,7 @@ export class DeltaNetV01Connection {
         this.isAuthenticated = true;
         this.deltaNetServer.addAuthenticatedConnection(this);
       } else {
-        this.disconnectWithError(new Error(result.error || "Authentication failed"), false);
+        this.disconnectWithError(new Error(result.error || "Authentication failed"), USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
       }
     }
     this.isAuthenticating = false;
@@ -187,7 +192,7 @@ export class DeltaNetV01Connection {
 
     const result = this.deltaNetServer.validateAndApplyStateUpdate(
       this,
-      this.connectionId,
+      this.internalConnectionId,
       stateId,
       stateValue,
     );
@@ -210,11 +215,11 @@ export class DeltaNetV01Connection {
         this.pendingStateValidations.delete(stateId);
 
         if (asyncResult instanceof DeltaNetServerError) {
-          this.disconnectWithError(asyncResult, asyncResult.retryable);
+          this.disconnectWithError(asyncResult, asyncResult.errorType, asyncResult.retryable);
           return false;
         }
         if (asyncResult instanceof Error) {
-          this.disconnectWithError(asyncResult, false);
+          this.disconnectWithError(asyncResult, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
           return false;
         }
 
@@ -226,11 +231,11 @@ export class DeltaNetV01Connection {
           this.pendingStateValidations.delete(stateId);
 
           if (error instanceof DeltaNetServerError) {
-            this.disconnectWithError(error, error.retryable);
+            this.disconnectWithError(error, error.errorType, error.retryable);
           } else if (error instanceof Error) {
-            this.disconnectWithError(error, false);
+            this.disconnectWithError(error, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
           } else {
-            this.disconnectWithError(new Error("State validation failed"), false);
+            this.disconnectWithError(new Error("State validation failed"), USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
           }
         }
         return false;
@@ -238,11 +243,11 @@ export class DeltaNetV01Connection {
     } else {
       // Synchronous result
       if (result instanceof DeltaNetServerError) {
-        this.disconnectWithError(result, result.retryable);
+        this.disconnectWithError(result, result.errorType, result.retryable);
         return false;
       }
       if (result instanceof Error) {
-        this.disconnectWithError(result, false);
+        this.disconnectWithError(result, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
         return false;
       }
       return true;
@@ -269,6 +274,7 @@ export class DeltaNetV01Connection {
         if (!this.isAuthenticated) {
           this.sendMessage({
             type: "error",
+            errorType: "USER_NOT_AUTHENTICATED",
             message: `Event sent, but user has not been authenticated yet.`,
             retryable: false,
           });
@@ -280,13 +286,13 @@ export class DeltaNetV01Connection {
         // Handle component updates immediately
         const result = this.deltaNetServer.setUserComponents(
           this,
-          this.connectionId,
+          this.internalConnectionId,
           parsed.components,
         );
 
         // Check if component update was rejected
         if (!result.success) {
-          this.disconnectWithError(new Error(result.error), true);
+          this.disconnectWithError(new Error(result.error), USER_NETWORKING_UNKNOWN_ERROR_TYPE, true);
           return;
         }
 
@@ -294,6 +300,27 @@ export class DeltaNetV01Connection {
         for (const [stateId, stateValue] of parsed.states) {
           this.handleStateUpdate(stateId, stateValue);
         }
+        return;
+      }
+      case "clientCustom": {
+        if (!this.deltaNetServer) {
+          console.error("DeltaNetServer not set on connection that received custom message", this);
+          return;
+        }
+        if (!this.isAuthenticated) {
+          this.sendMessage({
+            type: "error",
+            errorType: "USER_NOT_AUTHENTICATED",
+            message: `Custom message sent, but user has not been authenticated yet.`,
+            retryable: false,
+          });
+          console.error("Custom message sent, but user has not been authenticated yet.");
+          this.webSocket.close(1000, "User has not been authenticated yet");
+          return;
+        }
+
+        // Handle custom message
+        this.deltaNetServer.handleCustomMessage(this, this.internalConnectionId, parsed.customType, parsed.contents);
         return;
       }
       default:
