@@ -4,38 +4,57 @@ import {
   parseMMLDescription,
 } from "@mml-io/3d-web-avatar";
 import { ModelLoader } from "@mml-io/model-loader";
-import { AnimationAction, AnimationClip, AnimationMixer, Bone, Color, LoopRepeat, Object3D, SkinnedMesh } from "three";
+import {
+  AnimationAction,
+  AnimationClip,
+  AnimationMixer,
+  Bone,
+  Color,
+  Group,
+  LoopRepeat,
+  Object3D,
+  SkinnedMesh,
+} from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 
-import { AnimationConfig, CharacterDescription } from "./Character";
+import { AnimationConfig, CharacterDescription, LoadedAnimations } from "./Character";
+import {
+  captureCharacterColors,
+  captureCharacterColorsFromObject3D,
+} from "./CharacterColourSamplingUtils";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
-import { captureCharacterColors, captureCharacterColorsFromObject3D } from "./CharacterColourSamplingUtils";
 
 export const colorPartNamesIndex = [
-"hair",
-"skin",
-"lips",
-"shirt_short",
-"shirt_long",
-"pants_short",
-"pants_long",
-"shoes",
-]
+  "hair",
+  "skin",
+  "lips",
+  "shirt_short",
+  "shirt_long",
+  "pants_short",
+  "pants_long",
+  "shoes",
+];
 
 export function colorsToColorArray(colors: Map<string, Color>): Array<[number, number, number]> {
   const colorArray: Array<[number, number, number]> = [];
   for (const partName of colorPartNamesIndex) {
     const color = colors.get(partName);
     if (color) {
-      colorArray.push([Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255)]);
+      colorArray.push([
+        Math.round(color.r * 255),
+        Math.round(color.g * 255),
+        Math.round(color.b * 255),
+      ]);
     }
   }
   return colorArray;
 }
 
-export function colorArrayToColors(colorArray: Array<[number, number, number]>): Map<string, Color> {
+export function colorArrayToColors(
+  colorArray: Array<[number, number, number]>,
+): Map<string, Color> {
   const colors = new Map<string, Color>();
   for (let i = 0; i < colorPartNamesIndex.length; i++) {
     const color = colorArray[i];
@@ -46,13 +65,18 @@ export function colorArrayToColors(colorArray: Array<[number, number, number]>):
   return colors;
 }
 
+export type CharacterModelAnimations = {
+  [key in AnimationState]: AnimationAction | undefined;
+};
+
 export type CharacterModelConfig = {
   characterDescription: CharacterDescription;
-  animationConfig: AnimationConfig;
+  animationsPromise: Promise<LoadedAnimations>;
   characterModelLoader: CharacterModelLoader;
   cameraManager: CameraManager;
   characterId: number;
   isLocal: boolean;
+  abortController?: AbortController;
 };
 
 export class CharacterModel {
@@ -69,36 +93,41 @@ export class CharacterModel {
   public mmlCharacterDescription: MMLCharacterDescription;
 
   private isPostDoubleJump = false;
-  
+
   private colors: Array<[number, number, number]> | null = null;
 
   constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
+    // Check if operation was cancelled before starting
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`CharacterModel init cancelled for ${this.config.characterId}`);
+      return;
+    }
+
     await this.loadMainMesh();
+    
+    // Check if operation was cancelled after mesh loading
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`CharacterModel init cancelled after mesh loading for ${this.config.characterId}`);
+      return;
+    }
+
     if (this.mesh) {
-      await this.setAnimationFromFile(
-        this.config.animationConfig.idleAnimationFileUrl,
-        AnimationState.idle,
-        true,
-      );
-      await this.setAnimationFromFile(
-        this.config.animationConfig.jogAnimationFileUrl,
-        AnimationState.walking,
-        true,
-      );
-      await this.setAnimationFromFile(
-        this.config.animationConfig.sprintAnimationFileUrl,
-        AnimationState.running,
-        true,
-      );
-      await this.setAnimationFromFile(
-        this.config.animationConfig.airAnimationFileUrl,
-        AnimationState.air,
-        true,
-      );
-      await this.setAnimationFromFile(
-        this.config.animationConfig.doubleJumpAnimationFileUrl,
+      const animationConfig = await this.config.animationsPromise;
+      
+      // Check if operation was cancelled after animation loading
+      if (this.config.abortController?.signal.aborted) {
+        console.log(`CharacterModel init cancelled after animation loading for ${this.config.characterId}`);
+        return;
+      }
+
+      this.setAnimationFromFile(animationConfig.idleAnimation, AnimationState.idle, true);
+      this.setAnimationFromFile(animationConfig.jogAnimation, AnimationState.walking, true);
+      this.setAnimationFromFile(animationConfig.sprintAnimation, AnimationState.running, true);
+      this.setAnimationFromFile(animationConfig.airAnimation, AnimationState.air, true);
+      this.setAnimationFromFile(
+        animationConfig.doubleJumpAnimation,
         AnimationState.doubleJump,
         false,
         1.45,
@@ -117,21 +146,8 @@ export class CharacterModel {
       }
     }
     if (this.currentAnimation !== targetAnimation) {
-      console.log(`CharacterModel updateAnimation for clientId=${this.config.characterId}`, targetAnimation);
       this.transitionToAnimation(targetAnimation);
     }
-  }
-
-  private setMainMesh(mainMesh: Object3D): void {
-    this.mesh = mainMesh;
-    this.mesh.position.set(0, -0.44, 0);
-    this.mesh.traverse((child: Object3D) => {
-      if (child.type === "SkinnedMesh") {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-    this.animationMixer = new AnimationMixer(this.mesh);
   }
 
   private async composeMMLCharacter(
@@ -148,7 +164,15 @@ export class CharacterModel {
       const characterBase = mmlCharacterDescription.base?.url || null;
       if (characterBase) {
         this.mmlCharacterDescription = mmlCharacterDescription;
-        const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
+        const mmlCharacter = new MMLCharacter({
+          load: async (url: string) => {
+            const model = await this.config.characterModelLoader.load(url, "model", this.config.abortController);
+            return {
+              group: new Group().add(model as Object3D),
+              animations: [],
+            };
+          },
+        });
         mergedCharacter = await mmlCharacter.mergeBodyParts(
           characterBase,
           mmlCharacterDescription.parts,
@@ -166,13 +190,16 @@ export class CharacterModel {
         (await this.config.characterModelLoader.load(
           this.config.characterDescription.meshFileUrl,
           "model",
+          this.config.abortController,
         )) || null
       );
     }
 
     let mmlCharacterSource: string;
     if (this.config.characterDescription.mmlCharacterUrl) {
-      const res = await fetch(this.config.characterDescription.mmlCharacterUrl);
+      const res = await fetch(this.config.characterDescription.mmlCharacterUrl, {
+        signal: this.config.abortController?.signal,
+      });
       mmlCharacterSource = await res.text();
     } else if (this.config.characterDescription.mmlCharacterString) {
       mmlCharacterSource = this.config.characterDescription.mmlCharacterString;
@@ -219,7 +246,15 @@ export class CharacterModel {
       console.error("Failed to load character from description", error);
     }
     if (mainMesh) {
-      this.setMainMesh(mainMesh as Object3D);
+      this.mesh = mainMesh;
+      this.mesh.position.set(0, -0.44, 0);
+      this.mesh.traverse((child: Object3D) => {
+        if (child.type === "SkinnedMesh") {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.animationMixer = new AnimationMixer(this.mesh);
     }
   }
 
@@ -249,31 +284,23 @@ export class CharacterModel {
     return animationClip;
   }
 
-  private async setAnimationFromFile(
-    animationFileUrl: string,
+  private setAnimationFromFile(
+    animation: AnimationClip,
     animationType: AnimationState,
     loop: boolean = true,
     playbackSpeed: number = 1.0,
-  ): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      const animation = await this.config.characterModelLoader.load(animationFileUrl, "animation");
-      const cleanAnimation = this.cleanAnimationClips(this.mesh, animation as AnimationClip, true);
-      if (typeof animation !== "undefined" && cleanAnimation instanceof AnimationClip) {
-        this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);
-        this.animations[animationType].stop();
-        this.animations[animationType].timeScale = playbackSpeed;
-        if (animationType === AnimationState.idle) {
-          this.animations[animationType].play();
-        }
-        if (!loop) {
-          this.animations[animationType].setLoop(LoopRepeat, 1); // Ensure non-looping
-          this.animations[animationType].clampWhenFinished = true;
-        }
-        resolve();
-      } else {
-        reject(`failed to load ${animationType} from ${animationFileUrl}`);
-      }
-    });
+  ) {
+    const cleanAnimation = this.cleanAnimationClips(this.mesh, animation as AnimationClip, true);
+    this.animations[animationType] = this.animationMixer!.clipAction(cleanAnimation);
+    this.animations[animationType].stop();
+    this.animations[animationType].timeScale = playbackSpeed;
+    if (animationType === AnimationState.idle) {
+      this.animations[animationType].play();
+    }
+    if (!loop) {
+      this.animations[animationType].setLoop(LoopRepeat, 1); // Ensure non-looping
+      this.animations[animationType].clampWhenFinished = true;
+    }
   }
 
   private transitionToAnimation(
@@ -319,5 +346,24 @@ export class CharacterModel {
     if (this.animationMixer) {
       this.animationMixer.update(time);
     }
+  }
+
+  dispose() {
+    if (this.animationMixer) {
+      this.animationMixer.stopAllAction();
+      this.animationMixer.uncacheRoot(this.mesh as SkinnedMesh);
+      this.animationMixer = null;
+    }
+    this.mesh?.traverse((child: Object3D) => {
+      if (child instanceof SkinnedMesh) {
+        child.geometry.dispose();
+        child.material.dispose();
+      }
+    });
+    this.mesh = null;
+    this.headBone = null;
+    this.characterHeight = null;
+    this.animations = {};
+    this.colors = null;
   }
 }

@@ -1,5 +1,9 @@
+import {
+  USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+  USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+  USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
+} from "@deltanet/delta-net-protocol";
 import { AvatarConfiguration, AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
-import { USER_AUTHENTICATION_FAILED_ERROR_TYPE, USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE, USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE } from "@deltanet/delta-net-protocol";
 import {
   AnimationConfig,
   CameraManager,
@@ -25,12 +29,9 @@ import {
   SpawnConfigurationState,
   Vect3,
   VirtualJoystick,
+  Character,
 } from "@mml-io/3d-web-client-core";
-import {
-  StringToHslOptions,
-  TextChatUI,
-  TextChatUIProps,
-} from "@mml-io/3d-web-text-chat";
+import { StringToHslOptions, TextChatUI, TextChatUIProps } from "@mml-io/3d-web-text-chat";
 import {
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
@@ -77,13 +78,13 @@ export type Networked3dWebExperienceClientConfig = {
   animationConfig: AnimationConfig;
   voiceChatAddress?: string;
   updateURLLocation?: boolean;
-  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any; }) => void;
+  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any }) => void;
   loadingScreen?: LoadingScreenConfig;
 } & UpdatableConfig;
 
 export type UpdatableConfig = {
   enableChat?: boolean;
-  mmlDocuments?: { [key: string]: MMLDocumentConfiguration; };
+  mmlDocuments?: { [key: string]: MMLDocumentConfiguration };
   environmentConfiguration?: EnvironmentConfiguration;
   spawnConfiguration?: SpawnConfiguration;
   avatarConfiguration?: AvatarConfiguration;
@@ -139,7 +140,7 @@ export class Networked3dWebExperienceClient {
   private virtualJoystick: VirtualJoystick;
 
   private mmlCompositionScene: MMLCompositionScene;
-  private mmlFrames: { [key: string]: HTMLElement; } = {};
+  private mmlFrames: { [key: string]: HTMLElement } = {};
 
   private clientId: number | null = null;
   private networkClient: UserNetworkingClient;
@@ -262,7 +263,7 @@ export class Networked3dWebExperienceClient {
           colors,
         });
       },
-      onServerError: (error: { message: string; errorType: string; }) => {
+      onServerError: (error: { message: string; errorType: string }) => {
         switch (error.errorType) {
           case USER_AUTHENTICATION_FAILED_ERROR_TYPE:
             this.disposeWithError(error.message);
@@ -278,7 +279,7 @@ export class Networked3dWebExperienceClient {
             this.disposeWithError(error.message);
         }
       },
-      onServerBroadcast: (broadcast: { broadcastType: string; payload: any; }) => {
+      onServerBroadcast: (broadcast: { broadcastType: string; payload: any }) => {
         this.config.onServerBroadcast?.(broadcast);
       },
       onCustomMessage: (customType: number, contents: string) => {
@@ -307,6 +308,11 @@ export class Networked3dWebExperienceClient {
 
     this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
 
+    const animationsPromise = Character.loadAnimations(
+      this.characterModelLoader,
+      this.config.animationConfig,
+    );
+
     this.characterManager = new CharacterManager({
       composer: this.composer,
       characterModelLoader: this.characterModelLoader,
@@ -325,7 +331,7 @@ export class Networked3dWebExperienceClient {
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
-      animationConfig: this.config.animationConfig,
+      animationsPromise: animationsPromise,
       spawnConfiguration: this.spawnConfiguration,
       characterResolve: (characterId: number) => {
         return this.resolveCharacterData(characterId);
@@ -477,8 +483,6 @@ export class Networked3dWebExperienceClient {
   }
 
   private updateUserProfile(id: number, userData: UserData) {
-    console.log(`Update user_profile for id=${id} (username=${userData.username}), colors=${userData.colors}`);
-
     this.userProfiles.set(id, userData);
 
     if (this.textChatUI && id === this.clientId) {
@@ -535,7 +539,7 @@ export class Networked3dWebExperienceClient {
     if (this.clientId === null) {
       return;
     }
-    
+
     // Chat is now integrated into the main deltanet connection
     // Only create the UI if chat is enabled (not explicitly disabled)
     if (this.config.enableChat && this.textChatUI === null) {
@@ -550,9 +554,12 @@ export class Networked3dWebExperienceClient {
         sendMessageToServerMethod: (message: string) => {
           this.characterManager.addSelfChatBubble(message);
           this.mmlCompositionScene.onChatMessage(message);
-          
+
           // Send chat message through deltanet custom message
-          this.networkClient.sendCustomMessage(FROM_CLIENT_CHAT_MESSAGE_TYPE, JSON.stringify({ message } satisfies ClientChatMessage));
+          this.networkClient.sendCustomMessage(
+            FROM_CLIENT_CHAT_MESSAGE_TYPE,
+            JSON.stringify({ message } satisfies ClientChatMessage),
+          );
         },
         visibleByDefault: this.config.chatVisibleByDefault,
         stringToHslOptions: this.config.userNameToColorOptions,
@@ -771,8 +778,8 @@ export class Networked3dWebExperienceClient {
     }
   }
 
-  private setMMLDocuments(mmlDocuments: { [key: string]: MMLDocumentConfiguration; }) {
-    const newFramesMap: { [key: string]: HTMLElement; } = {};
+  private setMMLDocuments(mmlDocuments: { [key: string]: MMLDocumentConfiguration }) {
+    const newFramesMap: { [key: string]: HTMLElement } = {};
     for (const [key, mmlDocSpec] of Object.entries(mmlDocuments)) {
       const existing = this.mmlFrames[key];
       if (!existing) {

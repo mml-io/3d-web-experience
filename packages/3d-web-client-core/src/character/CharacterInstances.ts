@@ -19,7 +19,7 @@ import { CameraManager } from "../camera/CameraManager";
 import { EulXYZ, Vect3 } from "../math";
 import { TimeManager } from "../time/TimeManager";
 
-import { AnimationConfig } from "./Character";
+import { AnimationConfig, LoadedAnimations } from "./Character";
 import {
   captureCharacterColorsFromObject3D,
   updateDebugTextureCanvas,
@@ -36,7 +36,7 @@ const lowPolyLoDModelURL = "/assets/models/low_poly_male_a.glb";
 
 export type CharacterInstancesConfig = {
   mesh: Object3D;
-  animationConfig: AnimationConfig;
+  animationsPromise: Promise<LoadedAnimations>;
   characterModelLoader: CharacterModelLoader;
   cameraManager: CameraManager;
   timeManager: TimeManager;
@@ -49,6 +49,7 @@ export type InstanceData = {
   characterId: number;
   instanceId: number;
   isActive: boolean;
+  isShadowed: boolean;
 
   time: number;
   speed: number;
@@ -76,7 +77,6 @@ export type InstanceData = {
   targetQuaternion: Quaternion;
   lerpSpeed: number;
   hasNewTarget: boolean;
-  enableLerp: boolean;
 };
 
 export class CharacterInstances {
@@ -275,6 +275,7 @@ export class CharacterInstances {
         instance.position.copy(newPosition);
         instance.quaternion.copy(newQuaternion);
         instance.isActive = true;
+        instance.isShadowed = false;
         instance.visible = true;
 
         instance.characterId = characterId;
@@ -315,6 +316,7 @@ export class CharacterInstances {
         if (typeof (this.instancedMesh as any).materialsNeedsUpdate === "function") {
           (this.instancedMesh as any).materialsNeedsUpdate();
         }
+        console.log("CharacterInstances: Updated material colors for instance", index);
       }
     }
 
@@ -333,6 +335,7 @@ export class CharacterInstances {
     if (this.instancedMesh && instanceId !== undefined) {
       this.instancedMesh.instances![instanceId].isActive = false;
       this.instancedMesh.instances![instanceId].visible = false;
+      this.instancedMesh.instances![instanceId].isShadowed = false;
       this.instancedMesh.instances![instanceId].characterId = -1;
       this.instancedMesh.instances![instanceId].instanceId = -1;
       this.instancedMesh.instances![instanceId].updateMatrix();
@@ -346,14 +349,59 @@ export class CharacterInstances {
     this.characterIdToInstanceIdMap.delete(characterId);
   }
 
+  /**
+   * Shadows an instance instead of fully despawning it. This keeps the instance data
+   * intact (including colors) while hiding it when a real character is promoted.
+   * This avoids texture updates when the character is later demoted back to an instance.
+   */
+  public shadowInstance(characterId: number): void {
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (this.instancedMesh && instanceId !== undefined) {
+      const instance = this.instancedMesh.instances![instanceId];
+      instance.isShadowed = true;
+      instance.visible = false;
+      instance.updateMatrix();
+      this.updateInstancedMeshBounds();
+
+      console.log(`CharacterInstances: Shadowed character instance ${characterId} (keeping data)`);
+    }
+  }
+
+  /**
+   * Reactivates a previously shadowed instance. This is used when a real character
+   * is demoted back to an instance, allowing us to reuse the existing instance data
+   * and avoid texture updates from creating a new instance.
+   */
+  public unshadowInstance(characterId: number): boolean {
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (!this.instancedMesh || instanceId === undefined) {
+      console.warn(`CharacterInstances: Cannot unshadow instance for character ${characterId}: not found`);
+      return false;
+    }
+
+    const instance = this.instancedMesh.instances![instanceId];
+    if (!instance || !instance.isActive || !instance.isShadowed) {
+      console.warn(`CharacterInstances: Cannot unshadow instance for character ${characterId}: not shadowed`);
+      return false;
+    }
+
+    instance.isShadowed = false;
+    instance.visible = true;
+    instance.updateMatrix();
+    this.updateInstancedMeshBounds();
+
+    console.log(`CharacterInstances: Unshadowed character instance ${characterId}`);
+    return true;
+  }
+
   public getInstanceInfo(): { active: number; total: number; available: number } {
     if (!this.instancedMesh?.instances) {
       return { active: 0, total: 0, available: 0 };
     }
 
-    const active = this.instancedMesh.instances.filter((inst) => inst.isActive).length;
+    const active = this.instancedMesh.instances.filter((inst) => inst.isActive && !inst.isShadowed).length;
     const total = this.instancedMesh.instances.length;
-    const available = total - active;
+    const available = total - this.instancedMesh.instances.filter((inst) => inst.isActive).length;
 
     return { active, total, available };
   }
@@ -363,7 +411,6 @@ export class CharacterInstances {
     position: Vect3,
     rotation: EulXYZ,
     animationState: AnimationState,
-    enableLerp: boolean = false,
   ): void {
     if (!this.instancedMesh) {
       console.error("CharacterInstances: Cannot update instance, mesh not initialized.");
@@ -384,6 +431,11 @@ export class CharacterInstances {
       return;
     }
 
+    // Skip updates for shadowed instances as they're hidden by real characters
+    if (instance.isShadowed) {
+      return;
+    }
+
     const newPosition = new Vector3(position.x, position.y, position.z).sub(
       new Vector3(0, 0.45, 0),
     );
@@ -391,18 +443,10 @@ export class CharacterInstances {
       new Euler(rotation.x, rotation.y, rotation.z),
     );
 
-    instance.enableLerp = enableLerp;
-
-    if (enableLerp) {
-      instance.targetPosition.copy(newPosition);
-      instance.targetQuaternion.copy(newQuaternion);
-      instance.hasNewTarget = true;
-      instance.lerpSpeed = 15.0;
-    } else {
-      instance.position.copy(newPosition);
-      instance.quaternion.copy(newQuaternion);
-      instance.hasNewTarget = false;
-    }
+    instance.targetPosition.copy(newPosition);
+    instance.targetQuaternion.copy(newQuaternion);
+    instance.hasNewTarget = true;
+    instance.lerpSpeed = 15.0;
 
     const animationSegmentName = this.animationStateToSegmentName(animationState);
 
@@ -423,15 +467,10 @@ export class CharacterInstances {
         return;
       }
     }
-
-    // Only update matrix immediately if not lerping
-    if (!enableLerp) {
-      instance.updateMatrix();
-      this.updateInstancedMeshBounds();
-    }
   }
 
   public updateInstanceColors(characterId: number, colors: Map<string, Color>): boolean {
+    console.log("updateInstanceColors", characterId);
     if (!this.instancedMesh) {
       console.error("CharacterInstances: Cannot update instance colors, mesh not initialized.");
       return false;
@@ -469,6 +508,7 @@ export class CharacterInstances {
       if (typeof (this.instancedMesh as any).materialsNeedsUpdate === "function") {
         (this.instancedMesh as any).materialsNeedsUpdate();
       }
+      console.log(`Updated colors for instance ${instanceId} of character ${characterId}`);
     }
 
     return true;
@@ -576,27 +616,22 @@ export class CharacterInstances {
   }
 
   private async loadAnimation(): Promise<void> {
+    const animationConfig = await this.config.animationsPromise;
     const animationConfigs = {
-      idle: this.config.animationConfig.idleAnimationFileUrl,
-      walking: this.config.animationConfig.jogAnimationFileUrl,
-      running: this.config.animationConfig.sprintAnimationFileUrl,
-      air: this.config.animationConfig.airAnimationFileUrl,
-      doubleJump: this.config.animationConfig.doubleJumpAnimationFileUrl,
+      idle: animationConfig.idleAnimation,
+      walking: animationConfig.jogAnimation,
+      running: animationConfig.sprintAnimation,
+      air: animationConfig.airAnimation,
+      doubleJump: animationConfig.doubleJumpAnimation,
     };
 
     const individualClips: Map<string, AnimationClip> = new Map();
 
-    for (const [stateName, url] of Object.entries(animationConfigs)) {
+    for (const [stateName, clip] of Object.entries(animationConfigs)) {
       try {
-        const clip = (await this.config.characterModelLoader.load(
-          url,
-          "animation",
-        )) as AnimationClip;
-        if (clip) {
-          individualClips.set(stateName, clip);
-          if (this.debug) {
-            console.log(`Loaded ${stateName} animation: ${clip.duration.toFixed(3)}s`);
-          }
+        individualClips.set(stateName, clip);
+        if (this.debug) {
+          console.log(`Loaded ${stateName} animation: ${clip.duration.toFixed(3)}s`);
         }
       } catch (error) {
         console.warn(`Failed to load animation ${stateName}:`, error);
@@ -703,6 +738,7 @@ export class CharacterInstances {
         }
         material.vertexColors = true;
         material.needsUpdate = true;
+        console.log("InstancedMesh material set:", material.name);
       }
     });
   }
@@ -754,6 +790,7 @@ export class CharacterInstances {
         obj.animationTime = 0; // animation time within the segment
 
         obj.isActive = !this.startWithHiddenInstances;
+        obj.isShadowed = false; // Initialize shadowed state
         obj.characterId = -1; // -1 means no character is assigned yet
         obj.instanceId = index; // instance ID
 
@@ -774,7 +811,6 @@ export class CharacterInstances {
         obj.targetQuaternion = new Quaternion();
         obj.lerpSpeed = 15.0;
         obj.hasNewTarget = false;
-        obj.enableLerp = false;
 
         if (this.instancedMesh) {
           this.instancedMesh.setMaterialColorsAt(index, {
@@ -790,9 +826,6 @@ export class CharacterInstances {
         }
       },
     );
-
-    // test MEGAtimeline animation switching
-    // setTimeout(() => this.testMegaTimelineAnimations(), 500);
   }
 
   private initializeSkeletonData(): void {
@@ -804,11 +837,27 @@ export class CharacterInstances {
     }
   }
 
+  public getPositionForInstance(characterId: number): Vect3 | null {
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (instanceId === undefined || !this.instancedMesh || !this.instancedMesh.instances) {
+      console.warn("CharacterInstances: Mesh or instances not initialized.");
+      return null;
+    }
+
+    const instance = this.instancedMesh.instances[instanceId];
+    if (!instance || !instance.isActive) {
+      console.warn(`CharacterInstances: Instance ${instanceId} is not active.`);
+      return null;
+    }
+
+    return new Vect3(instance.position.x, instance.position.y, instance.position.z);
+  }
+
   private updateAllInstanceLerping(): void {
     if (!this.instancedMesh?.instances) return;
 
     for (const instance of this.instancedMesh.instances) {
-      if (instance.isActive && instance.enableLerp && instance.hasNewTarget) {
+      if (instance.isActive && instance.hasNewTarget) {
         const lerpFactor = Math.min(this.delta * instance.lerpSpeed, 1.0);
 
         instance.position.lerp(instance.targetPosition, lerpFactor);
@@ -1113,5 +1162,73 @@ export class CharacterInstances {
       this.mixer = null;
     }
     this.skinnedMesh = null;
+  }
+
+  /**
+   * Immediately sets an instance position without lerping. Used when unshadowing
+   * instances to position them at the real character's last known position.
+   */
+  public setInstancePositionImmediate(
+    characterId: number,
+    position: Vect3,
+    rotation: EulXYZ,
+    animationState: AnimationState,
+  ): boolean {
+    if (!this.instancedMesh) {
+      console.error("CharacterInstances: Cannot set instance position, mesh not initialized.");
+      return false;
+    }
+
+    const instanceId = this.characterIdToInstanceIdMap.get(characterId);
+    if (instanceId === undefined) {
+      console.warn(`CharacterInstances: Instance not found for character ${characterId}`);
+      return false;
+    }
+
+    const instance = this.instancedMesh.instances![instanceId];
+    if (!instance || !instance.isActive) {
+      console.warn(
+        `CharacterInstances: Instance ${instanceId} is not active for character ${characterId}`,
+      );
+      return false;
+    }
+
+    // Set position immediately without lerping
+    const newPosition = new Vector3(position.x, position.y, position.z).sub(
+      new Vector3(0, 0.45, 0),
+    );
+    const newQuaternion = new Quaternion().setFromEuler(
+      new Euler(rotation.x, rotation.y, rotation.z),
+    );
+
+    instance.position.copy(newPosition);
+    instance.quaternion.copy(newQuaternion);
+    instance.targetPosition.copy(newPosition); // Set target to current to prevent lerping
+    instance.targetQuaternion.copy(newQuaternion);
+    instance.hasNewTarget = false; // No lerping needed
+
+    // Update animation state
+    const animationSegmentName = this.animationStateToSegmentName(animationState);
+    if (instance.currentAnimationState !== animationSegmentName) {
+      if (this.animationSegments.has(animationSegmentName)) {
+        instance.currentAnimationState = animationSegmentName;
+        instance.animationTime = 0;
+
+        if (this.debug) {
+          console.log(
+            `Set character ${characterId} animation to ${animationSegmentName} (immediate)`,
+          );
+        }
+      } else {
+        console.warn(
+          `CharacterInstances: Unknown animation state: ${animationSegmentName}. Available: ${Array.from(this.animationSegments.keys()).join(", ")}`,
+        );
+      }
+    }
+
+    instance.updateMatrix();
+    this.updateInstancedMeshBounds();
+
+    return true;
   }
 }

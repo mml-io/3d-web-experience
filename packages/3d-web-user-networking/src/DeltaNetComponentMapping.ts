@@ -1,7 +1,7 @@
 import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
 
 import { UserNetworkingClientUpdate } from "./types";
-import { CharacterDescription } from "./UserNetworkingMessages";
+import { CharacterDescription, UserIdentity } from "./UserNetworkingMessages";
 
 // Component IDs used in the deltanet implementation
 export const COMPONENT_POSITION_X = 1;
@@ -19,6 +19,7 @@ export const STATE_COLORS = 3;
 
 const rotationMultiplier = 360;
 const positionMultiplier = 100;
+const textDecoder = new TextDecoder();
 
 export class DeltaNetComponentMapping {
   /**
@@ -132,14 +133,14 @@ export class DeltaNetComponentMapping {
 
   static decodeColors(colors: Uint8Array): Array<[number, number, number]> {
     try {
-    const bufferReader = new BufferReader(colors);
-    const colorsArray: Array<[number, number, number]> = [];
-    const count = bufferReader.readUVarint();
-    for (let i = 0; i < count; i++) {
-      colorsArray.push([
-        bufferReader.readUVarint(),
-        bufferReader.readUVarint(),
-        bufferReader.readUVarint(),
+      const bufferReader = new BufferReader(colors);
+      const colorsArray: Array<[number, number, number]> = [];
+      const count = bufferReader.readUVarint();
+      for (let i = 0; i < count; i++) {
+        colorsArray.push([
+          bufferReader.readUVarint(),
+          bufferReader.readUVarint(),
+          bufferReader.readUVarint(),
         ]);
       }
       return colorsArray;
@@ -149,26 +150,9 @@ export class DeltaNetComponentMapping {
     }
   }
 
-  /**
-   * Decode binary states back to username and character description
-   */
-  static fromStates(states: Map<number, Uint8Array>): {
-    userId: number;
-    username?: string;
-    characterDescription?: CharacterDescription;
-    colors?: Array<[number, number, number]>;
-  } {
-    const textDecoder = new TextDecoder();
-
-    const userIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
+  static fromUserStates(states: Map<number, Uint8Array>): Partial<UserIdentity> {
     const usernameBytes = states.get(STATE_USERNAME);
     const username = usernameBytes ? textDecoder.decode(usernameBytes) : undefined;
-
-    let userId: number | undefined;
-    if (userIdBytes) {
-      const reader = new BufferReader(userIdBytes);
-      userId = reader.readUVarint(false);
-    }
 
     const characterDescBytes = states.get(STATE_CHARACTER_DESCRIPTION);
     let characterDescription: CharacterDescription | undefined;
@@ -183,10 +167,24 @@ export class DeltaNetComponentMapping {
     const colors = states.get(STATE_COLORS);
     const colorsArray = colors ? DeltaNetComponentMapping.decodeColors(colors) : [];
 
-    if (userId === undefined || username === undefined || characterDescription === undefined) {
-      throw new Error("Invalid states");
+    return { username, characterDescription, colors: colorsArray };
+  }
+
+  /**
+   * Decode binary states back to username and character description
+   */
+  static fromStates(states: Map<number, Uint8Array>): {
+    userId: number | null;
+  } & Partial<UserIdentity> {
+    const userIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
+    let userId: number | undefined;
+    if (userIdBytes) {
+      const reader = new BufferReader(userIdBytes);
+      userId = reader.readUVarint(false);
     }
 
-    return { userId, username, characterDescription, colors: colorsArray };
+    const userStates = DeltaNetComponentMapping.fromUserStates(states);
+
+    return { userId: userId ?? null, ...userStates };
   }
 }

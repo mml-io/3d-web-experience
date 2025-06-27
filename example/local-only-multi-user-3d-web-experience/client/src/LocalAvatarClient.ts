@@ -1,6 +1,7 @@
 import {
   AnimationConfig,
   CameraManager,
+  Character,
   CharacterDescription,
   CharacterManager,
   CharacterModelLoader,
@@ -147,6 +148,11 @@ export class LocalAvatarClient {
       enableRespawnButton: spawnConfiguration?.enableRespawnButton ?? false,
     };
 
+    const animationsPromise = Character.loadAnimations(
+      this.characterModelLoader,
+      animationConfig,
+    );
+
     this.characterManager = new CharacterManager({
       composer: this.composer,
       characterModelLoader: this.characterModelLoader,
@@ -158,7 +164,7 @@ export class LocalAvatarClient {
       sendUpdate: (characterState: CharacterState) => {
         localAvatarServer.send(localClientId, characterState);
       },
-      animationConfig,
+      animationsPromise,
       characterResolve: () => {
         return { username: "User", characterDescription, colors: [] };
       },

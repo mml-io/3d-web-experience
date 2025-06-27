@@ -2,6 +2,7 @@ import {
   UserData,
   UserIdentity,
   UserNetworkingServer,
+  UserNetworkingServerError,
 } from "@mml-io/3d-web-user-networking";
 import cors from "cors";
 import express from "express";
@@ -10,7 +11,6 @@ import WebSocket from "ws";
 
 import { MMLDocumentsServer } from "./MMLDocumentsServer";
 import { websocketDirectoryChangeListener } from "./websocketDirectoryChangeListener";
-import { DeltaNetServerError } from "@deltanet/delta-net-server";
 
 type UserAuthenticator = {
   generateAuthorizedSessionToken(req: express.Request): Promise<string | null>;
@@ -56,7 +56,7 @@ export type Networked3dWebExperienceServerConfig = {
 export class Networked3dWebExperienceServer {
   public userNetworkingServer: UserNetworkingServer;
 
-    public mmlDocumentsServer?: MMLDocumentsServer;
+  public mmlDocumentsServer?: MMLDocumentsServer;
 
   constructor(private config: Networked3dWebExperienceServerConfig) {
     if (this.config.mmlServing) {
@@ -95,7 +95,7 @@ export class Networked3dWebExperienceServer {
     this.userNetworkingServer.updateUserCharacter(clientId, userData);
   }
 
-  public dispose(error?: DeltaNetServerError) {
+  public dispose(error?: UserNetworkingServerError) {
     this.userNetworkingServer.dispose(error);
     if (this.mmlDocumentsServer) {
       this.mmlDocumentsServer.dispose();

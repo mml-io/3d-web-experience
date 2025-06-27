@@ -58,6 +58,7 @@ const stateComponent = 6;
 
 export class Bot {
   private client: DeltaNetClientWebsocket;
+  private states = new Map<number, Uint8Array>();
   private values = new Map<number, bigint>();
   private myIndex: number | null = null;
   private updateIntervalId: NodeJS.Timeout | null = null;
@@ -79,20 +80,24 @@ export class Bot {
     private readonly config: BotConfig,
   ) {
     // Initialize circular motion parameters
-    this.radius1 = (Math.random() * config.randomRange) / 2;
-    this.center1 = 0;
+    this.radius1 = 1500;
+    this.center1 = Math.random() * 1000 - 500;
     this.angle1 = Math.random() * 2 * Math.PI;
-    this.rate1 = 0.01 * Math.random() + 0.01;
+    this.rate1 = 0.02;
 
-    this.radius2 = (Math.random() * config.randomRange) / 2;
-    this.center2 = 0;
+    this.radius2 = 2000;
+    this.center2 = Math.random() * 1000 - 500;
     this.angle2 = Math.random() * 2 * Math.PI;
-    this.rate2 = 0.01 * Math.random() + 0.01;
+    this.rate2 = 0.01;
 
     // Initialize values
     for (const key of config.valuesToUpdate ?? [xComponent, zComponent]) {
       this.values.set(key, 0n);
     }
+    const characterDescription = {
+      mmlCharacterUrl: `https://casual-v1.msquaredavatars.com/${config.id}.mml`,
+    }
+    this.states.set(1, textEncoder.encode(JSON.stringify(characterDescription)));
 
     this.client = new DeltaNetClientWebsocket(
       this.url,
@@ -186,7 +191,6 @@ export class Bot {
     this.values.set(rotationWComponent, BigInt(Math.round(quaternionW * rotationMultiplier)));
     this.values.set(stateComponent, BigInt(1));
 
-    const states = new Map<number, Uint8Array>();
 
     if (this.config.colorStateId) {
       if (Math.random() > 0.99) {
@@ -195,11 +199,11 @@ export class Bot {
         colorBytes[0] = (color >> 16) & 0xff;
         colorBytes[1] = (color >> 8) & 0xff;
         colorBytes[2] = color & 0xff;
-        states.set(this.config.colorStateId, colorBytes);
+        this.states.set(this.config.colorStateId, colorBytes);
       }
     }
 
-    this.client.setUserComponents(new Map(this.values), states);
+    this.client.setUserComponents(new Map(this.values), this.states);
   }
 
   private handleStatusUpdate(status: DeltaNetClientWebsocketStatus): void {
