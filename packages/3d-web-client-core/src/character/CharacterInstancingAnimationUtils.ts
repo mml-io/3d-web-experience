@@ -20,8 +20,8 @@ export function createMegaTimeline(
   >();
   let currentTime = 0;
 
-  // small gap between animations to prevent (maybe we'd have blending issues?)
-  const gap = 0.1;
+  // increased gap between animations to prevent interpolation leaking
+  const gap = 1.0;
 
   // segments for each animation
   for (const [name, clip] of individualClips.entries()) {
@@ -46,6 +46,8 @@ export function createMegaTimeline(
     }
   }
 
+  const lastKnownValues = new Map<string, number[]>();
+
   // create a merged track for each
   for (const trackName of allTrackNames) {
     const mergedTimes: number[] = [];
@@ -60,30 +62,90 @@ export function createMegaTimeline(
         valueSize = track.getValueSize();
 
         // add track's keyframes, offset by the segment's start time
+        const trackValueSize = track.getValueSize();
+        valueSize = trackValueSize;
+
+        const segmentOffsetTimes: number[] = [];
+        const segmentOffsetValues: number[][] = [];
+
         for (let i = 0; i < track.times.length; i++) {
           const offsetTime = track.times[i] + segment.startTime;
-          mergedTimes.push(offsetTime);
+          const value: number[] = [];
 
-          // copy the values for the keyframe
-          for (let j = 0; j < valueSize; j++) {
-            mergedValues.push(track.values[i * valueSize + j]);
+          for (let j = 0; j < trackValueSize; j++) {
+            value.push(track.values[i * trackValueSize + j]);
+          }
+
+          segmentOffsetTimes.push(offsetTime);
+          segmentOffsetValues.push(value);
+        }
+
+        // append all times/values to merged track
+        for (let i = 0; i < segmentOffsetTimes.length; i++) {
+          mergedTimes.push(segmentOffsetTimes[i]);
+          mergedValues.push(...segmentOffsetValues[i]);
+        }
+
+        // we must enforce pose at segment.endTime if last keyframe is before it
+        const lastTime = segmentOffsetTimes[segmentOffsetTimes.length - 1];
+        const lastValue = segmentOffsetValues[segmentOffsetValues.length - 1];
+
+        if (lastTime < segment.endTime - 1e-5) {
+          mergedTimes.push(segment.endTime);
+          mergedValues.push(...lastValue);
+        }
+
+        // add boundary keyframes in the gap to prevent interpolation leaking
+        // and hold last pose throughout the entire gap period
+        if (gap > 0 && segment.endTime < totalDuration - 1e-5) {
+          const gapStart = segment.endTime + 1e-6; // Just after segment ends
+          const gapEnd = Math.min(segment.endTime + gap - 1e-6, totalDuration - 1e-5); // Just before next starts
+
+          // Add multiple keyframes throughout the gap to ensure no interpolation
+          mergedTimes.push(gapStart);
+          mergedValues.push(...lastValue);
+
+          if (gapEnd > gapStart) {
+            mergedTimes.push(gapEnd);
+            mergedValues.push(...lastValue);
           }
         }
-      } else {
-        // here the track doesn't exist in the segment, so we'll use identity/default
-        // values
-        const defaultValues = getDefaultTrackValues(trackName, valueSize || 3);
 
-        // start of segment
+        // cache last known value for fallback
+        lastKnownValues.set(trackName, lastValue);
+      } else {
+        // track is missing in this segment, reuse last known value if available
+        let fallbackValues = lastKnownValues.get(trackName);
+
+        if (!fallbackValues) {
+          // fallback to identity/default if never seen before
+          valueSize = valueSize || 3;
+          fallbackValues = getDefaultTrackValues(trackName, valueSize);
+        }
+
+        // push hold keyframes at start and end of segment
         mergedTimes.push(segment.startTime);
-        mergedValues.push(...defaultValues);
-        // end of segment
+        mergedValues.push(...fallbackValues);
+
         mergedTimes.push(segment.endTime);
-        mergedValues.push(...defaultValues);
+        mergedValues.push(...fallbackValues);
+
+        // add gap keyframes for missing tracks to maintain consistency
+        if (gap > 0 && segment.endTime < totalDuration - 1e-5) {
+          const gapStart = segment.endTime + 1e-6;
+          const gapEnd = Math.min(segment.endTime + gap - 1e-6, totalDuration - 1e-5);
+
+          mergedTimes.push(gapStart);
+          mergedValues.push(...fallbackValues);
+
+          if (gapEnd > gapStart) {
+            mergedTimes.push(gapEnd);
+            mergedValues.push(...fallbackValues);
+          }
+        }
       }
     }
 
-    // create the merged track
     if (mergedTimes.length > 0 && valueSize > 0) {
       const TrackType = getTrackTypeFromName(trackName);
       const mergedTrack = new TrackType(trackName, mergedTimes, mergedValues);

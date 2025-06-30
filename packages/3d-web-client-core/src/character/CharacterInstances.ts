@@ -747,7 +747,8 @@ export class CharacterInstances {
         }
 
         obj.time = 0; // animation time
-        obj.offset = Math.random() * 5; // animation track offset (prevents synchronicity)
+        obj.offset = Math.random() * 0.5; // animation track offset (prevents synchronicity)
+        // we should keep it small to avoid boundary issues
         obj.speed = 1.0; // animation speed multiplier
         obj.currentAnimationState = "idle"; // initial animation state
         obj.animationTime = 0; // animation time within the segment
@@ -905,8 +906,11 @@ export class CharacterInstances {
             instance.animationTime %= segment.duration;
           }
 
-          // absolute time in the mega-timeline
-          const megaTimelineTime = segment.startTime + instance.animationTime + instance.offset;
+          // apply offset within the segment duration to prevent leaking into other animations
+          const offsetAnimationTime = (instance.animationTime + instance.offset) % segment.duration;
+
+          // absolute time in the mega-timeline (offset is now contained within the segment)
+          const megaTimelineTime = segment.startTime + offsetAnimationTime;
 
           // hysteresis to prevent rapid switching at boundaries
           const currentMode = this.currentBindingMode;

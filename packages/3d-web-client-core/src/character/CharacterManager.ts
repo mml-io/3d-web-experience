@@ -14,8 +14,8 @@ import { TweakPane } from "../tweakpane/TweakPane";
 
 import { AnimationConfig, Character, CharacterDescription } from "./Character";
 import { CharacterInstances } from "./CharacterInstances";
-import { CharacterModelLoader } from "./CharacterModelLoader";
 import { colorArrayToColors } from "./CharacterModel";
+import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
 import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
@@ -107,7 +107,7 @@ export class CharacterManager {
     isReal: boolean;
     dirty: boolean; // needs distance recalculation
     lastLODChange: number; // timestamp of last promotion/demotion
-    loadingState?: 'loading' | 'loaded'; // track loading state for smooth transitions
+    loadingState?: "loading" | "loaded"; // track loading state for smooth transitions
   }> = [];
 
   private pendingSpawns = new Set<number>();
@@ -119,7 +119,6 @@ export class CharacterManager {
   constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
   }
-
 
   public spawnLocalCharacter(
     id: number,
@@ -369,7 +368,7 @@ export class CharacterManager {
     this.loadingCharacters.add(id);
     const activeChar = this.activeCharacters.find((c) => c.id === id);
     if (activeChar) {
-      activeChar.loadingState = 'loading';
+      activeChar.loadingState = "loading";
     }
 
     const characterInfo = this.config.characterResolve(id);
@@ -394,7 +393,7 @@ export class CharacterManager {
       () => {
         // Called when the real character has finished loading
         this.onRealCharacterLoaded(id);
-      }
+      },
     );
 
     console.log(
@@ -407,7 +406,7 @@ export class CharacterManager {
     this.loadingCharacters.delete(id);
     const activeChar = this.activeCharacters.find((c) => c.id === id);
     if (activeChar) {
-      activeChar.loadingState = 'loaded';
+      activeChar.loadingState = "loaded";
     }
 
     // Now it's safe to remove the instance
@@ -422,8 +421,6 @@ export class CharacterManager {
       `CharacterManager: Successfully completed promotion of character ${id} to real character`,
     );
   }
-
-
 
   private demoteToInstance(id: number): void {
     const networkState = this.config.remoteUserStates.get(id);
@@ -566,7 +563,7 @@ export class CharacterManager {
       spawnPosition,
       spawnRotation,
       initialAnimationState,
-      undefined // no loading callback for the basic method
+      undefined, // no loading callback for the basic method
     );
   }
 
@@ -798,17 +795,12 @@ export class CharacterManager {
           } else {
             if (this.characterInstances) {
               const characterInfo = this.config.characterResolve(id);
-              
+
               // Convert characterInfo colors to Map<string, Color> format
               const colorMap = colorArrayToColors(characterInfo.colors);
 
               const euler = new Euler().setFromQuaternion(
-                new Quaternion(
-                  0,
-                  update.rotation.quaternionY,
-                  0,
-                  update.rotation.quaternionW,
-                ),
+                new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
               );
               const rotation = new EulXYZ(euler.x, euler.y, euler.z);
 
