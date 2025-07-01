@@ -86,6 +86,10 @@ export class CharacterManager {
   public remoteCharacters: Map<number, Character> = new Map();
   public remoteCharacterControllers: Map<number, RemoteController> = new Map();
 
+  // hidden characters (avoid texture reupload to gpu on promotion)
+  private hiddenCharacters: Map<number, Character> = new Map();
+  private hiddenCharacterControllers: Map<number, RemoteController> = new Map();
+
   private localCharacterSpawned: boolean = false;
   public localController: LocalController;
   public localCharacter: Character | null = null;
@@ -357,6 +361,7 @@ export class CharacterManager {
   }
 
   private promoteToReal(id: number): void {
+    const startTime = performance.now();
     console.log(`CharacterManager: Promoting character ${id} to real character`);
     const networkState = this.config.remoteUserStates.get(id);
     if (!networkState) {
@@ -364,7 +369,46 @@ export class CharacterManager {
       return;
     }
 
-    // Mark character as loading and update active character state
+    // check if we have this character hidden (textures already uploaded)
+    const hiddenCharacter = this.hiddenCharacters.get(id);
+    const hiddenController = this.hiddenCharacterControllers.get(id);
+
+    if (hiddenCharacter && hiddenController) {
+      console.log(`CharacterManager: fast promotion (making character ${id} visible)`);
+
+      hiddenCharacter.visible = true;
+      this.remoteCharacters.set(id, hiddenCharacter);
+      this.remoteCharacterControllers.set(id, hiddenController);
+
+      // remove from hidden pool
+      this.hiddenCharacters.delete(id);
+      this.hiddenCharacterControllers.delete(id);
+
+      const position = new Vect3(
+        networkState.position.x,
+        networkState.position.y,
+        networkState.position.z,
+      );
+      const euler = new Euler().setFromQuaternion(
+        new Quaternion(0, networkState.rotation.quaternionY, 0, networkState.rotation.quaternionW),
+      );
+      hiddenCharacter.position.set(position.x, position.y, position.z);
+      hiddenCharacter.rotation.copy(euler);
+      hiddenCharacter.updateAnimation(networkState.state);
+
+      // mark as loaded immediately
+      this.onRealCharacterLoaded(id);
+
+      const loadTime = performance.now() - startTime;
+      console.log(
+        `CharacterManager: FAST promotion completed in ${loadTime.toFixed(0)}ms (no texture upload)`,
+      );
+      return;
+    }
+
+    console.log(`CharacterManager: slow promotion (creating new character ${id})`);
+
+    // mark character as loading and update active character state
     this.loadingCharacters.add(id);
     const activeChar = this.activeCharacters.find((c) => c.id === id);
     if (activeChar) {
@@ -392,6 +436,10 @@ export class CharacterManager {
       networkState.state,
       () => {
         // Called when the real character has finished loading
+        const loadTime = performance.now() - startTime;
+        console.log(
+          `CharacterManager: slow promotion (${id}) promoted in ${loadTime.toFixed(0)}ms (texture upload)`,
+        );
         this.onRealCharacterLoaded(id);
       },
     );
@@ -436,11 +484,21 @@ export class CharacterManager {
     const colorsToUse = colorArrayToColors(characterInfo.colors);
 
     const character = this.remoteCharacters.get(id);
-    if (character) {
-      this.group.remove(character);
+    const controller = this.remoteCharacterControllers.get(id);
+
+    if (character && controller) {
+      // hide character but keep in scene to preserve GPU textures
+      character.visible = false;
+
+      // move to hidden pools instead of destroying
+      this.hiddenCharacters.set(id, character);
+      this.hiddenCharacterControllers.set(id, controller);
+
+      // remove from active pools
       this.remoteCharacters.delete(id);
       this.remoteCharacterControllers.delete(id);
-      console.log(`CharacterManager: Removed real character ${id} from scene for demotion`);
+
+      console.log(`CharacterManager: Hidden real character ${id} (textures preserved in GPU)`);
     }
 
     if (this.characterInstances) {
@@ -652,6 +710,14 @@ export class CharacterManager {
       this.remoteCharacters.delete(id);
       this.remoteCharacterControllers.delete(id);
     }
+
+    // clean up hidden characters too
+    for (const [id, character] of this.hiddenCharacters) {
+      this.group.remove(character);
+      this.hiddenCharacters.delete(id);
+      this.hiddenCharacterControllers.delete(id);
+    }
+
     if (this.localCharacter) {
       this.group.remove(this.localCharacter);
       this.localCharacter = null;
@@ -914,6 +980,17 @@ export class CharacterManager {
           this.remoteCharacters.delete(id);
           this.remoteCharacterControllers.delete(id);
           this.loadingCharacters.delete(id); // Clean up loading state
+        }
+      }
+
+      // also clean up orphaned hidden characters
+      for (const [id, character] of this.hiddenCharacters) {
+        if (!this.config.remoteUserStates.has(id)) {
+          console.log(`CharacterManager: Cleaning up orphaned hidden character ${id}`);
+          this.group.remove(character);
+          this.hiddenCharacters.delete(id);
+          this.hiddenCharacterControllers.delete(id);
+          this.loadingCharacters.delete(id);
         }
       }
 
