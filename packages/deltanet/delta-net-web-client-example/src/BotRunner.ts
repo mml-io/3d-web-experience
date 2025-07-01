@@ -7,7 +7,7 @@ export type BotRunnerConfig = {
   logStatusInterval: number;
   colorStateId?: number;
   yValue: number;
-}
+};
 
 export interface BotConfig {
   id: number;
@@ -22,9 +22,7 @@ export class BotRunner {
   private bots: Bot[] = [];
   private statusIntervalId: NodeJS.Timeout | null = null;
 
-  constructor(
-    private readonly config: BotRunnerConfig,
-  ) {}
+  constructor(private readonly config: BotRunnerConfig) {}
 
   public addBot(config: BotConfig): Bot {
     const bot = new Bot(this.config.serverUrl, config);

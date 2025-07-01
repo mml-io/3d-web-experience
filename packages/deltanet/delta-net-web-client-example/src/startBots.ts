@@ -7,7 +7,7 @@ const defaultConfig: BotRunnerConfig = {
   randomRange: 2048,
   logStatusInterval: 5000,
   yValue: 0,
-  colorStateId: 10,
+  colorStateId: 3, // Use STATE_COLORS from DeltaNetComponentMapping
 };
 
 const webWorldConfig: BotRunnerConfig = {
@@ -16,6 +16,7 @@ const webWorldConfig: BotRunnerConfig = {
   randomRange: 4096,
   yValue: 45,
   logStatusInterval: 5000,
+  colorStateId: 3, // Use STATE_COLORS from DeltaNetComponentMapping
 };
 
 let config = defaultConfig;

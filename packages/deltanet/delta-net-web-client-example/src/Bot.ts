@@ -1,4 +1,5 @@
-import { deltaNetProtocolSubProtocol_v0_1 } from "@deltanet/delta-net-protocol";
+/* eslint-disable import/no-extraneous-dependencies */
+import { deltaNetProtocolSubProtocol_v0_1, BufferWriter } from "@deltanet/delta-net-protocol";
 import {
   DeltaNetClientWebsocket,
   DeltaNetClientWebsocketInitialCheckout,
@@ -31,6 +32,34 @@ function createWebSocket(url: string, protocols?: string | string[]): WebSocket 
 }
 
 const textEncoder = new TextEncoder();
+
+// Encode colors using the same format as DeltaNetComponentMapping.encodeColors()
+function encodeColors(colors: Array<[number, number, number]>): Uint8Array {
+  const bufferWriter = new BufferWriter(3 * colors.length + 1);
+  bufferWriter.writeUVarint(colors.length);
+  for (const color of colors) {
+    bufferWriter.writeUVarint(color[0]);
+    bufferWriter.writeUVarint(color[1]);
+    bufferWriter.writeUVarint(color[2]);
+  }
+  return bufferWriter.getBuffer();
+}
+
+// Generate consistent colors for all bot character parts
+function generateBotCharacterColors(): Array<[number, number, number]> {
+  // Order matches colorPartNamesIndex: hair, skin, lips, shirt_short, shirt_long, pants_short, pants_long, shoes
+  // All bots will have the same colors - a distinctive bot appearance
+  return [
+    [97, 91, 140], // hair
+    [248, 206, 180], // skin
+    [180, 120, 120], // lips
+    [47, 43, 78], // shirt_short
+    [160, 120, 100], // shirt_long
+    [97, 91, 140], // pants_short
+    [97, 91, 140], // pants_long
+    [47, 43, 78], // shoes - dark gray
+  ];
+}
 
 const tlds = ["com", "net", "org", "io", "ai", "dev", "app", "co"];
 
@@ -112,8 +141,10 @@ export class Bot {
         onTick: (tick: DeltaNetClientWebsocketTick) => {
           // Bots ignore ticks
         },
-        onError: (error: string, retryable: boolean) => {
-          console.error(`Bot ${this.config.id} error: ${error} (retryable: ${retryable})`);
+        onError: (errorType: string, errorMessage: string, retryable: boolean) => {
+          console.error(
+            `Bot ${this.config.id} error: ${errorType} - ${errorMessage} (retryable: ${retryable})`,
+          );
         },
         onWarning: (warning: string) => {
           console.warn(`Bot ${this.config.id} warning: ${warning}`);
@@ -189,13 +220,12 @@ export class Bot {
     const states = new Map<number, Uint8Array>();
 
     if (this.config.colorStateId) {
-      if (Math.random() > 0.99) {
-        const color = Math.floor(Math.random() * 16777215);
-        const colorBytes = new Uint8Array(3);
-        colorBytes[0] = (color >> 16) & 0xff;
-        colorBytes[1] = (color >> 8) & 0xff;
-        colorBytes[2] = color & 0xff;
-        states.set(this.config.colorStateId, colorBytes);
+      if (Math.random() > 0.95) {
+        // Send consistent bot colors in the proper format expected by DeltaNetComponentMapping.decodeColors()
+        const characterColors = generateBotCharacterColors();
+        const encodedColors = encodeColors(characterColors);
+        states.set(this.config.colorStateId, encodedColors);
+        // console.log(`Bot ${this.config.id} sent consistent bot character colors`);
       }
     }
 
