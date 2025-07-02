@@ -26,10 +26,9 @@ const app = new Networked3dWebExperienceClient(holder, {
   },
   mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
   environmentConfiguration: {
-    skybox: {
-      hdrUrl: hdrUrl,
-      // hdrJpgUrl: hdrJpgUrl,
-    },
+    // skybox: {
+    //   hdrUrl: hdrUrl,
+    // },
   },
   avatarConfiguration: {
     availableAvatars: [

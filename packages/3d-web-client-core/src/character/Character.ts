@@ -2,7 +2,6 @@ import { Color, Group, Object3D, Quaternion } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { EulXYZ } from "../math/EulXYZ";
-import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
@@ -164,14 +163,6 @@ export class Character extends Group {
 
   getCurrentAnimation(): AnimationState {
     return this.model?.currentAnimation || AnimationState.idle;
-  }
-
-  public getLocalPosition(): Vect3 {
-    return new Vect3(
-      this.model?.mesh?.position.x || 0,
-      this.model?.mesh?.position.y || 0,
-      this.model?.mesh?.position.z || 0,
-    );
   }
 
   addChatBubble(message: string) {

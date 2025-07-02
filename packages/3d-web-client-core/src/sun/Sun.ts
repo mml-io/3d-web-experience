@@ -1,27 +1,25 @@
-import { CameraHelper, Color, DirectionalLight, Group, OrthographicCamera } from "three";
+import { CameraHelper, Color, DirectionalLight, Group, OrthographicCamera, Vector3 } from "three";
 
-import { Vect3 } from "../math";
 import { sunValues } from "../tweakpane/blades/environmentFolder";
 
 export class Sun extends Group {
   private readonly debug: boolean = false;
-  private readonly sunOffset: Vect3 = new Vect3(
+  private readonly sunOffset: Vector3 = new Vector3(
     sunValues.sunPosition.sunAzimuthalAngle * (Math.PI / 180),
     sunValues.sunPosition.sunPolarAngle * (Math.PI / 180),
-    10,
+    100,
   );
-  private readonly shadowResolution: number = 4096;
+  private readonly shadowResolution: number = 8192;
   private readonly shadowCamFrustum: number = 50;
   private readonly camHelper: CameraHelper | null = null;
 
   private readonly shadowCamera: OrthographicCamera;
   private readonly directionalLight: DirectionalLight;
 
-  public target: Vect3 | null = null;
+  public target: Vector3 | null = null;
 
   constructor() {
     super();
-
     this.shadowCamera = new OrthographicCamera(
       -this.shadowCamFrustum,
       this.shadowCamFrustum,
@@ -30,11 +28,9 @@ export class Sun extends Group {
       0.1,
       200,
     );
-
     if (this.debug === true) {
       this.camHelper = new CameraHelper(this.shadowCamera);
     }
-
     this.directionalLight = new DirectionalLight(0xffffff);
     this.directionalLight.intensity = sunValues.sunIntensity;
     this.directionalLight.shadow.normalBias = 0.1;
@@ -44,7 +40,7 @@ export class Sun extends Group {
     this.directionalLight.castShadow = true;
     this.setColor();
 
-    this.updateCharacterPosition(new Vect3(0, 0, 0));
+    this.updateCharacterPosition(new Vector3(0, 0, 0));
 
     this.add(this.directionalLight);
     if (this.debug === true && this.camHelper instanceof CameraHelper) {
@@ -52,7 +48,7 @@ export class Sun extends Group {
     }
   }
 
-  public updateCharacterPosition(position: Vect3 | undefined) {
+  public updateCharacterPosition(position: Vector3 | undefined) {
     if (!position) return;
     this.target = position;
     this.setSunPosition(this.sunOffset.x, this.sunOffset.y);
@@ -69,35 +65,29 @@ export class Sun extends Group {
   }
 
   public setIntensity(intensity: number) {
-    if (this.directionalLight) {
-      this.directionalLight.intensity = intensity;
-    }
+    this.directionalLight.intensity = intensity;
   }
 
   public setColor() {
-    if (this.directionalLight) {
-      this.directionalLight.color = new Color().setRGB(
-        sunValues.sunColor.r,
-        sunValues.sunColor.g,
-        sunValues.sunColor.b,
-      );
-    }
+    this.directionalLight.color = new Color().setRGB(
+      sunValues.sunColor.r,
+      sunValues.sunColor.g,
+      sunValues.sunColor.b,
+    );
   }
 
   private setSunPosition(azimuthalAngle: number, polarAngle: number) {
     if (!this.target) return;
     const distance = this.sunOffset.z;
-    const sphericalPosition = new Vect3(
-      distance * Math.sin(polarAngle) * Math.cos(azimuthalAngle),
+    // add 90° offset to align coordinate system with player facing +Z
+    const adjustedAzimuthalAngle = -azimuthalAngle + Math.PI / 2;
+    const sphericalPosition = new Vector3(
+      distance * Math.sin(polarAngle) * Math.cos(adjustedAzimuthalAngle),
       distance * Math.cos(polarAngle),
-      distance * Math.sin(polarAngle) * Math.sin(azimuthalAngle),
+      distance * Math.sin(polarAngle) * Math.sin(adjustedAzimuthalAngle),
     );
     const newSunPosition = this.target.clone().add(sphericalPosition);
-
-    // Position the directional light
     this.directionalLight.position.set(newSunPosition.x, newSunPosition.y, newSunPosition.z);
-
-    // Look at the target
     this.directionalLight.target.position.copy(this.target.clone());
     this.directionalLight.target.updateMatrixWorld();
   }

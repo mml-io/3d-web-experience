@@ -4,38 +4,61 @@ import {
   parseMMLDescription,
 } from "@mml-io/3d-web-avatar";
 import { ModelLoader } from "@mml-io/model-loader";
-import { AnimationAction, AnimationClip, AnimationMixer, Bone, Color, LoopRepeat, Object3D, SkinnedMesh } from "three";
+import {
+  AnimationAction,
+  AnimationClip,
+  AnimationMixer,
+  Bone,
+  Box3,
+  Color,
+  LoopRepeat,
+  Mesh,
+  MeshStandardMaterial,
+  Object3D,
+  SkinnedMesh,
+  Vector3,
+} from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 
 import { AnimationConfig, CharacterDescription } from "./Character";
+import {
+  captureCharacterColors,
+  captureCharacterColorsFromObject3D,
+} from "./CharacterColourSamplingUtils";
+import { CharacterMaterial } from "./CharacterMaterial";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
-import { captureCharacterColors, captureCharacterColorsFromObject3D } from "./CharacterColourSamplingUtils";
 
 export const colorPartNamesIndex = [
-"hair",
-"skin",
-"lips",
-"shirt_short",
-"shirt_long",
-"pants_short",
-"pants_long",
-"shoes",
-]
+  "hair",
+  "skin",
+  "lips",
+  "shirt_short",
+  "shirt_long",
+  "pants_short",
+  "pants_long",
+  "shoes",
+];
 
 export function colorsToColorArray(colors: Map<string, Color>): Array<[number, number, number]> {
   const colorArray: Array<[number, number, number]> = [];
   for (const partName of colorPartNamesIndex) {
     const color = colors.get(partName);
     if (color) {
-      colorArray.push([Math.round(color.r * 255), Math.round(color.g * 255), Math.round(color.b * 255)]);
+      colorArray.push([
+        Math.round(color.r * 255),
+        Math.round(color.g * 255),
+        Math.round(color.b * 255),
+      ]);
     }
   }
   return colorArray;
 }
 
-export function colorArrayToColors(colorArray: Array<[number, number, number]>): Map<string, Color> {
+export function colorArrayToColors(
+  colorArray: Array<[number, number, number]>,
+): Map<string, Color> {
   const colors = new Map<string, Color>();
   for (let i = 0; i < colorPartNamesIndex.length; i++) {
     const color = colorArray[i];
@@ -62,6 +85,8 @@ export class CharacterModel {
   public headBone: Bone | null = null;
   public characterHeight: number | null = null;
 
+  private materials: Map<string, CharacterMaterial> = new Map();
+
   public animations: Record<string, AnimationAction> = {};
   public animationMixer: AnimationMixer | null = null;
   public currentAnimation: AnimationState = AnimationState.idle;
@@ -69,7 +94,7 @@ export class CharacterModel {
   public mmlCharacterDescription: MMLCharacterDescription;
 
   private isPostDoubleJump = false;
-  
+
   private colors: Array<[number, number, number]> | null = null;
 
   constructor(private config: CharacterModelConfig) {}
@@ -103,7 +128,51 @@ export class CharacterModel {
         false,
         1.45,
       );
+      this.applyCustomMaterials();
     }
+  }
+
+  private applyCustomMaterials(): void {
+    if (!this.mesh) return;
+    const boundingBox = new Box3();
+    this.mesh.updateWorldMatrix(true, true);
+    boundingBox.expandByObject(this.mesh);
+    this.characterHeight = boundingBox.max.y - boundingBox.min.y;
+
+    this.mesh.traverse((child: Object3D) => {
+      if ((child as Bone).isBone) {
+        if (child.name === "head") {
+          const worldPosition = new Vector3();
+          this.headBone = child as Bone;
+          this.headBone.getWorldPosition(worldPosition);
+        }
+      }
+      if ((child as Mesh).isMesh || (child as SkinnedMesh).isSkinnedMesh) {
+        const asMesh = child as Mesh;
+        const originalMaterial = asMesh.material as MeshStandardMaterial;
+        if (this.materials.has(originalMaterial.name)) {
+          asMesh.material = this.materials.get(originalMaterial.name)!;
+        } else {
+          const material =
+            originalMaterial.name === "body_replaceable_color"
+              ? new CharacterMaterial({
+                  isLocal: this.config.isLocal,
+                  cameraManager: this.config.cameraManager,
+                  characterId: this.config.characterId,
+                  originalMaterial,
+                })
+              : new CharacterMaterial({
+                  isLocal: this.config.isLocal,
+                  cameraManager: this.config.cameraManager,
+                  characterId: this.config.characterId,
+                  originalMaterial,
+                  colorOverride: originalMaterial.color,
+                });
+          this.materials.set(originalMaterial.name, material);
+          asMesh.material = material;
+        }
+      }
+    });
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
@@ -117,7 +186,10 @@ export class CharacterModel {
       }
     }
     if (this.currentAnimation !== targetAnimation) {
-      console.log(`CharacterModel updateAnimation for clientId=${this.config.characterId}`, targetAnimation);
+      console.log(
+        `CharacterModel updateAnimation for clientId=${this.config.characterId}`,
+        targetAnimation,
+      );
       this.transitionToAnimation(targetAnimation);
     }
   }
@@ -318,6 +390,7 @@ export class CharacterModel {
   update(time: number) {
     if (this.animationMixer) {
       this.animationMixer.update(time);
+      this.materials.forEach((material) => material.update());
     }
   }
 }

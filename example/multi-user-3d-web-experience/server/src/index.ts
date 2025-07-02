@@ -2,7 +2,10 @@ import fs from "fs";
 import path from "path";
 import url from "url";
 
-import { Networked3dWebExperienceServer, Networked3dWebExperienceServerConfig } from "@mml-io/3d-web-experience-server";
+import {
+  Networked3dWebExperienceServer,
+  Networked3dWebExperienceServerConfig,
+} from "@mml-io/3d-web-experience-server";
 import type { CharacterDescription } from "@mml-io/3d-web-user-networking";
 import express from "express";
 import enableWs from "express-ws";
@@ -17,19 +20,19 @@ const PORT = process.env.PORT || 8080;
 // Specify the avatar to use here:
 const characterDescription: CharacterDescription = {
   // Option 1 (Default) - Use a GLB file directly
-  // meshFileUrl: "/assets/models/bot.glb", // This is just an address of a GLB file
+  meshFileUrl: "/assets/models/bot.glb", // This is just an address of a GLB file
   // Option 2 - Use an MML Character from a URL
   // mmlCharacterUrl: "https://...",
   // Option 3 - Use an MML Character from a string
-  mmlCharacterString: `
-  <m-character src="/assets/models/mml_body_male.glb">
-    <m-model src="/assets/models/mml_head_hispanic_male.glb"></m-model>
-    <m-model src="/assets/models/mml_hair_black.glb"></m-model>
-    <m-model src="/assets/models/mml_torso_hoodie.glb"></m-model>
-    <m-model src="/assets/models/mml_legs_grey_pants.glb"></m-model>
-    <m-model src="/assets/models/mml_shoes_retro_white.glb"></m-model>
-  </m-character>
-  `,
+  // mmlCharacterString: `
+  // <m-character src="/assets/models/mml_body_male.glb">
+  //   <m-model src="/assets/models/mml_head_hispanic_male.glb"></m-model>
+  //   <m-model src="/assets/models/mml_hair_black.glb"></m-model>
+  //   <m-model src="/assets/models/mml_torso_hoodie.glb"></m-model>
+  //   <m-model src="/assets/models/mml_legs_grey_pants.glb"></m-model>
+  //   <m-model src="/assets/models/mml_shoes_retro_white.glb"></m-model>
+  // </m-character>
+  // `,
 };
 
 const userAuthenticator = new BasicUserAuthenticator(characterDescription, {
