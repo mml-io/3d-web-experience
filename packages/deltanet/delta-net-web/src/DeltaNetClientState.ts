@@ -159,13 +159,13 @@ export class DeltaNetClientState {
     return { stateUpdates, removedStableIds: [] };
   }
 
-  public handleTick(tick: DeltaNetClientWebsocketTick): { 
-    stateUpdates: Array<EntityStateUpdate>; 
+  public handleTick(tick: DeltaNetClientWebsocketTick): {
+    stateUpdates: Array<EntityStateUpdate>;
     removedStableIds: Array<number>;
   } {
     const { unoccupying, indicesCount, componentDeltaDeltas, stateChanges } = tick;
     let removedStableIds: Array<number> = [];
-    
+
     if (unoccupying.length > 0) {
       // Remove unoccupying indices from component values
       for (const [, component] of this.componentValues) {
@@ -192,7 +192,7 @@ export class DeltaNetClientState {
 
       // Collect stableIds to remove before mutating stableIds
       const stableIdsToRemove = unoccupying.map((index) => this.stableIds[index]);
-      removedStableIds = stableIdsToRemove.filter(stableId => stableId !== undefined);
+      removedStableIds = stableIdsToRemove.filter((stableId) => stableId !== undefined);
 
       // Update stable indices and stableIds array
       this.removeIndices(unoccupying);

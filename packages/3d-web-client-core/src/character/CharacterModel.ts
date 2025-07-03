@@ -103,7 +103,7 @@ export class CharacterModel {
 
   private colors: Array<[number, number, number]> | null = null;
 
-  constructor(private config: CharacterModelConfig) { }
+  constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
     // Check if operation was cancelled before starting
@@ -116,7 +116,9 @@ export class CharacterModel {
 
     // Check if operation was cancelled after mesh loading
     if (this.config.abortController?.signal.aborted) {
-      console.log(`CharacterModel init cancelled after mesh loading for ${this.config.characterId}`);
+      console.log(
+        `CharacterModel init cancelled after mesh loading for ${this.config.characterId}`,
+      );
       return;
     }
 
@@ -125,7 +127,9 @@ export class CharacterModel {
 
       // Check if operation was cancelled after animation loading
       if (this.config.abortController?.signal.aborted) {
-        console.log(`CharacterModel init cancelled after animation loading for ${this.config.characterId}`);
+        console.log(
+          `CharacterModel init cancelled after animation loading for ${this.config.characterId}`,
+        );
         return;
       }
 
@@ -167,18 +171,18 @@ export class CharacterModel {
           const material =
             originalMaterial.name === "body_replaceable_color"
               ? new CharacterMaterial({
-                isLocal: this.config.isLocal,
-                cameraManager: this.config.cameraManager,
-                characterId: this.config.characterId,
-                originalMaterial,
-              })
+                  isLocal: this.config.isLocal,
+                  cameraManager: this.config.cameraManager,
+                  characterId: this.config.characterId,
+                  originalMaterial,
+                })
               : new CharacterMaterial({
-                isLocal: this.config.isLocal,
-                cameraManager: this.config.cameraManager,
-                characterId: this.config.characterId,
-                originalMaterial,
-                colorOverride: originalMaterial.color,
-              });
+                  isLocal: this.config.isLocal,
+                  cameraManager: this.config.cameraManager,
+                  characterId: this.config.characterId,
+                  originalMaterial,
+                  colorOverride: originalMaterial.color,
+                });
           this.materials.set(originalMaterial.name, material);
           asMesh.material = material;
         }
@@ -217,7 +221,11 @@ export class CharacterModel {
         this.mmlCharacterDescription = mmlCharacterDescription;
         const mmlCharacter = new MMLCharacter({
           load: async (url: string) => {
-            const model = await this.config.characterModelLoader.load(url, "model", this.config.abortController);
+            const model = await this.config.characterModelLoader.load(
+              url,
+              "model",
+              this.config.abortController,
+            );
             return {
               group: new Group().add(model as Object3D),
               animations: [],

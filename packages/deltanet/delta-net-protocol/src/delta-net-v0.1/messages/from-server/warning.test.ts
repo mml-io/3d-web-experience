@@ -1,8 +1,8 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
 import { WarningMessageType } from "../../messageTypes";
-import { decodeWarning, encodeWarning } from "./warning";
-import { DeltaNetV01WarningMessage } from "./warning";
+
+import { decodeWarning, encodeWarning, DeltaNetV01WarningMessage } from "./warning";
 
 const cases: Array<[string, DeltaNetV01WarningMessage, Array<number>]> = [
   [

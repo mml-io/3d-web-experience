@@ -1,10 +1,11 @@
 import { ModelLoader, ModelLoadResult } from "@mml-io/model-loader";
 import { AnimationClip, Object3D } from "three";
+
 import { GLTFTextureWorkerPool } from "./TextureWorker";
 
 /**
  * CharacterModelLoader with automatic texture downscaling using Web Workers and gltf-transform
- * 
+ *
  * Performance Features:
  * - Entire gLTF loading and processing happens off main thread using Web Workers
  * - Uses gltf-transform for proper gLTF manipulation and texture processing
@@ -12,24 +13,24 @@ import { GLTFTextureWorkerPool } from "./TextureWorker";
  * - No caching - each load is fresh to prevent memory leaks
  * - Immediate cleanup of blob URLs to prevent memory accumulation
  * - Configurable maximum texture size
- * 
+ *
  * Memory Safety:
  * - No LRU cache to prevent memory bloat
  * - Blob URLs are revoked immediately after use
  * - Worker pool handles its own memory management
  * - Direct processing without intermediate storage
- * 
+ *
  * @example
  * ```typescript
  * // Ultra performance (mobile/low-end devices)
  * const loader = new CharacterModelLoader(false, 128);
- * 
- * // Balanced performance (most devices)  
+ *
+ * // Balanced performance (most devices)
  * const loader = new CharacterModelLoader(false, 512);
- * 
+ *
  * // Quality focused (high-end devices)
  * const loader = new CharacterModelLoader(false, 1024);
- * 
+ *
  * const model = await loader.load('character.glb', 'model');
  * ```
  */
@@ -39,7 +40,7 @@ export class CharacterModelLoader {
 
   constructor(
     private debug: boolean = false,
-    private maxTextureSize: number = 128
+    private maxTextureSize: number = 128,
   ) {
     this.maxTextureSize = maxTextureSize;
     this.workerPool = GLTFTextureWorkerPool.getInstance();
@@ -52,8 +53,16 @@ export class CharacterModelLoader {
     }
   }
 
-  async load(fileUrl: string, fileType: "model", abortController?: AbortController): Promise<Object3D | undefined>;
-  async load(fileUrl: string, fileType: "animation", abortController?: AbortController): Promise<AnimationClip | undefined>;
+  async load(
+    fileUrl: string,
+    fileType: "model",
+    abortController?: AbortController,
+  ): Promise<Object3D | undefined>;
+  async load(
+    fileUrl: string,
+    fileType: "animation",
+    abortController?: AbortController,
+  ): Promise<AnimationClip | undefined>;
   async load(
     fileUrl: string,
     fileType: "model" | "animation",
@@ -66,11 +75,11 @@ export class CharacterModelLoader {
     try {
       // Process gLTF in worker (includes fetch + texture processing)
       const processedBuffer = await this.processGLTFInWorker(fileUrl, abortController);
-      
+
       // Create temporary blob URL for ModelLoader
-      const blob = new Blob([processedBuffer], { type: 'model/gltf-binary' });
+      const blob = new Blob([processedBuffer], { type: "model/gltf-binary" });
       const blobURL = URL.createObjectURL(blob);
-      
+
       try {
         // Load using temporary blob URL
         const result = await this.loadFromBlobUrl(blobURL, fileType);
@@ -90,32 +99,42 @@ export class CharacterModelLoader {
     }
   }
 
-  private async processGLTFInWorker(fileUrl: string, abortController?: AbortController): Promise<ArrayBuffer> {
+  private async processGLTFInWorker(
+    fileUrl: string,
+    abortController?: AbortController,
+  ): Promise<ArrayBuffer> {
     if (this.debug) {
       console.log(`Processing gLTF in worker: ${fileUrl}`);
     }
-    
+
     const startTime = performance.now();
-    
+
     try {
-      const processedBuffer = await this.workerPool.processGLTF(fileUrl, this.maxTextureSize, abortController);
+      const processedBuffer = await this.workerPool.processGLTF(
+        fileUrl,
+        this.maxTextureSize,
+        abortController,
+      );
       const endTime = performance.now();
-      
+
       if (this.debug) {
         console.log(`gLTF processing completed in ${(endTime - startTime).toFixed(2)}ms`);
       }
-      
+
       return processedBuffer;
     } catch (error) {
       if (this.debug) {
-        console.warn(`Worker processing failed for ${fileUrl}, falling back to regular loading:`, error);
+        console.warn(
+          `Worker processing failed for ${fileUrl}, falling back to regular loading:`,
+          error,
+        );
       }
-      
+
       // Check if cancellation was requested
       if (abortController?.signal.aborted) {
-        throw new Error('Operation cancelled');
+        throw new Error("Operation cancelled");
       }
-      
+
       // Fallback to regular loading if worker fails
       const response = await fetch(fileUrl, {
         signal: abortController?.signal,
@@ -123,7 +142,7 @@ export class CharacterModelLoader {
       if (!response.ok) {
         throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
       }
-      
+
       return await response.arrayBuffer();
     }
   }
@@ -141,11 +160,11 @@ export class CharacterModelLoader {
 
     if (fileType === "model") {
       const model = modelLoadResult.group as Object3D;
-      
+
       if (this.debug) {
         console.log(`Model loaded successfully from blob URL`);
       }
-      
+
       return model;
     } else if (fileType === "animation") {
       return modelLoadResult.animations[0] as AnimationClip;

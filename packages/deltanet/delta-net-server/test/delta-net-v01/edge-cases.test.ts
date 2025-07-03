@@ -2,6 +2,7 @@ import { DeltaNetV01Tick } from "@deltanet/delta-net-protocol";
 import { jest } from "@jest/globals";
 
 import { DeltaNetServer } from "../../src";
+
 import { MockWebsocketV01 } from "./mock.websocket-v01";
 
 let currentDoc: DeltaNetServer | null = null;

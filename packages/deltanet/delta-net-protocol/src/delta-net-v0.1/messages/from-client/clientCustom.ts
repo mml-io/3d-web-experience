@@ -27,4 +27,4 @@ export function decodeClientCustom(buffer: BufferReader): DeltaNetV01ClientCusto
     customType,
     contents,
   };
-} 
+}

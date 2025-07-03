@@ -1,7 +1,8 @@
-import { DeltaNetV01Tick, USER_NETWORKING_UNKNOWN_ERROR_TYPE } from "@deltanet/delta-net-protocol";
+import { DeltaNetV01ServerErrors, DeltaNetV01Tick } from "@deltanet/delta-net-protocol";
 import { jest } from "@jest/globals";
 
 import { DeltaNetServer, DeltaNetServerError } from "../../src";
+
 import { MockWebsocketV01 } from "./mock.websocket-v01";
 
 let currentDoc: DeltaNetServer | null = null;
@@ -127,7 +128,13 @@ describe("DeltaNetServer - Callback Tests", () => {
     test("rejects connection asynchronously", async () => {
       const onJoinerMock = jest
         .fn<() => Promise<DeltaNetServerError>>()
-        .mockRejectedValue(new DeltaNetServerError(USER_NETWORKING_UNKNOWN_ERROR_TYPE, "Async validation failed", false));
+        .mockRejectedValue(
+          new DeltaNetServerError(
+            DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+            "Async validation failed",
+            false,
+          ),
+        );
       const doc = new DeltaNetServer({
         onJoiner: onJoinerMock,
       });

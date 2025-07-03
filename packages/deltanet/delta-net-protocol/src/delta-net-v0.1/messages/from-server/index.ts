@@ -7,7 +7,6 @@ import { DeltaNetV01UserIndexMessage } from "./userIndex";
 import { DeltaNetV01WarningMessage } from "./warning";
 
 export * from "./error";
-export * from "./index";
 export * from "./initialCheckout";
 export * from "./ping";
 export * from "./serverCustom";

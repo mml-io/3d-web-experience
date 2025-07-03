@@ -125,7 +125,7 @@ export class Bot {
     }
     const characterDescription = {
       mmlCharacterUrl: `https://casual-v1.msquaredavatars.com/${config.id}.mml`,
-    }
+    };
     this.states.set(1, textEncoder.encode(JSON.stringify(characterDescription)));
 
     this.client = new DeltaNetClientWebsocket(
@@ -222,7 +222,6 @@ export class Bot {
     this.values.set(rotationWComponent, BigInt(Math.round(quaternionW * rotationMultiplier)));
     this.values.set(stateComponent, BigInt(1));
 
-
     if (this.config.avatarColorStateId) {
       if (Math.random() > 0.95) {
         // Send consistent bot colors in the proper format expected by DeltaNetComponentMapping.decodeColors()
@@ -232,7 +231,7 @@ export class Bot {
       }
     }
 
-    if(this.config.colorStateId) {
+    if (this.config.colorStateId) {
       if (Math.random() > 0.99) {
         const color = Math.floor(Math.random() * 16777215);
         const colorBytes = new Uint8Array(3);

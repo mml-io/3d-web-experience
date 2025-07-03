@@ -1,6 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
 import { ConnectUserMessageType } from "../../messageTypes";
+
 import { decodeConnectUser, DeltaNetV01ConnectUserMessage, encodeConnectUser } from "./connectUser";
 
 const cases: Array<[string, DeltaNetV01ConnectUserMessage, Array<number>]> = [

@@ -2,7 +2,7 @@ import path from "node:path";
 import * as url from "url";
 
 import { DeltaNetServer } from "@deltanet/delta-net-server";
-import chokidar from "chokidar";
+import { watch } from "chokidar";
 import express, { static as expressStatic } from "express";
 import enableWs from "express-ws";
 import ws from "ws";
@@ -56,7 +56,7 @@ setInterval(() => {
 
 // Create a websocket endpoint that updates whenever the build folder gets modified
 const listeningClients = new Set<ws.WebSocket>();
-chokidar.watch(buildDirectory).on("all", () => {
+watch(buildDirectory).on("all", () => {
   for (const client of listeningClients) {
     client.send("change");
   }

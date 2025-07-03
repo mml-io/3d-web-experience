@@ -1,8 +1,3 @@
-import {
-  USER_AUTHENTICATION_FAILED_ERROR_TYPE,
-  USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
-  USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
-} from "@deltanet/delta-net-protocol";
 import { AvatarConfiguration, AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
 import {
   AnimationConfig,
@@ -41,6 +36,7 @@ import {
   UserNetworkingClientUpdate,
   WebsocketStatus,
   parseServerChatMessage,
+  DeltaNetV01ServerErrors,
 } from "@mml-io/3d-web-user-networking";
 import {
   IMMLScene,
@@ -144,7 +140,7 @@ export class Networked3dWebExperienceClient {
 
   private clientId: number | null = null;
   private networkClient: UserNetworkingClient;
-  private remoteUserStates = new Map<number, CharacterState>();
+  private remoteUserStates = new Map<number, UserNetworkingClientUpdate>();
   private userProfiles = new Map<number, UserData>();
 
   private textChatUI: TextChatUI | null = null;
@@ -265,13 +261,13 @@ export class Networked3dWebExperienceClient {
       },
       onServerError: (error: { message: string; errorType: string }) => {
         switch (error.errorType) {
-          case USER_AUTHENTICATION_FAILED_ERROR_TYPE:
+          case DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE:
             this.disposeWithError(error.message);
             break;
-          case USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE:
+          case DeltaNetV01ServerErrors.USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE:
             this.disposeWithError(error.message);
             break;
-          case USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE:
+          case DeltaNetV01ServerErrors.USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE:
             this.disposeWithError(error.message || "Server shutdown");
             break;
           default:
@@ -550,7 +546,6 @@ export class Networked3dWebExperienceClient {
 
       const textChatUISettings: TextChatUIProps = {
         holderElement: this.element,
-        clientname: user.username,
         sendMessageToServerMethod: (message: string) => {
           this.characterManager.addSelfChatBubble(message);
           this.mmlCompositionScene.onChatMessage(message);

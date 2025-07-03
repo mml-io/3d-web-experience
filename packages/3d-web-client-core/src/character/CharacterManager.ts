@@ -87,7 +87,7 @@ type LoadedCharacterState = {
 type RemoteCharacterState = {
   id: number;
   loadedCharacterState: LoadedCharacterState | null;
-  lastPosition: { x: number; y: number; z: number; };
+  lastPosition: { x: number; y: number; z: number };
   distanceSquared: number;
   lastLODChange: number; // timestamp of last promotion/demotion
   abortController?: AbortController; // For cancelling loading operations
@@ -112,7 +112,7 @@ export class CharacterManager {
 
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
-  
+
   private readonly MAX_REAL_REMOTE_CHARACTERS = 30;
   private readonly LOD_CHANGE_COOLDOWN_MS = 2000;
   private readonly MAX_SCENE_ADDITIONS_PER_FRAME = 3;
@@ -177,7 +177,7 @@ export class CharacterManager {
     this.group.add(character);
   }
 
-  private calculateDistanceSquared(position: { x: number; y: number; z: number; }): number {
+  private calculateDistanceSquared(position: { x: number; y: number; z: number }): number {
     if (!this.localCharacter) return Number.MAX_VALUE;
     const localPos = this.localCharacter.position;
     const dx = position.x - localPos.x;
@@ -203,7 +203,7 @@ export class CharacterManager {
       const isLoading = this.loadingCharacters.has(char.id);
       // Consider characters that are loading as "real" to prevent premature demotion
       const isReal = loadedCharacter !== null || isLoading;
-      
+
       if (isReal !== shouldBe) {
         const timeSinceLastChange = now - char.lastLODChange;
         if (timeSinceLastChange < this.LOD_CHANGE_COOLDOWN_MS) {
@@ -216,7 +216,9 @@ export class CharacterManager {
         } else {
           // Only demote if character is not currently loading
           if (!isLoading) {
-            console.log(`CharacterManager: Demoting character ${char.id} (rank ${i}, distance: ${Math.sqrt(char.distanceSquared).toFixed(1)}, hasLoaded: ${loadedCharacter?.characterLoaded}, isLoading: ${isLoading})`);
+            console.log(
+              `CharacterManager: Demoting character ${char.id} (rank ${i}, distance: ${Math.sqrt(char.distanceSquared).toFixed(1)}, hasLoaded: ${loadedCharacter?.characterLoaded}, isLoading: ${isLoading})`,
+            );
             char.lastLODChange = now;
             this.demoteToInstance(char.id);
           }
@@ -352,7 +354,7 @@ export class CharacterManager {
 
     const wasLoading = this.loadingCharacters.has(id);
     this.loadingCharacters.delete(id);
-    
+
     const activeChar = this.remoteCharacters.get(id);
     if (!activeChar) {
       throw new Error(
@@ -366,25 +368,29 @@ export class CharacterManager {
       activeChar.abortController.abort();
       activeChar.abortController = undefined;
     }
-    
+
     // Remove from scene queue if present (character might be queued but not yet added to scene)
-    const queueIndex = this.charactersReadyForScene.findIndex(c => c.id === id);
+    const queueIndex = this.charactersReadyForScene.findIndex((c) => c.id === id);
     if (queueIndex !== -1) {
       this.charactersReadyForScene.splice(queueIndex, 1);
       console.log(`CharacterManager: Removed character ${id} from scene queue during demotion`);
     }
-    
+
     const loadedCharacterState = activeChar.loadedCharacterState;
     if (!loadedCharacterState) {
       if (wasLoading) {
         console.log(`CharacterManager: Character ${id} loading was cancelled successfully`);
       } else {
-        console.warn(`CharacterManager: Cannot demote character ${id}: no character instance found`);
+        console.warn(
+          `CharacterManager: Cannot demote character ${id}: no character instance found`,
+        );
       }
       return;
     }
     if (!loadedCharacterState.characterLoaded) {
-      console.warn(`CharacterManager: Demoting character ${id} that is not fully loaded (wasLoading: ${wasLoading})`);
+      console.warn(
+        `CharacterManager: Demoting character ${id} that is not fully loaded (wasLoading: ${wasLoading})`,
+      );
     }
 
     // Capture the real character's current position before removing it
@@ -409,22 +415,33 @@ export class CharacterManager {
     if (this.characterInstances) {
       // Add diagnostics to understand the instance state
       const instanceInfo = this.characterInstances.getInstanceInfo();
-      console.log(`CharacterManager: Demoting character ${id}. Instance stats: ${instanceInfo.active} active, ${instanceInfo.available} available, ${instanceInfo.total} total`);
-      
+      console.log(
+        `CharacterManager: Demoting character ${id}. Instance stats: ${instanceInfo.active} active, ${instanceInfo.available} available, ${instanceInfo.total} total`,
+      );
+
       // First try to unshadow an existing instance
       const unshadowSuccess = this.characterInstances.unshadowInstance(id);
 
       if (unshadowSuccess) {
         // Use the real character's position to immediately position the unshadowed instance
-        this.characterInstances.setInstancePositionImmediate(id, realCharacterPosition, realCharacterRotation, networkState.state);
-        console.log(`CharacterManager: Successfully unshadowed existing instance for character ${id} at real character position`);
+        this.characterInstances.setInstancePositionImmediate(
+          id,
+          realCharacterPosition,
+          realCharacterRotation,
+          networkState.state,
+        );
+        console.log(
+          `CharacterManager: Successfully unshadowed existing instance for character ${id} at real character position`,
+        );
       } else {
         // If unshadowing failed, try to create a new instance as fallback
-        console.warn(`CharacterManager: Could not unshadow instance for character ${id}, attempting to create new instance`);
-        
+        console.warn(
+          `CharacterManager: Could not unshadow instance for character ${id}, attempting to create new instance`,
+        );
+
         const characterInfo = this.config.characterResolve(id);
         const colorMap = colorArrayToColors(characterInfo.colors);
-        
+
         const spawnSuccess = this.characterInstances.spawnInstanceWithCachedColors(
           id,
           colorMap,
@@ -434,9 +451,13 @@ export class CharacterManager {
         );
 
         if (spawnSuccess) {
-          console.log(`CharacterManager: Successfully created new instance for demoted character ${id}`);
+          console.log(
+            `CharacterManager: Successfully created new instance for demoted character ${id}`,
+          );
         } else {
-          console.error(`CharacterManager: Failed to demote character ${id} - could not unshadow or create new instance`);
+          console.error(
+            `CharacterManager: Failed to demote character ${id} - could not unshadow or create new instance`,
+          );
           // Don't throw error, just log the failure. The character is already removed from the scene
           // which is the most important part of demotion
         }
@@ -606,7 +627,10 @@ export class CharacterManager {
 
   public update() {
     // Process queue of characters ready to be added to scene (throttled)
-    const charactersToAdd = this.charactersReadyForScene.splice(0, this.MAX_SCENE_ADDITIONS_PER_FRAME);
+    const charactersToAdd = this.charactersReadyForScene.splice(
+      0,
+      this.MAX_SCENE_ADDITIONS_PER_FRAME,
+    );
     for (const { id, character, remoteController } of charactersToAdd) {
       this.group.add(character);
       console.log(`CharacterManager: Added character ${id} to scene (queue processed)`);
@@ -764,7 +788,9 @@ export class CharacterManager {
 
           // Cancel any ongoing loading operations for disconnected characters
           if (activeChar.abortController) {
-            console.log(`CharacterManager: Cancelling loading for disconnected character ${activeChar.id}`);
+            console.log(
+              `CharacterManager: Cancelling loading for disconnected character ${activeChar.id}`,
+            );
             activeChar.abortController.abort();
           }
 

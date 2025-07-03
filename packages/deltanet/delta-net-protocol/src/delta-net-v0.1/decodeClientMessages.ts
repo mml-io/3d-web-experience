@@ -1,9 +1,10 @@
 import { BufferReader } from "../BufferReader";
+
 import { DeltaNetV01ClientMessage } from "./messages";
+import { decodeClientCustom } from "./messages/from-client/clientCustom";
 import { decodeConnectUser } from "./messages/from-client/connectUser";
 import { decodePong } from "./messages/from-client/pong";
 import { decodeSetUserComponents } from "./messages/from-client/setUserComponents";
-import { decodeClientCustom } from "./messages/from-client/clientCustom";
 import {
   ConnectUserMessageType,
   PongMessageType,

@@ -1,13 +1,11 @@
 import {
-  AUTHENTICATION_IN_PROGRESS_ERROR_TYPE,
+  DeltaNetV01ServerErrors,
   BufferReader,
   decodeClientMessages,
   DeltaNetV01ClientMessage,
   DeltaNetV01ServerErrorType,
   DeltaNetV01ServerMessage,
   encodeServerMessage,
-  USER_ALREADY_AUTHENTICATED_ERROR_TYPE,
-  USER_NETWORKING_UNKNOWN_ERROR_TYPE,
 } from "@deltanet/delta-net-protocol";
 
 import { DeltaNetServer, DeltaNetServerError } from "./DeltaNetServer";
@@ -75,7 +73,11 @@ export class DeltaNetV01Connection {
     }
   }
 
-  private disconnectWithError(error: Error, errorType: DeltaNetV01ServerErrorType, retryable: boolean = true): void {
+  private disconnectWithError(
+    error: Error,
+    errorType: DeltaNetV01ServerErrorType,
+    retryable: boolean = true,
+  ): void {
     try {
       this.sendMessage({
         type: "error",
@@ -102,12 +104,20 @@ export class DeltaNetV01Connection {
   ): Promise<void> {
     // Reject if already authenticated or currently authenticating
     if (this.isAuthenticated) {
-      this.disconnectWithError(new Error("User is already authenticated"), USER_ALREADY_AUTHENTICATED_ERROR_TYPE, false);
+      this.disconnectWithError(
+        new Error("User is already authenticated"),
+        DeltaNetV01ServerErrors.USER_ALREADY_AUTHENTICATED_ERROR_TYPE,
+        false,
+      );
       return;
     }
 
     if (this.isAuthenticating) {
-      this.disconnectWithError(new Error("Authentication already in progress"), AUTHENTICATION_IN_PROGRESS_ERROR_TYPE, false);
+      this.disconnectWithError(
+        new Error("Authentication already in progress"),
+        DeltaNetV01ServerErrors.AUTHENTICATION_IN_PROGRESS_ERROR_TYPE,
+        false,
+      );
       return;
     }
 
@@ -121,7 +131,10 @@ export class DeltaNetV01Connection {
     this.components = new Map(components);
     this.states = new Map(states);
 
-    let result: { success: boolean; error?: string; stateOverrides?: Array<[number, Uint8Array]> } | DeltaNetServerError | Error;
+    let result:
+      | { success: boolean; error?: string; stateOverrides?: Array<[number, Uint8Array]> }
+      | DeltaNetServerError
+      | Error;
     try {
       const rawResult = this.deltaNetServer.validateJoiner(this, token, components, states);
       if (rawResult instanceof Promise) {
@@ -155,23 +168,37 @@ export class DeltaNetV01Connection {
     if (result instanceof DeltaNetServerError) {
       this.disconnectWithError(result, result.errorType, result.retryable);
     } else if (result instanceof Error) {
-      this.disconnectWithError(result, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+      this.disconnectWithError(
+        result,
+        DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+        false,
+      );
     } else if (typeof result !== "object") {
-      this.disconnectWithError(new Error("Invalid authentication result"), USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+      this.disconnectWithError(
+        new Error("Invalid authentication result"),
+        DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+        false,
+      );
     } else {
       if (result.success) {
         // Apply state overrides if provided
         if (result.stateOverrides) {
-          console.log(`Applying ${result.stateOverrides.length} state overrides for connection ${this.internalConnectionId}`);
+          console.log(
+            `Applying ${result.stateOverrides.length} state overrides for connection ${this.internalConnectionId}`,
+          );
           for (const [stateId, stateValue] of result.stateOverrides) {
             this.states.set(stateId, stateValue);
           }
         }
-        
+
         this.isAuthenticated = true;
         this.deltaNetServer.addAuthenticatedConnection(this);
       } else {
-        this.disconnectWithError(new Error(result.error || "Authentication failed"), USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+        this.disconnectWithError(
+          new Error(result.error || "Authentication failed"),
+          DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+          false,
+        );
       }
     }
     this.isAuthenticating = false;
@@ -219,7 +246,11 @@ export class DeltaNetV01Connection {
           return false;
         }
         if (asyncResult instanceof Error) {
-          this.disconnectWithError(asyncResult, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+          this.disconnectWithError(
+            asyncResult,
+            DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+            false,
+          );
           return false;
         }
 
@@ -233,9 +264,17 @@ export class DeltaNetV01Connection {
           if (error instanceof DeltaNetServerError) {
             this.disconnectWithError(error, error.errorType, error.retryable);
           } else if (error instanceof Error) {
-            this.disconnectWithError(error, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+            this.disconnectWithError(
+              error,
+              DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+              false,
+            );
           } else {
-            this.disconnectWithError(new Error("State validation failed"), USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+            this.disconnectWithError(
+              new Error("State validation failed"),
+              DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+              false,
+            );
           }
         }
         return false;
@@ -247,7 +286,11 @@ export class DeltaNetV01Connection {
         return false;
       }
       if (result instanceof Error) {
-        this.disconnectWithError(result, USER_NETWORKING_UNKNOWN_ERROR_TYPE, false);
+        this.disconnectWithError(
+          result,
+          DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+          false,
+        );
         return false;
       }
       return true;
@@ -292,7 +335,11 @@ export class DeltaNetV01Connection {
 
         // Check if component update was rejected
         if (!result.success) {
-          this.disconnectWithError(new Error(result.error), USER_NETWORKING_UNKNOWN_ERROR_TYPE, true);
+          this.disconnectWithError(
+            new Error(result.error),
+            DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+            true,
+          );
           return;
         }
 
@@ -320,7 +367,12 @@ export class DeltaNetV01Connection {
         }
 
         // Handle custom message
-        this.deltaNetServer.handleCustomMessage(this, this.internalConnectionId, parsed.customType, parsed.contents);
+        this.deltaNetServer.handleCustomMessage(
+          this,
+          this.internalConnectionId,
+          parsed.customType,
+          parsed.contents,
+        );
         return;
       }
       default:

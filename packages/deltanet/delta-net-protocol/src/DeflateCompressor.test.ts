@@ -1,5 +1,4 @@
-import { DeflateCompressor } from "./DeflateCompressor";
-import { CompressionLibraryChoice } from "./DeflateCompressor";
+import { DeflateCompressor, CompressionLibraryChoice } from "./DeflateCompressor";
 
 function toNumberArray(uint8Array: Uint8Array): number[] {
   return Array.from(uint8Array).map((byte) => byte);

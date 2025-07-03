@@ -12,4 +12,4 @@ export type UserNetworkingClientUpdate = {
   position: { x: number; y: number; z: number };
   rotation: { quaternionY: number; quaternionW: number };
   state: number;
-}; 
+};

@@ -375,13 +375,17 @@ export class CharacterInstances {
   public unshadowInstance(characterId: number): boolean {
     const instanceId = this.characterIdToInstanceIdMap.get(characterId);
     if (!this.instancedMesh || instanceId === undefined) {
-      console.warn(`CharacterInstances: Cannot unshadow instance for character ${characterId}: not found`);
+      console.warn(
+        `CharacterInstances: Cannot unshadow instance for character ${characterId}: not found`,
+      );
       return false;
     }
 
     const instance = this.instancedMesh.instances![instanceId];
     if (!instance || !instance.isActive || !instance.isShadowed) {
-      console.warn(`CharacterInstances: Cannot unshadow instance for character ${characterId}: not shadowed`);
+      console.warn(
+        `CharacterInstances: Cannot unshadow instance for character ${characterId}: not shadowed`,
+      );
       return false;
     }
 
@@ -399,7 +403,9 @@ export class CharacterInstances {
       return { active: 0, total: 0, available: 0 };
     }
 
-    const active = this.instancedMesh.instances.filter((inst) => inst.isActive && !inst.isShadowed).length;
+    const active = this.instancedMesh.instances.filter(
+      (inst) => inst.isActive && !inst.isShadowed,
+    ).length;
     const total = this.instancedMesh.instances.length;
     const available = total - this.instancedMesh.instances.filter((inst) => inst.isActive).length;
 

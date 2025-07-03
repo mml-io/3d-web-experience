@@ -1,6 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
 import { InitialCheckoutMessageType } from "../../messageTypes";
+
 import {
   decodeInitialCheckout,
   DeltaNetV01InitialCheckoutMessage,

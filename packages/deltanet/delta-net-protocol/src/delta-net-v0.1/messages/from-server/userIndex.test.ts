@@ -1,6 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
 import { UserIndexMessageType } from "../../messageTypes";
+
 import { decodeUserIndex, DeltaNetV01UserIndexMessage, encodeUserIndex } from "./userIndex";
 
 const cases: Array<[string, DeltaNetV01UserIndexMessage, Array<number>]> = [

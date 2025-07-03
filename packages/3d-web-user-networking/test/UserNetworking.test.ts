@@ -27,11 +27,13 @@ describe("UserNetworking", () => {
           return {
             username: "user1",
             characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
+            colors: [[0, 0, 0]],
           };
         } else if (sessionToken === sessionTokenForTwo) {
           return {
             username: "user2",
             characterDescription: { meshFileUrl: "http://example.com/user2.glb" },
+            colors: [[0, 0, 0]],
           };
         }
         return null;
@@ -84,7 +86,7 @@ describe("UserNetworking", () => {
         }
       },
       clientProfileUpdated: (id, username, characterDescription) => {
-        user1Profiles.set(id, { username, characterDescription });
+        user1Profiles.set(id, { username, characterDescription, colors: [[0, 0, 0]] });
       },
       onServerError: (error) => {
         console.error("Received server error", error);
@@ -133,7 +135,7 @@ describe("UserNetworking", () => {
         }
       },
       clientProfileUpdated: (id, username, characterDescription) => {
-        user2Profiles.set(id, { username, characterDescription });
+        user2Profiles.set(id, { username, characterDescription, colors: [[0, 0, 0]] });
       },
       onServerError: (error) => {
         console.error("Received server error", error);

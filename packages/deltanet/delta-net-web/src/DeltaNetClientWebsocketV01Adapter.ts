@@ -54,18 +54,21 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
   ) {
     this.websocket.binaryType = "arraybuffer";
     this.isObserver = options.observer ?? false;
-    
+
     // Observers need to send connectUser message immediately since they won't call setUserComponents
     if (this.isObserver) {
       this.sendConnectUser([], []);
     }
   }
 
-  private sendConnectUser(components: Array<[number, bigint]>, states: Array<[number, Uint8Array]>) {
+  private sendConnectUser(
+    components: Array<[number, bigint]>,
+    states: Array<[number, Uint8Array]>,
+  ) {
     if (this.sentUserConnect) {
       return;
     }
-    
+
     this.sentUserConnect = true;
     this.send({
       type: "connectUser",

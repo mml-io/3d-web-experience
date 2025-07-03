@@ -1,4 +1,4 @@
-import { encodeError, USER_AUTHENTICATION_FAILED_ERROR_TYPE } from "@deltanet/delta-net-protocol";
+import { encodeError, DeltaNetV01ServerErrors } from "@deltanet/delta-net-protocol";
 import {
   DeltaNetServer,
   DeltaNetServerError,
@@ -30,8 +30,6 @@ export type UserNetworkingServerClient = {
   authenticatedUser: UserData | null;
   deltaNetConnection?: DeltaNetV01Connection;
 };
-
-const WebSocketOpenStatus = 1;
 
 export type UserNetworkingServerOptions = {
   connectionLimit?: number;
@@ -110,7 +108,7 @@ export class UserNetworkingServer {
           // Authentication failed - return error to reject connection
           console.log(`Authentication failed for client ID: ${clientId}`);
           return new DeltaNetServerError(
-            USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "Authentication failed",
             false,
           );
@@ -129,7 +127,7 @@ export class UserNetworkingServer {
       .catch((error) => {
         console.error(`Authentication error for client ID: ${clientId}:`, error);
         return new DeltaNetServerError(
-          USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+          DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
           "Authentication error",
           false,
         );

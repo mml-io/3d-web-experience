@@ -1,7 +1,4 @@
-import {
-  deflateSync as nodeDeflate,
-  inflateSync as nodeInflate,
-} from "node:zlib";
+import { deflateSync as nodeDeflate, inflateSync as nodeInflate } from "node:zlib";
 
 import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
 import Benchmark from "benchmark";
@@ -36,7 +33,7 @@ export function runDecodingIntegersBenchmark(): Promise<void> {
     console.log(`JSON byte length   : ${jsonEncoded.length}`);
 
     let totalVarint = 0;
-    let totalVarintZstd = 0;
+    const totalVarintZstd = 0;
     let totalJSON = 0;
     const suite = new Benchmark.Suite();
     suite

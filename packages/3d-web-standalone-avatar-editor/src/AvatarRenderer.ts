@@ -1,4 +1,4 @@
-import { TimeManager, CameraManager, CollisionsManager } from "@mml-io/3d-web-client-core";
+import { TimeManager, CameraManager, CollisionsManager, Vect3 } from "@mml-io/3d-web-client-core";
 import { ModelLoader, ModelLoadResult } from "@mml-io/model-loader";
 import {
   AnimationClip,
@@ -126,7 +126,7 @@ export class AvatarRenderer {
     this.cameraTargetOffset = cameraTargetOffset;
     this.cameraTargetDistance = cameraTargetDistance;
     this.cameraManager.setLerpedTarget(
-      new Vector3(this.cameraTargetOffset.x, this.cameraTargetOffset.y, this.cameraTargetOffset.z),
+      new Vect3(this.cameraTargetOffset.x, this.cameraTargetOffset.y, this.cameraTargetOffset.z),
       this.cameraTargetDistance,
     );
   }

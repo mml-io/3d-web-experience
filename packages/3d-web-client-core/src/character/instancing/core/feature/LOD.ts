@@ -61,6 +61,7 @@ export interface LODLevel<TData = {}> {
 }
 
 declare module "../InstancedMesh2" {
+  // @ts-ignore - This is a workaround to avoid type errors because of how InstancedMesh2 is extended
   interface InstancedMesh2 {
     /**
      * Retrieves the index of the LOD level for a given distance.

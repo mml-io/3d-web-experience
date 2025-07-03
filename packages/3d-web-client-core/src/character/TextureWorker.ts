@@ -1,18 +1,18 @@
 // Import the worker as a URL using the esbuild plugin
-import gltfWorkerUrl from './gltf-texture-worker?worker';
+import gltfWorkerUrl from "./gltf-texture.worker";
 
 console.log("gltfWorkerUrl", gltfWorkerUrl);
 
 interface GLTFWorkerRequest {
   id: string;
-  type: 'process-gltf';
+  type: "process-gltf";
   fileUrl: string;
   maxTextureSize: number;
 }
 
 interface GLTFWorkerResponse {
   id: string;
-  type: 'success' | 'error';
+  type: "success" | "error";
   gltfBuffer?: ArrayBuffer;
   error?: string;
 }
@@ -32,7 +32,15 @@ interface GLTFWorkerResponse {
 export class GLTFTextureWorkerPool {
   private static instance: GLTFTextureWorkerPool;
   private workers: Worker[] = [];
-  private activeJobs = new Map<string, { resolve: Function; reject: Function; timeout: ReturnType<typeof setTimeout>; abortController?: AbortController }>();
+  private activeJobs = new Map<
+    string,
+    {
+      resolve: (result: ArrayBuffer) => void;
+      reject: (error: Error) => void;
+      timeout: ReturnType<typeof setTimeout>;
+      abortController?: AbortController;
+    }
+  >();
   private workerIndex = 0;
   private readonly maxWorkers = Math.min(navigator.hardwareConcurrency || 4, 2);
 
@@ -97,7 +105,7 @@ export class GLTFTextureWorkerPool {
   public async processGLTF(
     fileUrl: string,
     maxTextureSize: number,
-    abortController?: AbortController
+    abortController?: AbortController,
   ): Promise<ArrayBuffer> {
     return new Promise((resolve, reject) => {
       const id = `gltf_${Date.now()}_${Math.random()}`;
@@ -126,7 +134,7 @@ export class GLTFTextureWorkerPool {
           reject(new Error("Operation cancelled"));
           return;
         }
-        
+
         abortHandler = () => {
           if (this.activeJobs.has(id)) {
             clearTimeout(timeout);
@@ -134,24 +142,24 @@ export class GLTFTextureWorkerPool {
             reject(new Error("Operation cancelled"));
           }
         };
-        abortController.signal.addEventListener('abort', abortHandler);
+        abortController.signal.addEventListener("abort", abortHandler);
       }
 
-      this.activeJobs.set(id, { 
+      this.activeJobs.set(id, {
         resolve: (result: ArrayBuffer) => {
           if (abortHandler && abortController) {
-            abortController.signal.removeEventListener('abort', abortHandler);
+            abortController.signal.removeEventListener("abort", abortHandler);
           }
           resolve(result);
-        }, 
+        },
         reject: (error: Error) => {
           if (abortHandler && abortController) {
-            abortController.signal.removeEventListener('abort', abortHandler);
+            abortController.signal.removeEventListener("abort", abortHandler);
           }
           reject(error);
-        }, 
+        },
         timeout,
-        abortController
+        abortController,
       });
 
       const worker = this.getNextWorker();

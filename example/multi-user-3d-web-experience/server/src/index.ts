@@ -11,7 +11,6 @@ import express from "express";
 import enableWs from "express-ws";
 
 import { BasicUserAuthenticator } from "./BasicUserAuthenticator";
-import { registerDolbyVoiceRoutes } from "./voice-routes";
 
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
 

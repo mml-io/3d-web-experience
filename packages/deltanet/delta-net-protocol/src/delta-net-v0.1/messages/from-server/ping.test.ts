@@ -1,6 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
 import { PingMessageType } from "../../messageTypes";
+
 import { decodePing, DeltaNetV01PingMessage, encodePing } from "./ping";
 
 const cases: Array<[string, DeltaNetV01PingMessage, Array<number>]> = [

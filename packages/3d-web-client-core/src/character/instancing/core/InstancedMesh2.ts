@@ -77,6 +77,7 @@ export interface InstancedMesh2Params {
  * @template TEventMap Type extending `Object3DEventMap`.
  */
 export class InstancedMesh2<
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   TData = {},
   TGeometry extends BufferGeometry = BufferGeometry,
   TMaterial extends Material | Material[] = Material | Material[],
@@ -305,6 +306,7 @@ export class InstancedMesh2<
     this._geometry = geometry;
     this.material = material;
     this._allowsEuler = allowsEuler ?? false;
+    // @ts-ignore
     this._tempInstance = new InstancedEntity(this, -1, allowsEuler ?? false);
     this.availabilityArray = LOD?.availabilityArray ?? new Array(finalCapacity * 2);
     this._createEntities = createEntities ?? false;
@@ -556,7 +558,7 @@ export class InstancedMesh2<
       shader.defines["USE_INSTANCING_SKINNING"] = "";
       shader.uniforms.bindMatrix = { value: this.bindMatrix };
       shader.uniforms.bindMatrixInverse = { value: this.bindMatrixInverse };
-      shader.uniforms.bonesPerInstance = { value: this.skeleton.bones.length };
+      shader.uniforms.bonesPerInstance = { value: this.skeleton!.bones.length };
       shader.uniforms.boneTexture = { value: this.boneTexture };
     }
   };
@@ -608,6 +610,7 @@ export class InstancedMesh2<
   public computeBVH(config: BVHParams = {}): void {
     if (!this.bvh)
       this.bvh = new InstancedMeshBVH(
+        // @ts-ignore
         this,
         config.margin,
         config.getBBoxFromBSphere,
@@ -812,12 +815,12 @@ export class InstancedMesh2<
     }
 
     if ((color as Color).isColor) {
-      (color as Color).toArray(this.colorsTexture._data, id * 4);
+      (color as Color).toArray(this.colorsTexture!._data, id * 4);
     } else {
-      _tempCol.set(color).toArray(this.colorsTexture._data, id * 4);
+      _tempCol.set(color).toArray(this.colorsTexture!._data, id * 4);
     }
 
-    this.colorsTexture.enqueueUpdate(id);
+    this.colorsTexture!.enqueueUpdate(id);
   }
 
   /**
@@ -827,7 +830,7 @@ export class InstancedMesh2<
    * @returns The color of the instance.
    */
   public getColorAt(id: number, color = _tempCol): Color {
-    return color.fromArray(this.colorsTexture._data, id * 4);
+    return color.fromArray(this.colorsTexture!._data, id * 4);
   }
 
   /**
@@ -845,8 +848,8 @@ export class InstancedMesh2<
       this._useOpacity = true;
     }
 
-    this.colorsTexture._data[id * 4 + 3] = value;
-    this.colorsTexture.enqueueUpdate(id);
+    this.colorsTexture!._data[id * 4 + 3] = value;
+    this.colorsTexture!.enqueueUpdate(id);
   }
 
   /**
@@ -856,7 +859,7 @@ export class InstancedMesh2<
    */
   public getOpacityAt(id: number): number {
     if (!this._useOpacity) return 1;
-    return this.colorsTexture._data[id * 4 + 3];
+    return this.colorsTexture!._data[id * 4 + 3];
   }
 
   /**
@@ -968,7 +971,7 @@ export class InstancedMesh2<
     this.boundingBox ??= new Box3();
     if (geometry.boundingBox === null) geometry.computeBoundingBox();
 
-    const geoBoundingBox = geometry.boundingBox;
+    const geoBoundingBox = geometry.boundingBox!;
     const boundingBox = this.boundingBox;
 
     boundingBox.makeEmpty();
@@ -990,7 +993,7 @@ export class InstancedMesh2<
     this.boundingSphere ??= new Sphere();
     if (geometry.boundingSphere === null) geometry.computeBoundingSphere();
 
-    const geoBoundingSphere = geometry.boundingSphere;
+    const geoBoundingSphere = geometry.boundingSphere!;
     const boundingSphere = this.boundingSphere;
 
     boundingSphere.makeEmpty();
@@ -1006,7 +1009,7 @@ export class InstancedMesh2<
     // wrong three d.ts
     const params: InstancedMesh2Params = {
       capacity: this._capacity,
-      renderer: this._renderer,
+      renderer: this._renderer!,
       allowsEuler: this._allowsEuler,
       createEntities: this._createEntities,
     };
@@ -1016,7 +1019,8 @@ export class InstancedMesh2<
     );
   }
 
-  public override copy(source: InstancedMesh2, recursive?: boolean): this {
+  public override copy(source: InstancedMesh2<TData>, recursive?: boolean): this {
+    // @ts-ignore
     super.copy(source, recursive);
 
     this.count = source._capacity;
@@ -1028,25 +1032,30 @@ export class InstancedMesh2<
     if (source.boundingSphere !== null) this.boundingSphere = source.boundingSphere.clone();
 
     this.matricesTexture = source.matricesTexture.clone(); // TODO we can avoid cloning it because it already exists
+    // @ts-ignore
     this.matricesTexture.image.data = (this.matricesTexture.image.data as TypedArray).slice();
 
     if (source.colorsTexture !== null) {
       this.colorsTexture = source.colorsTexture.clone();
+      // @ts-ignore
       this.colorsTexture.image.data = (this.colorsTexture.image.data as TypedArray).slice();
     }
 
     if (source.uniformsTexture !== null) {
       this.uniformsTexture = source.uniformsTexture.clone();
+      // @ts-ignore
       this.uniformsTexture.image.data = (this.uniformsTexture.image.data as TypedArray).slice();
     }
 
     if (source.morphTexture !== null) {
       this.morphTexture = source.morphTexture.clone();
+      // @ts-ignore
       this.morphTexture.image.data = (this.morphTexture.image.data as TypedArray).slice();
     }
 
     if (source.boneTexture !== null) {
       this.boneTexture = source.boneTexture.clone();
+      // @ts-ignore
       this.boneTexture.image.data = (this.boneTexture.image.data as TypedArray).slice(); // TODO check if they fix d.ts
     }
 
@@ -1076,7 +1085,7 @@ export class InstancedMesh2<
     if (this.bindMode === AttachedBindMode) {
       this.bindMatrixInverse.copy(this.matrixWorld).invert();
     } else if (this.bindMode === DetachedBindMode) {
-      this.bindMatrixInverse.copy(this.bindMatrix).invert();
+      this.bindMatrixInverse.copy(this.bindMatrix!).invert();
     } else {
       console.warn("Unrecognized bindMode: " + this.bindMode);
     }

@@ -6,10 +6,10 @@ export function workerPlugin(): esbuild.Plugin {
   return {
     name: 'worker-plugin',
     setup(build) {
-      // Handle worker imports with ?worker suffix
-      build.onResolve({ filter: /\?worker$/ }, (args) => {
+      // Handle imports that have the pattern *.worker
+      build.onResolve({ filter: /\.worker$/ }, (args) => {
         return {
-          path: path.resolve(args.resolveDir, args.path.replace('?worker', '')),
+          path: path.resolve(args.resolveDir, args.path),
           namespace: 'worker',
         };
       });

@@ -85,24 +85,29 @@ export class Character extends Group {
     );
     this.tooltip.setText(this.config.username);
     this.add(this.tooltip);
-    
+
     // Check if operation was cancelled before starting loading
     if (this.config.abortController?.signal.aborted) {
       console.log(`Character loading cancelled before starting for ${this.config.characterId}`);
       return;
     }
-    
-    this.load().then(() => {
-      this.config.modelLoadedCallback();
-      this.setTooltipHeights();
-    }).catch((error) => {
-      // Check if the error is due to cancellation
-      if (this.config.abortController?.signal.aborted) {
-        console.log(`Character loading cancelled in constructor for ${this.config.characterId}`);
-        return;
-      }
-      console.error(`Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`, error);
-    });
+
+    this.load()
+      .then(() => {
+        this.config.modelLoadedCallback();
+        this.setTooltipHeights();
+      })
+      .catch((error) => {
+        // Check if the error is due to cancellation
+        if (this.config.abortController?.signal.aborted) {
+          console.log(`Character loading cancelled in constructor for ${this.config.characterId}`);
+          return;
+        }
+        console.error(
+          `Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`,
+          error,
+        );
+      });
   }
 
   getColors(): Array<[number, number, number]> {
@@ -112,21 +117,26 @@ export class Character extends Group {
   updateCharacter(username: string, characterDescription: CharacterDescription) {
     if (!characterDescriptionMatches(this.config.characterDescription, characterDescription)) {
       this.config.characterDescription = characterDescription;
-      this.load().then(() => {
-        // Check if operation was cancelled after loading
-        if (this.config.abortController?.signal.aborted) {
-          console.log(`Character update cancelled for ${this.config.characterId}`);
-          return;
-        }
-        this.setTooltipHeights();
-      }).catch((error) => {
-        // Check if the error is due to cancellation
-        if (this.config.abortController?.signal.aborted) {
-          console.log(`Character update cancelled during loading for ${this.config.characterId}`);
-          return;
-        }
-        console.error(`Character update failed for ${this.config.username} (${this.config.characterId}):`, error);
-      });
+      this.load()
+        .then(() => {
+          // Check if operation was cancelled after loading
+          if (this.config.abortController?.signal.aborted) {
+            console.log(`Character update cancelled for ${this.config.characterId}`);
+            return;
+          }
+          this.setTooltipHeights();
+        })
+        .catch((error) => {
+          // Check if the error is due to cancellation
+          if (this.config.abortController?.signal.aborted) {
+            console.log(`Character update cancelled during loading for ${this.config.characterId}`);
+            return;
+          }
+          console.error(
+            `Character update failed for ${this.config.username} (${this.config.characterId}):`,
+            error,
+          );
+        });
     }
     if (this.config.username !== username) {
       this.config.username = username;
@@ -215,10 +225,10 @@ export class Character extends Group {
       isLocal: this.config.isLocal,
       abortController: this.config.abortController,
     });
-    
+
     try {
       await this.model.init();
-      
+
       // Check if operation was cancelled after loading
       if (this.config.abortController?.signal.aborted) {
         console.log(`Character loading cancelled after init for ${this.config.characterId}`);
@@ -242,7 +252,10 @@ export class Character extends Group {
         console.log(`Character loading cancelled during init for ${this.config.characterId}`);
         return;
       }
-      console.error(`Character loading failed for ${this.config.username} (${this.config.characterId}):`, error);
+      console.error(
+        `Character loading failed for ${this.config.username} (${this.config.characterId}):`,
+        error,
+      );
       throw error;
     }
   }

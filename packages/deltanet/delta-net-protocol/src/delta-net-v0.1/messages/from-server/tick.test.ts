@@ -1,6 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
 import { TickMessageType } from "../../messageTypes";
+
 import { decodeTick, DeltaNetV01Tick, encodeTick } from "./tick";
 
 const cases: Array<[string, DeltaNetV01Tick, Array<number>]> = [

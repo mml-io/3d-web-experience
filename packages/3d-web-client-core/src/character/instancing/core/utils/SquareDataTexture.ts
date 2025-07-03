@@ -280,8 +280,8 @@ export class SquareDataTexture extends DataTexture {
     const gl = renderer.getContext() as WebGL2RenderingContext;
     // @ts-expect-error Expected 2 arguments, but got 3.
     this._utils ??= new WebGLUtils(gl, renderer.extensions, renderer.capabilities); // third argument is necessary for older three versions
-    const glFormat = this._utils.convert(this.format);
-    const glType = this._utils.convert(this.type);
+    const glFormat = this._utils.convert(this.format)!;
+    const glType = this._utils.convert(this.type)!;
     const { data, width } = this.image;
     const channels = this._channels;
 
@@ -315,6 +315,7 @@ export class SquareDataTexture extends DataTexture {
       );
     }
 
+    // @ts-ignore
     if (this.onUpdate) this.onUpdate(this);
   }
 
@@ -325,7 +326,7 @@ export class SquareDataTexture extends DataTexture {
    * @param value The value to set for the uniform.
    */
   public setUniformAt(id: number, name: string, value: UniformValue): void {
-    const { offset, size } = this._uniformMap.get(name);
+    const { offset, size } = this._uniformMap!.get(name)!;
     const stride = this._stride;
 
     if (size === 1) {
@@ -343,14 +344,14 @@ export class SquareDataTexture extends DataTexture {
    * @returns The uniform value for the specified instance.
    */
   public getUniformAt(id: number, name: string, target?: UniformValueObj): UniformValue {
-    const { offset, size } = this._uniformMap.get(name);
+    const { offset, size } = this._uniformMap!.get(name)!;
     const stride = this._stride;
 
     if (size === 1) {
       return this._data[id * stride + offset];
     }
 
-    return target.fromArray(this._data, id * stride + offset);
+    return target!.fromArray(this._data, id * stride + offset);
   }
 
   /**
@@ -441,7 +442,7 @@ export class SquareDataTexture extends DataTexture {
     const uniforms = this._uniformMap;
     let getFromTexels = "";
 
-    for (const [name, { type, offset, size }] of uniforms) {
+    for (const [name, { type, offset, size }] of uniforms!) {
       const tId = Math.floor(offset / this._channels);
 
       if (type === "mat3") {
@@ -463,7 +464,7 @@ export class SquareDataTexture extends DataTexture {
     let assignVarying = "";
     let getVarying = "";
 
-    for (const [name, { type }] of uniforms) {
+    for (const [name, { type }] of uniforms!) {
       declareVarying += `flat varying ${type} ez_v${name};\n`;
       assignVarying += `ez_v${name} = ${name};\n`;
       getVarying += `${type} ${name} = ez_v${name};\n`;

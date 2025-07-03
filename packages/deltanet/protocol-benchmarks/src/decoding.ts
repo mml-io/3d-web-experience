@@ -3,11 +3,11 @@ import {
   BufferWriter,
   DeltaNetV01ServerMessage,
   encodeServerMessage,
+  decodeServerMessages,
 } from "@deltanet/delta-net-protocol";
-import { decodeServerMessages } from "@deltanet/delta-net-protocol";
 import Benchmark from "benchmark";
 
-import { prepareData } from "./prepare-data.js";
+import { prepareData } from "./prepare-data";
 
 export function runDecodingBenchmark(): Promise<void> {
   return new Promise((resolve, reject) => {

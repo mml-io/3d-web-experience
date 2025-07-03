@@ -70,7 +70,8 @@ export class BasicUserAuthenticator {
     user.clientId = clientId;
     user.userData = {
       username: `User ${clientId}`,
-      characterDescription: userIdentityPresentedOnConnection?.characterDescription ?? this.characterDescription,
+      characterDescription:
+        userIdentityPresentedOnConnection?.characterDescription ?? this.characterDescription,
       colors: userIdentityPresentedOnConnection?.colors ?? [],
     };
     if (userIdentityPresentedOnConnection) {

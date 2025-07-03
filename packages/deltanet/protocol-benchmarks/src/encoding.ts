@@ -1,7 +1,7 @@
 import { BufferWriter, encodeServerMessage } from "@deltanet/delta-net-protocol";
 import Benchmark from "benchmark";
 
-import { prepareData } from "./prepare-data.js";
+import { prepareData } from "./prepare-data";
 
 export function runEncodingBenchmark(): Promise<void> {
   return new Promise((resolve, reject) => {
