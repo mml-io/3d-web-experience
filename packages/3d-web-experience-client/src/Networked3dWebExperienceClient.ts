@@ -49,7 +49,7 @@ import {
   setGlobalDocumentTimeManager,
   setGlobalMMLScene,
 } from "@mml-io/mml-web";
-import { Scene, AudioListener } from "three";
+import { Scene, AudioListener, Vector3 } from "three";
 
 type MMLDocumentConfiguration = {
   url: string;
@@ -594,8 +594,10 @@ export class Networked3dWebExperienceClient {
     this.timeManager.update();
     this.characterManager.update();
     this.cameraManager.update();
-    const characterPosition = this.characterManager.localCharacter?.getLocalPosition();
-    this.composer.sun?.updateCharacterPosition(characterPosition);
+    const characterPosition = this.characterManager.localCharacter?.getPosition();
+    this.composer.sun?.updateCharacterPosition(
+      new Vector3(characterPosition?.x || 0, characterPosition?.y || 0, characterPosition?.z || 0),
+    );
     this.composer.render(this.timeManager);
     if (this.tweakPane?.guiVisible) {
       this.tweakPane.updateStats(this.timeManager);

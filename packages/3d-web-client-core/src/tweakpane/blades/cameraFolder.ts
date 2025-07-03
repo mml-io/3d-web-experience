@@ -11,9 +11,9 @@ export const camValues = {
   maxFOV: 70,
   minFOV: 60,
   invertFOVMapping: false,
-  damping: 0.25,
-  zoomScale: 0.088,
-  zoomDamping: 0.4,
+  damping: 0.21,
+  zoomScale: 0.04,
+  zoomDamping: 0.04,
 };
 
 export const camOptions = {
@@ -103,6 +103,7 @@ export class CameraFolder {
         case "invertFOVMapping": {
           const boolValue = e.value as boolean;
           cameraManager.invertFOVMapping = boolValue;
+          cameraManager.recomputeFoV();
           break;
         }
         case "damping": {

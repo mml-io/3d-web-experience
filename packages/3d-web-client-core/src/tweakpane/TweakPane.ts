@@ -73,9 +73,9 @@ export class TweakPane {
 
     this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
     this.character = new CharacterFolder(this.gui, false);
-    this.environment = new EnvironmentFolder(this.gui, false);
+    this.environment = new EnvironmentFolder(this.gui, true);
     this.camera = new CameraFolder(this.gui, false);
-    this.characterControls = new CharacterControlsFolder(this.gui, true);
+    this.characterControls = new CharacterControlsFolder(this.gui, false);
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
@@ -103,13 +103,13 @@ export class TweakPane {
   }
 
   public setupRenderPane(
-    hasLighting: boolean,
-    sun: Sun | null,
+    updateSunValues: () => void,
     setHDR: () => void,
     setSkyboxAzimuthalAngle: (azimuthalAngle: number) => void,
     setSkyboxPolarAngle: (azimuthalAngle: number) => void,
     setAmbientLight: () => void,
     setFog: () => void,
+    setSkyShaderValues: () => void,
   ): void {
     this.environment.setupChangeEvent(
       this.scene,
@@ -118,9 +118,9 @@ export class TweakPane {
       setSkyboxPolarAngle,
       setAmbientLight,
       setFog,
-      sun,
+      setSkyShaderValues,
+      updateSunValues,
     );
-    this.environment.folder.hidden = hasLighting === false || sun === null;
 
     const exportButton = this.export.addButton({ title: "export" });
     exportButton.on("click", () => {

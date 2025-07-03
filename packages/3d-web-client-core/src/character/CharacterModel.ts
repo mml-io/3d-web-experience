@@ -9,11 +9,15 @@ import {
   AnimationClip,
   AnimationMixer,
   Bone,
+  Box3,
   Color,
   Group,
   LoopRepeat,
   Object3D,
   SkinnedMesh,
+  Mesh,
+  MeshStandardMaterial,
+  Vector3,
 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
@@ -23,6 +27,7 @@ import {
   captureCharacterColors,
   captureCharacterColorsFromObject3D,
 } from "./CharacterColourSamplingUtils";
+import { CharacterMaterial } from "./CharacterMaterial";
 import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
 
@@ -86,6 +91,8 @@ export class CharacterModel {
   public headBone: Bone | null = null;
   public characterHeight: number | null = null;
 
+  private materials: Map<string, CharacterMaterial> = new Map();
+
   public animations: Record<string, AnimationAction> = {};
   public animationMixer: AnimationMixer | null = null;
   public currentAnimation: AnimationState = AnimationState.idle;
@@ -96,7 +103,7 @@ export class CharacterModel {
 
   private colors: Array<[number, number, number]> | null = null;
 
-  constructor(private config: CharacterModelConfig) {}
+  constructor(private config: CharacterModelConfig) { }
 
   public async init(): Promise<void> {
     // Check if operation was cancelled before starting
@@ -106,7 +113,7 @@ export class CharacterModel {
     }
 
     await this.loadMainMesh();
-    
+
     // Check if operation was cancelled after mesh loading
     if (this.config.abortController?.signal.aborted) {
       console.log(`CharacterModel init cancelled after mesh loading for ${this.config.characterId}`);
@@ -115,7 +122,7 @@ export class CharacterModel {
 
     if (this.mesh) {
       const animationConfig = await this.config.animationsPromise;
-      
+
       // Check if operation was cancelled after animation loading
       if (this.config.abortController?.signal.aborted) {
         console.log(`CharacterModel init cancelled after animation loading for ${this.config.characterId}`);
@@ -132,7 +139,51 @@ export class CharacterModel {
         false,
         1.45,
       );
+      this.applyCustomMaterials();
     }
+  }
+
+  private applyCustomMaterials(): void {
+    if (!this.mesh) return;
+    const boundingBox = new Box3();
+    this.mesh.updateWorldMatrix(true, true);
+    boundingBox.expandByObject(this.mesh);
+    this.characterHeight = boundingBox.max.y - boundingBox.min.y;
+
+    this.mesh.traverse((child: Object3D) => {
+      if ((child as Bone).isBone) {
+        if (child.name === "head") {
+          const worldPosition = new Vector3();
+          this.headBone = child as Bone;
+          this.headBone.getWorldPosition(worldPosition);
+        }
+      }
+      if ((child as Mesh).isMesh || (child as SkinnedMesh).isSkinnedMesh) {
+        const asMesh = child as Mesh;
+        const originalMaterial = asMesh.material as MeshStandardMaterial;
+        if (this.materials.has(originalMaterial.name)) {
+          asMesh.material = this.materials.get(originalMaterial.name)!;
+        } else {
+          const material =
+            originalMaterial.name === "body_replaceable_color"
+              ? new CharacterMaterial({
+                isLocal: this.config.isLocal,
+                cameraManager: this.config.cameraManager,
+                characterId: this.config.characterId,
+                originalMaterial,
+              })
+              : new CharacterMaterial({
+                isLocal: this.config.isLocal,
+                cameraManager: this.config.cameraManager,
+                characterId: this.config.characterId,
+                originalMaterial,
+                colorOverride: originalMaterial.color,
+              });
+          this.materials.set(originalMaterial.name, material);
+          asMesh.material = material;
+        }
+      }
+    });
   }
 
   public updateAnimation(targetAnimation: AnimationState) {
@@ -345,6 +396,7 @@ export class CharacterModel {
   update(time: number) {
     if (this.animationMixer) {
       this.animationMixer.update(time);
+      this.materials.forEach((material) => material.update());
     }
   }
 

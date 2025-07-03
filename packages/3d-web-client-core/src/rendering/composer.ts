@@ -2,18 +2,24 @@ import { HDRJPGLoader } from "@monogrid/gainmap-js";
 import {
   AmbientLight,
   Color,
+  CubeCamera,
   EquirectangularReflectionMapping,
   Euler,
   Fog,
+  HalfFloatType,
+  LinearMipmapLinearFilter,
   LinearSRGBColorSpace,
   LoadingManager,
   MathUtils,
   PMREMGenerator,
   Scene,
   Texture,
+  Vector3,
+  WebGLCubeRenderTarget,
   WebGLRenderer,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { Sky } from "three/examples/jsm/objects/Sky.js";
 
 import { CameraManager } from "../camera/CameraManager";
 import { Sun } from "../sun/Sun";
@@ -90,6 +96,11 @@ export class Composer {
 
   public sun: Sun | null = null;
   public spawnSun: boolean;
+  private tweakPane: TweakPane | null = null;
+
+  private sky: Sky | null = null;
+  private skyCubeCamera: CubeCamera | null = null;
+  private skyRenderTarget: WebGLCubeRenderTarget | null = null;
 
   constructor({
     scene,
@@ -127,12 +138,44 @@ export class Composer {
     }
 
     this.updateSunValues();
+    this.setupSkyShader();
+    this.updateSun();
 
     this.resizeListener = () => {
       this.fitContainer();
     };
     window.addEventListener("resize", this.resizeListener, false);
     this.fitContainer();
+  }
+
+  private setupSkyShader() {
+    if (this.hasHDR()) {
+      return;
+    }
+    this.sky = new Sky();
+    this.sky.scale.setScalar(50000);
+
+    this.sky.material.uniforms.sunPosition.value = new Vector3().setFromSphericalCoords(
+      1,
+      MathUtils.degToRad(sunValues.sunPosition.sunPolarAngle),
+      MathUtils.degToRad(sunValues.sunPosition.sunAzimuthalAngle),
+    );
+
+    this.sky.material.uniforms.turbidity.value = sunValues.skyTurbidity;
+    this.sky.material.uniforms.rayleigh.value = sunValues.skyRayleigh;
+    this.sky.material.uniforms.mieCoefficient.value = sunValues.skyMieCoefficient;
+    this.sky.material.uniforms.mieDirectionalG.value = sunValues.skyMieDirectionalG;
+
+    this.skyRenderTarget = new WebGLCubeRenderTarget(512, {
+      type: HalfFloatType,
+      generateMipmaps: true,
+      minFilter: LinearMipmapLinearFilter,
+    });
+
+    this.skyCubeCamera = new CubeCamera(1, 1.1, this.skyRenderTarget);
+    this.skyCubeCamera.update(this.renderer, this.sky);
+    this.scene.environment = this.skyRenderTarget.texture;
+    this.scene.add(this.sky);
   }
 
   public updateEnvironmentConfiguration(environmentConfiguration: EnvironmentConfiguration) {
@@ -146,6 +189,7 @@ export class Composer {
       }
     }
 
+    this.updateSkyShaderValues();
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
     this.updateSunValues();
@@ -153,22 +197,30 @@ export class Composer {
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
-    // TODO
-    //   tweakPane.setupRenderPane(
-    //     this.spawnSun,
-    //     this.sun,
-    //     this.setHDRIFromFile.bind(this),
-    //     (azimuthalAngle: number) => {
-    //       envValues.skyboxAzimuthalAngle = azimuthalAngle;
-    //       this.updateSkyboxRotation();
-    //     },
-    //     (polarAngle: number) => {
-    //       envValues.skyboxPolarAngle = polarAngle;
-    //       this.updateSkyboxRotation();
-    //     },
-    //     this.setAmbientLight.bind(this),
-    //     this.setFog.bind(this),
-    //   );
+    this.tweakPane = tweakPane;
+    this.setupTweakPaneInternal();
+  }
+
+  private setupTweakPaneInternal() {
+    if (!this.tweakPane) {
+      return;
+    }
+
+    this.tweakPane.setupRenderPane(
+      this.updateSun.bind(this),
+      this.setHDRIFromFile.bind(this),
+      (azimuthalAngle: number) => {
+        envValues.skyboxAzimuthalAngle = azimuthalAngle;
+        this.updateSkyboxRotation();
+      },
+      (polarAngle: number) => {
+        envValues.skyboxPolarAngle = polarAngle;
+        this.updateSkyboxRotation();
+      },
+      this.setAmbientLight.bind(this),
+      this.setFog.bind(this),
+      this.updateSkyShaderValues.bind(this),
+    );
   }
 
   public dispose() {
@@ -197,10 +249,17 @@ export class Composer {
     if (!this.renderer || !this.scene) {
       return;
     }
+    if (this.sky && this.skyCubeCamera && this.skyRenderTarget) {
+      this.skyCubeCamera?.update(this.renderer, this.sky);
+      this.scene.environment = this.skyRenderTarget.texture;
+    }
     this.renderer.render(this.scene, this.cameraManager.activeCamera);
   }
 
   public updateSkyboxRotation() {
+    if (this.sky) {
+      return;
+    }
     this.scene.backgroundRotation = new Euler(
       MathUtils.degToRad(envValues.skyboxPolarAngle),
       MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
@@ -211,6 +270,16 @@ export class Composer {
       MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
       0,
     );
+  }
+
+  private hasHDR(): boolean {
+    if (!this.environmentConfiguration?.skybox) {
+      return false;
+    } else {
+      const hasHDRJPG = "hdrJpgUrl" in this.environmentConfiguration.skybox;
+      const hasHDRi = "hdrUrl" in this.environmentConfiguration.skybox;
+      return hasHDRJPG || hasHDRi;
+    }
   }
 
   private async loadHDRJPG(url: string): Promise<Texture> {
@@ -254,7 +323,7 @@ export class Composer {
     });
   }
 
-  public useHDRJPG(url: string, fromFile: boolean = false): void {
+  public useHDRJPG(url: string): void {
     if (this.skyboxState.src.hdrJpgUrl === url) {
       return;
     }
@@ -344,20 +413,52 @@ export class Composer {
     this.scene.add(this.ambientLight);
   }
 
-  private updateSunValues() {
+  public updateSkyShaderValues() {
+    if (!this.sky) {
+      return;
+    }
+    const polarAngle = MathUtils.degToRad(sunValues.sunPosition.sunPolarAngle);
+    const azimuthalAngle = MathUtils.degToRad(sunValues.sunPosition.sunAzimuthalAngle);
+    const sunPosition = new Vector3().setFromSphericalCoords(1, polarAngle, azimuthalAngle);
+
+    this.sky.material.uniforms.sunPosition.value = sunPosition;
+    this.sky.material.uniforms.turbidity.value = sunValues.skyTurbidity;
+    this.sky.material.uniforms.rayleigh.value = sunValues.skyRayleigh;
+    this.sky.material.uniforms.mieCoefficient.value = sunValues.skyMieCoefficient;
+    this.sky.material.uniforms.mieDirectionalG.value = sunValues.skyMieDirectionalG;
+  }
+
+  public updateSunValues() {
     if (typeof this.environmentConfiguration?.sun?.intensity === "number") {
       sunValues.sunIntensity = this.environmentConfiguration.sun.intensity;
       this.sun?.setIntensity(this.environmentConfiguration.sun.intensity);
     }
     if (typeof this.environmentConfiguration?.sun?.azimuthalAngle === "number") {
       sunValues.sunPosition.sunAzimuthalAngle = this.environmentConfiguration.sun.azimuthalAngle;
-      this.sun?.setAzimuthalAngle(
-        this.environmentConfiguration.sun.azimuthalAngle * (Math.PI / 180),
-      );
     }
     if (typeof this.environmentConfiguration?.sun?.polarAngle === "number") {
       sunValues.sunPosition.sunPolarAngle = this.environmentConfiguration.sun.polarAngle;
-      this.sun?.setPolarAngle(this.environmentConfiguration.sun.polarAngle * (Math.PI / 180));
+    }
+    const { sunAzimuthalAngle, sunPolarAngle } = sunValues.sunPosition;
+    const radAzimuthalAngle = MathUtils.degToRad(sunAzimuthalAngle);
+    const radPolarAngle = MathUtils.degToRad(sunPolarAngle);
+    this.sun?.setAzimuthalAngle(radAzimuthalAngle);
+    this.sun?.setPolarAngle(radPolarAngle);
+    if (this.sky) {
+      this.updateSkyShaderValues();
+    }
+  }
+
+  public updateSun() {
+    if (!this.sun) {
+      return;
+    }
+    this.sun.setAzimuthalAngle(MathUtils.degToRad(sunValues.sunPosition.sunAzimuthalAngle));
+    this.sun.setPolarAngle(MathUtils.degToRad(sunValues.sunPosition.sunPolarAngle));
+    this.sun.setIntensity(sunValues.sunIntensity);
+    this.sun.setColor();
+    if (this.sky) {
+      this.updateSkyShaderValues();
     }
   }
 
@@ -423,6 +524,9 @@ export class Composer {
   }
 
   private applyEnvMap(envMap: Texture) {
+    if (this.sky) {
+      return;
+    }
     this.scene.environment = envMap;
     this.scene.environmentIntensity = envValues.envMapIntensity;
     this.scene.environmentRotation = new Euler(
