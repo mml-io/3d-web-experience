@@ -12,6 +12,8 @@ const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
 const userNetworkAddress = `${protocol}//${host}/network`;
 
+const useHDR = false;
+
 const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
@@ -26,9 +28,11 @@ const app = new Networked3dWebExperienceClient(holder, {
   },
   mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
   environmentConfiguration: {
-    // skybox: {
-    //   hdrUrl: hdrUrl,
-    // },
+    skybox: useHDR
+      ? {
+          hdrUrl: hdrUrl,
+        }
+      : undefined,
   },
   avatarConfiguration: {
     availableAvatars: [

@@ -347,10 +347,10 @@ export class CameraManager {
     const y = this.target.y + this.distance * Math.cos(this.phi);
     const z = this.target.z + this.distance * Math.sin(this.phi) * Math.sin(this.theta);
 
-    // this.recomputeFoV();
-    // this.fov += (this.targetFOV - this.fov) * this.zoomDamping;
-    // this.camera.camera!.fov = this.fov;
-    // this.camera.updateProjectionMatrix();
+    this.recomputeFoV();
+    this.fov += (this.targetFOV - this.fov) * this.zoomDamping;
+    this.camera.fov = this.fov;
+    this.camera.updateProjectionMatrix();
 
     this.camera.position.set(x, y, z);
     this.camera.lookAt(new Vector3(this.target.x, this.target.y, this.target.z));

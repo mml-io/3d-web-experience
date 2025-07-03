@@ -103,6 +103,7 @@ export class CameraFolder {
         case "invertFOVMapping": {
           const boolValue = e.value as boolean;
           cameraManager.invertFOVMapping = boolValue;
+          cameraManager.recomputeFoV();
           break;
         }
         case "damping": {
