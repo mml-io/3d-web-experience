@@ -1,3 +1,5 @@
+import { DeltaNetServerError } from "@deltanet/delta-net-server";
+
 export type CharacterDescription =
   | {
       meshFileUrl: string;
@@ -15,9 +17,12 @@ export type CharacterDescription =
       mmlCharacterUrl: string;
     };
 
+export class UserNetworkingServerError extends DeltaNetServerError {}
+
 export type UserIdentity = {
   characterDescription: CharacterDescription | null;
   username: string | null;
+  colors: Array<[number, number, number]> | null;
 };
 
 export type ClientChatMessage = {
@@ -36,7 +41,12 @@ export const FROM_SERVER_CHAT_MESSAGE_TYPE = 2;
 export function parseClientChatMessage(contents: string): ClientChatMessage | Error {
   try {
     const parsed = JSON.parse(contents) as unknown;
-    if (typeof parsed === "object" && parsed !== null && "message" in parsed && typeof parsed.message === "string") {
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "message" in parsed &&
+      typeof parsed.message === "string"
+    ) {
       return {
         message: parsed.message as string,
       };
@@ -51,7 +61,14 @@ export function parseClientChatMessage(contents: string): ClientChatMessage | Er
 export function parseServerChatMessage(contents: string): ServerChatMessage | Error {
   try {
     const parsed = JSON.parse(contents) as unknown;
-    if (typeof parsed === "object" && parsed !== null && "fromUserId" in parsed && typeof parsed.fromUserId === "number" && "message" in parsed && typeof parsed.message === "string") {
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "fromUserId" in parsed &&
+      typeof parsed.fromUserId === "number" &&
+      "message" in parsed &&
+      typeof parsed.message === "string"
+    ) {
       return {
         fromUserId: parsed.fromUserId as number,
         message: parsed.message as string,

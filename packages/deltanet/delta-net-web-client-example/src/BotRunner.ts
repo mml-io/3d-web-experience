@@ -6,6 +6,7 @@ export type BotRunnerConfig = {
   randomRange: number;
   logStatusInterval: number;
   colorStateId?: number;
+  avatarColorStateId?: number;
   yValue: number;
 };
 
@@ -16,6 +17,7 @@ export interface BotConfig {
   randomRange: number;
   yValue: number;
   colorStateId?: number;
+  avatarColorStateId?: number;
 }
 
 export class BotRunner {
@@ -76,6 +78,7 @@ export class BotRunner {
         updateInterval: this.config.updateInterval,
         randomRange: this.config.randomRange,
         colorStateId: this.config.colorStateId,
+        avatarColorStateId: this.config.avatarColorStateId,
       };
 
       const bot = this.addBot(config);

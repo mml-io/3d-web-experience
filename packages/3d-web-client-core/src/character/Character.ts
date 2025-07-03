@@ -1,8 +1,7 @@
-import { Color, Group, Object3D, Quaternion } from "three";
+import { AnimationClip, Color, Group, Object3D, Quaternion } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { EulXYZ } from "../math/EulXYZ";
-import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
@@ -17,6 +16,14 @@ export type AnimationConfig = {
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
   doubleJumpAnimationFileUrl: string;
+};
+
+export type LoadedAnimations = {
+  idleAnimation: AnimationClip;
+  jogAnimation: AnimationClip;
+  sprintAnimation: AnimationClip;
+  airAnimation: AnimationClip;
+  doubleJumpAnimation: AnimationClip;
 };
 
 export type CharacterDescription =
@@ -39,13 +46,14 @@ export type CharacterDescription =
 export type CharacterConfig = {
   username: string;
   characterDescription: CharacterDescription;
-  animationConfig: AnimationConfig;
+  animationsPromise: Promise<LoadedAnimations>;
   characterModelLoader: CharacterModelLoader;
   characterId: number;
   modelLoadedCallback: () => void;
   cameraManager: CameraManager;
   composer: Composer;
   isLocal: boolean;
+  abortController?: AbortController;
 };
 
 function characterHeightToTooltipHeightOffset(characterHeight: number): number {
@@ -77,9 +85,23 @@ export class Character extends Group {
     );
     this.tooltip.setText(this.config.username);
     this.add(this.tooltip);
+    
+    // Check if operation was cancelled before starting loading
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`Character loading cancelled before starting for ${this.config.characterId}`);
+      return;
+    }
+    
     this.load().then(() => {
       this.config.modelLoadedCallback();
       this.setTooltipHeights();
+    }).catch((error) => {
+      // Check if the error is due to cancellation
+      if (this.config.abortController?.signal.aborted) {
+        console.log(`Character loading cancelled in constructor for ${this.config.characterId}`);
+        return;
+      }
+      console.error(`Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`, error);
     });
   }
 
@@ -91,7 +113,19 @@ export class Character extends Group {
     if (!characterDescriptionMatches(this.config.characterDescription, characterDescription)) {
       this.config.characterDescription = characterDescription;
       this.load().then(() => {
+        // Check if operation was cancelled after loading
+        if (this.config.abortController?.signal.aborted) {
+          console.log(`Character update cancelled for ${this.config.characterId}`);
+          return;
+        }
         this.setTooltipHeights();
+      }).catch((error) => {
+        // Check if the error is due to cancellation
+        if (this.config.abortController?.signal.aborted) {
+          console.log(`Character update cancelled during loading for ${this.config.characterId}`);
+          return;
+        }
+        console.error(`Character update failed for ${this.config.username} (${this.config.characterId}):`, error);
       });
     }
     if (this.config.username !== username) {
@@ -115,22 +149,101 @@ export class Character extends Group {
     }
   }
 
+  public static loadAnimations(
+    characterModelLoader: CharacterModelLoader,
+    animationConfig: AnimationConfig,
+  ): Promise<LoadedAnimations> {
+    return new Promise((resolve) => {
+      const idleAnimation = characterModelLoader.load(
+        animationConfig.idleAnimationFileUrl,
+        "animation",
+      );
+      const jogAnimation = characterModelLoader.load(
+        animationConfig.jogAnimationFileUrl,
+        "animation",
+      );
+      const sprintAnimation = characterModelLoader.load(
+        animationConfig.sprintAnimationFileUrl,
+        "animation",
+      );
+      const airAnimation = characterModelLoader.load(
+        animationConfig.airAnimationFileUrl,
+        "animation",
+      );
+      const doubleJumpAnimation = characterModelLoader.load(
+        animationConfig.doubleJumpAnimationFileUrl,
+        "animation",
+      );
+      resolve(
+        Promise.all([
+          idleAnimation,
+          jogAnimation,
+          sprintAnimation,
+          airAnimation,
+          doubleJumpAnimation,
+        ]).then((animations) => {
+          const animationConfig: LoadedAnimations = {
+            idleAnimation: animations[0]!,
+            jogAnimation: animations[1]!,
+            sprintAnimation: animations[2]!,
+            airAnimation: animations[3]!,
+            doubleJumpAnimation: animations[4]!,
+          };
+          return animationConfig;
+        }),
+      );
+    });
+  }
+
   private async load(): Promise<void> {
+    // Check if operation was cancelled before starting
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`Character loading cancelled for ${this.config.characterId}`);
+      return;
+    }
+
     const previousModel = this.model;
     if (previousModel && previousModel.mesh) {
       this.remove(previousModel.mesh);
     }
     this.model = new CharacterModel({
       characterDescription: this.config.characterDescription,
-      animationConfig: this.config.animationConfig,
+      animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       cameraManager: this.config.cameraManager,
       characterId: this.config.characterId,
       isLocal: this.config.isLocal,
+      abortController: this.config.abortController,
     });
-    await this.model.init();
-    if (this.model.mesh) {
-      this.add(this.model.mesh);
+    
+    try {
+      await this.model.init();
+      
+      // Check if operation was cancelled after loading
+      if (this.config.abortController?.signal.aborted) {
+        console.log(`Character loading cancelled after init for ${this.config.characterId}`);
+        if (this.model) {
+          this.model.dispose();
+          this.model = null;
+        }
+        return;
+      }
+
+      if (this.model && this.model.mesh) {
+        this.add(this.model.mesh);
+      } else {
+        console.warn(
+          `Character model for ${this.config.username} (${this.config.characterId}) failed to load.`,
+        );
+      }
+    } catch (error) {
+      // Check if the error is due to cancellation
+      if (this.config.abortController?.signal.aborted) {
+        console.log(`Character loading cancelled during init for ${this.config.characterId}`);
+        return;
+      }
+      console.error(`Character loading failed for ${this.config.username} (${this.config.characterId}):`, error);
+      throw error;
     }
   }
 
@@ -196,5 +309,13 @@ export class Character extends Group {
 
   public getMesh(): Object3D | null {
     return this.model?.mesh || null;
+  }
+
+  dispose() {
+    if (this.model) {
+      this.model.dispose();
+      this.model = null;
+    }
+    // TODO - dispose of the tooltip and chat tooltips
   }
 }

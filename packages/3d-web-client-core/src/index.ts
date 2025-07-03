@@ -1,5 +1,10 @@
 export { CameraManager } from "./camera/CameraManager";
-export { CharacterDescription, AnimationConfig } from "./character/Character";
+export {
+  CharacterDescription,
+  AnimationConfig,
+  LoadedAnimations,
+  Character,
+} from "./character/Character";
 export {
   CharacterManager,
   SpawnConfiguration,
@@ -8,6 +13,7 @@ export {
 export * from "./character/url-position";
 export * from "./helpers/math-helpers";
 export { CharacterModelLoader } from "./character/CharacterModelLoader";
+export { TextureWorkerPool } from "./character/TextureWorker";
 export { CharacterState, AnimationState } from "./character/CharacterState";
 export { Key, KeyInputManager } from "./input/KeyInputManager";
 export { VirtualJoystick } from "./input/VirtualJoystick";

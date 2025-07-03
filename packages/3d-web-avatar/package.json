@@ -23,12 +23,14 @@
   "dependencies": {
     "@mml-io/model-loader": "0.19.7",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "three": "0.163.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
-    "esbuild-css-modules-plugin": "3.1.4"
+    "esbuild-css-modules-plugin": "3.1.4",
+    "@types/three": "0.163.0"
   }
 }

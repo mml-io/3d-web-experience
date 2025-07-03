@@ -66,7 +66,7 @@ export class DeltaNetServerError extends Error {
   }
 }
 
-type DeltaNetServerOptions = {
+export type DeltaNetServerOptions = {
   onJoiner?: (
     opts: onJoinerOptions,
   ) =>
@@ -75,7 +75,13 @@ type DeltaNetServerOptions = {
     | Error
     | DeltaNetServerError
     | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
-    | Promise<true | void | Error | DeltaNetServerError | { success: true; stateOverrides?: Array<[number, Uint8Array]> }>;
+    | Promise<
+        | true
+        | void
+        | Error
+        | DeltaNetServerError
+        | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+      >;
   onComponentsUpdate?: (
     opts: onComponentsUpdateOptions,
   ) => true | void | Error | DeltaNetServerError;
@@ -284,8 +290,15 @@ export class DeltaNetServer {
     }
 
     function resultToReturn(
-      result: true | void | Error | DeltaNetServerError | { success: true; stateOverrides?: Array<[number, Uint8Array]> },
-    ): { success: true; stateOverrides?: Array<[number, Uint8Array]> } | { success: false; error: string } {
+      result:
+        | true
+        | void
+        | Error
+        | DeltaNetServerError
+        | { success: true; stateOverrides?: Array<[number, Uint8Array]> },
+    ):
+      | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+      | { success: false; error: string } {
       if (result instanceof DeltaNetServerError) {
         return { success: false, error: result.message };
       }
@@ -296,7 +309,7 @@ export class DeltaNetServer {
         // If the callback returns true or undefined, treat it as success
         return { success: true };
       }
-      if (typeof result === 'object' && result.success === true) {
+      if (typeof result === "object" && result.success === true) {
         // Return the object with potential state overrides
         return result;
       }
@@ -366,7 +379,11 @@ export class DeltaNetServer {
 
     // Observers cannot send state updates
     if (deltaNetV01Connection.isObserver) {
-      return new DeltaNetServerError("OBSERVER_CANNOT_SEND_STATE_UPDATES", "Observers cannot send state updates", false);
+      return new DeltaNetServerError(
+        "OBSERVER_CANNOT_SEND_STATE_UPDATES",
+        "Observers cannot send state updates",
+        false,
+      );
     }
 
     // Call onStatesUpdate callback if provided
@@ -744,6 +761,14 @@ export class DeltaNetServer {
     }
   }
 
+  public overrideUserStates(
+    deltaNetV01Connection: DeltaNetV01Connection,
+    internalConnectionId: number,
+    states: Array<[number, Uint8Array]>,
+  ) {
+    this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, states);
+  }
+
   private applyStateUpdates(
     deltaNetV01Connection: DeltaNetV01Connection,
     internalConnectionId: number,
@@ -810,7 +835,7 @@ export class DeltaNetServer {
       customType,
       contents,
     };
-    
+
     const encodedMessage = encodeServerMessage(message, writer);
     const messageBytes = encodedMessage.getBuffer();
 

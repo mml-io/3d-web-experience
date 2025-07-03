@@ -1,110 +1,158 @@
 import { ModelLoader, ModelLoadResult } from "@mml-io/model-loader";
 import { AnimationClip, Object3D } from "three";
+import { GLTFTextureWorkerPool } from "./TextureWorker";
 
-class LRUCache<K, V> {
-  private maxSize: number;
-  private cache: Map<K, V>;
-
-  constructor(maxSize: number = 100) {
-    this.maxSize = maxSize;
-    this.cache = new Map();
-  }
-
-  get(key: K): V | undefined {
-    const item = this.cache.get(key);
-    if (item) {
-      this.cache.delete(key);
-      this.cache.set(key, item);
-    }
-    return item;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value;
-      this.cache.delete(oldestKey);
-    }
-    this.cache.set(key, value);
-  }
-}
-
-interface CachedModel {
-  blob: Blob;
-  originalExtension: string;
-}
-
+/**
+ * CharacterModelLoader with automatic texture downscaling using Web Workers and gltf-transform
+ * 
+ * Performance Features:
+ * - Entire gLTF loading and processing happens off main thread using Web Workers
+ * - Uses gltf-transform for proper gLTF manipulation and texture processing
+ * - Automatic texture resizing with aspect ratio preservation
+ * - No caching - each load is fresh to prevent memory leaks
+ * - Immediate cleanup of blob URLs to prevent memory accumulation
+ * - Configurable maximum texture size
+ * 
+ * Memory Safety:
+ * - No LRU cache to prevent memory bloat
+ * - Blob URLs are revoked immediately after use
+ * - Worker pool handles its own memory management
+ * - Direct processing without intermediate storage
+ * 
+ * @example
+ * ```typescript
+ * // Ultra performance (mobile/low-end devices)
+ * const loader = new CharacterModelLoader(false, 128);
+ * 
+ * // Balanced performance (most devices)  
+ * const loader = new CharacterModelLoader(false, 512);
+ * 
+ * // Quality focused (high-end devices)
+ * const loader = new CharacterModelLoader(false, 1024);
+ * 
+ * const model = await loader.load('character.glb', 'model');
+ * ```
+ */
 export class CharacterModelLoader {
   private readonly modelLoader: ModelLoader = new ModelLoader();
-  private modelCache: LRUCache<string, CachedModel>;
-  private ongoingLoads: Map<string, Promise<CachedModel>> = new Map();
+  private workerPool: GLTFTextureWorkerPool;
 
   constructor(
-    maxCacheSize: number = 100,
     private debug: boolean = false,
+    private maxTextureSize: number = 128
   ) {
-    this.modelCache = new LRUCache(maxCacheSize);
+    this.maxTextureSize = maxTextureSize;
+    this.workerPool = GLTFTextureWorkerPool.getInstance();
   }
 
-  async load(fileUrl: string, fileType: "model"): Promise<Object3D | undefined>;
-  async load(fileUrl: string, fileType: "animation"): Promise<AnimationClip | undefined>;
+  public setMaxTextureSize(size: number): void {
+    this.maxTextureSize = Math.max(64, Math.min(4096, size));
+    if (this.debug) {
+      console.log(`CharacterModelLoader max texture size set to ${this.maxTextureSize}`);
+    }
+  }
+
+  async load(fileUrl: string, fileType: "model", abortController?: AbortController): Promise<Object3D | undefined>;
+  async load(fileUrl: string, fileType: "animation", abortController?: AbortController): Promise<AnimationClip | undefined>;
   async load(
     fileUrl: string,
     fileType: "model" | "animation",
+    abortController?: AbortController,
   ): Promise<Object3D | AnimationClip | undefined> {
-    const cachedModel = this.modelCache.get(fileUrl);
+    if (this.debug) {
+      console.log(`Loading and processing ${fileUrl} with max texture size ${this.maxTextureSize}`);
+    }
 
-    if (cachedModel) {
-      return this.loadFromUrl(fileUrl, fileType, cachedModel.originalExtension);
-    } else {
-      if (this.debug === true) {
-        console.log(`Loading ${fileUrl} from server`);
+    try {
+      // Process gLTF in worker (includes fetch + texture processing)
+      const processedBuffer = await this.processGLTFInWorker(fileUrl, abortController);
+      
+      // Create temporary blob URL for ModelLoader
+      const blob = new Blob([processedBuffer], { type: 'model/gltf-binary' });
+      const blobURL = URL.createObjectURL(blob);
+      
+      try {
+        // Load using temporary blob URL
+        const result = await this.loadFromBlobUrl(blobURL, fileType);
+        return result;
+      } finally {
+        // CRITICAL: Always revoke blob URL to prevent memory leaks
+        URL.revokeObjectURL(blobURL);
       }
-      const ongoingLoad = this.ongoingLoads.get(fileUrl);
-      if (ongoingLoad)
-        return ongoingLoad.then((loadedModel) => {
-          const blobURL = URL.createObjectURL(loadedModel.blob);
-          return this.loadFromUrl(blobURL, fileType, loadedModel.originalExtension);
-        });
-
-      const loadPromise: Promise<CachedModel> = fetch(fileUrl)
-        .then((response) => response.blob())
-        .then((blob) => {
-          const originalExtension = fileUrl.split(".").pop() || "";
-          const cached = { blob, originalExtension };
-          this.modelCache.set(fileUrl, cached);
-          this.ongoingLoads.delete(fileUrl);
-          return cached;
-        });
-
-      this.ongoingLoads.set(fileUrl, loadPromise);
-      return loadPromise.then((loadedModel) => {
-        const blobURL = URL.createObjectURL(loadedModel.blob);
-        return this.loadFromUrl(blobURL, fileType, loadedModel.originalExtension);
-      });
+    } catch (error) {
+      // Check if the error is due to cancellation
+      if (abortController?.signal.aborted) {
+        console.log(`Loading cancelled for ${fileUrl}`);
+        return undefined;
+      }
+      console.error(`Error loading ${fileType} from ${fileUrl}:`, error);
+      throw error;
     }
   }
 
-  private async loadFromUrl(
-    url: string,
-    fileType: "model" | "animation",
-    extension: string,
-  ): Promise<Object3D | AnimationClip | undefined> {
-    return new Promise(async (resolve, reject) => {
-      const modelLoadResult: ModelLoadResult = await this.modelLoader.load(
-        url,
-        (loaded: number, total: number) => {
-          // no-op
-        },
-      );
-      if (fileType === "model") {
-        resolve(modelLoadResult.group as Object3D);
-      } else if (fileType === "animation") {
-        resolve(modelLoadResult.animations[0] as AnimationClip);
-      } else {
-        const error = `Trying to load unknown ${fileType} type of element from file ${url}`;
-        console.error(error);
-        reject(error);
+  private async processGLTFInWorker(fileUrl: string, abortController?: AbortController): Promise<ArrayBuffer> {
+    if (this.debug) {
+      console.log(`Processing gLTF in worker: ${fileUrl}`);
+    }
+    
+    const startTime = performance.now();
+    
+    try {
+      const processedBuffer = await this.workerPool.processGLTF(fileUrl, this.maxTextureSize, abortController);
+      const endTime = performance.now();
+      
+      if (this.debug) {
+        console.log(`gLTF processing completed in ${(endTime - startTime).toFixed(2)}ms`);
       }
-    });
+      
+      return processedBuffer;
+    } catch (error) {
+      if (this.debug) {
+        console.warn(`Worker processing failed for ${fileUrl}, falling back to regular loading:`, error);
+      }
+      
+      // Check if cancellation was requested
+      if (abortController?.signal.aborted) {
+        throw new Error('Operation cancelled');
+      }
+      
+      // Fallback to regular loading if worker fails
+      const response = await fetch(fileUrl, {
+        signal: abortController?.signal,
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
+      }
+      
+      return await response.arrayBuffer();
+    }
+  }
+
+  private async loadFromBlobUrl(
+    blobUrl: string,
+    fileType: "model" | "animation" = "model",
+  ): Promise<Object3D | AnimationClip | undefined> {
+    const modelLoadResult: ModelLoadResult = await this.modelLoader.load(
+      blobUrl,
+      (loaded: number, total: number) => {
+        // no-op
+      },
+    );
+
+    if (fileType === "model") {
+      const model = modelLoadResult.group as Object3D;
+      
+      if (this.debug) {
+        console.log(`Model loaded successfully from blob URL`);
+      }
+      
+      return model;
+    } else if (fileType === "animation") {
+      return modelLoadResult.animations[0] as AnimationClip;
+    } else {
+      const error = `Trying to load unknown ${fileType} type of element`;
+      console.error(error);
+      throw new Error(error);
+    }
   }
 }

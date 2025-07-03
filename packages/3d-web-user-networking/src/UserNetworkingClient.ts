@@ -213,7 +213,7 @@ export class UserNetworkingClient {
 
     // Create initial states for user data (no session token needed here)
     // Add empty username and character description for now
-    const states = DeltaNetComponentMapping.toStates("", { meshFileUrl: "" }, []);
+    const states = DeltaNetComponentMapping.toStates();
 
     // Send to deltanet - this makes the client "ready" and triggers authentication
     // The session token is now passed via the deltanet token field
@@ -232,12 +232,6 @@ export class UserNetworkingClient {
         if (nonNullStates.size > 0) {
           const { username, characterDescription, colors } =
             DeltaNetComponentMapping.fromStates(nonNullStates);
-
-          console.log(`Initial profile for user ${stableUserId}:`, {
-            username,
-            characterDescription,
-            colors,
-          });
 
           this.userProfiles.set(stableUserId, {
             username: username ?? "",
@@ -282,8 +276,6 @@ export class UserNetworkingClient {
       // update.stableId is actually a stable user ID maintained by deltanet, not an index
       const stableUserId = update.stableId;
 
-      console.log({ update });
-
       if (!processedUsers.has(stableUserId)) {
         processedUsers.add(stableUserId);
 
@@ -294,6 +286,11 @@ export class UserNetworkingClient {
             const { userId, username, characterDescription, colors } =
               DeltaNetComponentMapping.fromStates(userInfo.states);
 
+            if (userId === null) {
+              console.warn(`User ID is null for stableUserId ${stableUserId}, skipping update`);
+              continue;
+            }
+
             // Check if this is actually a profile change
             const existingProfile = this.userProfiles.get(userId);
             const profileChanged =
@@ -301,13 +298,9 @@ export class UserNetworkingClient {
               existingProfile.username !== username ||
               JSON.stringify(existingProfile.characterDescription) !==
                 JSON.stringify(characterDescription) ||
-                JSON.stringify(existingProfile.colors) !== JSON.stringify(colors);
+              JSON.stringify(existingProfile.colors) !== JSON.stringify(colors);
 
             if (profileChanged) {
-              console.log(`Profile changed for user ${userId}:`, {
-                username,
-                characterDescription,
-              });
               this.stableIdToUserId.set(stableUserId, userId);
               this.userProfiles.set(userId, {
                 username: username ?? "",
@@ -321,7 +314,6 @@ export class UserNetworkingClient {
                 colors ?? [],
               );
             }
-            console.log(`Total user profiles now:`, this.userProfiles.size);
           }
         } else {
           console.log(`No user info found for user ${stableUserId}`);

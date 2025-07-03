@@ -11,14 +11,15 @@ import {
 import WebSocket from "ws";
 
 import { DeltaNetComponentMapping } from "./DeltaNetComponentMapping";
-import { UserData } from "./UserData";
 import { UserNetworkingClientUpdate } from "./types";
+import { UserData } from "./UserData";
 import {
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   parseClientChatMessage,
   ServerChatMessage,
   UserIdentity,
+  UserNetworkingServerError,
 } from "./UserNetworkingMessages";
 
 export type UserNetworkingServerClient = {
@@ -37,11 +38,11 @@ export type UserNetworkingServerOptions = {
   onClientConnect: (
     clientId: number,
     sessionToken: string,
-    userIdentity?: UserIdentity,
+    userIdentity?: Partial<UserIdentity>,
   ) => Promise<UserData | null> | UserData | null;
   onClientUserIdentityUpdate: (
     clientId: number,
-    userIdentity: UserIdentity,
+    userIdentity: Partial<UserIdentity>,
   ) => Promise<UserData | null> | UserData | null;
   onClientDisconnect: (clientId: number) => void;
 };
@@ -93,8 +94,17 @@ export class UserNetworkingServer {
       `Client ID: ${clientId} joined (observer: ${deltaNetConnection.isObserver}), authenticating...`,
     );
 
+    const statesMap = new Map<number, Uint8Array>(states);
+    const userData: Partial<UserIdentity> = DeltaNetComponentMapping.fromUserStates(statesMap);
+
     // Handle authentication and return the result with state overrides
-    return this.handleDeltaNetAuthentication(clientId, webSocket, deltaNetConnection, joiner.token)
+    return this.handleDeltaNetAuthentication(
+      clientId,
+      webSocket,
+      deltaNetConnection,
+      joiner.token,
+      userData,
+    )
       .then((authResult) => {
         if (!authResult.success) {
           // Authentication failed - return error to reject connection
@@ -177,6 +187,7 @@ export class UserNetworkingServer {
     webSocket: WebSocket,
     deltaNetConnection: DeltaNetV01Connection,
     sessionToken: string,
+    userIdentity: Partial<UserIdentity>,
   ): Promise<{ success: boolean; stateOverrides?: Array<[number, Uint8Array]> }> {
     try {
       console.log(
@@ -186,7 +197,7 @@ export class UserNetworkingServer {
       // For observers, we might want to allow anonymous access or use a different authentication flow
       const userData = deltaNetConnection.isObserver
         ? null // Observers don't need user data
-        : await this.options.onClientConnect(clientId, sessionToken, undefined);
+        : await this.options.onClientConnect(clientId, sessionToken, userIdentity);
 
       console.log(`Authentication result for client ${clientId}:`, {
         success: deltaNetConnection.isObserver || !!userData,
@@ -285,13 +296,10 @@ export class UserNetworkingServer {
       userData.characterDescription,
       userData.colors,
     );
-    const components = DeltaNetComponentMapping.toComponents(client.update);
-    const componentsArray = Array.from(components.entries());
-    // TODO - set states - setUserStates method doesn't exist in DeltaNetServer yet
-    // this.deltaNetServer.setUserStates(client.deltaNetConnection, clientId, states);
+    // this.deltaNetServer.overrideUserStates(client.deltaNetConnection, clientId, states);
   }
 
-  public dispose(clientCloseError?: DeltaNetServerError): void {
+  public dispose(clientCloseError?: UserNetworkingServerError): void {
     if (this.tickInterval) {
       clearInterval(this.tickInterval);
     }
