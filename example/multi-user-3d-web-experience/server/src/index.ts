@@ -2,13 +2,15 @@ import fs from "fs";
 import path from "path";
 import url from "url";
 
-import { Networked3dWebExperienceServer } from "@mml-io/3d-web-experience-server";
+import {
+  Networked3dWebExperienceServer,
+  Networked3dWebExperienceServerConfig,
+} from "@mml-io/3d-web-experience-server";
 import type { CharacterDescription } from "@mml-io/3d-web-user-networking";
 import express from "express";
 import enableWs from "express-ws";
 
 import { BasicUserAuthenticator } from "./BasicUserAuthenticator";
-import { registerDolbyVoiceRoutes } from "./voice-routes";
 
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
 
@@ -50,11 +52,6 @@ const mmlDocumentsWatchPath = "**/*.html";
 
 const { app } = enableWs(express());
 app.enable("trust proxy");
-const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
-const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
-if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
-  registerDolbyVoiceRoutes(app, { DOLBY_APP_KEY, DOLBY_APP_SECRET });
-}
 
 const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
   networkPath: "/network",
@@ -72,12 +69,12 @@ const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
     clientWatchWebsocketPath:
       process.env.NODE_ENV !== "production" ? "/web-client-build" : undefined,
   },
-  chatNetworkPath: "/chat-network",
+  enableChat: true,
   assetServing: {
     assetsDir: path.resolve(dirname, "../../../assets/"),
     assetsUrl: "/assets/",
   },
-});
+} satisfies Networked3dWebExperienceServerConfig);
 networked3dWebExperienceServer.registerExpressRoutes(app);
 
 // Start listening

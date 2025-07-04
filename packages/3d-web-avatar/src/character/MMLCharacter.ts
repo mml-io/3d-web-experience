@@ -1,14 +1,5 @@
 import { ModelLoadResult } from "@mml-io/model-loader";
-import {
-  Bone,
-  BufferAttribute,
-  Group,
-  InterleavedBufferAttribute,
-  MathUtils,
-  Object3D,
-  Skeleton,
-  SkinnedMesh,
-} from "three";
+import { Bone, Group, MathUtils, Object3D, Skeleton, SkinnedMesh, Sphere, Vector3 } from "three";
 
 import { MMLCharacterDescriptionPart } from "../helpers/parseMMLDescription";
 
@@ -102,6 +93,8 @@ export class MMLCharacter {
       const asSkinnedMesh = child as SkinnedMesh;
       if (asSkinnedMesh.isSkinnedMesh) {
         foundSkinnedMeshes.push(asSkinnedMesh);
+        // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustrum culling
+        asSkinnedMesh.boundingSphere = new Sphere(new Vector3(), 3);
       }
     });
 
@@ -157,6 +150,8 @@ export class MMLCharacter {
           const asSkinnedMesh = child as SkinnedMesh;
           if (asSkinnedMesh.isSkinnedMesh) {
             skinnedMeshes.push(asSkinnedMesh);
+            // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustrum culling
+            asSkinnedMesh.boundingSphere = new Sphere(new Vector3(), 3);
           }
         });
         for (const skinnedMeshPart of skinnedMeshes) {

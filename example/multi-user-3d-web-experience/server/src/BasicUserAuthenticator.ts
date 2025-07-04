@@ -44,7 +44,7 @@ export class BasicUserAuthenticator {
   public onClientConnect(
     clientId: number,
     sessionToken: string,
-    userIdentityPresentedOnConnection?: UserIdentity,
+    userIdentityPresentedOnConnection?: Partial<UserIdentity>,
   ): UserData | null {
     console.log(`Client ID: ${clientId} joined with token`);
     let user = this.userBySessionToken.get(sessionToken);
@@ -70,7 +70,9 @@ export class BasicUserAuthenticator {
     user.clientId = clientId;
     user.userData = {
       username: `User ${clientId}`,
-      characterDescription: this.characterDescription,
+      characterDescription:
+        userIdentityPresentedOnConnection?.characterDescription ?? this.characterDescription,
+      colors: userIdentityPresentedOnConnection?.colors ?? [],
     };
     if (userIdentityPresentedOnConnection) {
       console.warn("Ignoring user-identity on initial connect");
@@ -111,6 +113,7 @@ export class BasicUserAuthenticator {
     const newUserData: UserData = {
       username: msg.username ?? user.userData.username,
       characterDescription: msg.characterDescription ?? user.userData.characterDescription,
+      colors: msg.colors ?? user.userData.colors,
     };
 
     this.usersByClientId.set(clientId, { ...user, userData: newUserData });

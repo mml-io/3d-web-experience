@@ -7,6 +7,7 @@
   ],
   "type": "module",
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "rimraf ./build && tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
@@ -25,6 +26,7 @@
     "three": "0.163.0"
   },
   "devDependencies": {
-    "@types/three": "0.163.0"
+    "@types/three": "0.163.0",
+    "esbuild-plugin-copy": "2.1.1"
   }
 }

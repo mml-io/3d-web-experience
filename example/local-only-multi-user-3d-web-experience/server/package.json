@@ -8,6 +8,7 @@
   "main": "./src/index.js",
   "type": "module",
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "rimraf ./build && tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "iterate:start": "node ./build/index.js",

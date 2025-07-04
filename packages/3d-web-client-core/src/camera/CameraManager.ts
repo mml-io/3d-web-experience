@@ -1,9 +1,10 @@
-import { PerspectiveCamera, Raycaster, Vector3 } from "three";
+import { PerspectiveCamera, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
+import { Matr4, Ray, Vect3 } from "../math";
 import { camValues } from "../tweakpane/blades/cameraFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
@@ -32,7 +33,7 @@ export class CameraManager {
   public fov: number = this.initialFOV;
   private targetFOV: number = this.initialFOV;
 
-  public minPolarAngle: number = Math.PI * 0.25;
+  public minPolarAngle: number = Math.PI * 0.05;
   private maxPolarAngle: number = Math.PI * 0.95;
 
   public distance: number = this.initialDistance;
@@ -44,16 +45,17 @@ export class CameraManager {
   private theta: number;
   private targetTheta: number;
 
-  private target: Vector3 = new Vector3(0, 1.55, 0);
+  private target: Vect3 = new Vect3(0, 1.55, 0);
   private hadTarget: boolean = false;
 
-  private rayCaster: Raycaster;
+  private cameraRay: Ray = new Ray();
+  private tempVec3: Vect3 = new Vect3();
 
   private eventHandlerCollection: EventHandlerCollection;
 
-  private finalTarget: Vector3 = new Vector3();
+  private finalTarget: Vect3 = new Vect3();
   private isLerping: boolean = false;
-  private lerpTarget: Vector3 = new Vector3();
+  private lerpTarget: Vect3 = new Vect3();
   private lerpFactor: number = 0;
   private lerpDuration: number = 2.1;
 
@@ -86,8 +88,6 @@ export class CameraManager {
     this.orbitControls.dampingFactor = 0.05;
     this.orbitControls.enablePan = true;
     this.orbitControls.enabled = false;
-
-    this.rayCaster = new Raycaster();
 
     this.createEventHandlers();
   }
@@ -209,7 +209,7 @@ export class CameraManager {
     event.preventDefault();
   }
 
-  public setTarget(target: Vector3): void {
+  public setTarget(target: Vect3): void {
     if (!this.isLerping) {
       this.target.copy(target);
     } else {
@@ -224,7 +224,7 @@ export class CameraManager {
     }
   }
 
-  public setLerpedTarget(target: Vector3, targetDistance: number): void {
+  public setLerpedTarget(target: Vect3, targetDistance: number): void {
     this.isLerping = true;
     this.targetDistance = targetDistance;
     this.desiredDistance = targetDistance;
@@ -232,9 +232,10 @@ export class CameraManager {
   }
 
   public reverseUpdateFromPositions(): void {
-    const dx = this.camera.position.x - this.target.x;
-    const dy = this.camera.position.y - this.target.y;
-    const dz = this.camera.position.z - this.target.z;
+    const position = this.camera.position;
+    const dx = position.x - this.target.x;
+    const dy = position.y - this.target.y;
+    const dz = position.z - this.target.z;
     this.targetDistance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     this.distance = this.targetDistance;
     this.desiredDistance = this.targetDistance;
@@ -247,14 +248,14 @@ export class CameraManager {
 
   public adjustCameraPosition(): void {
     const offsetDistance = 0.5;
-    const offset = new Vector3(0, 0, offsetDistance);
-    offset.applyEuler(this.camera.rotation);
-    const rayOrigin = this.camera.position.clone().add(offset);
+    const offset = new Vect3(0, 0, offsetDistance);
+    const matr4 = new Matr4().setRotationFromQuaternion(this.camera.quaternion);
+    offset.applyMatrix4(matr4);
+    const rayOrigin = this.tempVec3.copy(this.camera.position).add(offset);
     const rayDirection = rayOrigin.sub(this.target.clone()).normalize();
 
-    this.rayCaster.set(this.target.clone(), rayDirection);
-    const firstRaycastHit = this.collisionsManager.raycastFirst(this.rayCaster.ray);
-
+    this.cameraRay.set(this.target.clone(), rayDirection);
+    const firstRaycastHit = this.collisionsManager.raycastFirst(this.cameraRay);
     if (firstRaycastHit !== null && firstRaycastHit[0] <= this.desiredDistance) {
       const distanceToCollision = firstRaycastHit[0] - 0.1;
       this.targetDistance = distanceToCollision;
@@ -298,14 +299,19 @@ export class CameraManager {
 
   public toggleFlyCamera(): void {
     this.isMainCameraActive = !this.isMainCameraActive;
-    this.orbitControls.enabled = !this.isMainCameraActive;
+    if (this.isMainCameraActive) {
+      this.orbitControls.enabled = false;
+    } else {
+      this.orbitControls.enabled = true;
+    }
 
     if (!this.isMainCameraActive) {
       this.updateAspect(window.innerWidth / window.innerHeight);
       this.flyCamera.position.copy(this.camera.position);
       this.flyCamera.rotation.copy(this.camera.rotation);
-      const target = new Vector3();
-      this.camera.getWorldDirection(target);
+      const target = new Vect3();
+      const direction = this.camera.getWorldDirection(new Vector3());
+      target.set(direction.x, direction.y, direction.z);
       target.multiplyScalar(this.targetDistance).add(this.camera.position);
       this.orbitControls.target.copy(target);
       this.orbitControls.update();
@@ -347,7 +353,7 @@ export class CameraManager {
     this.camera.updateProjectionMatrix();
 
     this.camera.position.set(x, y, z);
-    this.camera.lookAt(this.target);
+    this.camera.lookAt(new Vector3(this.target.x, this.target.y, this.target.z));
 
     if (this.isLerping && this.lerpFactor >= 1) {
       this.isLerping = false;

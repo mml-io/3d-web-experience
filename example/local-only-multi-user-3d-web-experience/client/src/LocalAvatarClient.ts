@@ -1,28 +1,31 @@
 import {
   AnimationConfig,
   CameraManager,
+  Character,
   CharacterDescription,
   CharacterManager,
   CharacterModelLoader,
   CharacterState,
   CollisionsManager,
   Composer,
+  EulXYZ,
   GroundPlane,
   KeyInputManager,
   MMLCompositionScene,
   SpawnConfigurationState,
   TimeManager,
+  Vect3,
 } from "@mml-io/3d-web-client-core";
 import { MMLWebRunnerClient } from "@mml-io/mml-web-runner";
 import { EditableNetworkedDOM, NetworkedDOM } from "@mml-io/networked-dom-document";
-import { AudioListener, Euler, Scene, Vector3 } from "three";
+import { AudioListener, Scene } from "three";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
-import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
-import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
-import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
-import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
-import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
+import airAnimationFileUrl from "../../../assets/models/anim_air_new.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump_new.glb";
+import idleAnimationFileUrl from "../../../assets/models/anim_idle_new.glb";
+import jogAnimationFileUrl from "../../../assets/models/anim_jog_new.glb";
+import sprintAnimationFileUrl from "../../../assets/models/anim_run_new.glb";
 import defaultAvatarMeshFileUrl from "../../../assets/models/bot.glb";
 
 import { LocalAvatarServer } from "./LocalAvatarServer";
@@ -147,6 +150,8 @@ export class LocalAvatarClient {
       enableRespawnButton: spawnConfiguration?.enableRespawnButton ?? false,
     };
 
+    const animationsPromise = Character.loadAnimations(this.characterModelLoader, animationConfig);
+
     this.characterManager = new CharacterManager({
       composer: this.composer,
       characterModelLoader: this.characterModelLoader,
@@ -158,9 +163,9 @@ export class LocalAvatarClient {
       sendUpdate: (characterState: CharacterState) => {
         localAvatarServer.send(localClientId, characterState);
       },
-      animationConfig,
+      animationsPromise,
       characterResolve: () => {
-        return { username: "User", characterDescription };
+        return { username: "User", characterDescription, colors: [] };
       },
       spawnConfiguration: this.spawnConfiguration,
     });
@@ -187,12 +192,12 @@ export class LocalAvatarClient {
     this.collisionsManager.addMeshesGroup(groundPlane);
     this.scene.add(groundPlane);
 
-    const spawnPosition = new Vector3(
+    const spawnPosition = new Vect3(
       this.spawnConfiguration.spawnPosition!.x,
       this.spawnConfiguration.spawnPosition!.y,
       this.spawnConfiguration.spawnPosition!.z,
     );
-    const spawnRotation = new Euler(
+    const spawnRotation = new EulXYZ(
       0,
       this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
       0,
@@ -205,15 +210,15 @@ export class LocalAvatarClient {
       spawnRotation,
     );
 
-    let cameraPosition: Vector3 | null = null;
-    const offset = new Vector3(0, 0, 3.3);
-    offset.applyEuler(new Euler(0, spawnRotation.y, 0));
+    let cameraPosition: Vect3 | null = null;
+    const offset = new Vect3(0, 0, 3.3);
+    offset.applyEulerXYZ(new EulXYZ(0, spawnRotation.y, 0));
     cameraPosition = spawnPosition.clone().sub(offset).add(this.characterManager.headTargetOffset);
 
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.copy(cameraPosition);
       this.cameraManager.setTarget(
-        new Vector3().add(spawnPosition).add(this.characterManager.headTargetOffset),
+        new Vect3().add(spawnPosition).add(this.characterManager.headTargetOffset),
       );
       this.cameraManager.reverseUpdateFromPositions();
     }

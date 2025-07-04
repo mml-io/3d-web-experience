@@ -11,6 +11,7 @@
     "/build"
   ],
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "start": "cross-env NODE_ENV=production node build/index.js 2>error.log",
@@ -29,7 +30,7 @@
     "@types/node": "^22.13.1",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
-    "@types/three": "0.163.0",
-    "esbuild-css-modules-plugin": "3.1.4"
+    "esbuild-css-modules-plugin": "3.1.4",
+    "@types/three": "0.163.0"
   }
 }
