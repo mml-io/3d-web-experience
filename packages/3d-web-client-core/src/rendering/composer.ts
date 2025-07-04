@@ -6,17 +6,22 @@ import {
   EquirectangularReflectionMapping,
   Euler,
   Fog,
-  HalfFloatType,
-  LinearMipmapLinearFilter,
   LinearSRGBColorSpace,
   LoadingManager,
   MathUtils,
   PMREMGenerator,
   Scene,
+  ShadowMapType,
+  SRGBColorSpace,
   Texture,
+  ToneMapping,
+  Vector2,
   Vector3,
   WebGLCubeRenderTarget,
+  HalfFloatType,
+  LinearMipmapLinearFilter,
   WebGLRenderer,
+  PerspectiveCamera,
 } from "three";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { Sky } from "three/examples/jsm/objects/Sky.js";
@@ -25,13 +30,17 @@ import { CameraManager } from "../camera/CameraManager";
 import { Sun } from "../sun/Sun";
 import { TimeManager } from "../time/TimeManager";
 import { envValues, sunValues } from "../tweakpane/blades/environmentFolder";
+import { rendererValues } from "../tweakpane/blades/rendererFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
+
+import { PostProcessingManager } from "./PostProcessingManager";
 
 type ComposerContructorArgs = {
   scene: Scene;
   cameraManager: CameraManager;
   spawnSun: boolean;
   environmentConfiguration?: EnvironmentConfiguration;
+  postProcessingEnabled?: boolean;
 };
 
 export type EnvironmentConfiguration = {
@@ -78,10 +87,14 @@ export class Composer {
   private width: number = 1;
   private height: number = 1;
   private resizeListener: () => void;
-  private readonly scene: Scene;
 
+  private readonly scene: Scene;
+  public postPostScene: Scene;
   private readonly cameraManager: CameraManager;
   public readonly renderer: WebGLRenderer;
+
+  private postProcessingManager: PostProcessingManager;
+  private currentCamera: PerspectiveCamera; // Track current camera
 
   private ambientLight: AmbientLight | null = null;
   private environmentConfiguration?: EnvironmentConfiguration;
@@ -96,29 +109,51 @@ export class Composer {
 
   public sun: Sun | null = null;
   public spawnSun: boolean;
-  private tweakPane: TweakPane | null = null;
-
   private sky: Sky | null = null;
   private skyCubeCamera: CubeCamera | null = null;
   private skyRenderTarget: WebGLCubeRenderTarget | null = null;
+
+  private postProcessingEnabled: boolean | undefined;
 
   constructor({
     scene,
     cameraManager,
     spawnSun = false,
     environmentConfiguration,
+    postProcessingEnabled,
   }: ComposerContructorArgs) {
     this.scene = scene;
     this.cameraManager = cameraManager;
+    this.postPostScene = new Scene();
     this.spawnSun = spawnSun;
-
-    this.environmentConfiguration = environmentConfiguration;
+    this.postProcessingEnabled = postProcessingEnabled;
 
     this.renderer = new WebGLRenderer({
       powerPreference: "high-performance",
+      antialias: true,
     });
+    this.renderer.outputColorSpace = SRGBColorSpace;
+    this.renderer.info.autoReset = false;
+    this.renderer.setSize(this.width, this.height);
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = 2;
+    this.renderer.shadowMap.type = rendererValues.shadowMap as ShadowMapType;
+    this.renderer.toneMapping = rendererValues.toneMapping as ToneMapping;
+    this.renderer.toneMappingExposure = rendererValues.exposure;
+
+    this.environmentConfiguration = environmentConfiguration;
+
+    this.currentCamera = this.cameraManager.activeCamera;
+    this.postProcessingManager = new PostProcessingManager(
+      this.renderer,
+      this.scene,
+      this.currentCamera,
+      this.width,
+      this.height,
+      {
+        enabled: this.postProcessingEnabled,
+        bloom: { intensity: environmentConfiguration?.postProcessing?.bloomIntensity },
+      },
+    );
 
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
@@ -139,12 +174,13 @@ export class Composer {
 
     this.updateSunValues();
     this.setupSkyShader();
-    this.updateSun();
 
     this.resizeListener = () => {
       this.fitContainer();
     };
+
     window.addEventListener("resize", this.resizeListener, false);
+
     this.fitContainer();
   }
 
@@ -189,24 +225,23 @@ export class Composer {
       }
     }
 
-    this.updateSkyShaderValues();
     this.updateSkyboxAndEnvValues();
     this.updateAmbientLightValues();
+    this.updateBloomValues();
     this.updateSunValues();
     this.updateFogValues();
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
-    this.tweakPane = tweakPane;
-    this.setupTweakPaneInternal();
-  }
-
-  private setupTweakPaneInternal() {
-    if (!this.tweakPane) {
-      return;
-    }
-
-    this.tweakPane.setupRenderPane(
+    tweakPane.setupRenderPane(
+      this.postProcessingManager.effectComposer,
+      this.postProcessingManager.n8ssaoPass,
+      this.postProcessingManager.toneMappingEffectInstance,
+      this.postProcessingManager.toneMappingPassInstance,
+      this.postProcessingManager.bcsInstance,
+      this.postProcessingManager.bloomEffectInstance,
+      this.postProcessingManager.gaussGrainEffectInstance,
+      this.spawnSun,
       this.updateSun.bind(this),
       this.setHDRIFromFile.bind(this),
       (azimuthalAngle: number) => {
@@ -221,16 +256,19 @@ export class Composer {
       this.setFog.bind(this),
       this.updateSkyShaderValues.bind(this),
     );
+
+    tweakPane.setupPostProcessingPane(this.postProcessingManager);
   }
 
   public dispose() {
     window.removeEventListener("resize", this.resizeListener);
     this.renderer.dispose();
+    this.postProcessingManager.dispose();
   }
 
   public fitContainer() {
     if (!this) {
-      console.error("Composer not initialized");
+      console.warn("Composer not initialized");
       return;
     }
     const parentElement = this.renderer.domElement.parentNode as HTMLElement;
@@ -239,21 +277,48 @@ export class Composer {
     }
     this.width = parentElement.clientWidth;
     this.height = parentElement.clientHeight;
-    this.renderer.setSize(this.width, this.height);
-    this.cameraManager.camera.aspect = this.width / this.height;
-    this.cameraManager.camera.updateProjectionMatrix();
+    this.cameraManager.activeCamera.aspect = this.width / this.height;
+    this.cameraManager.activeCamera.updateProjectionMatrix();
     this.renderer.setPixelRatio(window.devicePixelRatio);
+
+    // delegate post-processing resize to manager
+    this.postProcessingManager.resizeActiveEffects(this.width, this.height);
+    this.renderer.setSize(this.width, this.height);
   }
 
-  public render(timeManager: TimeManager) {
-    if (!this.renderer || !this.scene) {
+  public render(timeManager: TimeManager): void {
+    if (!this.renderer || !this.scene || !this.cameraManager.activeCamera) {
       return;
     }
+
+    // check if camera has changed and update PostProcessingManager
+    if (this.currentCamera !== this.cameraManager.activeCamera) {
+      this.currentCamera = this.cameraManager.activeCamera;
+      this.postProcessingManager.updateCamera(this.currentCamera);
+    }
+
+    this.renderer.info.reset();
     if (this.sky && this.skyCubeCamera && this.skyRenderTarget) {
       this.skyCubeCamera?.update(this.renderer, this.sky);
       this.scene.environment = this.skyRenderTarget.texture;
     }
-    this.renderer.render(this.scene, this.cameraManager.activeCamera);
+    if (this.postProcessingManager.isGloballyEnabled) {
+      this.postProcessingManager.render(timeManager);
+    } else {
+      this.renderer.render(this.scene, this.cameraManager.activeCamera);
+    }
+    this.renderer.clearDepth();
+    this.renderer.render(this.postPostScene, this.cameraManager.activeCamera);
+  }
+
+  private hasHDR(): boolean {
+    if (!this.environmentConfiguration?.skybox) {
+      return false;
+    } else {
+      const hasHDRJPG = "hdrJpgUrl" in this.environmentConfiguration.skybox;
+      const hasHDRi = "hdrUrl" in this.environmentConfiguration.skybox;
+      return hasHDRJPG || hasHDRi;
+    }
   }
 
   public updateSkyboxRotation() {
@@ -270,16 +335,6 @@ export class Composer {
       MathUtils.degToRad(envValues.skyboxAzimuthalAngle),
       0,
     );
-  }
-
-  private hasHDR(): boolean {
-    if (!this.environmentConfiguration?.skybox) {
-      return false;
-    } else {
-      const hasHDRJPG = "hdrJpgUrl" in this.environmentConfiguration.skybox;
-      const hasHDRi = "hdrUrl" in this.environmentConfiguration.skybox;
-      return hasHDRJPG || hasHDRi;
-    }
   }
 
   private async loadHDRJPG(url: string): Promise<Texture> {
@@ -509,10 +564,11 @@ export class Composer {
   }
 
   private updateBloomValues() {
-    // if (typeof this.environmentConfiguration?.postProcessing?.bloomIntensity === "number") {
-    //   extrasValues.bloom = this.environmentConfiguration.postProcessing.bloomIntensity;
-    // }
-    // this.bloomEffect.intensity = extrasValues.bloom;
+    if (typeof this.environmentConfiguration?.postProcessing?.bloomIntensity === "number") {
+      this.postProcessingManager.updateEffectConfiguration({
+        bloom: { intensity: this.environmentConfiguration.postProcessing.bloomIntensity },
+      });
+    }
   }
 
   private updateAmbientLightValues() {
@@ -521,6 +577,10 @@ export class Composer {
         this.environmentConfiguration.ambientLight.intensity;
     }
     this.setAmbientLight();
+  }
+
+  public togglePostProcessing(enabled: boolean) {
+    this.postProcessingManager.toggleGlobalPostProcessing(enabled);
   }
 
   private applyEnvMap(envMap: Texture) {

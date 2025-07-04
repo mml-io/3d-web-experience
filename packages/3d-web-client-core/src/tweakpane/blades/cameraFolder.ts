@@ -6,7 +6,7 @@ import { CameraManager } from "../../camera/CameraManager";
 export const camValues = {
   initialDistance: 3.3,
   minDistance: 0.1,
-  maxDistance: 12,
+  maxDistance: 5,
   initialFOV: 60,
   maxFOV: 70,
   minFOV: 60,
@@ -103,7 +103,6 @@ export class CameraFolder {
         case "invertFOVMapping": {
           const boolValue = e.value as boolean;
           cameraManager.invertFOVMapping = boolValue;
-          cameraManager.recomputeFoV();
           break;
         }
         case "damping": {

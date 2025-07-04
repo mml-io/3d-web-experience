@@ -87,6 +87,7 @@ export type UpdatableConfig = {
   allowCustomDisplayName?: boolean;
   enableTweakPane?: boolean;
   allowOrbitalCamera?: boolean;
+  postProcessingEnabled?: boolean;
 };
 
 function normalizeSpawnConfiguration(spawnConfig?: SpawnConfiguration): SpawnConfigurationState {
@@ -201,6 +202,7 @@ export class Networked3dWebExperienceClient {
       cameraManager: this.cameraManager,
       spawnSun: true,
       environmentConfiguration: this.config.environmentConfiguration,
+      postProcessingEnabled: this.config.postProcessingEnabled,
     });
     this.canvasHolder.appendChild(this.composer.renderer.domElement);
 
@@ -403,6 +405,15 @@ export class Networked3dWebExperienceClient {
       }
     }
 
+    if (this.config.postProcessingEnabled !== undefined) {
+      this.composer.togglePostProcessing(this.config.postProcessingEnabled);
+      if (this.tweakPane) {
+        this.tweakPane.dispose();
+        this.tweakPane = null;
+        this.setupTweakPane();
+      }
+    }
+
     if (config.allowOrbitalCamera !== undefined) {
       if (config.allowOrbitalCamera === false) {
         this.keyInputManager.removeKeyBinding(Key.C);
@@ -504,7 +515,14 @@ export class Networked3dWebExperienceClient {
     if (this.tweakPane) {
       return;
     }
-    this.tweakPane = new TweakPane(this.element, this.composer.renderer, this.scene);
+
+    this.tweakPane = new TweakPane(
+      this.element,
+      this.composer.renderer,
+      this.scene,
+      this.composer,
+      this.config.postProcessingEnabled,
+    );
     this.cameraManager.setupTweakPane(this.tweakPane);
     this.composer.setupTweakPane(this.tweakPane);
   }
