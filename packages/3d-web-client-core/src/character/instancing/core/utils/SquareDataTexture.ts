@@ -146,7 +146,6 @@ export class SquareDataTexture extends DataTexture {
   protected _uniformMap?: UniformMap;
   protected _fetchUniformsInFragmentShader?: boolean;
   protected _utils?: WebGLUtils; // TODO add it to renderer instead of creating for each texture
-  protected _needsUpdate: boolean = false;
   protected _lastWidth?: number;
 
   /**
@@ -211,7 +210,7 @@ export class SquareDataTexture extends DataTexture {
    * @param index The index of the instance to update.
    */
   public enqueueUpdate(index: number): void {
-    this._needsUpdate = true;
+    this.needsUpdate = true;
     if (!this.partialUpdate) return;
 
     const elementsPerRow = this.image.width / this._pixelsPerInstance;
@@ -228,13 +227,13 @@ export class SquareDataTexture extends DataTexture {
     const textureProperties: any = renderer.properties.get(this);
     const versionChanged = this.version > 0 && textureProperties.__version !== this.version;
     const sizeChanged = this._lastWidth !== null && this._lastWidth !== this.image.width;
-    if (!this._needsUpdate || !textureProperties.__webglTexture || versionChanged || sizeChanged) {
+    if (!this.needsUpdate || !textureProperties.__webglTexture || versionChanged || sizeChanged) {
       this._lastWidth = this.image.width;
-      this._needsUpdate = false;
+      this.needsUpdate = false;
       return;
     }
 
-    this._needsUpdate = false;
+    this.needsUpdate = false;
 
     if (!this.partialUpdate) {
       this.needsUpdate = true; // three.js will update the whole texture
