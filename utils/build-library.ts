@@ -13,6 +13,7 @@ type LibraryBuildOptions = {
   };
   plugins: Array<esbuild.Plugin>;
   loader: { [key: string]: esbuild.Loader };
+  platformOverride: esbuild.Platform;
 };
 
 export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
@@ -40,8 +41,9 @@ export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
     metafile: true,
     format: "esm",
     outdir: "build",
-    platform: "node",
+    platform: options.platformOverride || "node",
     packages: "external",
+    external: ["fs", "path"],
     sourcemap: true,
     target: "node14",
     loader: {
