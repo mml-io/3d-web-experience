@@ -145,32 +145,32 @@ export class Vect3 {
     return dx * dx + dy * dy + dz * dz;
   }
 
-  applyAxisAngle(axis: Vect3, angle: number) {
+  applyAxisAngle(axis: IVect3, angle: number) {
     return this.applyQuat(tempQuaternion.setFromAxisAngle(axis, angle));
   }
 
-  min(point: Vect3): this {
+  min(point: IVect3): this {
     this.x = Math.min(this.x, point.x);
     this.y = Math.min(this.y, point.y);
     this.z = Math.min(this.z, point.z);
     return this;
   }
 
-  max(point: Vect3): this {
+  max(point: IVect3): this {
     this.x = Math.max(this.x, point.x);
     this.y = Math.max(this.y, point.y);
     this.z = Math.max(this.z, point.z);
     return this;
   }
 
-  subVectors(a: Vect3, b: Vect3): this {
+  subVectors(a: IVect3, b: IVect3): this {
     this.x = a.x - b.x;
     this.y = a.y - b.y;
     this.z = a.z - b.z;
     return this;
   }
 
-  dot(v: Vect3): number {
+  dot(v: IVect3): number {
     return this.x * v.x + this.y * v.y + this.z * v.z;
   }
 
@@ -207,21 +207,21 @@ export class Vect3 {
     return this;
   }
 
-  multiply(other: Vect3): this {
+  multiply(other: IVect3): this {
     this.x *= other.x;
     this.y *= other.y;
     this.z *= other.z;
     return this;
   }
 
-  lerp(target: Vect3, alpha: number): Vect3 {
+  lerp(target: IVect3, alpha: number): Vect3 {
     this.x += (target.x - this.x) * alpha;
     this.y += (target.y - this.y) * alpha;
     this.z += (target.z - this.z) * alpha;
     return this;
   }
 
-  lerpVectors(v1: Vect3, v2: Vect3, alpha: number): Vect3 {
+  lerpVectors(v1: IVect3, v2: IVect3, alpha: number): Vect3 {
     this.x = v1.x + (v2.x - v1.x) * alpha;
     this.y = v1.y + (v2.y - v1.y) * alpha;
     this.z = v1.z + (v2.z - v1.z) * alpha;

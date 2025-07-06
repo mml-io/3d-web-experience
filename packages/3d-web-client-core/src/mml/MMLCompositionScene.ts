@@ -18,7 +18,7 @@ import {
   ThreeJSGraphicsInterface,
   ThreeJSInteractionAdapter,
 } from "@mml-io/mml-web-threejs";
-import { AudioListener, Group, Object3D, PerspectiveCamera, Scene, WebGLRenderer } from "three";
+import { PerspectiveCamera, Scene, WebGLRenderer, AudioListener, Group, Object3D } from "three";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 
@@ -57,9 +57,9 @@ export class MMLCompositionScene {
       getRootContainer: () => {
         return this.group;
       },
-      interactionShouldShowDistance: (
+      interactionShouldShowDistance(
         interaction: Interaction<ThreeJSGraphicsAdapter>,
-      ): number | null => {
+      ): number | null {
         return ThreeJSInteractionAdapter.interactionShouldShowDistance(
           interaction,
           this.config.camera,
@@ -68,13 +68,13 @@ export class MMLCompositionScene {
       },
       dispose(): void {},
       getAudioListener: () => {
-        return config.audioListener;
+        return this.config.audioListener;
       },
       getCamera: () => {
-        return config.camera;
+        return this.config.camera;
       },
       getThreeScene: () => {
-        return config.scene;
+        return this.config.scene;
       },
       getUserPositionAndRotation: () => {
         return this.config.getUserPositionAndRotation();

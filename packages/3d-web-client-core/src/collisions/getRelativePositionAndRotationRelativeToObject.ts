@@ -1,12 +1,14 @@
 import { PositionAndRotation } from "@mml-io/mml-web";
-import { Euler, Matrix4, Object3D, Quaternion, Vector3 } from "three";
+import { Object3D } from "three";
 
-const tempContainerMatrix = new Matrix4();
-const tempTargetMatrix = new Matrix4();
-const tempPositionVector = new Vector3();
-const tempRotationEuler = new Euler();
-const tempRotationQuaternion = new Quaternion();
-const tempScaleVector = new Vector3();
+import { EulXYZ, Matr4, Quat, Vect3 } from "../math";
+
+const tempContainerMatrix = new Matr4();
+const tempTargetMatrix = new Matr4();
+const tempPositionVector = new Vect3();
+const tempRotationEuler = new EulXYZ();
+const tempRotationQuaternion = new Quat();
+const tempScaleVector = new Vect3();
 
 export function getRelativePositionAndRotationRelativeToObject(
   positionAndRotation: PositionAndRotation,
@@ -16,11 +18,11 @@ export function getRelativePositionAndRotationRelativeToObject(
   const { x: rx, y: ry, z: rz } = positionAndRotation.rotation;
 
   container.updateWorldMatrix(true, false);
-  tempContainerMatrix.copy(container.matrixWorld).invert();
+  tempContainerMatrix.set(new Float32Array(container.matrixWorld.elements)).invert();
 
   tempPositionVector.set(x, y, z);
   tempRotationEuler.set(rx, ry, rz);
-  tempRotationQuaternion.setFromEuler(tempRotationEuler);
+  tempRotationQuaternion.setFromEulerXYZ(tempRotationEuler);
   tempScaleVector.set(1, 1, 1);
 
   tempTargetMatrix.compose(tempPositionVector, tempRotationQuaternion, tempScaleVector);
