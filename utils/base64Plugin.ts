@@ -1,6 +1,7 @@
-import { OnLoadArgs, OnResolveArgs, Plugin } from "esbuild";
 import fs from "fs";
 import path from "path";
+
+import { OnLoadArgs, OnResolveArgs, Plugin } from "esbuild";
 import resolve from "resolve";
 
 export type Base64PluginOptions = {

@@ -12,7 +12,7 @@ const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
 const userNetworkAddress = `${protocol}//${host}/network`;
 
-let useSkybox = false;
+const useSkybox = false;
 
 const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
