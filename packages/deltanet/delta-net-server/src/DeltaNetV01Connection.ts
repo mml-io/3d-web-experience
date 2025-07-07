@@ -152,9 +152,9 @@ export class DeltaNetV01Connection {
       if (rawResult instanceof Promise) {
         result = await rawResult;
 
-        // Check if authentication was cancelled while we were waiting
+        // Check if authentication was canceled while we were waiting
         if (this.authenticationAbortController?.signal.aborted) {
-          // Authentication was cancelled (connection disposed), silently return
+          // Authentication was canceled (connection disposed), silently return
           return;
         }
 
@@ -167,7 +167,7 @@ export class DeltaNetV01Connection {
         result = rawResult;
       }
     } catch (error) {
-      // Check if authentication was cancelled
+      // Check if authentication was canceled
       if (this.authenticationAbortController?.signal.aborted) {
         return;
       }

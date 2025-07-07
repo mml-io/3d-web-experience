@@ -1,9 +1,11 @@
 import type { JestConfigWithTsJest } from "ts-jest";
 
 const jestConfig: JestConfigWithTsJest = {
+  preset: "ts-jest/presets/default-esm",
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   moduleNameMapper: {
     "^(\\.{1,2}/.*)\\.js$": "$1",
+    "^ws$": "<rootDir>/../../node_modules/ws/index.js",
   },
   verbose: true,
   transform: {
@@ -14,6 +16,11 @@ const jestConfig: JestConfigWithTsJest = {
       },
     ],
   },
+  transformIgnorePatterns: [
+    "node_modules/(?!@deltanet/.*)"
+  ],
+  testEnvironment: "node",
+  setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],
 };
 
 export default jestConfig;

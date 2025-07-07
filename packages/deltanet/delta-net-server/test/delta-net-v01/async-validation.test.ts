@@ -138,7 +138,7 @@ describe("DeltaNetServer - Async Validation", () => {
 
       // The connection should not have been authenticated or added to the server
       // We verify this by checking that no user index message was sent
-      // (since authentication was cancelled)
+      // (since authentication was canceled)
       expect(clientWs.getMessage(0)).toBeUndefined();
     });
 

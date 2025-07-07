@@ -42,25 +42,12 @@ export class CharacterModelLoader {
     }
 
     try {
-      // Process gLTF in worker (includes fetch + texture processing)
       const processedBuffer = await this.processGLTFInWorker(fileUrl, abortController);
-
-      // Create temporary blob URL for ModelLoader
-      const blob = new Blob([processedBuffer], { type: "model/gltf-binary" });
-      const blobURL = URL.createObjectURL(blob);
-
-      try {
-        // Load using temporary blob URL
-        const result = await this.loadFromBlobUrl(blobURL, fileType);
-        return result;
-      } finally {
-        // CRITICAL: Always revoke blob URL to prevent memory leaks
-        URL.revokeObjectURL(blobURL);
-      }
+      return await this.loadFromBuffer(processedBuffer, fileUrl, fileType);
     } catch (error) {
       // Check if the error is due to cancellation
       if (abortController?.signal.aborted) {
-        console.log(`Loading cancelled for ${fileUrl}`);
+        console.log(`Loading canceled for ${fileUrl}`);
         return undefined;
       }
       console.error(`Error loading ${fileType} from ${fileUrl}:`, error);
@@ -79,8 +66,9 @@ export class CharacterModelLoader {
     const startTime = performance.now();
 
     try {
+      const absoluteFileUrl = new URL(fileUrl, window.location.href).href;
       const processedBuffer = await this.workerPool.processGLTF(
-        fileUrl,
+        absoluteFileUrl,
         this.maxTextureSize,
         abortController,
       );
@@ -101,30 +89,21 @@ export class CharacterModelLoader {
 
       // Check if cancellation was requested
       if (abortController?.signal.aborted) {
-        throw new Error("Operation cancelled");
+        throw new Error("Operation canceled");
       }
 
-      // Fallback to regular loading if worker fails
-      const response = await fetch(fileUrl, {
-        signal: abortController?.signal,
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch ${fileUrl}: ${response.statusText}`);
-      }
-
-      return await response.arrayBuffer();
+      throw error;
     }
   }
 
-  private async loadFromBlobUrl(
-    blobUrl: string,
+  private async loadFromBuffer(
+    buffer: ArrayBuffer,
+    pathName: string,
     fileType: "model" | "animation" = "model",
   ): Promise<Object3D | AnimationClip | undefined> {
-    const modelLoadResult: ModelLoadResult = await this.modelLoader.load(
-      blobUrl,
-      (loaded: number, total: number) => {
-        // no-op
-      },
+    const modelLoadResult: ModelLoadResult = await this.modelLoader.loadFromBuffer(
+      buffer,
+      pathName,
     );
 
     if (fileType === "model") {
