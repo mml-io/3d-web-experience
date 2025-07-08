@@ -856,7 +856,6 @@ export class CharacterInstances {
         if (segment && this.mixer) {
           // update instance's animation time within the segment
           // all instances have to animate at the same speed regardless of distance
-          // they get stuttery when far tho, but that'sok
           instance.animationTime += timeSinceLastUpdate * instance.speed;
 
           // segment looping
@@ -867,7 +866,7 @@ export class CharacterInstances {
           // apply offset within the segment duration to prevent leaking into other animations
           const offsetAnimationTime = (instance.animationTime + instance.offset) % segment.duration;
 
-          // absolute time in the single timeline (offset is now contained within the segment)
+          // absolute time in the single timeline
           const singleTimelineTime = segment.startTime + offsetAnimationTime;
 
           // hysteresis to prevent rapid switching at boundaries

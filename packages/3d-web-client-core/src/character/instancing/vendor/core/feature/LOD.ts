@@ -248,7 +248,6 @@ InstancedMesh2.prototype.patchLevel = function (obj: InstancedMesh2): void {
   });
 
   Object.defineProperty(obj, "morphTexture", {
-    // TODO check if it's correct
     get(this: InstancedMesh2) {
       return this._parentLOD.morphTexture;
     },

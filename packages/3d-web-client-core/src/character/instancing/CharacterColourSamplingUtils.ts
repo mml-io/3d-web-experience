@@ -165,7 +165,6 @@ export function captureCharacterColors(
         sampledColors.set("hair", materialColor);
       } else if (region.name === "Face/Chin") {
         sampledColors.set("skin", materialColor);
-        // slightly darker for lips???
         sampledColors.set("lips", materialColor.clone().multiplyScalar(0.8));
       } else if (region.name === "Chest") {
         sampledColors.set("shirt_short", materialColor);

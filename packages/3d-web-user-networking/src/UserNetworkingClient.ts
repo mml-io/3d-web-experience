@@ -223,7 +223,6 @@ export class UserNetworkingClient {
     const states = DeltaNetComponentMapping.toStates();
 
     // Send to deltanet - this makes the client "ready" and triggers authentication
-    // The session token is now passed via the deltanet token field
     this.deltaNetClient.setUserComponents(components, states);
   }
 

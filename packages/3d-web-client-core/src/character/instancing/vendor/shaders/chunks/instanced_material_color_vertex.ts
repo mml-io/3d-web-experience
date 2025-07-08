@@ -1,8 +1,6 @@
 export const instanced_material_color_vertex = /* glsl */ `
 #ifdef USE_INSTANCING_MATERIAL_COLORS
   #ifdef USE_VERTEX_COLOR
-    // vertex color will tell us about the mat type
-    // so we can LUT-swap 'em later (can't think of a better way to do this fn)
     vec3 vertexColor = color;
     vec3 instanceColor = vec3(1.0);
     

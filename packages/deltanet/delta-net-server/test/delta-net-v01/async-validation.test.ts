@@ -587,7 +587,6 @@ describe("DeltaNetServer - Async Validation", () => {
       expect(onJoinerMock).toHaveBeenCalledTimes(1);
 
       // Should get error messages for the duplicate authentication attempts (if connection wasn't closed)
-      // Find the error message (it should be the first message since rapid connectUser calls fail immediately)
       if (!clientWs.closed) {
         const messages = await clientWs.waitForTotalMessageCount(1);
         const errorMessage = messages.find((msg) => msg.type === "error");

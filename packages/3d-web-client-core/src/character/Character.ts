@@ -71,21 +71,21 @@ function characterDescriptionMatches(a: CharacterDescription, b: CharacterDescri
 
 export class Character extends Group {
   private model: CharacterModel | null = null;
-  public tooltip: CharacterTooltip;
+  public usernameTooltip: CharacterTooltip;
 
   public chatTooltips: CharacterTooltip[] = [];
 
   constructor(private config: CharacterConfig) {
     super();
-    this.tooltip = new CharacterTooltip(
+    this.usernameTooltip = new CharacterTooltip(
       this.config.isLocal
         ? {
             secondsToFadeOut: 10,
           }
         : {},
     );
-    this.tooltip.setText(this.config.username);
-    this.add(this.tooltip);
+    this.usernameTooltip.setText(this.config.username);
+    this.add(this.usernameTooltip);
 
     // Check if operation was canceled before starting loading
     if (this.config.abortController?.signal.aborted) {
@@ -163,17 +163,17 @@ export class Character extends Group {
     }
     if (this.config.username !== username) {
       this.config.username = username;
-      this.tooltip.setText(username);
+      this.usernameTooltip.setText(username);
       // Force the tooltip to show if the character's name changes
-      this.tooltip.show();
+      this.usernameTooltip.show();
     }
   }
 
   private setTooltipHeights() {
     if (this.model && this.model.characterHeight) {
       let height = characterHeightToTooltipHeightOffset(this.model.characterHeight);
-      this.tooltip.setHeightOffset(height);
-      height += this.tooltip.scale.y;
+      this.usernameTooltip.setHeightOffset(height);
+      height += this.usernameTooltip.scale.y;
 
       for (const chatTooltip of this.chatTooltips) {
         chatTooltip.setHeightOffset(height);
@@ -278,8 +278,8 @@ export class Character extends Group {
 
   public update(time: number, deltaTime: number) {
     if (!this.model) return;
-    if (this.tooltip) {
-      this.tooltip.update();
+    if (this.usernameTooltip) {
+      this.usernameTooltip.update();
     }
     this.model.update(deltaTime);
   }
@@ -315,11 +315,12 @@ export class Character extends Group {
     tooltip.setText(message, () => {
       this.chatTooltips = this.chatTooltips.filter((t) => t !== tooltip);
       this.remove(tooltip);
+      tooltip.dispose();
       this.setTooltipHeights();
     });
     if (this.config.isLocal) {
       // Show the character's name if they're local and they emit a chat bubble
-      this.tooltip.show();
+      this.usernameTooltip.show();
     }
     this.setTooltipHeights();
   }
@@ -333,6 +334,10 @@ export class Character extends Group {
       this.model.dispose();
       this.model = null;
     }
-    // TODO - dispose of the tooltip and chat tooltips
+    this.usernameTooltip.dispose();
+    for (const chatTooltip of this.chatTooltips) {
+      chatTooltip.dispose();
+    }
+    this.chatTooltips = [];
   }
 }

@@ -308,7 +308,7 @@ export class CharacterManager {
           remoteController,
         });
 
-        // Now shadow the instance instead of removing it completely
+        // Shadow the instance instead of removing it completely
         if (this.characterInstances) {
           this.characterInstances.shadowInstance(id);
         }
