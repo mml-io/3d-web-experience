@@ -1,13 +1,14 @@
-import { Color, Group, Vector3 } from "three";
+import { AnimationClip, Color, Group, Object3D, Quaternion } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
+import { EulXYZ } from "../math/EulXYZ";
+import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
 import { CharacterModel } from "./CharacterModel";
-import { CharacterModelLoader } from "./CharacterModelLoader";
-import { CharacterSpeakingIndicator } from "./CharacterSpeakingIndicator";
 import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
+import { CharacterModelLoader } from "./loading/CharacterModelLoader";
 
 export type AnimationConfig = {
   idleAnimationFileUrl: string;
@@ -15,6 +16,14 @@ export type AnimationConfig = {
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
   doubleJumpAnimationFileUrl: string;
+};
+
+export type LoadedAnimations = {
+  idleAnimation: AnimationClip;
+  jogAnimation: AnimationClip;
+  sprintAnimation: AnimationClip;
+  airAnimation: AnimationClip;
+  doubleJumpAnimation: AnimationClip;
 };
 
 export type CharacterDescription =
@@ -37,13 +46,15 @@ export type CharacterDescription =
 export type CharacterConfig = {
   username: string;
   characterDescription: CharacterDescription;
-  animationConfig: AnimationConfig;
+  animationsPromise: Promise<LoadedAnimations>;
   characterModelLoader: CharacterModelLoader;
   characterId: number;
   modelLoadedCallback: () => void;
+  modelLoadFailedCallback?: (error: Error) => void;
   cameraManager: CameraManager;
   composer: Composer;
   isLocal: boolean;
+  abortController?: AbortController;
 };
 
 function characterHeightToTooltipHeightOffset(characterHeight: number): number {
@@ -60,9 +71,7 @@ function characterDescriptionMatches(a: CharacterDescription, b: CharacterDescri
 
 export class Character extends Group {
   private model: CharacterModel | null = null;
-  public color: Color = new Color();
   public tooltip: CharacterTooltip;
-  public speakingIndicator: CharacterSpeakingIndicator | null = null;
 
   public chatTooltips: CharacterTooltip[] = [];
 
@@ -77,18 +86,80 @@ export class Character extends Group {
     );
     this.tooltip.setText(this.config.username);
     this.add(this.tooltip);
-    this.load().then(() => {
-      this.config.modelLoadedCallback();
-      this.setTooltipHeights();
-    });
+
+    // Check if operation was canceled before starting loading
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`Character loading canceled before starting for ${this.config.characterId}`);
+      return;
+    }
+
+    this.load()
+      .then(() => {
+        if (this.config.abortController?.signal.aborted) {
+          return;
+        }
+        if (this.model?.mesh) {
+          this.config.modelLoadedCallback();
+        } else {
+          console.error(
+            `Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`,
+          );
+          if (this.config.modelLoadFailedCallback) {
+            this.config.modelLoadFailedCallback(new Error("Model not loaded in constructor"));
+          }
+        }
+        this.setTooltipHeights();
+      })
+      .catch((error) => {
+        // Check if the error is due to cancellation
+        if (this.config.abortController?.signal.aborted) {
+          console.log(`Character loading canceled in constructor for ${this.config.characterId}`);
+          return;
+        }
+        console.error(
+          `Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`,
+          error,
+        );
+
+        // Call the error callback if provided
+        if (this.config.modelLoadFailedCallback) {
+          this.config.modelLoadFailedCallback(error);
+        }
+      });
+  }
+
+  getColors(): Array<[number, number, number]> {
+    return this.model?.getColors() || [];
   }
 
   updateCharacter(username: string, characterDescription: CharacterDescription) {
     if (!characterDescriptionMatches(this.config.characterDescription, characterDescription)) {
       this.config.characterDescription = characterDescription;
-      this.load().then(() => {
-        this.setTooltipHeights();
-      });
+      this.load()
+        .then(() => {
+          // Check if operation was canceled after loading
+          if (this.config.abortController?.signal.aborted) {
+            console.log(`Character update canceled for ${this.config.characterId}`);
+            return;
+          }
+          this.setTooltipHeights();
+        })
+        .catch((error) => {
+          // Check if the error is due to cancellation
+          if (this.config.abortController?.signal.aborted) {
+            console.log(`Character update canceled during loading for ${this.config.characterId}`);
+            return;
+          }
+          console.error(
+            `Character update failed for ${this.config.username} (${this.config.characterId}):`,
+            error,
+          );
+
+          // Call the error callback if provided
+          if (this.config.modelLoadFailedCallback) {
+            this.config.modelLoadFailedCallback(error);
+          }
+        });
     }
     if (this.config.username !== username) {
       this.config.username = username;
@@ -111,25 +182,93 @@ export class Character extends Group {
     }
   }
 
+  public static loadAnimations(
+    characterModelLoader: CharacterModelLoader,
+    animationConfig: AnimationConfig,
+  ): Promise<LoadedAnimations> {
+    return new Promise((resolve) => {
+      const idleAnimation = characterModelLoader.loadAnimation(
+        animationConfig.idleAnimationFileUrl,
+      );
+      const jogAnimation = characterModelLoader.loadAnimation(animationConfig.jogAnimationFileUrl);
+      const sprintAnimation = characterModelLoader.loadAnimation(
+        animationConfig.sprintAnimationFileUrl,
+      );
+      const airAnimation = characterModelLoader.loadAnimation(animationConfig.airAnimationFileUrl);
+      const doubleJumpAnimation = characterModelLoader.loadAnimation(
+        animationConfig.doubleJumpAnimationFileUrl,
+      );
+      resolve(
+        Promise.all([
+          idleAnimation,
+          jogAnimation,
+          sprintAnimation,
+          airAnimation,
+          doubleJumpAnimation,
+        ]).then((animations) => {
+          const animationConfig: LoadedAnimations = {
+            idleAnimation: animations[0]!,
+            jogAnimation: animations[1]!,
+            sprintAnimation: animations[2]!,
+            airAnimation: animations[3]!,
+            doubleJumpAnimation: animations[4]!,
+          };
+          return animationConfig;
+        }),
+      );
+    });
+  }
+
   private async load(): Promise<void> {
+    // Check if operation was canceled before starting
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`Character loading canceled for ${this.config.characterId}`);
+      return;
+    }
+
     const previousModel = this.model;
     if (previousModel && previousModel.mesh) {
       this.remove(previousModel.mesh);
     }
     this.model = new CharacterModel({
       characterDescription: this.config.characterDescription,
-      animationConfig: this.config.animationConfig,
+      animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       cameraManager: this.config.cameraManager,
       characterId: this.config.characterId,
       isLocal: this.config.isLocal,
+      abortController: this.config.abortController,
     });
-    await this.model.init();
-    if (this.model.mesh) {
-      this.add(this.model.mesh);
-    }
-    if (this.speakingIndicator === null) {
-      this.speakingIndicator = new CharacterSpeakingIndicator(this.config.composer.postPostScene);
+
+    try {
+      await this.model.init();
+
+      // Check if operation was canceled after loading
+      if (this.config.abortController?.signal.aborted) {
+        if (this.model) {
+          this.model.dispose();
+          this.model = null;
+        }
+        return;
+      }
+
+      if (this.model && this.model.mesh) {
+        this.add(this.model.mesh);
+      } else {
+        console.warn(
+          `Character model for ${this.config.username} (${this.config.characterId}) failed to load.`,
+        );
+      }
+    } catch (error) {
+      // Check if the error is due to cancellation
+      if (this.config.abortController?.signal.aborted) {
+        return;
+      }
+      console.error(
+        `Character loading failed for ${this.config.username} (${this.config.characterId}):`,
+        error,
+      );
+      throw error;
     }
   }
 
@@ -142,16 +281,23 @@ export class Character extends Group {
     if (this.tooltip) {
       this.tooltip.update();
     }
-    if (this.speakingIndicator) {
-      this.speakingIndicator.setTime(time);
-      if (this.model.mesh && this.model.headBone) {
-        this.speakingIndicator.setBillboarding(
-          this.model.headBone?.getWorldPosition(new Vector3()),
-          this.config.cameraManager.camera,
-        );
-      }
-    }
     this.model.update(deltaTime);
+  }
+
+  public getPosition(): Vect3 {
+    return this.position as unknown as Vect3;
+  }
+
+  public getRotation(): EulXYZ {
+    return this.rotation as unknown as EulXYZ;
+  }
+
+  public setPosition(x: number, y: number, z: number) {
+    this.position.set(x, y, z);
+  }
+
+  public setRotation(x: number, y: number, z: number, w: number) {
+    this.rotation.setFromQuaternion(new Quaternion(x, y, z, w));
   }
 
   getCurrentAnimation(): AnimationState {
@@ -176,5 +322,17 @@ export class Character extends Group {
       this.tooltip.show();
     }
     this.setTooltipHeights();
+  }
+
+  public getMesh(): Object3D | null {
+    return this.model?.mesh || null;
+  }
+
+  dispose() {
+    if (this.model) {
+      this.model.dispose();
+      this.model = null;
+    }
+    // TODO - dispose of the tooltip and chat tooltips
   }
 }

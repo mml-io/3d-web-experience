@@ -70,13 +70,6 @@ export class GLTFLoadingWorkerPool {
     return worker;
   }
 
-  /**
-   * Process a gLTF file by loading it in a worker and optimizing all textures
-   * @param fileUrl - URL of the gLTF file to process
-   * @param maxTextureSize - Maximum size for any texture dimension
-   * @param abortController - Optional AbortController for cancellation
-   * @returns Promise that resolves to the processed gLTF data as ArrayBuffer
-   */
   public async processGLTF(
     fileUrl: string,
     maxTextureSize: number,

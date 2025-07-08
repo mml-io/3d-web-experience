@@ -1,14 +1,8 @@
 import {
-  CHAT_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-  CHAT_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
-  ChatNetworkingServer,
-} from "@mml-io/3d-web-text-chat";
-import {
-  USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-  USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
   UserData,
   UserIdentity,
   UserNetworkingServer,
+  UserNetworkingServerError,
 } from "@mml-io/3d-web-user-networking";
 import cors from "cors";
 import express from "express";
@@ -46,7 +40,7 @@ export type Networked3dWebExperienceServerConfig = {
     clientUrl: string;
     clientWatchWebsocketPath?: string;
   };
-  chatNetworkPath?: string;
+  enableChat?: boolean;
   assetServing?: {
     assetsDir: string;
     assetsUrl: string;
@@ -62,22 +56,12 @@ export type Networked3dWebExperienceServerConfig = {
 export class Networked3dWebExperienceServer {
   public userNetworkingServer: UserNetworkingServer;
 
-  public chatNetworkingServer?: ChatNetworkingServer;
-
   public mmlDocumentsServer?: MMLDocumentsServer;
 
   constructor(private config: Networked3dWebExperienceServerConfig) {
     if (this.config.mmlServing) {
       const { documentsWatchPath, documentsDirectoryRoot } = this.config.mmlServing;
       this.mmlDocumentsServer = new MMLDocumentsServer(documentsDirectoryRoot, documentsWatchPath);
-    }
-
-    if (this.config.chatNetworkPath) {
-      this.chatNetworkingServer = new ChatNetworkingServer({
-        getChatUserIdentity: (sessionToken: string) => {
-          return this.config.userAuthenticator.getClientIdForSessionToken(sessionToken);
-        },
-      });
     }
 
     this.userNetworkingServer = new UserNetworkingServer({
@@ -102,10 +86,6 @@ export class Networked3dWebExperienceServer {
       },
       onClientDisconnect: (clientId: number): void => {
         this.config.userAuthenticator.onClientDisconnect(clientId);
-        // Disconnect the corresponding chat client to avoid later conflicts of client ids
-        if (this.chatNetworkingServer) {
-          this.chatNetworkingServer.disconnectClientId(clientId);
-        }
       },
     });
   }
@@ -115,27 +95,8 @@ export class Networked3dWebExperienceServer {
     this.userNetworkingServer.updateUserCharacter(clientId, userData);
   }
 
-  public dispose(errorMessage?: string) {
-    this.userNetworkingServer.dispose(
-      errorMessage
-        ? {
-            type: USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-            errorType: USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
-            message: errorMessage,
-          }
-        : undefined,
-    );
-    if (this.chatNetworkingServer) {
-      this.chatNetworkingServer.dispose(
-        errorMessage
-          ? {
-              type: CHAT_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-              errorType: CHAT_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE,
-              message: errorMessage,
-            }
-          : undefined,
-      );
-    }
+  public dispose(error?: UserNetworkingServerError) {
+    this.userNetworkingServer.dispose(error);
     if (this.mmlDocumentsServer) {
       this.mmlDocumentsServer.dispose();
     }
@@ -145,13 +106,6 @@ export class Networked3dWebExperienceServer {
     app.ws(this.config.networkPath, (ws) => {
       this.userNetworkingServer.connectClient(ws);
     });
-
-    if (this.config.chatNetworkPath && this.chatNetworkingServer) {
-      const chatServer = this.chatNetworkingServer;
-      app.ws(this.config.chatNetworkPath, (ws) => {
-        chatServer.connectClient(ws);
-      });
-    }
 
     const webClientServing = this.config.webClientServing;
     if (webClientServing) {

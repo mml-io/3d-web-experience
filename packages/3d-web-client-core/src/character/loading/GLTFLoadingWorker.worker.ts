@@ -171,12 +171,11 @@ class GLTFLoadingWorker {
     maxTextureSize: number,
     abortController?: AbortController,
   ): Promise<Uint8Array> {
-
     // Check if already canceled
     if (abortController?.signal.aborted) {
       throw new Error("Operation canceled");
     }
-    
+
     // Try to get from cache first
     try {
       const cachedResult = await this.cache.get(fileUrl, maxTextureSize);
@@ -187,69 +186,138 @@ class GLTFLoadingWorker {
       console.warn("Cache lookup failed:", error);
     }
 
-
     // Check if canceled before fetch
     if (abortController?.signal.aborted) {
       throw new Error("Operation canceled");
     }
 
-    // Fetch the gLTF file with abort controller
-    const response = await fetch(fileUrl, {
-      signal: abortController?.signal,
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch gLTF file: ${response.statusText}`);
-    }
+    // Retry logic for handling truncated responses
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-    // Check if canceled before processing
-    if (abortController?.signal.aborted) {
-      throw new Error("Operation canceled");
-    }
-
-    const buffer = await response.arrayBuffer();
-
-    // Check if canceled before parsing
-    if (abortController?.signal.aborted) {
-      throw new Error("Operation canceled");
-    }
-
-    // Parse the document
-    const io = await this.ensureIOReady();
-    const document = await io.readBinary(new Uint8Array(buffer));
-
-    // Check if canceled before texture processing
-    if (abortController?.signal.aborted) {
-      throw new Error("Operation canceled");
-    }
-
-    // Process all textures in the document
-    const textures = document.getRoot().listTextures();
-
-    for (const texture of textures) {
-      // Check if canceled before processing each texture
-      if (abortController?.signal.aborted) {
-        throw new Error("Operation canceled");
-      }
-      await this.processTexture(texture, maxTextureSize);
-    }
-
-    // Check if canceled before writing
-    if (abortController?.signal.aborted) {
-      throw new Error("Operation canceled");
-    }
-
-    const result = await io.writeBinary(document);
-
-    // Cache the result (don't cache if canceled)
-    if (!abortController?.signal.aborted) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.cache.set(fileUrl, maxTextureSize, result);
+        // Check if canceled before each attempt
+        if (abortController?.signal.aborted) {
+          throw new Error("Operation canceled");
+        }
+
+        // Add cache-busting query parameter on retry attempts
+        let fetchUrl = fileUrl;
+        if (attempt > 1) {
+          const url = new URL(fetchUrl);
+          url.searchParams.set("retry", attempt.toString());
+          url.searchParams.set("t", Date.now().toString());
+          fetchUrl = url.toString();
+        }
+
+        // Fetch the gLTF file with abort controller
+        const response = await fetch(fetchUrl, {
+          signal: abortController?.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch gLTF file: ${response.statusText}`);
+        }
+
+        // Check if canceled before processing
+        if (abortController?.signal.aborted) {
+          throw new Error("Operation canceled");
+        }
+
+        const buffer = await response.arrayBuffer();
+        const asUint8Array = new Uint8Array(buffer);
+
+        // Check for truncated response
+        const contentLength = response.headers.get("Content-Length");
+        const expectedSize = contentLength ? parseInt(contentLength, 10) : null;
+
+        if (expectedSize && asUint8Array.length !== expectedSize) {
+          const error = new Error(
+            `Response truncated: expected ${expectedSize} bytes but got ${asUint8Array.length} bytes`
+          );
+          console.error("Truncated response detected:", {
+            fileUrl,
+            attempt,
+            expectedSize,
+            actualSize: asUint8Array.length,
+            contentType: response.headers.get("Content-Type"),
+            responseCode: response.status,
+          });
+
+          if (attempt === maxRetries) {
+            throw error;
+          }
+
+          lastError = error;
+          continue; // Try again
+        }
+
+
+        // Check if canceled before parsing
+        if (abortController?.signal.aborted) {
+          throw new Error("Operation canceled");
+        }
+
+        // Parse the document
+        const io = await this.ensureIOReady();
+        const document = await io.readBinary(asUint8Array);
+
+        // Check if canceled before texture processing
+        if (abortController?.signal.aborted) {
+          throw new Error("Operation canceled");
+        }
+
+        // Process all textures in the document
+        const textures = document.getRoot().listTextures();
+
+        for (const texture of textures) {
+          // Check if canceled before processing each texture
+          if (abortController?.signal.aborted) {
+            throw new Error("Operation canceled");
+          }
+          await this.processTexture(texture, maxTextureSize);
+        }
+
+        // Check if canceled before writing
+        if (abortController?.signal.aborted) {
+          throw new Error("Operation canceled");
+        }
+
+        const result = await io.writeBinary(document);
+
+        // Cache the result (don't cache if canceled)
+        if (!abortController?.signal.aborted) {
+          try {
+            await this.cache.set(fileUrl, maxTextureSize, result);
+          } catch (error) {
+            console.warn("Failed to cache result:", error);
+          }
+        }
+
+        return new Uint8Array(result);
+
       } catch (error) {
-        console.warn("Failed to cache result:", error);
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Don't retry on cancellation
+        if (abortController?.signal.aborted || lastError.message === "Operation canceled") {
+          throw lastError;
+        }
+
+        // Don't retry on non-truncation errors unless it's the first attempt
+        if (attempt === maxRetries || !lastError.message.includes("truncated")) {
+          throw lastError;
+        }
+
+        console.warn(`Fetch attempt ${attempt} failed, retrying...`, lastError.message);
+
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 100));
       }
     }
 
-    return new Uint8Array(result);
+    throw lastError || new Error("Failed to load GLTF after retries");
   }
 }
 

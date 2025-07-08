@@ -4,11 +4,16 @@ import { Bone, Group, MathUtils, Object3D, Skeleton, SkinnedMesh, Sphere, Vector
 import { MMLCharacterDescriptionPart } from "../helpers/parseMMLDescription";
 
 type MMLCharacterModelLoader = {
-  load: (url: string) => Promise<ModelLoadResult>;
+  load: (url: string, abortController?: AbortController) => Promise<ModelLoadResult | null>;
 };
 
 export class MMLCharacter {
-  constructor(private modelLoader: MMLCharacterModelLoader) {}
+  constructor(private modelLoader: MMLCharacterModelLoader) { }
+
+  public static load(fullBodyURL: string, bodyParts: Array<MMLCharacterDescriptionPart>, modelLoader: MMLCharacterModelLoader, abortController?: AbortController): Promise<Object3D | null> {
+    const mmlCharacter = new MMLCharacter(modelLoader);
+    return mmlCharacter.load(fullBodyURL, bodyParts, abortController);
+  }
 
   private createBoneIndexMap(
     originSkeleton: Skeleton,
@@ -32,7 +37,6 @@ export class MMLCharacter {
 
     const boneIndexMap = this.createBoneIndexMap(originSkeleton, targetSkeleton);
 
-    const newSkinIndexArray = [];
     const missingBoneIndices = new Set();
 
     const skinIndexAttribute = originGeometry.attributes.skinIndex;
@@ -53,26 +57,40 @@ export class MMLCharacter {
     }
   }
 
-  public async mergeBodyParts(
+  public async load(
     fullBodyURL: string,
     bodyParts: Array<MMLCharacterDescriptionPart>,
-  ): Promise<Object3D> {
+    abortController?: AbortController,
+  ): Promise<Object3D | null> {
     const group = new Group();
 
-    const fullBodyAssetPromise = this.modelLoader.load(fullBodyURL);
+    const fullBodyAssetPromise = this.modelLoader.load(fullBodyURL, abortController);
 
     const assetPromises: Array<
-      Promise<{ asset: ModelLoadResult; part: MMLCharacterDescriptionPart }>
+      Promise<{ asset: ModelLoadResult; part: MMLCharacterDescriptionPart; } | null>
     > = bodyParts.map((part) => {
       return new Promise((resolve) => {
-        this.modelLoader.load(part.url).then((asset) => {
+        this.modelLoader.load(part.url, abortController).then((asset: ModelLoadResult | null) => {
+          if (!asset) {
+            resolve(null);
+            return;
+          }
           resolve({ asset, part });
         });
       });
     });
 
     const fullBodyAsset = await fullBodyAssetPromise;
+    if (abortController?.signal.aborted) {
+      return null;
+    }
+    if (!fullBodyAsset) {
+      return null;
+    }
     const assets = await Promise.all(assetPromises);
+    if (abortController?.signal.aborted) {
+      return null;
+    }
 
     const rawBodyGltf = fullBodyAsset.group;
     const availableBones = new Map<string, Bone>();
@@ -113,54 +131,56 @@ export class MMLCharacter {
     const sharedMatrixWorld = skinnedMesh.matrixWorld;
 
     for (const loadingAsset of assets) {
-      const part = loadingAsset.part;
-      const rawGltf = loadingAsset.asset;
+      if (loadingAsset) {
+        const part = loadingAsset.part;
+        const rawGltf = loadingAsset.asset;
 
-      const modelGroup = rawGltf.group;
-      if (part.socket) {
-        const socketName = part.socket.socket;
-        let bone = availableBones.get("root");
-        if (availableBones.has(socketName)) {
-          bone = availableBones.get(socketName);
-        } else {
-          console.warn(
-            `WARNING: no bone found for [${socketName}] socket. Attatching to Root bone`,
-          );
-        }
-        if (bone) {
-          bone.add(modelGroup);
-
-          modelGroup.position.set(
-            part.socket.position.x,
-            part.socket.position.y,
-            part.socket.position.z,
-          );
-
-          modelGroup.rotation.set(
-            MathUtils.degToRad(part.socket.rotation.x),
-            MathUtils.degToRad(part.socket.rotation.y),
-            MathUtils.degToRad(part.socket.rotation.z),
-          );
-
-          modelGroup.scale.set(part.socket.scale.x, part.socket.scale.y, part.socket.scale.z);
-        }
-      } else {
-        const skinnedMeshes: Array<SkinnedMesh> = [];
-        modelGroup.traverse((child) => {
-          const asSkinnedMesh = child as SkinnedMesh;
-          if (asSkinnedMesh.isSkinnedMesh) {
-            skinnedMeshes.push(asSkinnedMesh);
-            // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustrum culling
-            asSkinnedMesh.boundingSphere = new Sphere(new Vector3(), 3);
+        const modelGroup = rawGltf.group;
+        if (part.socket) {
+          const socketName = part.socket.socket;
+          let bone = availableBones.get("root");
+          if (availableBones.has(socketName)) {
+            bone = availableBones.get(socketName);
+          } else {
+            console.warn(
+              `WARNING: no bone found for [${socketName}] socket. Attatching to Root bone`,
+            );
           }
-        });
-        for (const skinnedMeshPart of skinnedMeshes) {
-          this.remapBoneIndices(skinnedMeshPart, sharedSkeleton);
-          skinnedMeshPart.castShadow = true;
-          skinnedMeshPart.receiveShadow = true;
-          skinnedMeshPart.bind(sharedSkeleton, sharedMatrixWorld!);
-          skinnedMeshPart.children = [];
-          group.add(skinnedMeshPart);
+          if (bone) {
+            bone.add(modelGroup);
+
+            modelGroup.position.set(
+              part.socket.position.x,
+              part.socket.position.y,
+              part.socket.position.z,
+            );
+
+            modelGroup.rotation.set(
+              MathUtils.degToRad(part.socket.rotation.x),
+              MathUtils.degToRad(part.socket.rotation.y),
+              MathUtils.degToRad(part.socket.rotation.z),
+            );
+
+            modelGroup.scale.set(part.socket.scale.x, part.socket.scale.y, part.socket.scale.z);
+          }
+        } else {
+          const skinnedMeshes: Array<SkinnedMesh> = [];
+          modelGroup.traverse((child) => {
+            const asSkinnedMesh = child as SkinnedMesh;
+            if (asSkinnedMesh.isSkinnedMesh) {
+              skinnedMeshes.push(asSkinnedMesh);
+              // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustrum culling
+              asSkinnedMesh.boundingSphere = new Sphere(new Vector3(), 3);
+            }
+          });
+          for (const skinnedMeshPart of skinnedMeshes) {
+            this.remapBoneIndices(skinnedMeshPart, sharedSkeleton);
+            skinnedMeshPart.castShadow = true;
+            skinnedMeshPart.receiveShadow = true;
+            skinnedMeshPart.bind(sharedSkeleton, sharedMatrixWorld!);
+            skinnedMeshPart.children = [];
+            group.add(skinnedMeshPart);
+          }
         }
       }
     }

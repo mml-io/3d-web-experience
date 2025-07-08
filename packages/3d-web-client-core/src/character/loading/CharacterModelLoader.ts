@@ -7,56 +7,52 @@ export class CharacterModelLoader {
   private readonly modelLoader: ModelLoader = new ModelLoader();
   private workerPool: GLTFLoadingWorkerPool;
 
-  constructor(
-    private debug: boolean = false,
-    private maxTextureSize: number = 128,
-  ) {
-    this.maxTextureSize = maxTextureSize;
+  constructor(private debug: boolean = false) {
     this.workerPool = new GLTFLoadingWorkerPool();
   }
 
-  public setMaxTextureSize(size: number): void {
-    this.maxTextureSize = Math.max(64, Math.min(4096, size));
+  async loadModel(
+    fileUrl: string,
+    maxTextureSize: number,
+    abortController?: AbortController,
+  ): Promise<Object3D | null> {
     if (this.debug) {
-      console.log(`CharacterModelLoader max texture size set to ${this.maxTextureSize}`);
-    }
-  }
-
-  async load(
-    fileUrl: string,
-    fileType: "model",
-    abortController?: AbortController,
-  ): Promise<Object3D | undefined>;
-  async load(
-    fileUrl: string,
-    fileType: "animation",
-    abortController?: AbortController,
-  ): Promise<AnimationClip | undefined>;
-  async load(
-    fileUrl: string,
-    fileType: "model" | "animation",
-    abortController?: AbortController,
-  ): Promise<Object3D | AnimationClip | undefined> {
-    if (this.debug) {
-      console.log(`Loading and processing ${fileUrl} with max texture size ${this.maxTextureSize}`);
+      console.log(`Loading and processing ${fileUrl} with max texture size ${maxTextureSize}`);
     }
 
     try {
-      const processedBuffer = await this.processGLTFInWorker(fileUrl, abortController);
-      return await this.loadFromBuffer(processedBuffer, fileUrl, fileType);
+      const processedBuffer = await this.processGLTFInWorker(
+        fileUrl,
+        maxTextureSize,
+        abortController,
+      );
+      return await this.loadFromBuffer(processedBuffer, fileUrl);
     } catch (error) {
       // Check if the error is due to cancellation
       if (abortController?.signal.aborted) {
         console.log(`Loading canceled for ${fileUrl}`);
-        return undefined;
+        return null;
       }
-      console.error(`Error loading ${fileType} from ${fileUrl}:`, error);
+      console.error(`Error loading model from ${fileUrl}:`, error);
       throw error;
     }
   }
 
+  async loadAnimation(
+    fileUrl: string,
+    abortController?: AbortController,
+  ): Promise<AnimationClip | null> {
+    const animationResult = await this.modelLoader.load(fileUrl);
+    if (abortController?.signal.aborted) {
+      console.log(`Loading animation canceled for ${fileUrl}`);
+      return null;
+    }
+    return animationResult.animations[0] as AnimationClip;
+  }
+
   private async processGLTFInWorker(
     fileUrl: string,
+    maxTextureSize: number,
     abortController?: AbortController,
   ): Promise<ArrayBuffer> {
     if (this.debug) {
@@ -69,7 +65,7 @@ export class CharacterModelLoader {
       const absoluteFileUrl = new URL(fileUrl, window.location.href).href;
       const processedBuffer = await this.workerPool.processGLTF(
         absoluteFileUrl,
-        this.maxTextureSize,
+        maxTextureSize,
         abortController,
       );
       const endTime = performance.now();
@@ -96,30 +92,18 @@ export class CharacterModelLoader {
     }
   }
 
-  private async loadFromBuffer(
-    buffer: ArrayBuffer,
-    pathName: string,
-    fileType: "model" | "animation" = "model",
-  ): Promise<Object3D | AnimationClip | undefined> {
+  private async loadFromBuffer(buffer: ArrayBuffer, pathName: string): Promise<Object3D | null> {
     const modelLoadResult: ModelLoadResult = await this.modelLoader.loadFromBuffer(
       buffer,
       pathName,
     );
 
-    if (fileType === "model") {
-      const model = modelLoadResult.group as Object3D;
+    const model = modelLoadResult.group as Object3D;
 
-      if (this.debug) {
-        console.log(`Model loaded successfully from blob URL`);
-      }
-
-      return model;
-    } else if (fileType === "animation") {
-      return modelLoadResult.animations[0] as AnimationClip;
-    } else {
-      const error = `Trying to load unknown ${fileType} type of element`;
-      console.error(error);
-      throw new Error(error);
+    if (this.debug) {
+      console.log(`Model loaded successfully from blob URL`);
     }
+
+    return model;
   }
 }
