@@ -95,7 +95,6 @@ export class LocalController {
       ]
     | null = null;
 
-  public jumpPressed: boolean = false; // Tracks if the jump button is pressed
   public jumpReleased: boolean = true; // Indicates if the jump button has been released
 
   public networkState: CharacterState;

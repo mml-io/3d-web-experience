@@ -29,4 +29,5 @@ export type CharacterState = {
     w: number;
   };
   state: AnimationState;
+  colors?: Array<[number, number, number]>;
 };
