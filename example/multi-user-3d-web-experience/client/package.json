@@ -19,7 +19,7 @@
     "three": "0.163.0"
   },
   "devDependencies": {
-    "@types/three": "0.163.0",
+    "esbuild": "0.24.2",
     "esbuild-plugin-copy": "2.1.1"
   }
 }

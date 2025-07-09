@@ -22,6 +22,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@deltanet/delta-net-protocol": "^0.1.0",
     "@deltanet/delta-net-server": "^0.1.0",
     "@deltanet/delta-net-web": "^0.1.0",
     "@ez-elements/core": "^0.0.6",
@@ -31,10 +32,13 @@
     "ws": "8.18.0"
   },
   "devDependencies": {
-    "concurrently": "9.1.2",
-    "@types/cors": "2.8.17",
     "@types/express": "^5.0.0",
     "@types/express-ws": "^3.0.5",
-    "esbuild-css-modules-plugin": "3.1.5"
+    "@types/node": "^22.13.1",
+    "concurrently": "9.1.2",
+    "esbuild": "0.24.2",
+    "esbuild-css-modules-plugin": "3.1.5",
+    "esbuild-plugin-copy": "2.1.1",
+    "tree-kill": "^1.2.2"
   }
 }

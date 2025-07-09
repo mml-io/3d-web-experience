@@ -16,9 +16,6 @@
   },
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.22.0",
-    "@mml-io/3d-web-text-chat": "^0.22.0",
-    "@mml-io/3d-web-user-networking": "^0.22.0",
-    "@mml-io/3d-web-voice-chat": "^0.22.0",
     "@mml-io/mml-web": "0.19.7",
     "@mml-io/mml-web-runner": "0.19.7",
     "@mml-io/mml-web-threejs-standalone": "0.19.7",
@@ -27,6 +24,7 @@
   },
   "devDependencies": {
     "@types/three": "0.163.0",
+    "esbuild": "0.24.2",
     "esbuild-plugin-copy": "2.1.1"
   }
 }

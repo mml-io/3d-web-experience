@@ -18,21 +18,15 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@dolbyio/dolbyio-rest-apis-client": "4.1.0",
-    "@example/multi-user-3d-web-experience-client": "^0.22.0",
     "@mml-io/3d-web-experience-server": "^0.22.0",
-    "@mml-io/3d-web-text-chat": "^0.22.0",
     "@mml-io/3d-web-user-networking": "^0.22.0",
-    "@mml-io/networked-dom-server": "0.19.7",
-    "chokidar": "^4.0.3",
     "express": "4.21.2",
-    "express-ws": "5.0.2",
-    "ws": "8.18.0"
+    "express-ws": "5.0.2"
   },
   "devDependencies": {
-    "@types/cors": "2.8.17",
     "@types/express": "^5.0.0",
     "@types/express-ws": "^3.0.5",
-    "@types/node": "^22.13.1"
+    "@types/node": "^22.13.1",
+    "esbuild": "0.24.2"
   }
 }
