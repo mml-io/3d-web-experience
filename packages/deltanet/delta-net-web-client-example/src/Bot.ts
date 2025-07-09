@@ -50,7 +50,7 @@ function generateBotCharacterColors(): Array<[number, number, number]> {
   // Order matches colorPartNamesIndex: hair, skin, lips, shirt_short, shirt_long, pants_short, pants_long, shoes
   // All bots will have the same colors - a distinctive bot appearance
   return [
-    [97, 91, 140], // hair
+    [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)], // hair
     [248, 206, 180], // skin
     [180, 120, 120], // lips
     [47, 43, 78], // shirt_short
@@ -86,7 +86,7 @@ const rotationWComponent = 5;
 const stateComponent = 6;
 
 export class Bot {
-  private client: DeltaNetClientWebsocket;
+  private client: DeltaNetClientWebsocket | null = null;
   private states = new Map<number, Uint8Array>();
   private values = new Map<number, bigint>();
   private localClientIndex: number | null = null;
@@ -123,10 +123,53 @@ export class Bot {
     for (const key of config.valuesToUpdate ?? [xComponent, zComponent]) {
       this.values.set(key, 0n);
     }
-    const characterDescription = {
-      mmlCharacterUrl: `https://casual-v1.msquaredavatars.com/${config.id}.mml`,
-    };
-    this.states.set(1, textEncoder.encode(JSON.stringify(characterDescription)));
+    
+    // Initialize states
+    this.initializeStates();
+  }
+
+  private initializeStates(): void {
+    if (this.config.characterDescriptionStateId) {
+      const characterDescription = {
+        mmlCharacterUrl: `https://casual-v1.msquaredavatars.com/${this.config.id}.mml`,
+      };
+      this.states.set(this.config.characterDescriptionStateId, textEncoder.encode(JSON.stringify(characterDescription)));
+    }
+
+    if (this.config.usernameStateId) {
+      this.states.set(this.config.usernameStateId, textEncoder.encode(`Bot ${this.config.id}`));
+    }
+
+    if (this.config.avatarColorStateId) {
+      // Send consistent bot colors in the proper format expected by DeltaNetComponentMapping.decodeColors()
+      const characterColors = generateBotCharacterColors();
+      const encodedColors = encodeColors(characterColors);
+      this.states.set(this.config.avatarColorStateId, encodedColors);
+    }
+  }
+
+  public start(): void {
+    this.connect();
+    const updateInterval = this.config.updateInterval ?? 50; // Use smaller interval for smoother motion
+    this.updateIntervalId = setInterval(() => {
+      if (!this.connected) return;
+
+      this.updateValues();
+    }, updateInterval);
+  }
+
+  public stop(): void {
+    if (this.updateIntervalId) {
+      clearInterval(this.updateIntervalId);
+      this.updateIntervalId = null;
+    }
+    this.disconnect();
+  }
+
+  private connect(): void {
+    if (this.client) {
+      this.client.stop();
+    }
 
     this.client = new DeltaNetClientWebsocket(
       this.url,
@@ -161,19 +204,10 @@ export class Bot {
     );
   }
 
-  public start(): void {
-    const updateInterval = this.config.updateInterval ?? 50; // Use smaller interval for smoother motion
-    this.updateIntervalId = setInterval(() => {
-      if (!this.connected) return;
-
-      this.updateValues();
-    }, updateInterval);
-  }
-
-  public stop(): void {
-    if (this.updateIntervalId) {
-      clearInterval(this.updateIntervalId);
-      this.updateIntervalId = null;
+  private disconnect(): void {
+    if (this.client) {
+      this.client.stop();
+      this.connected = false;
     }
   }
 
@@ -222,15 +256,6 @@ export class Bot {
     this.values.set(rotationWComponent, BigInt(Math.round(quaternionW * rotationMultiplier)));
     this.values.set(stateComponent, BigInt(1));
 
-    if (this.config.avatarColorStateId) {
-      if (Math.random() > 0.95) {
-        // Send consistent bot colors in the proper format expected by DeltaNetComponentMapping.decodeColors()
-        const characterColors = generateBotCharacterColors();
-        const encodedColors = encodeColors(characterColors);
-        this.states.set(this.config.avatarColorStateId, encodedColors);
-      }
-    }
-
     if (this.config.colorStateId) {
       if (Math.random() > 0.99) {
         const color = Math.floor(Math.random() * 16777215);
@@ -242,7 +267,9 @@ export class Bot {
       }
     }
 
-    this.client.setUserComponents(new Map(this.values), this.states);
+    if (this.client) {
+      this.client.setUserComponents(new Map(this.values), this.states);
+    }
   }
 
   private handleStatusUpdate(status: DeltaNetClientWebsocketStatus): void {
@@ -270,5 +297,9 @@ export class Bot {
 
   public getStatus(): string {
     return `Bot ${this.config.id}: Index=${this.localClientIndex ?? "unknown"}`;
+  }
+
+  public getId(): number {
+    return this.config.id ?? 0;
   }
 }

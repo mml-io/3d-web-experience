@@ -85,6 +85,10 @@ export class DeltaNetV01Connection {
     }
   }
 
+  public setAuthenticated() {
+    this.isAuthenticated = true;
+  }
+
   private disconnectWithError(
     error: Error,
     errorType: DeltaNetV01ServerErrorType,
@@ -195,15 +199,11 @@ export class DeltaNetV01Connection {
       if (result.success) {
         // Apply state overrides if provided
         if (result.stateOverrides) {
-          console.log(
-            `Applying ${result.stateOverrides.length} state overrides for connection ${this.internalConnectionId}`,
-          );
           for (const [stateId, stateValue] of result.stateOverrides) {
             this.states.set(stateId, stateValue);
           }
         }
 
-        this.isAuthenticated = true;
         this.deltaNetServer.addAuthenticatedConnection(this);
       } else {
         this.disconnectWithError(
@@ -218,7 +218,7 @@ export class DeltaNetV01Connection {
 
   public async handleStateUpdate(stateId: number, stateValue: Uint8Array): Promise<boolean> {
     if (!this.isAuthenticated) {
-      console.warn("State update received before authentication completed");
+      console.error("State update received before authentication completed");
       return false;
     }
 

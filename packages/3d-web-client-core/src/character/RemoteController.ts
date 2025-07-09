@@ -16,7 +16,6 @@ export class RemoteController {
   private interpolationRate = 8.0; // How quickly to interpolate (higher = faster)
 
   constructor(
-    id: number,
     private character: Character,
   ) {
     const pos = character.getPosition();
@@ -24,7 +23,6 @@ export class RemoteController {
     const currentAnimation = character.getCurrentAnimation();
 
     this.networkState = {
-      id,
       position: { x: pos.x, y: pos.y, z: pos.z },
       rotation: { quaternionY: rot.y, quaternionW: 1 },
       state: currentAnimation,

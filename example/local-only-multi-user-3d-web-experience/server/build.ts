@@ -26,7 +26,9 @@ const buildOptions: esbuild.BuildOptions = {
   sourcemap: true,
   platform: "node",
   target: "es2020",
-  plugins: mode === watchMode ? [rebuildOnDependencyChangesPlugin] : [],
+  plugins: mode === watchMode ? [rebuildOnDependencyChangesPlugin({
+    startCommand: "npm run iterate:start",
+  })] : [],
 };
 
 switch (mode) {

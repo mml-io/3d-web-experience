@@ -92,7 +92,14 @@ export type DeltaNetServerOptions = {
     | void
     | Error
     | DeltaNetServerError
-    | Promise<true | void | Error | DeltaNetServerError>;
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+    | Promise<
+        | true
+        | void
+        | Error
+        | DeltaNetServerError
+        | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+      >;
   onLeave?: (opts: onLeaveOptions) => void;
   onCustomMessage?: (opts: onCustomMessageOptions) => void;
   // If provided, the server will create a state for each user that contains their connection id
@@ -438,16 +445,32 @@ export class DeltaNetServer {
               // Check if connection still exists before applying state update
               if (!this.connectionIdToDeltaNetServerConnection.has(internalConnectionId)) {
                 // Connection was removed while validation was pending - ignore the result
+                return;
+              }
+              if (asyncResult instanceof DeltaNetServerError || asyncResult instanceof Error) {
                 return asyncResult;
               }
-
-              // Apply the state update if validation passed
-              if (!(asyncResult instanceof Error)) {
+    
+              if (asyncResult === true || asyncResult === undefined) {
                 this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
                   [stateId, stateValue],
                 ]);
+                return true;
               }
-              return asyncResult;
+    
+              // If asyncResult is an object with success: true, apply the state overrides
+              if (asyncResult.success) {
+                if (asyncResult.stateOverrides) {
+                  this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, asyncResult.stateOverrides);
+                }
+                return true;
+              } else {
+                return new DeltaNetServerError(
+                  "USER_NETWORKING_UNKNOWN_ERROR",
+                  "State validation failed",
+                  false,
+                );
+              }
             })
             .catch((error) => {
               // Handle async callback errors
@@ -466,11 +489,26 @@ export class DeltaNetServer {
             return result;
           }
 
-          // Validation passed, apply the state update
-          this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
-            [stateId, stateValue],
-          ]);
-          return result;
+          if (result === true || result === undefined) {
+            this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
+              [stateId, stateValue],
+            ]);
+            return true;
+          }
+
+          // If result is an object with success: true, apply the state overrides
+          if (result.success) {
+            if (result.stateOverrides) {
+              this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, result.stateOverrides);
+            }
+            return true;
+          } else {
+            return new DeltaNetServerError(
+              "USER_NETWORKING_UNKNOWN_ERROR",
+              "State validation failed",
+              false,
+            );
+          }
         }
       } catch (error) {
         console.warn("Error in onStatesUpdate callback:", error);
@@ -703,6 +741,7 @@ export class DeltaNetServer {
 
     for (const deltaNetV01Connection of this.preTickData.newJoinerConnections) {
       this.authenticatedDeltaNetV01Connections.add(deltaNetV01Connection);
+      deltaNetV01Connection.setAuthenticated();
     }
 
     this.preTickData.unoccupyingIndices.clear();

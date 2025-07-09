@@ -38,6 +38,9 @@ export class GLTFLoadingWorkerPool {
   }
 
   private handleWorkerMessage(e: MessageEvent<GLTFWorkerResponse>): void {
+    if (!e.data) {
+      return;
+    }
     const { id, type } = e.data;
 
     const job = this.activeJobs.get(id);

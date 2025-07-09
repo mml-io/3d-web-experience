@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild";
 
 import { dtsPlugin } from "./dtsPlugin";
+import { rebuildOnDependencyChangesPlugin } from "./rebuildOnDependencyChangesPlugin";
 
 const buildMode = "--build";
 const watchMode = "--watch";
@@ -49,7 +50,7 @@ export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
     loader: {
       ...options.loader,
     },
-    plugins: [...options.plugins, dtsPlugin()],
+    plugins: [...options.plugins, rebuildOnDependencyChangesPlugin(), dtsPlugin()],
   };
 
   switch (mode) {

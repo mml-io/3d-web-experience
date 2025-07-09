@@ -71,9 +71,9 @@ export type CharacterManagerConfig = {
   animationsPromise: Promise<LoadedAnimations>;
   spawnConfiguration: SpawnConfigurationState;
   characterResolve: (clientId: number) => {
-    username: string;
-    characterDescription: CharacterDescription;
-    colors: Array<[number, number, number]>;
+    username: string | null;
+    characterDescription: CharacterDescription | null;
+    colors: Array<[number, number, number]> | null;
   };
   updateURLLocation?: boolean;
 };
@@ -131,7 +131,7 @@ export class CharacterManager {
   public spawnLocalCharacter(
     id: number,
     username: string,
-    characterDescription: CharacterDescription,
+    characterDescription: CharacterDescription | null,
     spawnPosition: Vect3 = new Vect3(),
     spawnRotation: EulXYZ = new EulXYZ(),
   ) {
@@ -153,7 +153,6 @@ export class CharacterManager {
     });
     const quaternion = character.quaternion;
     this.config.sendUpdate({
-      id: id,
       position: {
         x: spawnPosition.x,
         y: spawnPosition.y,
@@ -190,7 +189,7 @@ export class CharacterManager {
     return dx * dx + dy * dy + dz * dz;
   }
 
-  private evaluateLODWithBudget(): void {
+  private evaluateLOD(): void {
     for (const [, char] of this.remoteCharacters) {
       char.distanceSquared = this.calculateDistanceSquared(char.lastPosition);
     }
@@ -263,8 +262,8 @@ export class CharacterManager {
     const initialAnimationState = networkState.state;
 
     const character = new Character({
-      username: characterInfo.username,
-      characterDescription: characterInfo.characterDescription,
+      username: characterInfo.username ?? `Unknown User ${id}`,
+      characterDescription: characterInfo.characterDescription ,
       animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       characterId: id,
@@ -355,7 +354,7 @@ export class CharacterManager {
       spawnQuaternion.w,
     );
     // Character will be added to scene when processed from queue
-    const remoteController = new RemoteController(id, character);
+    const remoteController = new RemoteController(character);
     activeChar.loadedCharacterState = {
       character,
       remoteController,
@@ -534,13 +533,24 @@ export class CharacterManager {
       this.localCharacter = null;
     }
     if (this.characterInstances) {
-      this.characterInstances.dispose();
-      this.characterInstances = null;
+      this.characterInstances.clear();
     }
 
     this.pendingSpawns.clear();
     this.loadingCharacters.clear(); // Clean up loading state
     this.charactersReadyForScene.length = 0; // Clear the queue
+  }
+
+  public dispose() {
+    this.clear();
+    if (this.characterInstances) {
+      this.characterInstances.dispose();
+      this.characterInstances = null;
+    }
+    if (this.localCharacter) {
+      this.localCharacter.dispose();
+      this.localCharacter = null;
+    }
   }
 
   public addSelfChatBubble(message: string) {
@@ -555,11 +565,11 @@ export class CharacterManager {
 
   public remoteCharacterInfoUpdated(id: number) {
     const characterInfo = this.config.characterResolve(id);
-    const colors = colorArrayToColors(characterInfo.colors);
+    const colors = colorArrayToColors(characterInfo.colors ?? []);
 
     if (this.localCharacter && this.localClientId == id) {
       this.localCharacter.updateCharacter(
-        characterInfo.username,
+        characterInfo.username ?? `Unknown User ${id}`,
         characterInfo.characterDescription,
       );
     }
@@ -568,7 +578,7 @@ export class CharacterManager {
     if (remoteCharacter) {
       if (remoteCharacter.loadedCharacterState) {
         remoteCharacter.loadedCharacterState.character.updateCharacter(
-          characterInfo.username,
+          characterInfo.username ?? `Unknown User ${id}`,
           characterInfo.characterDescription,
         );
       }
@@ -584,7 +594,7 @@ export class CharacterManager {
       0,
       this.MAX_SCENE_ADDITIONS_PER_FRAME,
     );
-    for (const { id, character, remoteController } of charactersToAdd) {
+    for (const { character } of charactersToAdd) {
       this.group.add(character);
     }
 
@@ -670,7 +680,7 @@ export class CharacterManager {
           const characterInfo = this.config.characterResolve(id);
 
           // Convert characterInfo colors to Map<string, Color> format
-          const colorMap = colorArrayToColors(characterInfo.colors);
+          const colorMap = colorArrayToColors(characterInfo.colors ?? []);
 
           const euler = new Euler().setFromQuaternion(
             new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
@@ -756,7 +766,7 @@ export class CharacterManager {
       return this.config.remoteUserStates.has(id);
     });
 
-    this.evaluateLODWithBudget();
+    this.evaluateLOD();
 
     if (
       this.localCharacter &&

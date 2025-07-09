@@ -9,6 +9,7 @@ import { CharacterModel } from "./CharacterModel";
 import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
 import { CharacterModelLoader } from "./loading/CharacterModelLoader";
+import { lowPolyLoDModelURL } from "./LowPolyModel";
 
 export type AnimationConfig = {
   idleAnimationFileUrl: string;
@@ -45,7 +46,7 @@ export type CharacterDescription =
 
 export type CharacterConfig = {
   username: string;
-  characterDescription: CharacterDescription;
+  characterDescription: CharacterDescription | null;
   animationsPromise: Promise<LoadedAnimations>;
   characterModelLoader: CharacterModelLoader;
   characterId: number;
@@ -61,11 +62,17 @@ function characterHeightToTooltipHeightOffset(characterHeight: number): number {
   return characterHeight - 0.4 + 0.1;
 }
 
-function characterDescriptionMatches(a: CharacterDescription, b: CharacterDescription): boolean {
+function characterDescriptionMatches(a: CharacterDescription | null, b: CharacterDescription | null): boolean {
+  if (a === null && b === null) {
+    return true;
+  }
+  if (a === null || b === null) {
+    return false;
+  }
   return (
-    a.meshFileUrl === b.meshFileUrl &&
-    a.mmlCharacterString === b.mmlCharacterString &&
-    a.mmlCharacterUrl === b.mmlCharacterUrl
+    a?.meshFileUrl === b?.meshFileUrl &&
+    a?.mmlCharacterString === b?.mmlCharacterString &&
+    a?.mmlCharacterUrl === b?.mmlCharacterUrl
   );
 }
 
@@ -132,7 +139,7 @@ export class Character extends Group {
     return this.model?.getColors() || [];
   }
 
-  updateCharacter(username: string, characterDescription: CharacterDescription) {
+  updateCharacter(username: string, characterDescription: CharacterDescription | null) {
     if (!characterDescriptionMatches(this.config.characterDescription, characterDescription)) {
       this.config.characterDescription = characterDescription;
       this.load()
@@ -231,7 +238,9 @@ export class Character extends Group {
       this.remove(previousModel.mesh);
     }
     this.model = new CharacterModel({
-      characterDescription: this.config.characterDescription,
+      characterDescription: this.config.characterDescription ?? {
+        meshFileUrl: lowPolyLoDModelURL,
+      },
       animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       cameraManager: this.config.cameraManager,

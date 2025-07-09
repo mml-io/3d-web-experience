@@ -7,26 +7,25 @@ import {
   onCustomMessageOptions,
   onJoinerOptions,
   onLeaveOptions,
+  onStatesUpdateOptions,
 } from "@deltanet/delta-net-server";
 import WebSocket from "ws";
 
 import { DeltaNetComponentMapping } from "./DeltaNetComponentMapping";
-import { UserNetworkingClientUpdate } from "./types";
 import { UserData } from "./UserData";
 import {
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   parseClientChatMessage,
   ServerChatMessage,
-  UserIdentity,
   UserNetworkingServerError,
+  CharacterDescription,
 } from "./UserNetworkingMessages";
 
 export type UserNetworkingServerClient = {
   socket: WebSocket;
   id: number;
   lastPong: number;
-  update: UserNetworkingClientUpdate;
   authenticatedUser: UserData | null;
   deltaNetConnection?: DeltaNetV01Connection;
 };
@@ -36,12 +35,12 @@ export type UserNetworkingServerOptions = {
   onClientConnect: (
     clientId: number,
     sessionToken: string,
-    userIdentity?: Partial<UserIdentity>,
-  ) => Promise<UserData | null> | UserData | null;
+    userIdentity?: UserData,
+  ) => Promise<UserData | true | Error> | UserData | true | Error;
   onClientUserIdentityUpdate: (
     clientId: number,
-    userIdentity: Partial<UserIdentity>,
-  ) => Promise<UserData | null> | UserData | null;
+    userIdentity: UserData,
+  ) => Promise<UserData | null | false | Error> | UserData | null | false | Error;
   onClientDisconnect: (clientId: number) => void;
 };
 
@@ -64,6 +63,9 @@ export class UserNetworkingServer {
         // TODO - potentially check that components are valid (e.g. rotation is 0 to 2pi)
         return; // No error
       },
+      onStatesUpdate: (update: onStatesUpdateOptions) => {
+        return this.handleStatesUpdate(update);
+      },
       onCustomMessage: (customMessage: onCustomMessageOptions) => {
         this.handleCustomMessage(customMessage);
       },
@@ -75,25 +77,140 @@ export class UserNetworkingServer {
     }, 50);
   }
 
+  private handleStatesUpdate(update: onStatesUpdateOptions):
+    | DeltaNetServerError
+    | void
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
+    | Promise<
+      DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
+    > {
+    const deltaNetConnection = update.deltaNetV01Connection;
+    const clientId = deltaNetConnection.internalConnectionId;
+    const updatedStates = update.states;
+    const updatedStatesMap = new Map<number, Uint8Array>(updatedStates);
+    const updatedUserData: UserData = DeltaNetComponentMapping.fromUserStates(updatedStatesMap);
+
+    const existingClient = this.authenticatedClientsById.get(clientId);
+    if (!existingClient) {
+      return new DeltaNetServerError(
+        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        "User not authenticated - no client found",
+        false,
+      );
+    }
+    const existingUserData = existingClient.authenticatedUser ?? {};
+    const userData = {
+      ...existingUserData,
+      ...updatedUserData,
+    };
+
+    const res = this.options.onClientUserIdentityUpdate(clientId, userData);
+    if (res instanceof Promise) {
+      return res.then((res) => {
+        if (!this.authenticatedClientsById.get(clientId)) {
+          return new DeltaNetServerError(
+            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            "User not authenticated - client disconnected",
+            false,
+          );
+        }
+
+        if (res instanceof DeltaNetServerError) {
+          return res;
+        }
+        if (res instanceof Error) {
+          return new DeltaNetServerError(
+            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            "User identity update failed",
+            false,
+          );
+        }
+        if (res === null) {
+          return new DeltaNetServerError(
+            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            "User identity update failed",
+            false,
+          );
+        }
+        if (res === false) {
+          return new DeltaNetServerError(
+            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            "User identity update failed",
+            false,
+          );
+        }
+        if (!res || typeof res !== "object") {
+          return new DeltaNetServerError(
+            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            "User identity update failed",
+            false,
+          );
+        }
+
+        existingClient.authenticatedUser = {
+          ...existingClient.authenticatedUser,
+          ...res,
+        };
+
+        return { success: true, stateOverrides: Array.from(DeltaNetComponentMapping.toStates(res).entries()) };
+      });
+    }
+    if (res instanceof DeltaNetServerError) {
+      return res;
+    }
+    if (res instanceof Error) {
+      return new DeltaNetServerError(
+        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        "User identity update failed",
+        false,
+      );
+    }
+    if (res === null) {
+      return new DeltaNetServerError(
+        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        "User identity update failed",
+        false,
+      );
+    }
+    if (res === false) {
+      return new DeltaNetServerError(
+        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        "User identity update failed",
+        false,
+      );
+    }
+    if (!res || typeof res !== "object") {
+      return new DeltaNetServerError(
+        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        "User identity update failed",
+        false,
+      );
+    }
+
+    existingClient.authenticatedUser = {
+      ...existingClient.authenticatedUser,
+      ...res,
+    };
+
+    return { success: true, stateOverrides: Array.from(DeltaNetComponentMapping.toStates(res).entries()) };
+  }
+
   private handleJoiner(
     joiner: onJoinerOptions,
   ):
     | DeltaNetServerError
     | void
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
     | Promise<
-        DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
-      > {
+      DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
+    > {
     const deltaNetConnection = joiner.deltaNetV01Connection as DeltaNetV01Connection;
     const webSocket = deltaNetConnection.webSocket as unknown as WebSocket;
     const states = joiner.states as Array<[number, Uint8Array]>;
     const clientId = this.nextClientId++;
 
-    console.log(
-      `Client ID: ${clientId} joined (observer: ${deltaNetConnection.isObserver}), authenticating...`,
-    );
-
     const statesMap = new Map<number, Uint8Array>(states);
-    const userData: Partial<UserIdentity> = DeltaNetComponentMapping.fromUserStates(statesMap);
+    const userData: UserData = DeltaNetComponentMapping.fromUserStates(statesMap);
 
     // Handle authentication and return the result with state overrides
     return this.handleDeltaNetAuthentication(
@@ -106,17 +223,13 @@ export class UserNetworkingServer {
       .then((authResult) => {
         if (!authResult.success) {
           // Authentication failed - return error to reject connection
-          console.log(`Authentication failed for client ID: ${clientId}`);
+          console.warn(`Authentication failed for client ID: ${clientId}`);
           return new DeltaNetServerError(
             DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "Authentication failed",
             false,
           );
         } else {
-          console.log(
-            `Client ID: ${clientId} authenticated successfully`,
-            authResult.stateOverrides,
-          );
           // Return success with state overrides
           return {
             success: true as const,
@@ -141,7 +254,6 @@ export class UserNetworkingServer {
     if (clientId !== undefined) {
       const client = this.authenticatedClientsById.get(clientId);
       if (client) {
-        console.log(`Client ID: ${clientId} left`);
         this.options.onClientDisconnect(clientId);
         this.authenticatedClientsById.delete(clientId);
       }
@@ -154,10 +266,6 @@ export class UserNetworkingServer {
 
     const client = this.authenticatedClientsById.get(clientId);
     if (client && client.authenticatedUser) {
-      console.log(
-        `Custom message from client ${clientId} (${client.authenticatedUser.username}): type=${customMessage.customType}, content=${customMessage.contents}`,
-      );
-
       // Handle chat messages
       if (customMessage.customType === FROM_CLIENT_CHAT_MESSAGE_TYPE) {
         const chatMessage = parseClientChatMessage(customMessage.contents);
@@ -185,27 +293,16 @@ export class UserNetworkingServer {
     webSocket: WebSocket,
     deltaNetConnection: DeltaNetV01Connection,
     sessionToken: string,
-    userIdentity: Partial<UserIdentity>,
-  ): Promise<{ success: boolean; stateOverrides?: Array<[number, Uint8Array]> }> {
+    userIdentity: UserData,
+  ): Promise<{ success: true; stateOverrides?: Array<[number, Uint8Array]>; } | { success: false; error?: Error; }> {
     try {
-      console.log(
-        `Authenticating client ${clientId} (observer: ${deltaNetConnection.isObserver}) with session token: ${sessionToken.substring(0, 10)}...`,
-      );
-
       // For observers, we might want to allow anonymous access or use a different authentication flow
-      const userData = deltaNetConnection.isObserver
+      let userData = deltaNetConnection.isObserver
         ? null // Observers don't need user data
         : await this.options.onClientConnect(clientId, sessionToken, userIdentity);
 
-      console.log(`Authentication result for client ${clientId}:`, {
-        success: deltaNetConnection.isObserver || !!userData,
-        isObserver: deltaNetConnection.isObserver,
-        username: userData?.username,
-        characterDescription: userData?.characterDescription,
-      });
-
       if (!deltaNetConnection.isObserver && !userData) {
-        console.log(`Authentication failed for client ${clientId} - no user data returned`);
+        console.warn(`Authentication failed for client ${clientId} - no user data returned`);
         return { success: false };
       }
 
@@ -214,8 +311,15 @@ export class UserNetworkingServer {
         this.options.connectionLimit !== undefined &&
         this.authenticatedClientsById.size >= this.options.connectionLimit
       ) {
-        console.log(`Connection limit reached for client ${clientId}`);
         return { success: false };
+      }
+
+      if (userData instanceof Error) {
+        return { success: false, error: userData };
+      }
+
+      if (userData === true) {
+        userData = userIdentity;
       }
 
       // Create authenticated client
@@ -225,12 +329,6 @@ export class UserNetworkingServer {
         lastPong: Date.now(),
         authenticatedUser: userData,
         deltaNetConnection: deltaNetConnection,
-        update: {
-          id: clientId,
-          position: { x: 0, y: 0, z: 0 },
-          rotation: { quaternionY: 0, quaternionW: 1 },
-          state: 0,
-        },
       };
 
       this.authenticatedClientsById.set(clientId, authenticatedClient);
@@ -239,20 +337,8 @@ export class UserNetworkingServer {
       // Observers don't have user data, so no state overrides
       let stateOverrides: Array<[number, Uint8Array]> = [];
       if (userData) {
-        const officialStates = DeltaNetComponentMapping.toStates(
-          userData.username,
-          userData.characterDescription,
-          userData.colors,
-        );
+        const officialStates = DeltaNetComponentMapping.toStates(userData);
         stateOverrides = Array.from(officialStates.entries());
-
-        console.log(`Created state overrides for client ${clientId}:`, {
-          username: userData.username,
-          characterDescription: userData.characterDescription,
-          overridesCount: stateOverrides.length,
-        });
-      } else {
-        console.log(`Observer client ${clientId} - no state overrides needed`);
       }
 
       return {
@@ -282,18 +368,121 @@ export class UserNetworkingServer {
     this.internalUpdateUser(clientId, userData);
   }
 
+  public updateUserUsername(clientId: number, username: string): void {
+    const client = this.authenticatedClientsById.get(clientId);
+    if (!client || !client.deltaNetConnection || !client.authenticatedUser) return;
+
+    // Update local user data by creating a new UserData object
+    client.authenticatedUser = {
+      ...client.authenticatedUser,
+      username: username,
+    };
+
+    // Update deltanet states with just the username
+    const states = DeltaNetComponentMapping.toUsernameState(username);
+    const asArray = Array.from(states.entries());
+    this.deltaNetServer.overrideUserStates(client.deltaNetConnection, clientId, asArray);
+  }
+
+  public updateUserCharacterDescription(clientId: number, characterDescription: CharacterDescription): void {
+    const client = this.authenticatedClientsById.get(clientId);
+    if (!client || !client.deltaNetConnection || !client.authenticatedUser) return;
+
+    // Update local user data by creating a new UserData object
+    client.authenticatedUser = {
+      ...client.authenticatedUser,
+      characterDescription: characterDescription,
+    };
+
+    // Update deltanet states with just the character description
+    const states = DeltaNetComponentMapping.toCharacterDescriptionState(characterDescription);
+    const asArray = Array.from(states.entries());
+    this.deltaNetServer.overrideUserStates(client.deltaNetConnection, clientId, asArray);
+  }
+
+  public updateUserColors(clientId: number, colors: Array<[number, number, number]>): void {
+    const client = this.authenticatedClientsById.get(clientId);
+    if (!client || !client.deltaNetConnection || !client.authenticatedUser) return;
+
+    // Update local user data by creating a new UserData object
+    client.authenticatedUser = {
+      ...client.authenticatedUser,
+      colors: colors,
+    };
+
+    // Update deltanet states with just the colors
+    const states = DeltaNetComponentMapping.toColorsState(colors);
+    const asArray = Array.from(states.entries());
+    this.deltaNetServer.overrideUserStates(client.deltaNetConnection, clientId, asArray);
+  }
+
+  public updateUserStates(clientId: number, updates: UserData): void {
+    const client = this.authenticatedClientsById.get(clientId);
+    if (!client || !client.deltaNetConnection || !client.authenticatedUser) return;
+
+    const states = new Map<number, Uint8Array>();
+    let hasUpdates = false;
+    let updatedUserData = client.authenticatedUser;
+
+    // Update username if provided
+    if (updates.username !== null) {
+      updatedUserData = {
+        ...updatedUserData,
+        username: updates.username,
+      };
+      const usernameStates = DeltaNetComponentMapping.toUsernameState(updates.username);
+      for (const [stateId, stateValue] of usernameStates) {
+        states.set(stateId, stateValue);
+      }
+      hasUpdates = true;
+    }
+
+    // Update character description if provided
+    if (updates.characterDescription !== null) {
+      updatedUserData = {
+        ...updatedUserData,
+        characterDescription: updates.characterDescription,
+      };
+      const characterDescStates = DeltaNetComponentMapping.toCharacterDescriptionState(updates.characterDescription);
+      for (const [stateId, stateValue] of characterDescStates) {
+        states.set(stateId, stateValue);
+      }
+      hasUpdates = true;
+    }
+
+    // Update colors if provided
+    if (updates.colors !== null) {
+      updatedUserData = {
+        ...updatedUserData,
+        colors: updates.colors,
+      };
+      const colorsStates = DeltaNetComponentMapping.toColorsState(updates.colors);
+      for (const [stateId, stateValue] of colorsStates) {
+        states.set(stateId, stateValue);
+      }
+      hasUpdates = true;
+    }
+
+    // Only send update if there are changes
+    if (hasUpdates) {
+      client.authenticatedUser = updatedUserData;
+      const asArray = Array.from(states.entries());
+      this.deltaNetServer.overrideUserStates(client.deltaNetConnection, clientId, asArray);
+    }
+  }
+
   private internalUpdateUser(clientId: number, userData: UserData): void {
     const client = this.authenticatedClientsById.get(clientId);
     if (!client || !client.deltaNetConnection) return;
 
-    client.authenticatedUser = userData;
+    client.authenticatedUser = {
+      ...client.authenticatedUser,
+      ...userData,
+    };
 
     // Update deltanet states
-    const states = DeltaNetComponentMapping.toStates(
-      userData.username,
-      userData.characterDescription,
-      userData.colors,
-    );
+    const states = DeltaNetComponentMapping.toStates(userData);
+
 
     const asArray = Array.from(states.entries());
     this.deltaNetServer.overrideUserStates(client.deltaNetConnection, clientId, asArray);

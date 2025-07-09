@@ -15,8 +15,7 @@ import {
   Vector3,
 } from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-
-import lowPolyLoDModelURL from "../../assets/low-poly-humanoid.glb";
+import { lowPolyLoDModelURL } from "../LowPolyModel";
 import { CameraManager } from "../../camera/CameraManager";
 import { EulXYZ, Vect3 } from "../../math";
 import { TimeManager } from "../../time/TimeManager";
@@ -25,10 +24,6 @@ import { ColorPartName } from "../CharacterModel";
 import { AnimationState } from "../CharacterState";
 import { CharacterModelLoader } from "../loading/CharacterModelLoader";
 
-import {
-  captureCharacterColorsFromObject3D,
-  updateDebugTextureCanvas,
-} from "./CharacterColourSamplingUtils";
 import { createSingleTimeline, SegmentTime } from "./CharacterInstancingAnimationUtils";
 import { mergeSkinnedMeshes, validateAndCleanSkeleton } from "./CharacterInstancingUtils";
 import { createInstancedMesh2From, Entity, InstancedMesh2 } from "./vendor";
@@ -146,9 +141,6 @@ export class CharacterInstances {
 
   public async initialize(): Promise<Object3D | null> {
     try {
-      if (this.debug) {
-        console.log("lowPolyLoDModelURL", lowPolyLoDModelURL);
-      }
       const lowPolyModel = await MMLCharacter.load(lowPolyLoDModelURL, [], {
         load: async (url: string, abortController?: AbortController) => {
           const model = await this.config.characterModelLoader.loadModel(url, 32, abortController);
@@ -335,7 +327,7 @@ export class CharacterInstances {
     this.updateInstancedMeshBounds();
   }
 
-  public getInstanceInfo(): { active: number; total: number; available: number } {
+  public getInstanceInfo(): { active: number; total: number; available: number; } {
     if (!this.instancedMesh?.instances) {
       return { active: 0, total: 0, available: 0 };
     }
@@ -523,6 +515,8 @@ export class CharacterInstances {
     mainMesh.traverse((child) => {
       if (child instanceof SkinnedMesh) {
         skinnedMeshes.push(child);
+      } else if ((child as SkinnedMesh).isSkinnedMesh) {
+        skinnedMeshes.push(child as SkinnedMesh);
       }
     });
 
@@ -902,6 +896,24 @@ export class CharacterInstances {
 
       return true;
     };
+  }
+
+  public clear() {
+    // Remove all instances as if they had been despawned
+    if (this.instancedMesh) {
+      for (const [, instanceId] of this.characterIdToInstanceIdMap.entries()) {
+        if (instanceId !== undefined) {
+          this.instancedMesh.instances![instanceId].isActive = false;
+          this.instancedMesh.instances![instanceId].visible = false;
+          this.instancedMesh.instances![instanceId].isShadowed = false;
+          this.instancedMesh.instances![instanceId].characterId = -1;
+          this.instancedMesh.instances![instanceId].instanceId = -1;
+          this.instancedMesh.instances![instanceId].updateMatrix();
+        }
+      }
+      this.updateInstancedMeshBounds();
+      this.characterIdToInstanceIdMap.clear();
+    }
   }
 
   public dispose(): void {

@@ -110,7 +110,6 @@ export class LocalController {
 
   constructor(private config: LocalControllerConfig) {
     this.networkState = {
-      id: this.config.id,
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: AnimationState.idle,
@@ -561,37 +560,18 @@ export class LocalController {
   }
 
   private updateNetworkState(): void {
-    const cameraPosition = this.config.cameraManager.camera.position;
-    const cameraRotation = this.config.cameraManager.activeCamera.quaternion;
     const characterPosition = this.config.character.position;
     const characterRotation = this.config.character.rotation;
 
     const characterQuat = this.tempQuat.setFromEulerXYZ(characterRotation);
 
-    const cameraQuat = new Quat(
-      cameraRotation.x,
-      cameraRotation.y,
-      cameraRotation.z,
-      cameraRotation.w,
-    );
-
     this.networkState = {
-      id: this.config.id,
       position: {
         x: characterPosition.x,
         y: characterPosition.y,
         z: characterPosition.z,
       },
       rotation: { quaternionY: characterQuat.y, quaternionW: characterQuat.w },
-      camPosition: {
-        x: cameraPosition.x,
-        y: cameraPosition.y,
-        z: cameraPosition.z,
-      },
-      camQuaternion: {
-        y: cameraQuat.y,
-        w: cameraQuat.w,
-      },
       state: this.config.character.getCurrentAnimation(),
       colors: this.config.character.getColors(),
     };
