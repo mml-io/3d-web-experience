@@ -16,7 +16,7 @@ const cases: Array<[string, DeltaNetV01ClientCustomMessage, Array<number>]> = [
       customType: 0,
       contents: "",
     },
-    [15, 0, 0],
+    [65, 0, 0],
   ],
   [
     "with a long message",
@@ -27,7 +27,7 @@ const cases: Array<[string, DeltaNetV01ClientCustomMessage, Array<number>]> = [
         "Some reasonably long clientCustom message with some pointless extra words like these that ends up being quite long and causes the uvarint representing the message length to be greater than 128",
     },
     [
-      15, 123, 192, 1, 83, 111, 109, 101, 32, 114, 101, 97, 115, 111, 110, 97, 98, 108, 121, 32,
+      65, 123, 192, 1, 83, 111, 109, 101, 32, 114, 101, 97, 115, 111, 110, 97, 98, 108, 121, 32,
       108, 111, 110, 103, 32, 99, 108, 105, 101, 110, 116, 67, 117, 115, 116, 111, 109, 32, 109,
       101, 115, 115, 97, 103, 101, 32, 119, 105, 116, 104, 32, 115, 111, 109, 101, 32, 112, 111,
       105, 110, 116, 108, 101, 115, 115, 32, 101, 120, 116, 114, 97, 32, 119, 111, 114, 100, 115,

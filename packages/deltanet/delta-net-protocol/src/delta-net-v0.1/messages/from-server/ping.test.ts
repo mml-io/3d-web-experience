@@ -11,7 +11,7 @@ const cases: Array<[string, DeltaNetV01PingMessage, Array<number>]> = [
       type: "ping",
       ping: 123,
     },
-    [8, 123],
+    [5, 123],
   ],
   [
     "ping message with large ping",
@@ -19,7 +19,7 @@ const cases: Array<[string, DeltaNetV01PingMessage, Array<number>]> = [
       type: "ping",
       ping: 1234567890,
     },
-    [8, 210, 133, 216, 204, 4],
+    [5, 210, 133, 216, 204, 4],
   ],
 ];
 

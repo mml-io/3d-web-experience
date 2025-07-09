@@ -13,10 +13,10 @@ import { TimeManager } from "../time/TimeManager";
 import { TweakPane } from "../tweakpane/TweakPane";
 
 import { Character, CharacterDescription, LoadedAnimations } from "./Character";
-import { CharacterInstances } from "./CharacterInstances";
 import { colorArrayToColors } from "./CharacterModel";
-import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState, CharacterState } from "./CharacterState";
+import { CharacterInstances } from "./instancing/CharacterInstances";
+import { CharacterModelLoader } from "./loading/CharacterModelLoader";
 import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
 import { encodeCharacterAndCamera } from "./url-position";
@@ -71,9 +71,9 @@ export type CharacterManagerConfig = {
   animationsPromise: Promise<LoadedAnimations>;
   spawnConfiguration: SpawnConfigurationState;
   characterResolve: (clientId: number) => {
-    username: string;
-    characterDescription: CharacterDescription;
-    colors: Array<[number, number, number]>;
+    username: string | null;
+    characterDescription: CharacterDescription | null;
+    colors: Array<[number, number, number]> | null;
   };
   updateURLLocation?: boolean;
 };
@@ -125,12 +125,13 @@ export class CharacterManager {
 
   constructor(private config: CharacterManagerConfig) {
     this.group = new Group();
+    this.initializeCharacterInstances();
   }
 
   public spawnLocalCharacter(
     id: number,
     username: string,
-    characterDescription: CharacterDescription,
+    characterDescription: CharacterDescription | null,
     spawnPosition: Vect3 = new Vect3(),
     spawnRotation: EulXYZ = new EulXYZ(),
   ) {
@@ -141,7 +142,10 @@ export class CharacterManager {
       characterModelLoader: this.config.characterModelLoader,
       characterId: id,
       modelLoadedCallback: () => {
-        this.initializeCharacterInstances();
+        // no-op for local character
+      },
+      modelLoadFailedCallback: (error: Error) => {
+        console.error(`CharacterManager: Local character ${id} model failed to load:`, error);
       },
       cameraManager: this.config.cameraManager,
       composer: this.config.composer,
@@ -149,7 +153,6 @@ export class CharacterManager {
     });
     const quaternion = character.quaternion;
     this.config.sendUpdate({
-      id: id,
       position: {
         x: spawnPosition.x,
         y: spawnPosition.y,
@@ -186,7 +189,7 @@ export class CharacterManager {
     return dx * dx + dy * dy + dz * dz;
   }
 
-  private evaluateLODWithBudget(): void {
+  private evaluateLOD(): void {
     for (const [, char] of this.remoteCharacters) {
       char.distanceSquared = this.calculateDistanceSquared(char.lastPosition);
     }
@@ -201,7 +204,6 @@ export class CharacterManager {
 
       const loadedCharacter = char.loadedCharacterState;
       const isLoading = this.loadingCharacters.has(char.id);
-      // Consider characters that are loading as "real" to prevent premature demotion
       const isReal = loadedCharacter !== null || isLoading;
 
       if (isReal !== shouldBe) {
@@ -215,13 +217,8 @@ export class CharacterManager {
           this.promoteToReal(char.id);
         } else {
           // Only demote if character is not currently loading
-          if (!isLoading) {
-            console.log(
-              `CharacterManager: Demoting character ${char.id} (rank ${i}, distance: ${Math.sqrt(char.distanceSquared).toFixed(1)}, hasLoaded: ${loadedCharacter?.characterLoaded}, isLoading: ${isLoading})`,
-            );
-            char.lastLODChange = now;
-            this.demoteToInstance(char.id);
-          }
+          char.lastLODChange = now;
+          this.demoteToInstance(char.id);
         }
       }
     }
@@ -234,11 +231,8 @@ export class CharacterManager {
       return;
     }
 
-    console.log(`CharacterManager: slow promotion (creating new character ${id})`);
-
     // mark character as loading and update active character state
     this.loadingCharacters.add(id);
-    console.log(`CharacterManager: Added character ${id} to loading set`);
     const activeChar = this.remoteCharacters.get(id);
     if (!activeChar) {
       throw new Error(
@@ -258,7 +252,6 @@ export class CharacterManager {
     );
     const instancePosition = this.characterInstances?.getPositionForInstance(id);
     if (instancePosition) {
-      console.log("CharacterManager: Using instance position for character", id);
       position = instancePosition;
     }
     const euler = new Euler().setFromQuaternion(
@@ -269,23 +262,20 @@ export class CharacterManager {
     const initialAnimationState = networkState.state;
 
     const character = new Character({
-      username: characterInfo.username,
-      characterDescription: characterInfo.characterDescription,
+      username: characterInfo.username ?? `Unknown User ${id}`,
+      characterDescription: characterInfo.characterDescription ,
       animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       characterId: id,
       modelLoadedCallback: () => {
-        // Check if operation was cancelled during loading
+        // Check if operation was canceled during loading
         if (abortController.signal.aborted) {
-          console.log(`CharacterManager: Character ${id} loading was cancelled`);
+          console.log(`CharacterManager: Character ${id} loading was canceled`);
           return;
         }
 
         if (initialAnimationState !== undefined) {
           character.updateAnimation(initialAnimationState);
-          console.log(
-            `CharacterManager: Set character ${id} initial animation to: ${AnimationState[initialAnimationState]} (after model load)`,
-          );
         }
 
         const loadedCharacterState = activeChar.loadedCharacterState;
@@ -300,9 +290,6 @@ export class CharacterManager {
             networkState,
             this.config.timeManager.time,
             this.config.timeManager.deltaTime,
-          );
-          console.log(
-            `CharacterManager: Applied current network state to character ${id} (animation: ${AnimationState[networkState.state]})`,
           );
         }
 
@@ -320,10 +307,37 @@ export class CharacterManager {
           remoteController,
         });
 
-        // Now shadow the instance instead of removing it completely
+        // Shadow the instance instead of removing it completely
         if (this.characterInstances) {
           this.characterInstances.shadowInstance(id);
         }
+      },
+      modelLoadFailedCallback: (error: Error) => {
+        // Check if operation was canceled during loading
+        if (abortController.signal.aborted) {
+          console.log(`CharacterManager: Character ${id} loading was canceled`);
+          return;
+        }
+
+        console.warn(
+          `CharacterManager: Character ${id} model failed to load, keeping instance visible`,
+        );
+
+        // Clean up the failed character state
+        this.loadingCharacters.delete(id);
+        activeChar.abortController = undefined;
+
+        // Remove the failed character from the scene if it was added
+        if (activeChar.loadedCharacterState?.character.parent) {
+          this.group.remove(activeChar.loadedCharacterState.character);
+        }
+
+        // Dispose of the failed character
+        activeChar.loadedCharacterState?.character.dispose();
+        activeChar.loadedCharacterState = null;
+
+        // Instance remains visible and character can be promoted again later
+        // The instance was never shadowed since the modelLoadedCallback was never called
       },
       cameraManager: this.config.cameraManager,
       composer: this.config.composer,
@@ -340,7 +354,7 @@ export class CharacterManager {
       spawnQuaternion.w,
     );
     // Character will be added to scene when processed from queue
-    const remoteController = new RemoteController(id, character);
+    const remoteController = new RemoteController(character);
     activeChar.loadedCharacterState = {
       character,
       remoteController,
@@ -373,13 +387,12 @@ export class CharacterManager {
     const queueIndex = this.charactersReadyForScene.findIndex((c) => c.id === id);
     if (queueIndex !== -1) {
       this.charactersReadyForScene.splice(queueIndex, 1);
-      console.log(`CharacterManager: Removed character ${id} from scene queue during demotion`);
     }
 
     const loadedCharacterState = activeChar.loadedCharacterState;
     if (!loadedCharacterState) {
       if (wasLoading) {
-        console.log(`CharacterManager: Character ${id} loading was cancelled successfully`);
+        console.log(`CharacterManager: Character ${id} loading was canceled successfully`);
       } else {
         console.warn(
           `CharacterManager: Cannot demote character ${id}: no character instance found`,
@@ -413,58 +426,15 @@ export class CharacterManager {
     activeChar.loadedCharacterState = null;
 
     if (this.characterInstances) {
-      // Add diagnostics to understand the instance state
-      const instanceInfo = this.characterInstances.getInstanceInfo();
-      console.log(
-        `CharacterManager: Demoting character ${id}. Instance stats: ${instanceInfo.active} active, ${instanceInfo.available} available, ${instanceInfo.total} total`,
-      );
-
       // First try to unshadow an existing instance
-      const unshadowSuccess = this.characterInstances.unshadowInstance(id);
+      this.characterInstances.unshadowInstance(id);
 
-      if (unshadowSuccess) {
-        // Use the real character's position to immediately position the unshadowed instance
-        this.characterInstances.setInstancePositionImmediate(
-          id,
-          realCharacterPosition,
-          realCharacterRotation,
-          networkState.state,
-        );
-        console.log(
-          `CharacterManager: Successfully unshadowed existing instance for character ${id} at real character position`,
-        );
-      } else {
-        // If unshadowing failed, try to create a new instance as fallback
-        console.warn(
-          `CharacterManager: Could not unshadow instance for character ${id}, attempting to create new instance`,
-        );
-
-        const characterInfo = this.config.characterResolve(id);
-        const colorMap = colorArrayToColors(characterInfo.colors);
-
-        const spawnSuccess = this.characterInstances.spawnInstanceWithCachedColors(
-          id,
-          colorMap,
-          realCharacterPosition,
-          realCharacterRotation,
-          networkState.state,
-        );
-
-        if (spawnSuccess) {
-          console.log(
-            `CharacterManager: Successfully created new instance for demoted character ${id}`,
-          );
-        } else {
-          console.error(
-            `CharacterManager: Failed to demote character ${id} - could not unshadow or create new instance`,
-          );
-          // Don't throw error, just log the failure. The character is already removed from the scene
-          // which is the most important part of demotion
-        }
-      }
-    } else {
-      console.warn(
-        `CharacterManager: Could not demote character ${id} - CharacterInstances not available`,
+      // Use the real character's position to immediately position the unshadowed instance
+      this.characterInstances.setInstancePositionImmediate(
+        id,
+        realCharacterPosition,
+        realCharacterRotation,
+        networkState.state,
       );
     }
   }
@@ -502,19 +472,7 @@ export class CharacterManager {
 
   private async initializeCharacterInstances() {
     try {
-      if (!this.localCharacter) {
-        console.error("no local character");
-        return;
-      }
-
-      const mesh = this.localCharacter.getMesh();
-      if (!mesh) {
-        console.error("no mesh available from local character");
-        return;
-      }
-
       const characterInstances = new CharacterInstances({
-        mesh,
         animationsPromise: this.config.animationsPromise,
         characterModelLoader: this.config.characterModelLoader,
         cameraManager: this.config.cameraManager,
@@ -528,7 +486,6 @@ export class CharacterManager {
       if (instancedMesh) {
         this.group.add(instancedMesh);
         characterInstances.setupFrustumCulling();
-        console.log("character instances initialized");
         this.characterInstances = characterInstances;
       } else {
         console.error("failed to initialize character instances");
@@ -576,13 +533,24 @@ export class CharacterManager {
       this.localCharacter = null;
     }
     if (this.characterInstances) {
-      this.characterInstances.dispose();
-      this.characterInstances = null;
+      this.characterInstances.clear();
     }
 
     this.pendingSpawns.clear();
     this.loadingCharacters.clear(); // Clean up loading state
     this.charactersReadyForScene.length = 0; // Clear the queue
+  }
+
+  public dispose() {
+    this.clear();
+    if (this.characterInstances) {
+      this.characterInstances.dispose();
+      this.characterInstances = null;
+    }
+    if (this.localCharacter) {
+      this.localCharacter.dispose();
+      this.localCharacter = null;
+    }
   }
 
   public addSelfChatBubble(message: string) {
@@ -597,30 +565,25 @@ export class CharacterManager {
 
   public remoteCharacterInfoUpdated(id: number) {
     const characterInfo = this.config.characterResolve(id);
-    const colors = colorArrayToColors(characterInfo.colors);
+    const colors = colorArrayToColors(characterInfo.colors ?? []);
 
     if (this.localCharacter && this.localClientId == id) {
       this.localCharacter.updateCharacter(
-        characterInfo.username,
+        characterInfo.username ?? `Unknown User ${id}`,
         characterInfo.characterDescription,
       );
     }
 
     const remoteCharacter = this.remoteCharacters.get(id);
-    if (remoteCharacter && remoteCharacter.loadedCharacterState) {
-      remoteCharacter.loadedCharacterState.character.updateCharacter(
-        characterInfo.username,
-        characterInfo.characterDescription,
-      );
-    }
-
-    // If this character is currently an instance, update its colors
-    if (this.characterInstances) {
-      const success = this.characterInstances.updateInstanceColors(id, colors);
-      if (success) {
-        console.log(`CharacterManager: Updated instance colors for character ${id}`);
-      } else {
-        console.warn(`CharacterManager: Failed to update instance colors for character ${id}`);
+    if (remoteCharacter) {
+      if (remoteCharacter.loadedCharacterState) {
+        remoteCharacter.loadedCharacterState.character.updateCharacter(
+          characterInfo.username ?? `Unknown User ${id}`,
+          characterInfo.characterDescription,
+        );
+      }
+      if (this.characterInstances) {
+        this.characterInstances.updateInstanceColors(id, colors);
       }
     }
   }
@@ -631,9 +594,8 @@ export class CharacterManager {
       0,
       this.MAX_SCENE_ADDITIONS_PER_FRAME,
     );
-    for (const { id, character, remoteController } of charactersToAdd) {
+    for (const { character } of charactersToAdd) {
       this.group.add(character);
-      console.log(`CharacterManager: Added character ${id} to scene (queue processed)`);
     }
 
     if (this.localCharacter) {
@@ -708,7 +670,7 @@ export class CharacterManager {
             loadedCharacterState: null,
             lastPosition: { ...currentPosition },
             distanceSquared: this.calculateDistanceSquared(position),
-            lastLODChange: Date.now(),
+            lastLODChange: 0,
             abortController: undefined,
           };
           this.remoteCharacters.set(id, existingCharacter);
@@ -718,30 +680,20 @@ export class CharacterManager {
           const characterInfo = this.config.characterResolve(id);
 
           // Convert characterInfo colors to Map<string, Color> format
-          const colorMap = colorArrayToColors(characterInfo.colors);
+          const colorMap = colorArrayToColors(characterInfo.colors ?? []);
 
           const euler = new Euler().setFromQuaternion(
             new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
           );
           const rotation = new EulXYZ(euler.x, euler.y, euler.z);
 
-          const spawnSuccess = characterInstances.spawnInstanceWithCachedColors(
+          characterInstances.spawnInstanceWithCachedColors(
             id,
             colorMap,
             new Vect3(position.x, position.y, position.z),
             rotation,
             update.state,
           );
-
-          if (spawnSuccess) {
-            console.log(
-              `CharacterManager: Successfully spawned character ${id} as instance using characterInfo colors`,
-            );
-          } else {
-            console.error(
-              `CharacterManager: Failed to spawn instance for character ${id} - no available instances`,
-            );
-          }
         } else {
           existingCharacter.lastPosition = { ...position };
           const euler = new Euler().setFromQuaternion(
@@ -782,15 +734,8 @@ export class CharacterManager {
 
       for (const [, activeChar] of this.remoteCharacters) {
         if (!this.config.remoteUserStates.has(activeChar.id)) {
-          console.log(
-            `CharacterManager: Cleaning up disconnected character ${activeChar.id} (was ${activeChar.loadedCharacterState ? "real" : "instance"})`,
-          );
-
           // Cancel any ongoing loading operations for disconnected characters
           if (activeChar.abortController) {
-            console.log(
-              `CharacterManager: Cancelling loading for disconnected character ${activeChar.id}`,
-            );
             activeChar.abortController.abort();
           }
 
@@ -804,7 +749,6 @@ export class CharacterManager {
 
           // Clean up loading state to prevent memory leaks
           this.loadingCharacters.delete(activeChar.id);
-          console.log(`CharacterManager: Removed character ${activeChar.id} from remoteCharacters`);
           this.remoteCharacters.delete(activeChar.id);
         }
       }
@@ -812,7 +756,6 @@ export class CharacterManager {
 
     for (const pendingId of [...this.pendingSpawns]) {
       if (!this.config.remoteUserStates.has(pendingId)) {
-        console.log(`CharacterManager: Cleaning up disconnected pending character ${pendingId}`);
         this.pendingSpawns.delete(pendingId);
         this.loadingCharacters.delete(pendingId); // Clean up loading state
       }
@@ -820,14 +763,10 @@ export class CharacterManager {
 
     // Clean up characters in the ready-for-scene queue if they've disconnected
     this.charactersReadyForScene = this.charactersReadyForScene.filter(({ id }) => {
-      const stillConnected = this.config.remoteUserStates.has(id);
-      if (!stillConnected) {
-        console.log(`CharacterManager: Removing disconnected character ${id} from scene queue`);
-      }
-      return stillConnected;
+      return this.config.remoteUserStates.has(id);
     });
 
-    this.evaluateLODWithBudget();
+    this.evaluateLOD();
 
     if (
       this.localCharacter &&

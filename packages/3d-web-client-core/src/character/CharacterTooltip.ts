@@ -159,4 +159,11 @@ export class CharacterTooltip extends Sprite {
       }
     }
   }
+
+  dispose() {
+    if (this.material.map) {
+      this.material.map.dispose();
+    }
+    this.material.dispose();
+  }
 }

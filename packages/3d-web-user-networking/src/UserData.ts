@@ -1,7 +1,7 @@
 import { CharacterDescription } from "./UserNetworkingMessages";
 
 export type UserData = {
-  readonly username: string;
-  readonly characterDescription: CharacterDescription;
-  readonly colors: Array<[number, number, number]>;
+  username: string | null;
+  characterDescription: CharacterDescription | null;
+  colors: Array<[number, number, number]> | null;
 };

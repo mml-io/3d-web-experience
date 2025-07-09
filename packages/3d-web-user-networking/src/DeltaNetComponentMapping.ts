@@ -1,7 +1,8 @@
 import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
 
 import { UserNetworkingClientUpdate } from "./types";
-import { CharacterDescription, UserIdentity } from "./UserNetworkingMessages";
+import { CharacterDescription } from "./UserNetworkingMessages";
+import { UserData } from "./UserData";
 
 // Component IDs used in the deltanet implementation
 export const COMPONENT_POSITION_X = 1;
@@ -29,7 +30,6 @@ export class DeltaNetComponentMapping {
     const components = new Map<number, bigint>();
 
     // Convert position values to fixed-point representation
-    // Using 1000x scale for precision with 3 decimal places
     components.set(
       COMPONENT_POSITION_X,
       BigInt(Math.round(update.position.x * positionMultiplier)),
@@ -65,7 +65,6 @@ export class DeltaNetComponentMapping {
    */
   static fromComponents(
     components: Map<number, bigint>,
-    userId: number,
   ): UserNetworkingClientUpdate {
     const positionX =
       Number(components.get(COMPONENT_POSITION_X) || BigInt(0)) / positionMultiplier;
@@ -81,7 +80,6 @@ export class DeltaNetComponentMapping {
     const state = Number(components.get(COMPONENT_STATE) || BigInt(0));
 
     return {
-      id: userId,
       position: { x: positionX, y: positionY, z: positionZ },
       rotation: { quaternionY: rotationY, quaternionW: rotationW },
       state,
@@ -91,30 +89,85 @@ export class DeltaNetComponentMapping {
   /**
    * Encode character description and username to binary states
    */
-  static toStates(
-    username?: string,
-    characterDescription?: CharacterDescription,
-    colors?: Array<[number, number, number]>,
-  ): Map<number, Uint8Array> {
-    console.log("toStates", username, characterDescription, colors);
+  static toStates(userIdentity: UserData): Map<number, Uint8Array> {
     const states = new Map<number, Uint8Array>();
     const textEncoder = new TextEncoder();
 
-    if (username) {
+    if (userIdentity.username) {
       // Encode username
-      states.set(STATE_USERNAME, textEncoder.encode(username));
+      states.set(STATE_USERNAME, textEncoder.encode(userIdentity.username));
     }
 
     // Encode character description as JSON
-    if (characterDescription) {
+    if (userIdentity.characterDescription) {
       states.set(
         STATE_CHARACTER_DESCRIPTION,
-        textEncoder.encode(JSON.stringify(characterDescription)),
+        textEncoder.encode(JSON.stringify(userIdentity.characterDescription)),
       );
     }
 
-    if (colors) {
-      states.set(STATE_COLORS, DeltaNetComponentMapping.encodeColors(colors));
+    if (userIdentity.colors) {
+      states.set(STATE_COLORS, DeltaNetComponentMapping.encodeColors(userIdentity.colors));
+    }
+
+    return states;
+  }
+
+  /**
+   * Encode username to binary state
+   */
+  static toUsernameState(username: string): Map<number, Uint8Array> {
+    const states = new Map<number, Uint8Array>();
+    const textEncoder = new TextEncoder();
+    states.set(STATE_USERNAME, textEncoder.encode(username));
+    return states;
+  }
+
+  /**
+   * Encode character description to binary state
+   */
+  static toCharacterDescriptionState(characterDescription: CharacterDescription): Map<number, Uint8Array> {
+    const states = new Map<number, Uint8Array>();
+    const textEncoder = new TextEncoder();
+    states.set(
+      STATE_CHARACTER_DESCRIPTION,
+      textEncoder.encode(JSON.stringify(characterDescription)),
+    );
+    return states;
+  }
+
+  /**
+   * Encode colors to binary state
+   */
+  static toColorsState(colors: Array<[number, number, number]>): Map<number, Uint8Array> {
+    const states = new Map<number, Uint8Array>();
+    states.set(STATE_COLORS, DeltaNetComponentMapping.encodeColors(colors));
+    return states;
+  }
+
+  /**
+   * Encode single state value
+   */
+  static toSingleState(stateId: number, value: any): Map<number, Uint8Array> {
+    const states = new Map<number, Uint8Array>();
+    const textEncoder = new TextEncoder();
+
+    switch (stateId) {
+      case STATE_USERNAME:
+        if (typeof value === 'string') {
+          states.set(stateId, textEncoder.encode(value));
+        }
+        break;
+      case STATE_CHARACTER_DESCRIPTION:
+        if (typeof value === 'object' && value !== null) {
+          states.set(stateId, textEncoder.encode(JSON.stringify(value)));
+        }
+        break;
+      case STATE_COLORS:
+        if (Array.isArray(value)) {
+          states.set(stateId, DeltaNetComponentMapping.encodeColors(value));
+        }
+        break;
     }
 
     return states;
@@ -132,6 +185,9 @@ export class DeltaNetComponentMapping {
   }
 
   static decodeColors(colors: Uint8Array): Array<[number, number, number]> {
+    if (colors.byteLength === 0) {
+      return [];
+    }
     try {
       const bufferReader = new BufferReader(colors);
       const colorsArray: Array<[number, number, number]> = [];
@@ -150,24 +206,38 @@ export class DeltaNetComponentMapping {
     }
   }
 
-  static fromUserStates(states: Map<number, Uint8Array>): Partial<UserIdentity> {
+  static fromUserStates(states: Map<number, Uint8Array>): UserData {
     const usernameBytes = states.get(STATE_USERNAME);
-    const username = usernameBytes ? textDecoder.decode(usernameBytes) : undefined;
+    const username = usernameBytes ? DeltaNetComponentMapping.usernameFromBytes(usernameBytes) : null;
 
     const characterDescBytes = states.get(STATE_CHARACTER_DESCRIPTION);
-    let characterDescription: CharacterDescription | undefined;
-    if (characterDescBytes) {
-      try {
-        characterDescription = JSON.parse(textDecoder.decode(characterDescBytes));
-      } catch {
-        // Ignore
-      }
-    }
+    const characterDescription = characterDescBytes ? DeltaNetComponentMapping.characterDescriptionFromBytes(characterDescBytes) : null;
 
-    const colors = states.get(STATE_COLORS);
-    const colorsArray = colors ? DeltaNetComponentMapping.decodeColors(colors) : [];
+    const colorsBytes = states.get(STATE_COLORS);
+    const colorsArray = colorsBytes ? DeltaNetComponentMapping.decodeColors(colorsBytes) : [];
 
     return { username, characterDescription, colors: colorsArray };
+  }
+
+  static userIdFromBytes(bytes: Uint8Array): number | null {
+    if (bytes.length === 0) {
+      return null;
+    }
+    const reader = new BufferReader(bytes);
+    return reader.readUVarint(false);
+  }
+
+  static usernameFromBytes(bytes: Uint8Array): string | null {
+    if (bytes.length === 0) {
+      return null;
+    }
+    return textDecoder.decode(bytes);
+  }
+  static characterDescriptionFromBytes(bytes: Uint8Array): CharacterDescription | null {
+    if (bytes.length === 0) {
+      return null;
+    }
+    return JSON.parse(textDecoder.decode(bytes));
   }
 
   /**
@@ -175,9 +245,9 @@ export class DeltaNetComponentMapping {
    */
   static fromStates(states: Map<number, Uint8Array>): {
     userId: number | null;
-  } & Partial<UserIdentity> {
+  } & UserData {
     const userIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
-    let userId: number | undefined;
+    let userId: number | null = null;
     if (userIdBytes) {
       const reader = new BufferReader(userIdBytes);
       userId = reader.readUVarint(false);
@@ -185,6 +255,6 @@ export class DeltaNetComponentMapping {
 
     const userStates = DeltaNetComponentMapping.fromUserStates(states);
 
-    return { userId: userId ?? null, ...userStates };
+    return { userId, ...userStates };
   }
 }

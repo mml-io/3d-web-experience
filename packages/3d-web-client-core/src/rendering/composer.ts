@@ -508,13 +508,6 @@ export class Composer {
     }
   }
 
-  private updateBloomValues() {
-    // if (typeof this.environmentConfiguration?.postProcessing?.bloomIntensity === "number") {
-    //   extrasValues.bloom = this.environmentConfiguration.postProcessing.bloomIntensity;
-    // }
-    // this.bloomEffect.intensity = extrasValues.bloom;
-  }
-
   private updateAmbientLightValues() {
     if (typeof this.environmentConfiguration?.ambientLight?.intensity === "number") {
       envValues.ambientLight.ambientLightIntensity =

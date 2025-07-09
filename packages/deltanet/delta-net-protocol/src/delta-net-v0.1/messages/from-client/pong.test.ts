@@ -11,7 +11,7 @@ const cases: Array<[string, DeltaNetV01PongMessage, Array<number>]> = [
       type: "pong",
       pong: 123,
     },
-    [14, 123],
+    [68, 123],
   ],
   [
     "pong message with large pong",
@@ -19,7 +19,7 @@ const cases: Array<[string, DeltaNetV01PongMessage, Array<number>]> = [
       type: "pong",
       pong: 1234567890,
     },
-    [14, 210, 133, 216, 204, 4],
+    [68, 210, 133, 216, 204, 4],
   ],
 ];
 

@@ -41,6 +41,18 @@ export class DeltaNetV01Connection {
 
     this.websocketListener = (messageEvent: MessageEvent) => {
       const buffer = new Uint8Array(messageEvent.data as ArrayBuffer);
+      
+      // Check message size before attempting to decode
+      const maxMessageSize = this.deltaNetServer.getMaxMessageSize();
+      if (buffer.length > maxMessageSize) {
+        this.disconnectWithError(
+          new Error(`Message size ${buffer.length} bytes exceeds maximum allowed size of ${maxMessageSize} bytes`),
+          DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+          false,
+        );
+        return;
+      }
+      
       const messages = decodeClientMessages(new BufferReader(buffer));
       for (const parsed of messages) {
         this.handleClientMessage(parsed);
@@ -71,6 +83,10 @@ export class DeltaNetV01Connection {
       this.authenticationAbortController.abort();
       this.authenticationAbortController = null;
     }
+  }
+
+  public setAuthenticated() {
+    this.isAuthenticated = true;
   }
 
   private disconnectWithError(
@@ -140,9 +156,9 @@ export class DeltaNetV01Connection {
       if (rawResult instanceof Promise) {
         result = await rawResult;
 
-        // Check if authentication was cancelled while we were waiting
+        // Check if authentication was canceled while we were waiting
         if (this.authenticationAbortController?.signal.aborted) {
-          // Authentication was cancelled (connection disposed), silently return
+          // Authentication was canceled (connection disposed), silently return
           return;
         }
 
@@ -155,7 +171,7 @@ export class DeltaNetV01Connection {
         result = rawResult;
       }
     } catch (error) {
-      // Check if authentication was cancelled
+      // Check if authentication was canceled
       if (this.authenticationAbortController?.signal.aborted) {
         return;
       }
@@ -183,15 +199,11 @@ export class DeltaNetV01Connection {
       if (result.success) {
         // Apply state overrides if provided
         if (result.stateOverrides) {
-          console.log(
-            `Applying ${result.stateOverrides.length} state overrides for connection ${this.internalConnectionId}`,
-          );
           for (const [stateId, stateValue] of result.stateOverrides) {
             this.states.set(stateId, stateValue);
           }
         }
 
-        this.isAuthenticated = true;
         this.deltaNetServer.addAuthenticatedConnection(this);
       } else {
         this.disconnectWithError(
@@ -206,7 +218,7 @@ export class DeltaNetV01Connection {
 
   public async handleStateUpdate(stateId: number, stateValue: Uint8Array): Promise<boolean> {
     if (!this.isAuthenticated) {
-      console.warn("State update received before authentication completed");
+      console.error("State update received before authentication completed");
       return false;
     }
 

@@ -8,7 +8,6 @@ export enum WebsocketStatus {
 }
 
 export type UserNetworkingClientUpdate = {
-  id: number;
   position: { x: number; y: number; z: number };
   rotation: { quaternionY: number; quaternionW: number };
   state: number;

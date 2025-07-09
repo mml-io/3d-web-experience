@@ -9,3 +9,4 @@ export { AvatarRenderer } from "./AvatarRenderer";
 export { AvatarVisualizer } from "./AvatarVisualizer";
 export { ModelScreenshotter } from "./screenshot/ModelScreenshotter";
 export { ModelLoader } from "@mml-io/model-loader";
+export type { ModelLoadResult } from "@mml-io/model-loader";

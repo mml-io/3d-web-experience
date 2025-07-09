@@ -6,9 +6,10 @@ import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
 import { CharacterModel } from "./CharacterModel";
-import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
 import { CharacterTooltip } from "./CharacterTooltip";
+import { CharacterModelLoader } from "./loading/CharacterModelLoader";
+import { lowPolyLoDModelURL } from "./LowPolyModel";
 
 export type AnimationConfig = {
   idleAnimationFileUrl: string;
@@ -45,11 +46,12 @@ export type CharacterDescription =
 
 export type CharacterConfig = {
   username: string;
-  characterDescription: CharacterDescription;
+  characterDescription: CharacterDescription | null;
   animationsPromise: Promise<LoadedAnimations>;
   characterModelLoader: CharacterModelLoader;
   characterId: number;
   modelLoadedCallback: () => void;
+  modelLoadFailedCallback?: (error: Error) => void;
   cameraManager: CameraManager;
   composer: Composer;
   isLocal: boolean;
@@ -60,53 +62,76 @@ function characterHeightToTooltipHeightOffset(characterHeight: number): number {
   return characterHeight - 0.4 + 0.1;
 }
 
-function characterDescriptionMatches(a: CharacterDescription, b: CharacterDescription): boolean {
+function characterDescriptionMatches(a: CharacterDescription | null, b: CharacterDescription | null): boolean {
+  if (a === null && b === null) {
+    return true;
+  }
+  if (a === null || b === null) {
+    return false;
+  }
   return (
-    a.meshFileUrl === b.meshFileUrl &&
-    a.mmlCharacterString === b.mmlCharacterString &&
-    a.mmlCharacterUrl === b.mmlCharacterUrl
+    a?.meshFileUrl === b?.meshFileUrl &&
+    a?.mmlCharacterString === b?.mmlCharacterString &&
+    a?.mmlCharacterUrl === b?.mmlCharacterUrl
   );
 }
 
 export class Character extends Group {
   private model: CharacterModel | null = null;
-  public tooltip: CharacterTooltip;
+  public usernameTooltip: CharacterTooltip;
 
   public chatTooltips: CharacterTooltip[] = [];
 
   constructor(private config: CharacterConfig) {
     super();
-    this.tooltip = new CharacterTooltip(
+    this.usernameTooltip = new CharacterTooltip(
       this.config.isLocal
         ? {
             secondsToFadeOut: 10,
           }
         : {},
     );
-    this.tooltip.setText(this.config.username);
-    this.add(this.tooltip);
+    this.usernameTooltip.setText(this.config.username);
+    this.add(this.usernameTooltip);
 
-    // Check if operation was cancelled before starting loading
+    // Check if operation was canceled before starting loading
     if (this.config.abortController?.signal.aborted) {
-      console.log(`Character loading cancelled before starting for ${this.config.characterId}`);
+      console.log(`Character loading canceled before starting for ${this.config.characterId}`);
       return;
     }
 
     this.load()
       .then(() => {
-        this.config.modelLoadedCallback();
+        if (this.config.abortController?.signal.aborted) {
+          return;
+        }
+        if (this.model?.mesh) {
+          this.config.modelLoadedCallback();
+        } else {
+          console.error(
+            `Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`,
+          );
+          if (this.config.modelLoadFailedCallback) {
+            this.config.modelLoadFailedCallback(new Error("Model not loaded in constructor"));
+          }
+        }
         this.setTooltipHeights();
       })
       .catch((error) => {
         // Check if the error is due to cancellation
         if (this.config.abortController?.signal.aborted) {
-          console.log(`Character loading cancelled in constructor for ${this.config.characterId}`);
+          console.log(`Character loading canceled in constructor for ${this.config.characterId}`);
           return;
         }
         console.error(
           `Character loading failed in constructor for ${this.config.username} (${this.config.characterId}):`,
           error,
         );
+
+        // Call the error callback if provided
+        if (this.config.modelLoadFailedCallback) {
+          this.config.modelLoadFailedCallback(error);
+        }
       });
   }
 
@@ -114,14 +139,14 @@ export class Character extends Group {
     return this.model?.getColors() || [];
   }
 
-  updateCharacter(username: string, characterDescription: CharacterDescription) {
+  updateCharacter(username: string, characterDescription: CharacterDescription | null) {
     if (!characterDescriptionMatches(this.config.characterDescription, characterDescription)) {
       this.config.characterDescription = characterDescription;
       this.load()
         .then(() => {
-          // Check if operation was cancelled after loading
+          // Check if operation was canceled after loading
           if (this.config.abortController?.signal.aborted) {
-            console.log(`Character update cancelled for ${this.config.characterId}`);
+            console.log(`Character update canceled for ${this.config.characterId}`);
             return;
           }
           this.setTooltipHeights();
@@ -129,28 +154,33 @@ export class Character extends Group {
         .catch((error) => {
           // Check if the error is due to cancellation
           if (this.config.abortController?.signal.aborted) {
-            console.log(`Character update cancelled during loading for ${this.config.characterId}`);
+            console.log(`Character update canceled during loading for ${this.config.characterId}`);
             return;
           }
           console.error(
             `Character update failed for ${this.config.username} (${this.config.characterId}):`,
             error,
           );
+
+          // Call the error callback if provided
+          if (this.config.modelLoadFailedCallback) {
+            this.config.modelLoadFailedCallback(error);
+          }
         });
     }
     if (this.config.username !== username) {
       this.config.username = username;
-      this.tooltip.setText(username);
+      this.usernameTooltip.setText(username);
       // Force the tooltip to show if the character's name changes
-      this.tooltip.show();
+      this.usernameTooltip.show();
     }
   }
 
   private setTooltipHeights() {
     if (this.model && this.model.characterHeight) {
       let height = characterHeightToTooltipHeightOffset(this.model.characterHeight);
-      this.tooltip.setHeightOffset(height);
-      height += this.tooltip.scale.y;
+      this.usernameTooltip.setHeightOffset(height);
+      height += this.usernameTooltip.scale.y;
 
       for (const chatTooltip of this.chatTooltips) {
         chatTooltip.setHeightOffset(height);
@@ -164,25 +194,16 @@ export class Character extends Group {
     animationConfig: AnimationConfig,
   ): Promise<LoadedAnimations> {
     return new Promise((resolve) => {
-      const idleAnimation = characterModelLoader.load(
+      const idleAnimation = characterModelLoader.loadAnimation(
         animationConfig.idleAnimationFileUrl,
-        "animation",
       );
-      const jogAnimation = characterModelLoader.load(
-        animationConfig.jogAnimationFileUrl,
-        "animation",
-      );
-      const sprintAnimation = characterModelLoader.load(
+      const jogAnimation = characterModelLoader.loadAnimation(animationConfig.jogAnimationFileUrl);
+      const sprintAnimation = characterModelLoader.loadAnimation(
         animationConfig.sprintAnimationFileUrl,
-        "animation",
       );
-      const airAnimation = characterModelLoader.load(
-        animationConfig.airAnimationFileUrl,
-        "animation",
-      );
-      const doubleJumpAnimation = characterModelLoader.load(
+      const airAnimation = characterModelLoader.loadAnimation(animationConfig.airAnimationFileUrl);
+      const doubleJumpAnimation = characterModelLoader.loadAnimation(
         animationConfig.doubleJumpAnimationFileUrl,
-        "animation",
       );
       resolve(
         Promise.all([
@@ -206,9 +227,9 @@ export class Character extends Group {
   }
 
   private async load(): Promise<void> {
-    // Check if operation was cancelled before starting
+    // Check if operation was canceled before starting
     if (this.config.abortController?.signal.aborted) {
-      console.log(`Character loading cancelled for ${this.config.characterId}`);
+      console.log(`Character loading canceled for ${this.config.characterId}`);
       return;
     }
 
@@ -217,7 +238,9 @@ export class Character extends Group {
       this.remove(previousModel.mesh);
     }
     this.model = new CharacterModel({
-      characterDescription: this.config.characterDescription,
+      characterDescription: this.config.characterDescription ?? {
+        meshFileUrl: lowPolyLoDModelURL,
+      },
       animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       cameraManager: this.config.cameraManager,
@@ -229,9 +252,8 @@ export class Character extends Group {
     try {
       await this.model.init();
 
-      // Check if operation was cancelled after loading
+      // Check if operation was canceled after loading
       if (this.config.abortController?.signal.aborted) {
-        console.log(`Character loading cancelled after init for ${this.config.characterId}`);
         if (this.model) {
           this.model.dispose();
           this.model = null;
@@ -249,7 +271,6 @@ export class Character extends Group {
     } catch (error) {
       // Check if the error is due to cancellation
       if (this.config.abortController?.signal.aborted) {
-        console.log(`Character loading cancelled during init for ${this.config.characterId}`);
         return;
       }
       console.error(
@@ -266,8 +287,8 @@ export class Character extends Group {
 
   public update(time: number, deltaTime: number) {
     if (!this.model) return;
-    if (this.tooltip) {
-      this.tooltip.update();
+    if (this.usernameTooltip) {
+      this.usernameTooltip.update();
     }
     this.model.update(deltaTime);
   }
@@ -303,11 +324,12 @@ export class Character extends Group {
     tooltip.setText(message, () => {
       this.chatTooltips = this.chatTooltips.filter((t) => t !== tooltip);
       this.remove(tooltip);
+      tooltip.dispose();
       this.setTooltipHeights();
     });
     if (this.config.isLocal) {
       // Show the character's name if they're local and they emit a chat bubble
-      this.tooltip.show();
+      this.usernameTooltip.show();
     }
     this.setTooltipHeights();
   }
@@ -321,6 +343,10 @@ export class Character extends Group {
       this.model.dispose();
       this.model = null;
     }
-    // TODO - dispose of the tooltip and chat tooltips
+    this.usernameTooltip.dispose();
+    for (const chatTooltip of this.chatTooltips) {
+      chatTooltip.dispose();
+    }
+    this.chatTooltips = [];
   }
 }

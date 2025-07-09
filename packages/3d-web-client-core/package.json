@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-client-core",
-  "version": "0.21.6",
+  "version": "0.22.0",
   "publishConfig": {
     "access": "public"
   },
@@ -19,7 +19,7 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-avatar": "^0.21.6",
+    "@mml-io/3d-web-avatar": "^0.22.0",
     "@mml-io/mml-web": "0.19.7",
     "@mml-io/mml-web-threejs": "0.19.7",
     "@mml-io/model-loader": "0.19.7",
@@ -28,8 +28,7 @@
     "@tweakpane/plugin-essentials": "0.2.1",
     "@gltf-transform/core": "^4.0.0",
     "@gltf-transform/extensions": "^4.0.0",
-    "@gltf-transform/functions": "^4.0.0",
-    "postprocessing": "6.36.7",
+    "draco3d": "^1.5.7",
     "three-mesh-bvh": "0.9.0",
     "tweakpane": "4.0.5"
   },
@@ -37,6 +36,8 @@
     "three": ">= 0.163.0"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^22.13.1",
     "@types/three": "0.163.0"
   }
 }

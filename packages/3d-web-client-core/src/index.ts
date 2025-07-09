@@ -12,8 +12,8 @@ export {
 } from "./character/CharacterManager";
 export * from "./character/url-position";
 export * from "./helpers/math-helpers";
-export { CharacterModelLoader } from "./character/CharacterModelLoader";
-export { TextureWorkerPool } from "./character/TextureWorker";
+export { CharacterModelLoader } from "./character/loading/CharacterModelLoader";
+export { TextureWorkerPool } from "./character/loading/GLTFLoadingWorkerPool";
 export { CharacterState, AnimationState } from "./character/CharacterState";
 export { Key, KeyInputManager } from "./input/KeyInputManager";
 export { VirtualJoystick } from "./input/VirtualJoystick";

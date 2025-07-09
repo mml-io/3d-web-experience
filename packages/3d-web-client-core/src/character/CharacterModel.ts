@@ -3,46 +3,45 @@ import {
   type MMLCharacterDescription,
   parseMMLDescription,
 } from "@mml-io/3d-web-avatar";
-import { ModelLoader } from "@mml-io/model-loader";
 import {
   AnimationAction,
   AnimationClip,
   AnimationMixer,
   Bone,
-  Box3,
   Color,
   Group,
   LoopRepeat,
-  Object3D,
-  SkinnedMesh,
   Mesh,
   MeshStandardMaterial,
+  Object3D,
+  SkinnedMesh,
   Vector3,
 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 
-import { AnimationConfig, CharacterDescription, LoadedAnimations } from "./Character";
-import {
-  captureCharacterColors,
-  captureCharacterColorsFromObject3D,
-} from "./CharacterColourSamplingUtils";
+import { CharacterDescription, LoadedAnimations } from "./Character";
 import { CharacterMaterial } from "./CharacterMaterial";
-import { CharacterModelLoader } from "./CharacterModelLoader";
 import { AnimationState } from "./CharacterState";
+import { captureCharacterColorsFromObject3D } from "./instancing/CharacterColourSamplingUtils";
+import { CharacterModelLoader } from "./loading/CharacterModelLoader";
 
 export const colorPartNamesIndex = [
   "hair",
-  "skin",
-  "lips",
   "shirt_short",
   "shirt_long",
   "pants_short",
   "pants_long",
   "shoes",
-];
+  "skin",
+  "lips",
+] as const;
 
-export function colorsToColorArray(colors: Map<string, Color>): Array<[number, number, number]> {
+export type ColorPartName = (typeof colorPartNamesIndex)[number];
+
+export function colorsToColorArray(
+  colors: Map<ColorPartName, Color>,
+): Array<[number, number, number]> {
   const colorArray: Array<[number, number, number]> = [];
   for (const partName of colorPartNamesIndex) {
     const color = colors.get(partName);
@@ -59,8 +58,8 @@ export function colorsToColorArray(colors: Map<string, Color>): Array<[number, n
 
 export function colorArrayToColors(
   colorArray: Array<[number, number, number]>,
-): Map<string, Color> {
-  const colors = new Map<string, Color>();
+): Map<ColorPartName, Color> {
+  const colors = new Map<ColorPartName, Color>();
   for (let i = 0; i < colorPartNamesIndex.length; i++) {
     const color = colorArray[i];
     if (color) {
@@ -70,9 +69,22 @@ export function colorArrayToColors(
   return colors;
 }
 
-export type CharacterModelAnimations = {
-  [key in AnimationState]: AnimationAction | undefined;
-};
+function getSimpleHeight(mesh: Object3D): number {
+  let maxY = 0;
+  mesh.traverse((child) => {
+    if (child instanceof Mesh) {
+      const geometry = child.geometry;
+      if (geometry) {
+        const positionAttribute = geometry.getAttribute("position");
+        for (let i = 0; i < positionAttribute.count; i++) {
+          const y = positionAttribute.getY(i);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+  });
+  return maxY;
+}
 
 export type CharacterModelConfig = {
   characterDescription: CharacterDescription;
@@ -84,9 +96,10 @@ export type CharacterModelConfig = {
   abortController?: AbortController;
 };
 
-export class CharacterModel {
-  public static ModelLoader: ModelLoader = new ModelLoader();
+const remoteMaxTextureSize = 128;
+const localMaxTextureSize = 1024;
 
+export class CharacterModel {
   public mesh: Object3D | null = null;
   public headBone: Bone | null = null;
   public characterHeight: number | null = null;
@@ -106,30 +119,48 @@ export class CharacterModel {
   constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
-    // Check if operation was cancelled before starting
+    // Check if operation was canceled before starting
     if (this.config.abortController?.signal.aborted) {
-      console.log(`CharacterModel init cancelled for ${this.config.characterId}`);
+      console.log(`CharacterModel init canceled for ${this.config.characterId}`);
       return;
     }
 
-    await this.loadMainMesh();
-
-    // Check if operation was cancelled after mesh loading
+    let mainMesh: Object3D | null = null;
+    try {
+      mainMesh = await this.loadCharacterFromDescription();
+    } catch (error) {
+      if (this.config.abortController?.signal.aborted) {
+        return;
+      }
+      console.error("Failed to load character from description", error);
+    }
     if (this.config.abortController?.signal.aborted) {
-      console.log(
-        `CharacterModel init cancelled after mesh loading for ${this.config.characterId}`,
-      );
+      return;
+    }
+
+    if (mainMesh) {
+      this.mesh = mainMesh;
+      this.mesh.position.set(0, -0.44, 0);
+      this.mesh.traverse((child: Object3D) => {
+        if (child.type === "SkinnedMesh") {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+      this.animationMixer = new AnimationMixer(this.mesh);
+    }
+
+    // Check if operation was canceled after mesh loading
+    if (this.config.abortController?.signal.aborted) {
+      console.log(`CharacterModel init canceled after mesh loading for ${this.config.characterId}`);
       return;
     }
 
     if (this.mesh) {
       const animationConfig = await this.config.animationsPromise;
 
-      // Check if operation was cancelled after animation loading
+      // Check if operation was canceled after animation loading
       if (this.config.abortController?.signal.aborted) {
-        console.log(
-          `CharacterModel init cancelled after animation loading for ${this.config.characterId}`,
-        );
         return;
       }
 
@@ -143,16 +174,19 @@ export class CharacterModel {
         false,
         1.45,
       );
+      this.characterHeight = getSimpleHeight(this.mesh);
+      if (this.config.isLocal) {
+        // Capture the colors before applying custom materials
+        this.getColors();
+      }
       this.applyCustomMaterials();
     }
   }
 
   private applyCustomMaterials(): void {
-    if (!this.mesh) return;
-    const boundingBox = new Box3();
-    this.mesh.updateWorldMatrix(true, true);
-    boundingBox.expandByObject(this.mesh);
-    this.characterHeight = boundingBox.max.y - boundingBox.min.y;
+    if (!this.mesh) {
+      return;
+    }
 
     this.mesh.traverse((child: Object3D) => {
       if ((child as Bone).isBone) {
@@ -207,7 +241,7 @@ export class CharacterModel {
 
   private async composeMMLCharacter(
     mmlCharacterDescription: MMLCharacterDescription,
-  ): Promise<Object3D | undefined> {
+  ): Promise<Object3D | null> {
     if (mmlCharacterDescription.base?.url.length === 0) {
       throw new Error(
         "ERROR: An MML Character Description was provided, but it's not a valid <m-character> string, or a valid URL",
@@ -219,36 +253,44 @@ export class CharacterModel {
       const characterBase = mmlCharacterDescription.base?.url || null;
       if (characterBase) {
         this.mmlCharacterDescription = mmlCharacterDescription;
-        const mmlCharacter = new MMLCharacter({
-          load: async (url: string) => {
-            const model = await this.config.characterModelLoader.load(
-              url,
-              "model",
-              this.config.abortController,
-            );
-            return {
-              group: new Group().add(model as Object3D),
-              animations: [],
-            };
-          },
-        });
-        mergedCharacter = await mmlCharacter.mergeBodyParts(
+        mergedCharacter = await MMLCharacter.load(
           characterBase,
           mmlCharacterDescription.parts,
+          {
+            load: async (url: string, abortController?: AbortController) => {
+              const model = await this.config.characterModelLoader.loadModel(
+                url,
+                this.config.isLocal ? localMaxTextureSize : remoteMaxTextureSize,
+                abortController,
+              );
+              if (this.config.abortController?.signal.aborted) {
+                return null;
+              }
+              if (!model) {
+                return null;
+              }
+              return {
+                group: new Group().add(model as Object3D),
+                animations: [],
+              };
+            },
+          },
+          this.config.abortController,
         );
         if (mergedCharacter) {
           return mergedCharacter;
         }
       }
     }
+    return null;
   }
 
   private async loadCharacterFromDescription(): Promise<Object3D | null> {
     if (this.config.characterDescription.meshFileUrl) {
       return (
-        (await this.config.characterModelLoader.load(
+        (await this.config.characterModelLoader.loadModel(
           this.config.characterDescription.meshFileUrl,
-          "model",
+          this.config.isLocal ? localMaxTextureSize : remoteMaxTextureSize,
           this.config.abortController,
         )) || null
       );
@@ -293,28 +335,7 @@ export class CharacterModel {
       debug: false, // Reduced debug spam
     });
     this.colors = colorsToColorArray(colors);
-    console.log("CharacterModel.getColors", this.colors);
     return this.colors;
-  }
-
-  private async loadMainMesh(): Promise<void> {
-    let mainMesh: Object3D | null = null;
-    try {
-      mainMesh = await this.loadCharacterFromDescription();
-    } catch (error) {
-      console.error("Failed to load character from description", error);
-    }
-    if (mainMesh) {
-      this.mesh = mainMesh;
-      this.mesh.position.set(0, -0.44, 0);
-      this.mesh.traverse((child: Object3D) => {
-        if (child.type === "SkinnedMesh") {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-      this.animationMixer = new AnimationMixer(this.mesh);
-    }
   }
 
   private cleanAnimationClips(

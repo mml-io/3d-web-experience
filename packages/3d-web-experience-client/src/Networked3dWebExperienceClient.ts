@@ -37,6 +37,7 @@ import {
   WebsocketStatus,
   parseServerChatMessage,
   DeltaNetV01ServerErrors,
+  NetworkUpdate,
 } from "@mml-io/3d-web-user-networking";
 import {
   IMMLScene,
@@ -220,6 +221,7 @@ export class Networked3dWebExperienceClient {
       sessionToken: this.config.sessionToken,
       websocketFactory: (url: string) => new WebSocket(url, "delta-net-v0.1"),
       statusUpdateCallback: (status: WebsocketStatus) => {
+        console.log(`Websocket status: ${status}`);
         if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
           // The connection was lost after being established - the connection may be re-established with a different client ID
           this.characterManager.clear();
@@ -237,27 +239,8 @@ export class Networked3dWebExperienceClient {
           this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
         }
       },
-      clientUpdate: (
-        remoteClientId: number,
-        userNetworkingClientUpdate: null | UserNetworkingClientUpdate,
-      ) => {
-        if (userNetworkingClientUpdate === null) {
-          this.remoteUserStates.delete(remoteClientId);
-        } else {
-          this.remoteUserStates.set(remoteClientId, userNetworkingClientUpdate);
-        }
-      },
-      clientProfileUpdated: (
-        clientId: number,
-        username: string,
-        characterDescription: CharacterDescription,
-        colors: Array<[number, number, number]>,
-      ): void => {
-        this.updateUserProfile(clientId, {
-          username,
-          characterDescription,
-          colors,
-        });
+      onUpdate: (update: NetworkUpdate): void => {
+        this.onNetworkUpdate(update);
       },
       onServerError: (error: { message: string; errorType: string }) => {
         switch (error.errorType) {
@@ -290,6 +273,14 @@ export class Networked3dWebExperienceClient {
           console.warn(`Did not recognize custom message type ${customType}`);
         }
       },
+    }, {
+      username: null,
+      characterDescription: null,
+      colors: null,
+    }, {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { quaternionY: 0, quaternionW: 1 },
+      state: 0,
     });
 
     if (this.config.allowOrbitalCamera) {
@@ -322,7 +313,9 @@ export class Networked3dWebExperienceClient {
         if (this.latestCharacterObject.characterState?.colors !== characterState.colors) {
           // TODO - this is a hack to update the colors, but it should be done in a reactive way when the colors are actually set
           console.log("Updating colors", characterState.colors);
-          this.networkClient.updateUserProfile(undefined, undefined, characterState.colors);
+          if (characterState.colors) {
+            this.networkClient.updateColors(characterState.colors);
+          }
         }
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
@@ -460,11 +453,7 @@ export class Networked3dWebExperienceClient {
     return holder;
   }
 
-  private resolveCharacterData(clientId: number): {
-    username: string;
-    characterDescription: CharacterDescription;
-    colors: Array<[number, number, number]>;
-  } {
+  private resolveCharacterData(clientId: number): UserData {
     const user = this.userProfiles.get(clientId)!;
 
     if (!user) {
@@ -478,14 +467,32 @@ export class Networked3dWebExperienceClient {
     };
   }
 
-  private updateUserProfile(id: number, userData: UserData) {
-    this.userProfiles.set(id, userData);
-
-    if (this.textChatUI && id === this.clientId) {
-      this.textChatUI.init();
+  private onNetworkUpdate(update: NetworkUpdate): void {
+    const { removedUserIds, addedUserIds, updatedUsers } = update;
+    for (const clientId of removedUserIds) {
+      this.userProfiles.delete(clientId);
+      this.remoteUserStates.delete(clientId);
     }
-
-    this.characterManager.remoteCharacterInfoUpdated(id);
+    for (const [clientId, userData] of addedUserIds) {
+      this.userProfiles.set(clientId, userData.userState);
+      this.remoteUserStates.set(clientId, userData.components);
+    }
+    for (const [clientId, userData] of updatedUsers) {
+      const userState = userData.userState;
+      if (userState) {
+        if (userState.username !== undefined) {
+          this.userProfiles.get(clientId)!.username = userState.username;
+        }
+        if (userState.characterDescription !== undefined) {
+          this.userProfiles.get(clientId)!.characterDescription = userState.characterDescription;
+        }
+        if (userState.colors !== undefined) {
+          this.userProfiles.get(clientId)!.colors = userState.colors;
+        }
+        this.characterManager.remoteCharacterInfoUpdated(clientId);
+      }
+      this.remoteUserStates.set(clientId, userData.components);
+    }
   }
 
   private sendIdentityUpdateToServer(
@@ -496,8 +503,8 @@ export class Networked3dWebExperienceClient {
       throw new Error("Client ID not set");
     }
 
-    // Use the new updateUserProfile method instead of deprecated sendMessage
-    this.networkClient.updateUserProfile(displayName, characterDescription);
+    this.networkClient.updateUsername(displayName);
+    this.networkClient.updateCharacterDescription(characterDescription);
   }
 
   private setupTweakPane() {
@@ -525,7 +532,7 @@ export class Networked3dWebExperienceClient {
         return;
       }
       console.log(`Adding chat message from user ${user.username}`);
-      const username = user.username;
+      const username = user.username ?? `Unknown User ${fromUserId}`;
       this.textChatUI.addTextMessage(username, message);
       this.characterManager.addChatBubble(fromUserId, message);
     }
@@ -575,8 +582,10 @@ export class Networked3dWebExperienceClient {
     this.avatarSelectionUI = new AvatarSelectionUI({
       holderElement: this.element,
       visibleByDefault: false,
-      displayName: ownIdentity.username,
-      characterDescription: ownIdentity.characterDescription,
+      displayName: ownIdentity.username ?? `Unknown User ${this.clientId}`, 
+      characterDescription: ownIdentity.characterDescription ?? {
+        meshFileUrl: "",
+      },
       sendIdentityUpdateToServer: this.sendIdentityUpdateToServer.bind(this),
       availableAvatars: this.config.avatarConfiguration?.availableAvatars ?? [],
       allowCustomAvatars: this.config.avatarConfiguration?.allowCustomAvatars,
@@ -661,7 +670,7 @@ export class Networked3dWebExperienceClient {
 
     this.characterManager.spawnLocalCharacter(
       this.clientId!,
-      ownIdentity.username,
+      ownIdentity.username ?? `Unknown User ${this.clientId}`,
       ownIdentity.characterDescription,
       spawnPosition,
       spawnRotation,
@@ -683,6 +692,7 @@ export class Networked3dWebExperienceClient {
   }
 
   public dispose() {
+    this.characterManager.dispose();
     this.networkClient.stop();
     for (const [key, element] of Object.entries(this.mmlFrames)) {
       element.remove();

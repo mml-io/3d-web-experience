@@ -16,7 +16,13 @@ const webWorldConfig: BotRunnerConfig = {
   randomRange: 4096,
   yValue: 45,
   logStatusInterval: 5000,
+  usernameStateId: 2,
+  characterDescriptionStateId: 1,
   avatarColorStateId: 3,
+  restartConfig: {
+    minInterval: 10000,
+    maxInterval: 20000,
+  },
 };
 
 let config = defaultConfig;

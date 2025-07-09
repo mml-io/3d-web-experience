@@ -14,6 +14,7 @@ export class MockWebsocketV01 {
   private messageTriggers = new Set<() => void>();
   private serverMessageListeners = new Set<(message: MessageEvent) => void>();
   private serverCloseListeners = new Set<() => void>();
+  private isClosed = false;
 
   send(data: Uint8Array) {
     const reader = new BufferReader(data);
@@ -25,7 +26,24 @@ export class MockWebsocketV01 {
   }
 
   public close() {
-    // TODO - implement listening for when server closes
+    if (this.isClosed) {
+      return;
+    }
+    this.isClosed = true;
+
+    // Trigger close event listeners
+    this.serverCloseListeners.forEach((listener) => {
+      try {
+        listener();
+      } catch (error) {
+        console.warn("Error in close listener:", error);
+      }
+    });
+
+    // Clear all listeners and triggers
+    this.serverMessageListeners.clear();
+    this.serverCloseListeners.clear();
+    this.messageTriggers.clear();
   }
 
   async waitForTotalMessageCount(
@@ -68,6 +86,10 @@ export class MockWebsocketV01 {
   }
 
   sendToServer(toSend: DeltaNetV01ClientMessage) {
+    if (this.isClosed) {
+      throw new Error("Cannot send message on closed WebSocket");
+    }
+
     const writer = new BufferWriter(32);
     encodeClientMessage(toSend, writer);
     this.serverMessageListeners.forEach((listener) => {
@@ -81,5 +103,9 @@ export class MockWebsocketV01 {
 
   getMessage(number: number) {
     return this.allMessages[number] as DeltaNetV01ServerMessage;
+  }
+
+  get closed(): boolean {
+    return this.isClosed;
   }
 }

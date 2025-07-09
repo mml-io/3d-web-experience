@@ -1,6 +1,7 @@
 import * as esbuild from "esbuild";
 
 import { dtsPlugin } from "./dtsPlugin";
+import { rebuildOnDependencyChangesPlugin } from "./rebuildOnDependencyChangesPlugin";
 
 const buildMode = "--build";
 const watchMode = "--watch";
@@ -13,7 +14,7 @@ type LibraryBuildOptions = {
   };
   plugins: Array<esbuild.Plugin>;
   loader: { [key: string]: esbuild.Loader };
-  platformOverride?: esbuild.Platform;
+  platformOverride: esbuild.Platform;
 };
 
 export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
@@ -43,12 +44,13 @@ export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
     outdir: "build",
     platform: options.platformOverride || "node",
     packages: "external",
+    external: ["fs", "path"],
     sourcemap: true,
     target: "node14",
     loader: {
       ...options.loader,
     },
-    plugins: [...options.plugins, dtsPlugin()],
+    plugins: [...options.plugins, rebuildOnDependencyChangesPlugin(), dtsPlugin()],
   };
 
   switch (mode) {

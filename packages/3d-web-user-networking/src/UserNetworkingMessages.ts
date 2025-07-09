@@ -19,12 +19,6 @@ export type CharacterDescription =
 
 export class UserNetworkingServerError extends DeltaNetServerError {}
 
-export type UserIdentity = {
-  characterDescription: CharacterDescription | null;
-  username: string | null;
-  colors: Array<[number, number, number]> | null;
-};
-
 export type ClientChatMessage = {
   message: string;
 };

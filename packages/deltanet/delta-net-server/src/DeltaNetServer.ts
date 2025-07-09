@@ -92,11 +92,22 @@ export type DeltaNetServerOptions = {
     | void
     | Error
     | DeltaNetServerError
-    | Promise<true | void | Error | DeltaNetServerError>;
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+    | Promise<
+        | true
+        | void
+        | Error
+        | DeltaNetServerError
+        | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+      >;
   onLeave?: (opts: onLeaveOptions) => void;
   onCustomMessage?: (opts: onCustomMessageOptions) => void;
   // If provided, the server will create a state for each user that contains their connection id
   serverConnectionIdStateId?: number;
+  // Maximum size in bytes for individual state values (default: 1MB)
+  maxStateValueSize?: number;
+  // Maximum total size in bytes for a single message (default: 10MB)
+  maxMessageSize?: number;
 };
 
 export class DeltaNetServer {
@@ -128,10 +139,17 @@ export class DeltaNetServer {
 
   private disposed = false;
 
+  private maxStateValueSize: number;
+  private maxMessageSize: number;
+
   constructor(private opts: DeltaNetServerOptions = {}) {
     if (opts.serverConnectionIdStateId !== undefined) {
       this.states.set(opts.serverConnectionIdStateId, new StateCollection());
     }
+
+    // Set default limits
+    this.maxStateValueSize = opts.maxStateValueSize ?? 1024 * 1024; // 1MB default
+    this.maxMessageSize = opts.maxMessageSize ?? 10 * 1024 * 1024; // 10MB default
   }
 
   public static handleWebsocketSubprotocol(protocols: Set<string> | Array<string>): string | false {
@@ -237,6 +255,8 @@ export class DeltaNetServer {
     return this.webSocketToDeltaNetServerConnection.has(webSocket);
   }
 
+  
+
   private disconnectWithError(
     deltaNetV01Connection: DeltaNetV01Connection,
     error: Error,
@@ -276,6 +296,10 @@ export class DeltaNetServer {
     return this.currentConnectionId++;
   }
 
+  public getMaxMessageSize(): number {
+    return this.maxMessageSize;
+  }
+
   public validateJoiner(
     deltaNetV01Connection: DeltaNetV01Connection,
     token: string,
@@ -287,6 +311,16 @@ export class DeltaNetServer {
     | { success: false; error: string } {
     if (this.disposed) {
       return { success: false, error: "This DeltaNetServer has been disposed" };
+    }
+
+    // Check individual state value sizes
+    for (const [stateId, stateValue] of states) {
+      if (stateValue.length > this.maxStateValueSize) {
+        return {
+          success: false,
+          error: `State value for state ${stateId} has size ${stateValue.length} bytes which exceeds maximum allowed size of ${this.maxStateValueSize} bytes`,
+        };
+      }
     }
 
     function resultToReturn(
@@ -377,6 +411,15 @@ export class DeltaNetServer {
       return new Error("This DeltaNetServer has been disposed");
     }
 
+    // Check state value size limit
+    if (stateValue.length > this.maxStateValueSize) {
+      return new DeltaNetServerError(
+        "USER_NETWORKING_UNKNOWN_ERROR",
+        `State value for state ${stateId} has size ${stateValue.length} bytes which exceeds maximum allowed size of ${this.maxStateValueSize} bytes`,
+        false,
+      );
+    }
+
     // Observers cannot send state updates
     if (deltaNetV01Connection.isObserver) {
       return new DeltaNetServerError(
@@ -402,16 +445,32 @@ export class DeltaNetServer {
               // Check if connection still exists before applying state update
               if (!this.connectionIdToDeltaNetServerConnection.has(internalConnectionId)) {
                 // Connection was removed while validation was pending - ignore the result
+                return;
+              }
+              if (asyncResult instanceof DeltaNetServerError || asyncResult instanceof Error) {
                 return asyncResult;
               }
-
-              // Apply the state update if validation passed
-              if (!(asyncResult instanceof Error)) {
+    
+              if (asyncResult === true || asyncResult === undefined) {
                 this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
                   [stateId, stateValue],
                 ]);
+                return true;
               }
-              return asyncResult;
+    
+              // If asyncResult is an object with success: true, apply the state overrides
+              if (asyncResult.success) {
+                if (asyncResult.stateOverrides) {
+                  this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, asyncResult.stateOverrides);
+                }
+                return true;
+              } else {
+                return new DeltaNetServerError(
+                  "USER_NETWORKING_UNKNOWN_ERROR",
+                  "State validation failed",
+                  false,
+                );
+              }
             })
             .catch((error) => {
               // Handle async callback errors
@@ -430,11 +489,26 @@ export class DeltaNetServer {
             return result;
           }
 
-          // Validation passed, apply the state update
-          this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
-            [stateId, stateValue],
-          ]);
-          return result;
+          if (result === true || result === undefined) {
+            this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
+              [stateId, stateValue],
+            ]);
+            return true;
+          }
+
+          // If result is an object with success: true, apply the state overrides
+          if (result.success) {
+            if (result.stateOverrides) {
+              this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, result.stateOverrides);
+            }
+            return true;
+          } else {
+            return new DeltaNetServerError(
+              "USER_NETWORKING_UNKNOWN_ERROR",
+              "State validation failed",
+              false,
+            );
+          }
         }
       } catch (error) {
         console.warn("Error in onStatesUpdate callback:", error);
@@ -541,11 +615,7 @@ export class DeltaNetServer {
       const internalConnectionId = deltaNetV01Connection.internalConnectionId;
 
       if (deltaNetV01Connection.isObserver) {
-        // Observers don't get indices assigned but still need userIndex message for protocol compatibility
-        deltaNetV01Connection.sendMessage({
-          type: "userIndex",
-          index: -1, // Use -1 to indicate observer (this might need protocol adjustment)
-        });
+        // Observers don't get indices assigned
       } else {
         // Regular participants get indices assigned
         const index = this.nextIndex++;
@@ -671,6 +741,7 @@ export class DeltaNetServer {
 
     for (const deltaNetV01Connection of this.preTickData.newJoinerConnections) {
       this.authenticatedDeltaNetV01Connections.add(deltaNetV01Connection);
+      deltaNetV01Connection.setAuthenticated();
     }
 
     this.preTickData.unoccupyingIndices.clear();

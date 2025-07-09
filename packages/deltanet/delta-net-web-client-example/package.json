@@ -6,9 +6,6 @@
   "type": "module",
   "scripts": {
     "build": "npm run build:ui && npm run build:server",
-    "build:docker": "docker build ./deploy -f ./Dockerfile --platform=linux/x86_64 -t delta-net-web-client-example --progress=plain",
-    "build:rush": "rush deploy --target-folder ./deploy --project delta-net-web-client-example --overwrite",
-    "clear:rush": "rimraf ./deploy",
     "build:server": "tsx ./build.ts --build",
     "build:ui": "tsx ./ui-build.ts --build",
     "depcheck": "depcheck --quiet",
@@ -19,13 +16,13 @@
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
     "pre:build": "npm run build",
-    "publish:docker": "./publish.sh",
     "start-bots": "tsx ./src/startBots.ts",
     "start-bots-web-world": "tsx ./src/startBots.ts --config=web-world",
     "start-server": "node --enable-source-maps ./build/server/src/index.js",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@deltanet/delta-net-protocol": "^0.1.0",
     "@deltanet/delta-net-server": "^0.1.0",
     "@deltanet/delta-net-web": "^0.1.0",
     "@ez-elements/core": "^0.0.6",
@@ -35,10 +32,13 @@
     "ws": "8.18.0"
   },
   "devDependencies": {
-    "concurrently": "9.1.2",
-    "@types/cors": "2.8.17",
     "@types/express": "^5.0.0",
     "@types/express-ws": "^3.0.5",
-    "esbuild-css-modules-plugin": "3.1.5"
+    "@types/node": "^22.13.1",
+    "concurrently": "9.1.2",
+    "esbuild": "0.24.2",
+    "esbuild-css-modules-plugin": "3.1.5",
+    "esbuild-plugin-copy": "2.1.1",
+    "tree-kill": "^1.2.2"
   }
 }

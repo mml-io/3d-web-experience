@@ -11,6 +11,7 @@ import {
   CollectionDataType,
   findAssetsInCollection,
   ModelLoader,
+  ModelLoadResult,
   ModelScreenshotter,
 } from "@mml-io/3d-web-standalone-avatar-editor";
 import React, { useCallback, useEffect, useState } from "react";
@@ -35,6 +36,16 @@ const partToCameraOffset = new Map<
   ["upperBody", { offset: { x: 0, y: 1.199837285184325, z: 0 }, targetDistance: 1.2 }],
 ]);
 
+class MMLCharacterModelLoader implements MMLCharacterModelLoader {
+  constructor(private modelLoader: ModelLoader) { }
+  load(url: string, abortController?: AbortController): Promise<ModelLoadResult | null> {
+    if (abortController?.signal.aborted) {
+      return Promise.resolve(null);
+    }
+    return this.modelLoader.load(url);
+  }
+}
+
 export function AvatarEditor<C extends CollectionDataType>(props: {
   collectionData: C;
   currentCharacter: MMLCharacterDescription | null;
@@ -42,7 +53,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
   showMirror: boolean;
 }) {
   const [characterMesh, setCharacterMesh] = useState<Object3D | null>(null);
-  const [character] = useState(new MMLCharacter(new ModelLoader()));
+  const [character] = useState(new MMLCharacter(new MMLCharacterModelLoader(new ModelLoader())));
   const [selectedPart, setSelectedPart] = useState<BodyPartTypes>("fullBody");
   const [errors, setErrors] = useState(props.loadingErrors);
 
@@ -74,7 +85,7 @@ export function AvatarEditor<C extends CollectionDataType>(props: {
       const { fullBody, parts } = characterParts;
 
       // The character parts picker provides the full body separately from the parts that are then layered onto it
-      const obj3d = await character.mergeBodyParts(
+      const obj3d = await character.load(
         fullBody.url,
         Object.values(parts).map((part) => ({
           url: part.url,

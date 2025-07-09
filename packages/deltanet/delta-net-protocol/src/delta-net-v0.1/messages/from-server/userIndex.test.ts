@@ -11,7 +11,7 @@ const cases: Array<[string, DeltaNetV01UserIndexMessage, Array<number>]> = [
       type: "userIndex",
       index: 123,
     },
-    [4, 123],
+    [3, 123],
   ],
   [
     "userIndex message with large userIndex",
@@ -19,7 +19,7 @@ const cases: Array<[string, DeltaNetV01UserIndexMessage, Array<number>]> = [
       type: "userIndex",
       index: 1234567890,
     },
-    [4, 210, 133, 216, 204, 4],
+    [3, 210, 133, 216, 204, 4],
   ],
 ];
 

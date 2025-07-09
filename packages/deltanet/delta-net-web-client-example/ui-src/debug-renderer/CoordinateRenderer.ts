@@ -105,7 +105,7 @@ export class CoordinateRenderer {
 
   private renderFrame(deltaNetClientState: DeltaNetClientState): void {
     const userIds = deltaNetClientState.getStableIds();
-    const myIndex = deltaNetClientState.getMyIndex();
+    const localClientIndex = deltaNetClientState.getLocalClientIndex();
     const indicesCount = deltaNetClientState.getIndicesCount();
     const componentValues = deltaNetClientState.getComponentValues();
 
@@ -164,7 +164,7 @@ export class CoordinateRenderer {
     this.drawCurrentPositions(
       ctx,
       indicesCount,
-      myIndex,
+      localClientIndex,
       xComponent,
       yComponent,
       colorState,
@@ -357,7 +357,7 @@ export class CoordinateRenderer {
   private drawCurrentPositions(
     ctx: CanvasRenderingContext2D,
     indicesCount: number,
-    myIndex: number | null,
+    localClientIndex: number | null,
     xComponent: any,
     yComponent: any,
     colorState: (Uint8Array | null)[],
@@ -367,7 +367,7 @@ export class CoordinateRenderer {
   ): void {
     // Draw other users - minimal styling
     for (let index = 0; index < indicesCount; index++) {
-      if (index === myIndex) continue;
+      if (index === localClientIndex) continue;
 
       const xValue = Number(xComponent.values[index]);
       const yValue = Number(yComponent.values[index]);
@@ -391,13 +391,13 @@ export class CoordinateRenderer {
     }
 
     // Draw my position - simple square
-    if (myIndex !== null && myIndex < indicesCount) {
-      const xValue = Number(xComponent.values[myIndex]);
-      const yValue = Number(yComponent.values[myIndex]);
+    if (localClientIndex !== null && localClientIndex < indicesCount) {
+      const xValue = Number(xComponent.values[localClientIndex]);
+      const yValue = Number(yComponent.values[localClientIndex]);
       const x = centerX + xValue * scale;
       const y = centerY - yValue * scale;
 
-      this.drawMyPosition(ctx, x, y, colorState[myIndex]);
+      this.drawMyPosition(ctx, x, y, colorState[localClientIndex]);
     }
   }
 

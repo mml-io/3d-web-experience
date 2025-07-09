@@ -7,9 +7,10 @@ import {
   DeltaNetClientWebsocketUserIndex,
 } from "@deltanet/delta-net-web";
 
-import { DeltaNetComponentMapping } from "./DeltaNetComponentMapping";
+import { DeltaNetComponentMapping, STATE_CHARACTER_DESCRIPTION, STATE_COLORS, STATE_INTERNAL_CONNECTION_ID, STATE_USERNAME } from "./DeltaNetComponentMapping";
 import { UserNetworkingClientUpdate, WebsocketFactory, WebsocketStatus } from "./types";
 import { CharacterDescription } from "./UserNetworkingMessages";
+import { UserData } from "./UserData";
 
 export type UserNetworkingClientConfig = {
   url: string;
@@ -17,37 +18,60 @@ export type UserNetworkingClientConfig = {
   websocketFactory: WebsocketFactory;
   statusUpdateCallback: (status: WebsocketStatus) => void;
   assignedIdentity: (clientId: number) => void;
-  clientUpdate: (userId: number, update: null | UserNetworkingClientUpdate) => void;
-  clientProfileUpdated: (
-    id: number,
-    username: string,
-    characterDescription: CharacterDescription,
-    colors: Array<[number, number, number]>,
-  ) => void;
-  onServerError: (error: { message: string; errorType: string }) => void;
-  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any }) => void;
+  onServerError: (error: { message: string; errorType: string; }) => void;
+  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any; }) => void;
   onCustomMessage?: (customType: number, contents: string) => void;
+
+  onUpdate(update: NetworkUpdate): void;
+};
+
+export type AddedUser = {
+  userState: UserData;
+  components: UserNetworkingClientUpdate;
+};
+
+export type UpdatedUser = {
+  userState?: Partial<UserData>;
+  components: UserNetworkingClientUpdate;
+};
+
+export type NetworkUpdate = {
+  removedUserIds: Set<number>;
+  addedUserIds: Map<number, AddedUser>;
+  updatedUsers: Map<number, UpdatedUser>;
 };
 
 export class UserNetworkingClient {
   private deltaNetClient: DeltaNetClientWebsocket;
   private deltaNetState: DeltaNetClientState;
-  private myUserId: number | null = null;
-  private myUserIndex: number | null = null;
+
+  private userId: number | null = null;
+  private userIndex: number | null = null;
+  private userState: UserData = {
+    username: null,
+    characterDescription: null,
+    colors: null,
+  };
+
   private stableIdToUserId: Map<number, number> = new Map();
   private userProfiles: Map<
     number,
-    {
-      username: string;
-      characterDescription: CharacterDescription;
-      colors: Array<[number, number, number]>;
-    }
+    UserData
   > = new Map();
   private isAuthenticated = false;
-  private hasReceivedInitialCheckout = false;
-  private pendingUpdate: UserNetworkingClientUpdate | null = null;
+  private pendingUpdate: UserNetworkingClientUpdate;
 
-  constructor(private config: UserNetworkingClientConfig) {
+  constructor(private config: UserNetworkingClientConfig, initialUserState?: UserData, initialUpdate?: UserNetworkingClientUpdate) {
+    this.pendingUpdate = initialUpdate ?? {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { quaternionY: 0, quaternionW: 1 },
+      state: 0,
+    };
+    this.userState = initialUserState ?? {
+      username: null,
+      characterDescription: null,
+      colors: null,
+    };
     this.deltaNetState = new DeltaNetClientState();
 
     // Create deltanet client
@@ -61,67 +85,49 @@ export class UserNetworkingClient {
       {
         ignoreData: false,
         onInitialCheckout: (initialCheckout: DeltaNetClientWebsocketInitialCheckout) => {
-          const { stateUpdates, removedStableIds } =
+          const { addedStableIds } =
             this.deltaNetState.handleInitialCheckout(initialCheckout);
 
-          // Process initial profiles for all users
-          this.processInitialProfiles();
-
-          // Process any state updates (though these should just be setting up the initial profiles)
-          this.processStateUpdates(stateUpdates);
-
-          // Handle removed users (shouldn't happen during initial checkout, but for consistency)
-          this.processRemovedUsers(removedStableIds);
-
-          // Mark that we've received the initial world state
-          this.hasReceivedInitialCheckout = true;
+          // Process any state updates
+          const networkUpdate = this.processNetworkUpdate([], addedStableIds, []);
+          this.config.onUpdate(networkUpdate);
 
           // Now that we have the user IDs, resolve our stable user ID from the userIndex
-          if (this.myUserIndex !== null) {
+          if (this.userIndex !== null) {
             const userIds = this.deltaNetState.getStableIds();
-            if (this.myUserIndex < userIds.length) {
-              const stableId = userIds[this.myUserIndex];
+            if (this.userIndex < userIds.length) {
+              const stableId = userIds[this.userIndex];
               const userId = this.stableIdToUserId.get(stableId);
               if (!userId) {
                 throw new Error(`No userId found for stableId ${stableId}`);
               }
-              this.myUserId = userId;
+              this.userId = userId;
+              this.isAuthenticated = true;
+              this.config.assignedIdentity(this.userId);
               console.log(
-                `Resolved userIndex ${this.myUserIndex} to stable userId: ${this.myUserId}`,
+                `Resolved userIndex ${this.userIndex} to stable userId: ${this.userId}`,
               );
             } else {
               console.error(
-                `Invalid userIndex ${this.myUserIndex}, userIds length: ${userIds.length}`,
+                `Invalid userIndex ${this.userIndex}, userIds length: ${userIds.length}`,
               );
             }
           }
-
-          // Check if we're now fully ready (both authenticated and have world state)
-          this.checkIfFullyReady();
         },
         onTick: (tick: DeltaNetClientWebsocketTick) => {
-          const { stateUpdates, removedStableIds } = this.deltaNetState.handleTick(tick);
-
+          const { stateUpdates, removedStableIds, addedStableIds } = this.deltaNetState.handleTick(tick);
           // Process state updates
-          this.processStateUpdates(stateUpdates);
-
-          // Handle removed users
-          this.processRemovedUsers(removedStableIds);
-
-          // Process component updates for all users (not just those with state updates)
-          this.processComponentUpdates();
+          const networkUpdate = this.processNetworkUpdate(removedStableIds, addedStableIds, stateUpdates);
+          this.config.onUpdate(networkUpdate);
         },
         onUserIndex: (userIndex: DeltaNetClientWebsocketUserIndex) => {
           // Store the userIndex and set it on deltanet state
-          this.myUserIndex = userIndex.userIndex;
+          this.userIndex = userIndex.userIndex;
           this.deltaNetState.setLocalIndex(userIndex.userIndex);
 
           console.log(
             `Received userIndex: ${userIndex.userIndex}, waiting for initial checkout to resolve stable userId...`,
           );
-
-          // Don't resolve to stable user ID yet - wait for initial checkout
-          this.checkIfFullyReady();
         },
         onError: (errorType: string, errorMessage: string, retryable: boolean) => {
           console.error(
@@ -151,198 +157,175 @@ export class UserNetworkingClient {
         let mappedStatus: WebsocketStatus;
         switch (status) {
           case DeltaNetClientWebsocketStatus.Connected:
-          case DeltaNetClientWebsocketStatus.ConnectionOpen:
             mappedStatus = WebsocketStatus.Connected;
-
-            // Send initial authentication data immediately upon connection
+            break;
+          case DeltaNetClientWebsocketStatus.ConnectionOpen:
             this.sendInitialAuthentication();
+            mappedStatus = WebsocketStatus.Connected;
+            // Send initial authentication data immediately upon connection
             break;
           case DeltaNetClientWebsocketStatus.Disconnected:
             mappedStatus = WebsocketStatus.Disconnected;
-            this.isAuthenticated = false;
-            this.hasReceivedInitialCheckout = false;
-            this.myUserId = null;
-            this.myUserIndex = null;
+            this.reset();
             break;
           case DeltaNetClientWebsocketStatus.Reconnecting:
             mappedStatus = WebsocketStatus.Reconnecting;
+            this.reset();
             break;
           default:
             mappedStatus = WebsocketStatus.Disconnected;
         }
         this.config.statusUpdateCallback(mappedStatus);
       },
+
     );
   }
 
-  private checkIfFullyReady(): void {
-    // We're fully ready when we have userIndex, initial checkout, and resolved stable user ID
-    if (
-      this.myUserIndex !== null &&
-      this.hasReceivedInitialCheckout &&
-      this.myUserId !== null &&
-      !this.isAuthenticated
-    ) {
-      console.log(
-        `Client fully ready - userIndex: ${this.myUserIndex}, stable userId: ${this.myUserId}, initial checkout received`,
-      );
-
-      this.isAuthenticated = true;
-      this.config.assignedIdentity(this.myUserId);
-
-      // If there was a pending update, send it now
-      if (this.pendingUpdate) {
-        this.sendUpdate(this.pendingUpdate);
-        this.pendingUpdate = null;
-      }
-    }
+  private reset(): void {
+    this.deltaNetState.reset();
+    this.userProfiles.clear();
+    this.stableIdToUserId.clear();
+    this.isAuthenticated = false;
+    this.userId = null;
+    this.userIndex = null;
   }
 
   private sendInitialAuthentication(): void {
     // Send initial components and states to become "ready"
-    // Start with default position and state
-    const initialUpdate: UserNetworkingClientUpdate = {
-      id: 0, // Will be set by server when we get userIndex
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { quaternionY: 0, quaternionW: 1 },
-      state: 0,
-    };
+    const components = DeltaNetComponentMapping.toComponents(this.pendingUpdate);
 
-    // Convert to deltanet components
-    const components = DeltaNetComponentMapping.toComponents(initialUpdate);
-
-    // Create initial states for user data (no session token needed here)
-    // Add empty username and character description for now
-    const states = DeltaNetComponentMapping.toStates();
+    // Create initial states for user data
+    const states = DeltaNetComponentMapping.toStates(this.userState);
 
     // Send to deltanet - this makes the client "ready" and triggers authentication
-    // The session token is now passed via the deltanet token field
     this.deltaNetClient.setUserComponents(components, states);
   }
 
-  private processInitialProfiles(): void {
-    // Process initial profiles for all users
+  private processNetworkUpdate(
+    removedStableIds: number[],
+    addedStableIdsArray: number[],
+    stateUpdates: Array<{ stableId: number; stateId: number; state: Uint8Array; }>,
+  ): NetworkUpdate {
+    const addedUserIds = new Map<number, AddedUser>();
+    const removedUserIds = new Set<number>();
+
+    for (const stableId of removedStableIds) {
+      const userId = this.stableIdToUserId.get(stableId);
+      if (userId) {
+        removedUserIds.add(userId);
+
+        // Remove from user profiles
+        this.userProfiles.delete(userId);
+
+        // Remove from stableIdToUserId
+        this.stableIdToUserId.delete(stableId);
+      } else {
+        throw new Error(`No userId found for stableId ${stableId}`);
+      }
+    }
+
+    for (const stableId of addedStableIdsArray) {
+      const stableUserData = this.deltaNetState.byStableId.get(stableId);
+      if (!stableUserData) {
+        throw new Error(`No stableUserData found for stableId ${stableId}`);
+      }
+      const userIdState = stableUserData.states.get(STATE_INTERNAL_CONNECTION_ID);
+      if (!userIdState) {
+        throw new Error(`No userIdState found for stableId ${stableId}`);
+      }
+      const userId = DeltaNetComponentMapping.userIdFromBytes(userIdState);
+      if (!userId) {
+        throw new Error(`Failed to extract userId from bytes for stableId ${stableId}`);
+      }
+      this.stableIdToUserId.set(stableId, userId);
+      const newProfile = DeltaNetComponentMapping.fromStates(stableUserData.states);
+      this.userProfiles.set(userId, newProfile);
+      const clientUpdate = DeltaNetComponentMapping.fromComponents(stableUserData.components);
+      addedUserIds.set(userId, {
+        userState: newProfile,
+        components: clientUpdate,
+      });
+    }
+
+    const updatedUsers = new Map<number, UpdatedUser>();
+
     for (const [stableUserId, userInfo] of this.deltaNetState.byStableId) {
-      if (userInfo.states.size > 0) {
-        const nonNullStates = new Map<number, Uint8Array>();
-        for (const [stateId, stateValue] of userInfo.states) {
-          nonNullStates.set(stateId, stateValue);
-        }
-
-        if (nonNullStates.size > 0) {
-          const { username, characterDescription, colors } =
-            DeltaNetComponentMapping.fromStates(nonNullStates);
-
-          this.userProfiles.set(stableUserId, {
-            username: username ?? "",
-            characterDescription: characterDescription ?? { meshFileUrl: "" },
-            colors: colors ?? [],
-          });
-          this.config.clientProfileUpdated(
-            stableUserId,
-            username ?? "",
-            characterDescription ?? { meshFileUrl: "" },
-            colors ?? [],
+      const userId = this.stableIdToUserId.get(stableUserId);
+      if (!userId) {
+        throw new Error(`No userId found for stableUserId ${stableUserId}`);
+      }
+      if (!addedUserIds.has(userId)) {
+        if (userInfo.components.size > 0) {
+          const clientUpdate = DeltaNetComponentMapping.fromComponents(
+            userInfo.components,
           );
+          updatedUsers.set(userId, {
+            components: clientUpdate,
+          });
         }
       }
     }
-    console.log(`Loaded ${this.userProfiles.size} initial user profiles`);
-  }
-
-  private processComponentUpdates(): void {
-    // Process component updates for all users
-    for (const [stableUserId, userInfo] of this.deltaNetState.byStableId) {
-      if (userInfo.components.size > 0) {
-        const clientUpdate = DeltaNetComponentMapping.fromComponents(
-          userInfo.components,
-          stableUserId,
-        );
-        const userId = this.stableIdToUserId.get(stableUserId);
-        if (!userId) {
-          throw new Error(`No userId found for stableUserId ${stableUserId}`);
-        }
-        this.config.clientUpdate(userId, clientUpdate);
-      }
-    }
-  }
-
-  private processStateUpdates(
-    stateUpdates: Array<{ stableId: number; stateId: number; state: Uint8Array | null }>,
-  ): void {
-    const processedUsers = new Set<number>();
 
     for (const update of stateUpdates) {
       // update.stableId is actually a stable user ID maintained by deltanet, not an index
       const stableUserId = update.stableId;
 
-      if (!processedUsers.has(stableUserId)) {
-        processedUsers.add(stableUserId);
+      const userId = this.stableIdToUserId.get(stableUserId);
+      if (!userId) {
+        throw new Error(`No userId found for stableUserId ${stableUserId}`);
+      }
 
-        const userInfo = this.deltaNetState.byStableId.get(stableUserId);
-        if (userInfo) {
-          // Extract username and character description from states
-          if (userInfo.states.size > 0) {
-            const { userId, username, characterDescription, colors } =
-              DeltaNetComponentMapping.fromStates(userInfo.states);
+      if (addedUserIds.has(userId)) {
+        continue;
+      }
 
-            if (userId === null) {
-              console.warn(`User ID is null for stableUserId ${stableUserId}, skipping update`);
-              continue;
-            }
+      const profile = this.userProfiles.get(userId);
+      if (!profile) {
+        console.warn(`No profile found for user ${userId}, skipping update`);
+        continue;
+      }
+      let existingUpdate = updatedUsers.get(userId)!;
+      let existingUserStateUpdate: Partial<UserData> | undefined = existingUpdate.userState;
+      if (!existingUserStateUpdate) {
+        existingUserStateUpdate = {};
+        existingUpdate.userState = existingUserStateUpdate;
+      }
 
-            // Check if this is actually a profile change
-            const existingProfile = this.userProfiles.get(userId);
-            const profileChanged =
-              !existingProfile ||
-              existingProfile.username !== username ||
-              JSON.stringify(existingProfile.characterDescription) !==
-                JSON.stringify(characterDescription) ||
-              JSON.stringify(existingProfile.colors) !== JSON.stringify(colors);
-
-            if (profileChanged) {
-              this.stableIdToUserId.set(stableUserId, userId);
-              this.userProfiles.set(userId, {
-                username: username ?? "",
-                characterDescription: characterDescription ?? { meshFileUrl: "" },
-                colors: colors ?? [],
-              });
-              this.config.clientProfileUpdated(
-                userId,
-                username ?? "",
-                characterDescription ?? { meshFileUrl: "" },
-                colors ?? [],
-              );
-            }
+      switch (update.stateId) {
+        case STATE_INTERNAL_CONNECTION_ID:
+          console.error("STATE_INTERNAL_CONNECTION_ID is not expected to change in state updates");
+          break;
+        case STATE_USERNAME:
+          const username = DeltaNetComponentMapping.usernameFromBytes(update.state);
+          if (username) {
+            profile.username = username;
+            existingUserStateUpdate.username = username;
           }
-        } else {
-          console.log(`No user info found for user ${stableUserId}`);
-        }
+          break;
+        case STATE_CHARACTER_DESCRIPTION:
+          const characterDescription = DeltaNetComponentMapping.characterDescriptionFromBytes(update.state);
+          profile.characterDescription = characterDescription;
+          existingUserStateUpdate.characterDescription = characterDescription;
+          break;
+        case STATE_COLORS:
+          const colors = DeltaNetComponentMapping.decodeColors(update.state);
+          profile.colors = colors;
+          existingUserStateUpdate.colors = colors;
+          break;
+        default:
+          console.warn(`Unknown state ID: ${update.stateId}`);
       }
     }
-  }
 
-  private processRemovedUsers(removedStableIds: number[]): void {
-    // Handle removed users by notifying the client with null updates
-    for (const stableId of removedStableIds) {
-      const userId = this.stableIdToUserId.get(stableId);
-      if (userId) {
-        console.log(`User ${userId} disconnected, removing from client`);
-
-        // Remove from user profiles
-        this.userProfiles.delete(userId);
-
-        // Notify the client about the disconnection
-        this.config.clientUpdate(userId, null);
-
-        // Remove from stableIdToUserId
-        this.stableIdToUserId.delete(stableId);
-      }
-    }
+    return {
+      removedUserIds,
+      addedUserIds,
+      updatedUsers,
+    };
   }
 
   public sendUpdate(update: UserNetworkingClientUpdate): void {
-    if (!this.isAuthenticated || this.myUserId === null) {
+    if (!this.isAuthenticated || this.userId === null) {
       // Store the update to send after authentication
       this.pendingUpdate = update;
       return;
@@ -354,7 +337,7 @@ export class UserNetworkingClient {
   }
 
   public sendCustomMessage(customType: number, contents: string): void {
-    if (!this.isAuthenticated || this.myUserId === null) {
+    if (!this.isAuthenticated || this.userId === null) {
       console.warn("Cannot send custom message before authentication");
       return;
     }
@@ -362,27 +345,47 @@ export class UserNetworkingClient {
     this.deltaNetClient.sendCustomMessage(customType, contents);
   }
 
-  public updateUserProfile(
-    username?: string,
-    characterDescription?: CharacterDescription,
-    colors?: Array<[number, number, number]>,
-  ): void {
-    if (!this.isAuthenticated || this.myUserId === null) {
+  public updateUsername(username: string): void {
+    if (!this.isAuthenticated || this.userId === null) {
       return;
     }
 
-    // Update user profile by sending new states
-    const states = DeltaNetComponentMapping.toStates(username, characterDescription, colors);
-    const components = this.pendingUpdate
-      ? DeltaNetComponentMapping.toComponents(this.pendingUpdate)
-      : new Map();
+    // Update local state
+    this.userState.username = username;
 
-    this.deltaNetClient.setUserComponents(components, states);
+    // Send state update
+    const states = DeltaNetComponentMapping.toUsernameState(username);
+    this.deltaNetClient.setUserComponents(new Map(), states);
+  }
+
+  public updateCharacterDescription(characterDescription: CharacterDescription): void {
+    if (!this.isAuthenticated || this.userId === null) {
+      return;
+    }
+
+    // Update local state
+    this.userState.characterDescription = characterDescription;
+
+    // Send state update
+    const states = DeltaNetComponentMapping.toCharacterDescriptionState(characterDescription);
+    this.deltaNetClient.setUserComponents(new Map(), states);
+  }
+
+  public updateColors(colors: Array<[number, number, number]>): void {
+    if (!this.isAuthenticated || this.userId === null) {
+      return;
+    }
+
+    // Update local state
+    this.userState.colors = colors;
+
+    // Send state update
+    const states = DeltaNetComponentMapping.toColorsState(colors);
+    this.deltaNetClient.setUserComponents(new Map(), states);
   }
 
   public stop(): void {
-    // Clean up deltanet client
-    // Note: DeltaNetClientWebsocket doesn't have a public stop method,
-    // but closing will be handled by the underlying websocket
+    this.deltaNetClient.stop();
+    this.reset();
   }
 }

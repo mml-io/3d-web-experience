@@ -3,7 +3,7 @@ import {
   DeltaNetClientWebsocketTick,
 } from "./DeltaNetClientWebsocket";
 
-export type EntityStateUpdate = { stableId: number; stateId: number; state: Uint8Array | null };
+export type EntityStateUpdate = { stableId: number; stateId: number; state: Uint8Array };
 
 export type EntityInfo = {
   stableId: number;
@@ -23,7 +23,7 @@ export class DeltaNetClientState {
 
   public byStableId: Map<number, EntityInfo> = new Map();
 
-  private myIndex: number = -1;
+  private localClientIndex: number = -1;
 
   private indicesCount: number = 0;
 
@@ -31,7 +31,9 @@ export class DeltaNetClientState {
   private stableIds: Array<number> = [];
   private stableIdCounter = 1000; // Start at 1000 to avoid confusion with indices
 
-  constructor() {}
+  constructor() {
+    this.reset();
+  }
 
   /**
    * Reset all state to initial values. This should be called when reconnecting
@@ -41,7 +43,7 @@ export class DeltaNetClientState {
     this.componentValues.clear();
     this.allStates.clear();
     this.byStableId.clear();
-    this.myIndex = -1;
+    this.localClientIndex = -1;
     this.indicesCount = 0;
     this.stableIdToIndex.clear();
     this.stableIds.length = 0;
@@ -60,8 +62,8 @@ export class DeltaNetClientState {
     return this.allStates;
   }
 
-  public getMyIndex(): number {
-    return this.myIndex;
+  public getLocalClientIndex(): number {
+    return this.localClientIndex;
   }
 
   public getIndicesCount(): number {
@@ -99,8 +101,11 @@ export class DeltaNetClientState {
     return componentMap;
   }
 
-  public handleInitialCheckout(initialCheckout: DeltaNetClientWebsocketInitialCheckout) {
+  public handleInitialCheckout(initialCheckout: DeltaNetClientWebsocketInitialCheckout): {
+    addedStableIds: Array<number>;
+  } {
     const { indicesCount, initialComponents, initialStates } = initialCheckout;
+    const addedStableIds: Array<number> = [];
     for (let i = 0; i < indicesCount; i++) {
       const stableId = this.stableIdCounter++;
       this.stableIds.push(stableId);
@@ -111,6 +116,7 @@ export class DeltaNetClientState {
         states: new Map(),
       };
       this.byStableId.set(stableId, entityInfo);
+      addedStableIds.push(stableId);
     }
     this.indicesCount = indicesCount;
 
@@ -135,8 +141,6 @@ export class DeltaNetClientState {
       }
     }
 
-    const stateUpdates: Array<EntityStateUpdate> = [];
-
     for (const [stateId, values] of initialStates) {
       this.allStates.set(stateId, values);
 
@@ -147,67 +151,66 @@ export class DeltaNetClientState {
         if (entityInfo) {
           entityInfo.states.set(stateId, stateValue);
         }
-
-        stateUpdates.push({
-          stableId,
-          stateId,
-          state: stateValue,
-        });
       }
     }
 
-    return { stateUpdates, removedStableIds: [] };
+    return { addedStableIds };
   }
 
   public handleTick(tick: DeltaNetClientWebsocketTick): {
     stateUpdates: Array<EntityStateUpdate>;
     removedStableIds: Array<number>;
+    addedStableIds: Array<number>;
   } {
     const { unoccupying, indicesCount, componentDeltaDeltas, stateChanges } = tick;
+
     let removedStableIds: Array<number> = [];
 
     if (unoccupying.length > 0) {
+      // Collect stableIds to remove before mutating stableIds
+      const stableIdsToRemove = unoccupying.map((index) => this.stableIds[index]);
+      removedStableIds = stableIdsToRemove.filter((stableId) => stableId !== undefined);
+
       // Remove unoccupying indices from component values
-      for (const [, component] of this.componentValues) {
+      for (const [componentId, component] of this.componentValues) {
         this.removeIndicesFromBigInt64Array(unoccupying, component.values);
         this.removeIndicesFromBigInt64Array(unoccupying, component.deltas);
       }
 
       // Remove unoccupying indices from states
-      for (const [, state] of this.allStates) {
+      for (const [stateId, state] of this.allStates) {
         this.removeIndicesFromState(unoccupying, state);
       }
 
-      // Update myIndex
+      // Update localClientIndex
       let decrementIndex = 0;
       for (const index of unoccupying) {
-        if (index <= this.myIndex) {
+        if (index <= this.localClientIndex) {
           decrementIndex++;
         }
       }
-      this.myIndex -= decrementIndex;
+      this.localClientIndex -= decrementIndex;
 
       // Update indices count
       this.indicesCount -= unoccupying.length;
 
-      // Collect stableIds to remove before mutating stableIds
-      const stableIdsToRemove = unoccupying.map((index) => this.stableIds[index]);
-      removedStableIds = stableIdsToRemove.filter((stableId) => stableId !== undefined);
-
       // Update stable indices and stableIds array
       this.removeIndices(unoccupying);
-      this.stableIds.length = indicesCount;
 
       // Remove unoccupied stables from byStableId
       for (const stableId of stableIdsToRemove) {
-        if (stableId !== undefined) {
-          this.byStableId.delete(stableId);
+        if (stableId === undefined) {
+          throw new Error(`stableId is undefined`);
         }
+        this.byStableId.delete(stableId);
       }
     }
 
+    let addedStableIds: Array<number> = [];
+
     if (indicesCount > this.indicesCount) {
       const addedIndices = indicesCount - this.indicesCount;
+      
       for (let i = 0; i < addedIndices; i++) {
         const stableId = this.stableIdCounter++;
         this.stableIds.push(stableId);
@@ -218,6 +221,7 @@ export class DeltaNetClientState {
           states: new Map(),
         };
         this.byStableId.set(stableId, entityInfo);
+        addedStableIds.push(stableId);
       }
     }
 
@@ -253,14 +257,16 @@ export class DeltaNetClientState {
           existingComponent.deltas = newDeltas;
           existingComponent.deltaDeltas = newDeltaDelta;
         }
+        
         for (let i = 0; i < deltaDeltas.length; i++) {
           const deltaDelta = deltaDeltas[i];
+          const stableId = this.stableIds[i];
+          
           existingComponent.deltaDeltas[i] = deltaDelta;
           existingComponent.deltas[i] += deltaDelta;
           existingComponent.values[i] += existingComponent.deltas[i];
 
           // Update byStableId map with new component values
-          const stableId = this.stableIds[i];
           const entityInfo = this.byStableId.get(stableId);
           if (entityInfo) {
             entityInfo.components.set(key, existingComponent.values[i]);
@@ -278,8 +284,14 @@ export class DeltaNetClientState {
         state = [];
         this.allStates.set(stateId, state);
       }
+      
       for (const [index, value] of states) {
         const stableId = this.stableIds[index];
+        
+        if (stableId === undefined) {
+          throw new Error(`Stable ID is undefined for index ${index} in state ${stateId}`);
+        }
+        
         stateUpdates.push({
           stableId,
           stateId,
@@ -295,11 +307,11 @@ export class DeltaNetClientState {
       }
     }
 
-    return { stateUpdates, removedStableIds };
+    return { stateUpdates, removedStableIds, addedStableIds };
   }
 
   public setLocalIndex(index: number) {
-    this.myIndex = index;
+    this.localClientIndex = index;
   }
 
   private removeIndices(removing: Array<number>) {
@@ -316,14 +328,18 @@ export class DeltaNetClientState {
         continue;
       }
 
+      const stableId = this.stableIds[readIndex];
       if (writeIndex !== readIndex) {
-        const stableId = this.stableIds[readIndex];
-        this.stableIdToIndex.set(stableId, writeIndex);
         this.stableIds[writeIndex] = this.stableIds[readIndex];
       }
+      // Update the mapping for all remaining elements to their new indices
+      this.stableIdToIndex.set(stableId, writeIndex);
 
       writeIndex++;
     }
+    
+    // Actually shrink the array to the correct size
+    this.stableIds.length = writeIndex;
   }
 
   private removeIndicesFromBigInt64Array(removing: Array<number>, array: BigInt64Array) {

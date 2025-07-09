@@ -59,8 +59,6 @@ export class RendererStatsFolder {
     if (dt > 0) {
       const fps = 1000 / dt;
       this.rawFPS = fps;
-    } else {
-      console.log("FPS: N/A");
     }
 
     this.fpsSamples.push(this.rawFPS);

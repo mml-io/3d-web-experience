@@ -5,8 +5,14 @@ export type BotRunnerConfig = {
   updateInterval: number;
   randomRange: number;
   logStatusInterval: number;
+  restartConfig?: {
+    minInterval: number;
+    maxInterval: number;
+  };
   colorStateId?: number;
   avatarColorStateId?: number;
+  usernameStateId?: number;
+  characterDescriptionStateId?: number;
   yValue: number;
 };
 
@@ -16,6 +22,8 @@ export interface BotConfig {
   valuesToUpdate?: number[];
   randomRange: number;
   yValue: number;
+  usernameStateId?: number;
+  characterDescriptionStateId?: number;
   colorStateId?: number;
   avatarColorStateId?: number;
 }
@@ -23,6 +31,7 @@ export interface BotConfig {
 export class BotRunner {
   private bots: Bot[] = [];
   private statusIntervalId: NodeJS.Timeout | null = null;
+  private botRestartTimers: Map<Bot, NodeJS.Timeout> = new Map();
 
   constructor(private readonly config: BotRunnerConfig) {}
 
@@ -35,6 +44,7 @@ export class BotRunner {
   public startAll(): void {
     for (const bot of this.bots) {
       bot.start();
+      this.setupBotRestart(bot);
     }
 
     if (this.config.logStatusInterval > 0) {
@@ -53,6 +63,12 @@ export class BotRunner {
       clearInterval(this.statusIntervalId);
       this.statusIntervalId = null;
     }
+
+    // Clear all bot restart timers
+    for (const [bot, timer] of this.botRestartTimers) {
+      clearTimeout(timer);
+    }
+    this.botRestartTimers.clear();
   }
 
   public getBots(): Bot[] {
@@ -68,6 +84,36 @@ export class BotRunner {
     console.log("========================");
   }
 
+  private setupBotRestart(bot: Bot): void {
+    if (!this.config.restartConfig) {
+      return;
+    }
+
+    const { minInterval, maxInterval } = this.config.restartConfig;
+    
+    // Clear any existing timer for this bot
+    const existingTimer = this.botRestartTimers.get(bot);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const restartDelay = minInterval + Math.random() * (maxInterval - minInterval);
+
+    const timer = setTimeout(() => {
+      console.log(`Bot ${bot.getId()} restarting after ${Math.round(restartDelay)}ms...`);
+      bot.stop();
+      
+      // Small delay to simulate disconnection
+      setTimeout(() => {
+        bot.start();
+        this.setupBotRestart(bot); // Re-schedule next restart
+        console.log(`Bot ${bot.getId()} restarted successfully.`);
+      }, 100);
+    }, restartDelay);
+
+    this.botRestartTimers.set(bot, timer);
+  }
+
   public addRandomBots(count: number): Bot[] {
     const newBots: Bot[] = [];
 
@@ -78,6 +124,8 @@ export class BotRunner {
         updateInterval: this.config.updateInterval,
         randomRange: this.config.randomRange,
         colorStateId: this.config.colorStateId,
+        usernameStateId: this.config.usernameStateId,
+        characterDescriptionStateId: this.config.characterDescriptionStateId,
         avatarColorStateId: this.config.avatarColorStateId,
       };
 

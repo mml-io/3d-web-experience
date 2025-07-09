@@ -1,6 +1,6 @@
 import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client";
 
-import hdrUrl from "../../../assets/hdr/puresky_2k.hdr";
+import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import loadingBackground from "../../../assets/images/loading-bg.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air_new.glb";
 import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump_new.glb";
@@ -12,7 +12,7 @@ const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
 const userNetworkAddress = `${protocol}//${host}/network`;
 
-const useHDR = false;
+const useSkybox = false;
 
 const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
@@ -28,28 +28,17 @@ const app = new Networked3dWebExperienceClient(holder, {
   },
   mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
   environmentConfiguration: {
-    skybox: useHDR
+    skybox: useSkybox
       ? {
-          hdrUrl: hdrUrl,
+          hdrJpgUrl,
         }
       : undefined,
   },
   avatarConfiguration: {
     availableAvatars: [
       {
-        name: "Low-poly A",
-        meshFileUrl: "/assets/models/low_poly_male_a.glb",
-        thumbnailUrl: "/assets/models/thumbs/low_poly_male_a.jpg",
-      },
-      {
-        name: "Low-poly B",
-        meshFileUrl: "/assets/models/low_poly_male_b.glb",
-        thumbnailUrl: "/assets/models/thumbs/low_poly_male_b.jpg",
-      },
-      {
-        name: "Low-poly C",
-        meshFileUrl: "/assets/models/low_poly_male_c.glb",
-        thumbnailUrl: "/assets/models/thumbs/low_poly_male_c.jpg",
+        name: "bot",
+        meshFileUrl: "/assets/models/bot.glb",
       },
     ],
   },
