@@ -207,7 +207,7 @@ export class UserNetworkingServer {
     const deltaNetConnection = joiner.deltaNetV01Connection as DeltaNetV01Connection;
     const webSocket = deltaNetConnection.webSocket as unknown as WebSocket;
     const states = joiner.states as Array<[number, Uint8Array]>;
-    const clientId = this.nextClientId++;
+    const clientId = joiner.internalConnectionId;
 
     const statesMap = new Map<number, Uint8Array>(states);
     const userData: UserData = DeltaNetComponentMapping.fromUserStates(statesMap);

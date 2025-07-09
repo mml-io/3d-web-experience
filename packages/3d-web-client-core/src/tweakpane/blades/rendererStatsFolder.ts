@@ -1,3 +1,4 @@
+import { EffectComposer } from "postprocessing";
 import { WebGLRenderer } from "three";
 import { FolderApi } from "tweakpane";
 
@@ -17,6 +18,8 @@ type StatsData = {
 
 export class RendererStatsFolder {
   private folder: FolderApi;
+  private performance: FolderApi;
+  private defails: FolderApi;
 
   private statsData: StatsData = {
     triangles: "0",
@@ -29,13 +32,6 @@ export class RendererStatsFolder {
     deltaTime: "0",
     FPS: "0",
   };
-
-  private deltaTime: number = 0;
-  private lastUpdateTime: number = 0;
-  private fps: number = 0;
-  private rawFPS: number = 0;
-  private fpsSamples: Array<number> = [];
-  private fpsSampleSize: number = 60;
 
   constructor(parentFolder: FolderApi, expanded: boolean = true) {
     this.folder = parentFolder.addFolder({ title: "renderStats", expanded: expanded });
@@ -50,37 +46,20 @@ export class RendererStatsFolder {
     this.folder.addBinding(this.statsData, "drawCalls", { readonly: true });
   }
 
-  private calgulateFPS() {
-    const now = performance.now();
-    const dt = now - this.lastUpdateTime;
-    this.deltaTime = dt;
-    this.lastUpdateTime = now;
-
-    if (dt > 0) {
-      const fps = 1000 / dt;
-      this.rawFPS = fps;
-    }
-
-    this.fpsSamples.push(this.rawFPS);
-    if (this.fpsSamples.length > this.fpsSampleSize) {
-      this.fpsSamples.shift();
-    }
-    this.fps = this.fpsSamples.reduce((sum, sample) => sum + sample, 0) / this.fpsSamples.length;
-  }
-
-  public update(renderer: WebGLRenderer, timeManager: TimeManager): void {
-    this.calgulateFPS();
+  public update(renderer: WebGLRenderer, composer: EffectComposer, timeManager: TimeManager): void {
     const { geometries, textures } = renderer.info.memory;
     const { triangles, calls } = renderer.info.render;
     this.statsData.triangles = triangles.toString();
     this.statsData.geometries = geometries.toString();
     this.statsData.textures = textures.toString();
     this.statsData.shaders = renderer.info.programs!.length.toString();
+    this.statsData.postPasses =
+      composer.passes.length === 1 ? "0" : composer.passes.length.toString();
     this.statsData.drawCalls = calls.toString();
     this.statsData.rawDeltaTime = (
       Math.round(timeManager.rawDeltaTime * 100000) / 100000
     ).toString();
     this.statsData.deltaTime = (Math.round(timeManager.deltaTime * 100000) / 100000).toString();
-    this.statsData.FPS = `${this.fps.toFixed(1)} FPS`;
+    this.statsData.FPS = timeManager.fps.toString();
   }
 }

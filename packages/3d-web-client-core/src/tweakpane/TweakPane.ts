@@ -1,17 +1,29 @@
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
+import { BloomEffect, EffectComposer, EffectPass, ToneMappingEffect } from "postprocessing";
 import { Scene, WebGLRenderer } from "three";
 import { FolderApi, Pane } from "tweakpane";
 
 import { CameraManager } from "../camera/CameraManager";
 import { LocalController } from "../character/LocalController";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
-import { Sun } from "../sun/Sun";
+import type { Composer } from "../rendering/composer";
+import { BrightnessContrastSaturation } from "../rendering/post-effects/bright-contrast-sat";
+import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
+import { PostProcessingManager } from "../rendering/PostProcessingManager";
 import { TimeManager } from "../time/TimeManager";
 
 import { CameraFolder } from "./blades/cameraFolder";
 import { CharacterControlsFolder } from "./blades/characterControlsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
+// post processing effects ===================================================
+import { BrightnessContrastSaturationFolder } from "./blades/effects/bcsFolder";
+import { BloomAndGrainFolder } from "./blades/effects/bloomAndGrain";
+import { SSAOFolder } from "./blades/effects/ssaoFolder";
+import { ToneMappingFolder } from "./blades/effects/toneMappingFolder";
+// end post processing effects ===============================================
 import { EnvironmentFolder } from "./blades/environmentFolder";
+import { PostProcessingFolder } from "./blades/postProcessingFolder";
+import { RendererFolder, rendererValues } from "./blades/rendererFolder";
 import { RendererStatsFolder } from "./blades/rendererStatsFolder";
 import { setTweakpaneActive } from "./tweakPaneActivity";
 import { tweakPaneStyle } from "./tweakPaneStyle";
@@ -20,7 +32,15 @@ export class TweakPane {
   private gui: Pane;
 
   private renderStatsFolder: RendererStatsFolder;
-  // @ts-ignore
+  private rendererFolder: RendererFolder;
+  private postProcessingFolder: PostProcessingFolder;
+  private postProcessingSettingsFolder: FolderApi;
+  // post processing effects
+  private toneMappingFolder: ToneMappingFolder;
+  private ssaoFolder: SSAOFolder;
+  private bcsFolder: BrightnessContrastSaturationFolder;
+  private bloomAndGrainFolder: BloomAndGrainFolder;
+  //
   private character: CharacterFolder;
   private environment: EnvironmentFolder;
   private camera: CameraFolder;
@@ -37,6 +57,8 @@ export class TweakPane {
     private holderElement: HTMLElement,
     private renderer: WebGLRenderer,
     private scene: Scene,
+    private composer: Composer,
+    private postProcessingEnabled: boolean | undefined,
   ) {
     this.tweakPaneWrapper = document.createElement("div");
     this.tweakPaneWrapper.style.position = "fixed";
@@ -72,10 +94,31 @@ export class TweakPane {
     document.head.appendChild(styleElement);
 
     this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
-    this.character = new CharacterFolder(this.gui, false);
-    this.environment = new EnvironmentFolder(this.gui, true);
+    this.rendererFolder = new RendererFolder(this.gui, false);
+
+    this.environment = new EnvironmentFolder(this.gui, false);
     this.camera = new CameraFolder(this.gui, false);
     this.characterControls = new CharacterControlsFolder(this.gui, false);
+
+    this.postProcessingFolder = new PostProcessingFolder(
+      this.gui,
+      this.postProcessingEnabled,
+      false,
+    );
+    this.postProcessingSettingsFolder = this.gui.addFolder({
+      title: "postProcessingSettings",
+      expanded: false,
+    });
+    this.toneMappingFolder = new ToneMappingFolder(this.postProcessingSettingsFolder, false);
+    this.ssaoFolder = new SSAOFolder(this.postProcessingSettingsFolder, false);
+    this.bcsFolder = new BrightnessContrastSaturationFolder(
+      this.postProcessingSettingsFolder,
+      false,
+    );
+    this.bloomAndGrainFolder = new BloomAndGrainFolder(this.postProcessingSettingsFolder, false);
+    this.character = new CharacterFolder(this.gui, false);
+
+    this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
 
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
@@ -103,6 +146,14 @@ export class TweakPane {
   }
 
   public setupRenderPane(
+    composer: EffectComposer,
+    n8aopass: any,
+    toneMappingEffect: ToneMappingEffect,
+    toneMappingPass: EffectPass,
+    brightnessContrastSaturation: typeof BrightnessContrastSaturation,
+    bloomEffect: BloomEffect,
+    gaussGrainEffect: typeof GaussGrainEffect,
+    hasLighting: boolean,
     updateSunValues: () => void,
     setHDR: () => void,
     setSkyboxAzimuthalAngle: (azimuthalAngle: number) => void,
@@ -111,6 +162,16 @@ export class TweakPane {
     setFog: () => void,
     setSkyShaderValues: () => void,
   ): void {
+    this.rendererFolder.setupChangeEvent(
+      this.renderer,
+      this.toneMappingFolder.folder,
+      toneMappingPass,
+    );
+
+    this.toneMappingFolder.setupChangeEvent(toneMappingEffect);
+    this.ssaoFolder.setupChangeEvent(composer, n8aopass);
+    this.bcsFolder.setupChangeEvent(brightnessContrastSaturation);
+    this.bloomAndGrainFolder.setupChangeEvent(bloomEffect, gaussGrainEffect);
     this.environment.setupChangeEvent(
       this.scene,
       setHDR,
@@ -121,6 +182,7 @@ export class TweakPane {
       setSkyShaderValues,
       updateSunValues,
     );
+    this.environment.folder.hidden = hasLighting === false;
 
     const exportButton = this.export.addButton({ title: "export" });
     exportButton.on("click", () => {
@@ -148,8 +210,24 @@ export class TweakPane {
     this.characterControls.setupChangeEvent(localController);
   }
 
+  public setupPostProcessingPane(postProcessingManager: PostProcessingManager): void {
+    this.postProcessingFolder.setupChangeEvent(postProcessingManager);
+  }
+
   public updateStats(timeManager: TimeManager): void {
-    this.renderStatsFolder.update(this.renderer, timeManager);
+    const postProcessingManager = (this.composer as any).postProcessingManager;
+    if (postProcessingManager?.effectComposer) {
+      this.renderStatsFolder.update(
+        this.renderer,
+        postProcessingManager.effectComposer,
+        timeManager,
+      );
+    }
+
+    // record frame time for benchmark if running
+    if (this.postProcessingFolder.isBenchmarkRunning()) {
+      this.postProcessingFolder.recordFrameTime();
+    }
   }
 
   public updateCameraData(cameraManager: CameraManager) {

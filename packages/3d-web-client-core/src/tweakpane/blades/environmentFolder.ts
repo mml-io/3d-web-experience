@@ -2,6 +2,8 @@ import { BladeController, View } from "@tweakpane/core";
 import { Scene } from "three";
 import { BladeApi, ButtonApi, FolderApi, TpChangeEvent } from "tweakpane";
 
+import { Sun } from "../../sun/Sun";
+
 export const sunValues = {
   sunIntensity: 2.1,
   sunPosition: {
@@ -14,20 +16,6 @@ export const sunValues = {
   skyMieDirectionalG: 0.99,
   sunColor: { r: 1.0, g: 1.0, b: 1.0 },
 };
-
-// sunset coordinates test
-// export const sunValues = {
-//   sunIntensity: 2.1,
-//   sunPosition: {
-//     sunAzimuthalAngle: 180,
-//     sunPolarAngle: -45,
-//   },
-//   skyTurbidity: 1.2,
-//   skyRayleigh: 3.0,
-//   skyMieCoefficient: 0.02,
-//   skyMieDirectionalG: 0.97,
-//   sunColor: { r: 1.0, g: 1.0, b: 1.0 },
-// };
 
 const sunOptions = {
   sunPosition: {
@@ -52,8 +40,8 @@ export const envValues = {
     ambientLightColor: { r: 1, g: 1, b: 1 },
   },
   fog: {
-    fogNear: 12,
-    fogFar: 180,
+    fogNear: 30,
+    fogFar: 210,
     fogColor: { r: 0.6, g: 0.6, b: 0.6 },
   },
 };
@@ -83,11 +71,11 @@ export class EnvironmentFolder {
 
   constructor(parentFolder: FolderApi, expand: boolean = false) {
     this.folder = parentFolder.addFolder({ title: "environment", expanded: expand });
+    this.ambient = this.folder.addFolder({ title: "ambient", expanded: true });
     this.sun = this.folder.addFolder({ title: "sun", expanded: true });
     this.envMap = this.folder.addFolder({ title: "envMap", expanded: true });
     this.fog = this.folder.addFolder({ title: "fog", expanded: true });
     this.skybox = this.folder.addFolder({ title: "skybox", expanded: true });
-    this.ambient = this.folder.addFolder({ title: "ambient", expanded: true });
 
     this.sun.addBinding(sunValues, "sunIntensity", sunOptions.sunIntensity);
     this.sun.addBinding(
@@ -110,6 +98,7 @@ export class EnvironmentFolder {
 
     this.hdrButton = this.skybox.addButton({ title: "Set HDRI" });
     this.skybox.addBinding(envValues, "skyboxIntensity", envOptions.skyboxIntensity);
+    this.skybox.addBinding(envValues, "skyboxBlurriness", envOptions.skyboxBlurriness);
     this.skybox.addBinding(envValues, "skyboxAzimuthalAngle", envOptions.skyboxAzimuthalAngle);
     this.skybox.addBinding(envValues, "skyboxPolarAngle", envOptions.skyboxPolarAngle);
 
@@ -202,20 +191,18 @@ export class EnvironmentFolder {
       }
     });
 
+    this.hdrButton.on("click", () => {
+      setHDR();
+    });
+
     this.envMap.on("change", (e: TpChangeEvent<unknown, BladeApi<BladeController<View>>>) => {
       const target = (e.target as any).key;
       if (!target) return;
       switch (target) {
         case "envMapIntensity":
-          const value = e.value as number;
-          envValues.envMapIntensity = value;
-          scene.environmentIntensity = envValues.envMapIntensity;
+          scene.environmentIntensity = e.value as number;
           break;
       }
-    });
-
-    this.hdrButton.on("click", () => {
-      setHDR();
     });
 
     this.skybox.on("change", (e: TpChangeEvent<unknown, BladeApi<BladeController<View>>>) => {
@@ -235,6 +222,9 @@ export class EnvironmentFolder {
         }
         case "skyboxIntensity":
           scene.backgroundIntensity = e.value as number;
+          break;
+        case "skyboxBlurriness":
+          scene.backgroundBlurriness = e.value as number;
           break;
       }
     });

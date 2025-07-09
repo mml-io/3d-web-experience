@@ -36,6 +36,7 @@ function SelectedPill() {
 
 export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSelectionUIProps> = (
   props: AvatarSelectionUIProps,
+  ref,
 ) => {
   const visibleByDefault: boolean = props.visibleByDefault ?? false;
   const [isVisible, setIsVisible] = useState<boolean>(visibleByDefault);
