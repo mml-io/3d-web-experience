@@ -806,4 +806,302 @@ describe("DeltaNetServer - Edge Cases", () => {
       doc.removeWebSocket(participant as unknown as WebSocket);
     });
   });
+
+  describe("concurrent user add/remove operations", () => {
+    test("handles adding and removing users with state in the same tick", async () => {
+      const doc = new DeltaNetServer();
+      currentDoc = doc;
+
+      // Create 3 initial users with different states
+      const user1 = new MockWebsocketV01();
+      const user2 = new MockWebsocketV01();
+      const user3 = new MockWebsocketV01();
+
+      doc.addWebSocket(user1 as unknown as WebSocket);
+      doc.addWebSocket(user2 as unknown as WebSocket);
+      doc.addWebSocket(user3 as unknown as WebSocket);
+
+      // All users join with different component and state values
+      user1.sendToServer({
+        type: "connectUser",
+        components: [[1, 10n]],
+        states: [[1, new Uint8Array([1, 1, 1])]],
+        token: "user1",
+        observer: false,
+      });
+
+      user2.sendToServer({
+        type: "connectUser",
+        components: [[1, 20n]],
+        states: [[1, new Uint8Array([2, 2, 2])]],
+        token: "user2",
+        observer: false,
+      });
+
+      user3.sendToServer({
+        type: "connectUser",
+        components: [[1, 30n]],
+        states: [[1, new Uint8Array([3, 3, 3])]],
+        token: "user3",
+        observer: false,
+      });
+
+      await jest.advanceTimersByTimeAsync(10);
+      doc.tick();
+
+      // Wait for all users to be authenticated
+      await user1.waitForTotalMessageCount(2);
+      await user2.waitForTotalMessageCount(2);
+      await user3.waitForTotalMessageCount(2);
+
+      // Verify initial indices (0, 1, 2)
+      expect(user1.getMessage(0)).toEqual({ index: 0, type: "userIndex" });
+      expect(user2.getMessage(0)).toEqual({ index: 1, type: "userIndex" });
+      expect(user3.getMessage(0)).toEqual({ index: 2, type: "userIndex" });
+
+      // Create two new users that will join in the same tick as removals
+      const user4 = new MockWebsocketV01();
+      const user5 = new MockWebsocketV01();
+
+      doc.addWebSocket(user4 as unknown as WebSocket);
+      doc.addWebSocket(user5 as unknown as WebSocket);
+
+      // Remove user1 and user2 from the server
+      user1.close();
+      user2.close();
+      doc.removeWebSocket(user1 as unknown as WebSocket);
+      doc.removeWebSocket(user2 as unknown as WebSocket);
+
+      // At the same time, add new users
+      user4.sendToServer({
+        type: "connectUser",
+        components: [[1, 40n]],
+        states: [[1, new Uint8Array([4, 4, 4])]],
+        token: "user4",
+        observer: false,
+      });
+
+      user5.sendToServer({
+        type: "connectUser",
+        components: [[1, 50n]],
+        states: [[1, new Uint8Array([5, 5, 5])]],
+        token: "user5",
+        observer: false,
+      });
+
+      await jest.advanceTimersByTimeAsync(10);
+      
+      // Process all changes in a single tick
+      doc.tick();
+
+      // Wait for new users to be authenticated
+      await user4.waitForTotalMessageCount(2);
+      await user5.waitForTotalMessageCount(2);
+
+      // Verify that user3 received a tick with removals
+      const user3TickMessage = (await user3.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      expect(user3TickMessage.type).toBe("tick");
+      expect(user3TickMessage.removedIndices).toEqual([0, 1]); // user1 and user2 removed
+      expect(user3TickMessage.indicesCount).toBe(3); // user3 + user4 + user5
+
+      // Verify that user4 and user5 get the correct indices
+      // user3 gets shifted to index 0, user4 gets index 1, user5 gets index 2
+      expect(user4.getMessage(0)).toEqual({ index: 1, type: "userIndex" });
+      expect(user5.getMessage(0)).toEqual({ index: 2, type: "userIndex" });
+
+      // Verify that user4 and user5 get the correct initial checkout
+      const user4Checkout = user4.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
+      const user5Checkout = user5.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
+
+      expect(user4Checkout.type).toBe("initialCheckout");
+      expect(user5Checkout.type).toBe("initialCheckout");
+
+      // Verify that the initial checkout contains the correct state
+      expect(user4Checkout.indicesCount).toBe(3); // user3 + user4 + user5
+      expect(user4Checkout.components).toHaveLength(1);
+      expect(user4Checkout.components[0].values).toHaveLength(3);
+      expect(user4Checkout.states).toHaveLength(1);
+      expect(user4Checkout.states[0].values).toHaveLength(3);
+
+      // Verify the state values are correctly positioned
+      // Index 0: user3's state (shifted from index 2), Index 1: user4's state, Index 2: user5's state
+      expect(user4Checkout.states[0].values[0]).toEqual(new Uint8Array([3, 3, 3])); // user3
+      expect(user4Checkout.states[0].values[1]).toEqual(new Uint8Array([4, 4, 4])); // user4
+      expect(user4Checkout.states[0].values[2]).toEqual(new Uint8Array([5, 5, 5])); // user5
+
+      // Verify the component values are correctly positioned
+      expect(Number(user4Checkout.components[0].values[0])).toBe(30); // user3
+      expect(Number(user4Checkout.components[0].values[1])).toBe(40); // user4
+      expect(Number(user4Checkout.components[0].values[2])).toBe(50); // user5
+
+      // Test that state updates still work correctly after reindexing
+      user4.sendToServer({
+        type: "setUserComponents",
+        components: [[1, 41n]],
+        states: [[1, new Uint8Array([4, 4, 4, 4])]],
+      });
+
+      doc.tick();
+
+      // All remaining users should receive the update
+      const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetV01Tick;
+      const user4UpdateTick = (await user4.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const user5UpdateTick = (await user5.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+
+      // All should see the update at index 1 (user4's new index)
+      expect(user3UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
+      expect(user3UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([4, 4, 4, 4]));
+      expect(user4UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
+      expect(user4UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([4, 4, 4, 4]));
+      expect(user5UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
+      expect(user5UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([4, 4, 4, 4]));
+
+      // Cleanup
+      user3.close();
+      user4.close();
+      user5.close();
+      doc.removeWebSocket(user3 as unknown as WebSocket);
+      doc.removeWebSocket(user4 as unknown as WebSocket);
+      doc.removeWebSocket(user5 as unknown as WebSocket);
+    });
+
+    test("handles multiple removal and addition cycles", async () => {
+      const doc = new DeltaNetServer();
+      currentDoc = doc;
+
+      // Create initial users
+      const user1 = new MockWebsocketV01();
+      const user2 = new MockWebsocketV01();
+      const user3 = new MockWebsocketV01();
+
+      doc.addWebSocket(user1 as unknown as WebSocket);
+      doc.addWebSocket(user2 as unknown as WebSocket);
+      doc.addWebSocket(user3 as unknown as WebSocket);
+
+      user1.sendToServer({
+        type: "connectUser",
+        components: [[1, 1n]],
+        states: [[1, new Uint8Array([1])]],
+        token: "user1",
+        observer: false,
+      });
+
+      user2.sendToServer({
+        type: "connectUser",
+        components: [[1, 2n]],
+        states: [[1, new Uint8Array([2])]],
+        token: "user2",
+        observer: false,
+      });
+
+      user3.sendToServer({
+        type: "connectUser",
+        components: [[1, 3n]],
+        states: [[1, new Uint8Array([3])]],
+        token: "user3",
+        observer: false,
+      });
+
+      await jest.advanceTimersByTimeAsync(10);
+      doc.tick();
+
+      // Wait for all users to be authenticated
+      await user1.waitForTotalMessageCount(2);
+      await user2.waitForTotalMessageCount(2);
+      await user3.waitForTotalMessageCount(2);
+
+      // Verify initial indices
+      expect(user1.getMessage(0)).toEqual({ index: 0, type: "userIndex" });
+      expect(user2.getMessage(0)).toEqual({ index: 1, type: "userIndex" });
+      expect(user3.getMessage(0)).toEqual({ index: 2, type: "userIndex" });
+
+      // Perform removal/addition cycle
+      // Remove user1 and user2
+      user1.close();
+      user2.close();
+      doc.removeWebSocket(user1 as unknown as WebSocket);
+      doc.removeWebSocket(user2 as unknown as WebSocket);
+
+      // Add new users
+      const newUser1 = new MockWebsocketV01();
+      const newUser2 = new MockWebsocketV01();
+
+      doc.addWebSocket(newUser1 as unknown as WebSocket);
+      doc.addWebSocket(newUser2 as unknown as WebSocket);
+
+      newUser1.sendToServer({
+        type: "connectUser",
+        components: [[1, 10n]],
+        states: [[1, new Uint8Array([10])]],
+        token: "newUser1",
+        observer: false,
+      });
+
+      newUser2.sendToServer({
+        type: "connectUser",
+        components: [[1, 20n]],
+        states: [[1, new Uint8Array([20])]],
+        token: "newUser2",
+        observer: false,
+      });
+
+      await jest.advanceTimersByTimeAsync(10);
+      doc.tick();
+
+      // Wait for new users to be authenticated
+      await newUser1.waitForTotalMessageCount(2);
+      await newUser2.waitForTotalMessageCount(2);
+
+      // Verify that user3 received the tick with correct removal information
+      const user3TickMessage = (await user3.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      expect(user3TickMessage.type).toBe("tick");
+      expect(user3TickMessage.removedIndices).toEqual([0, 1]); // user1 and user2 removed
+      expect(user3TickMessage.indicesCount).toBe(3); // user3 + newUser1 + newUser2
+
+      // Verify new user indices
+      // user3 shifts to index 0, newUser1 gets index 1, newUser2 gets index 2
+      expect(newUser1.getMessage(0)).toEqual({ index: 1, type: "userIndex" });
+      expect(newUser2.getMessage(0)).toEqual({ index: 2, type: "userIndex" });
+
+      // Verify that state/component data is correctly positioned after the reindexing
+      const newUser1Checkout = newUser1.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
+      expect(newUser1Checkout.type).toBe("initialCheckout");
+      expect(newUser1Checkout.indicesCount).toBe(3);
+      expect(newUser1Checkout.states[0].values).toHaveLength(3);
+      
+      // Index 0: user3 (shifted), Index 1: newUser1, Index 2: newUser2
+      expect(newUser1Checkout.states[0].values[0]).toEqual(new Uint8Array([3])); // user3
+      expect(newUser1Checkout.states[0].values[1]).toEqual(new Uint8Array([10])); // newUser1
+      expect(newUser1Checkout.states[0].values[2]).toEqual(new Uint8Array([20])); // newUser2
+
+      // Test that subsequent updates work correctly
+      newUser1.sendToServer({
+        type: "setUserComponents",
+        components: [[1, 11n]],
+        states: [[1, new Uint8Array([11])]],
+      });
+
+      doc.tick();
+
+      // All users should receive the update at index 1 (newUser1's index)
+      const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetV01Tick;
+      const newUser1UpdateTick = (await newUser1.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const newUser2UpdateTick = (await newUser2.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+
+      expect(user3UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
+      expect(user3UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([11]));
+      expect(newUser1UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
+      expect(newUser1UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([11]));
+      expect(newUser2UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
+      expect(newUser2UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([11]));
+
+      // Cleanup
+      user3.close();
+      newUser1.close();
+      newUser2.close();
+      doc.removeWebSocket(user3 as unknown as WebSocket);
+      doc.removeWebSocket(newUser1 as unknown as WebSocket);
+      doc.removeWebSocket(newUser2 as unknown as WebSocket);
+    });
+  });
 });
