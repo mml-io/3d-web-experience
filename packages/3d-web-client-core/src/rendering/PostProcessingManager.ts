@@ -315,13 +315,11 @@ export class PostProcessingManager {
       this.height * window.devicePixelRatio,
     );
 
-    this.effectComposer.setSize(
-      this.width / window.devicePixelRatio,
-      this.height / window.devicePixelRatio,
-    );
+    // EffectComposer should match renderer size (without devicePixelRatio division)
+    this.effectComposer.setSize(this.width, this.height);
     this.renderPass.setSize(this.width, this.height);
 
-    // only resize currently enabled effects
+    // only resize currently enabled effects with the same dimensions
     this.effectStates.forEach((state) => {
       if (state.enabled && state.instance.setSize) {
         state.instance.setSize(this.width, this.height);
