@@ -1,6 +1,5 @@
 import {
   UserData,
-  UserIdentity,
   UserNetworkingServer,
   UserNetworkingServerError,
 } from "@mml-io/3d-web-user-networking";
@@ -20,9 +19,9 @@ type UserAuthenticator = {
   onClientConnect(
     clientId: number,
     sessionToken: string,
-    userIdentityPresentedOnConnection?: UserIdentity,
-  ): Promise<UserData | null> | UserData | null;
-  onClientUserIdentityUpdate(clientId: number, userIdentity: UserIdentity): UserData | null;
+    userIdentityPresentedOnConnection?: UserData,
+  ): Promise<UserData | true | Error> | UserData | true | Error;
+  onClientUserIdentityUpdate(clientId: number, userIdentity: UserData): UserData | null;
   onClientDisconnect(clientId: number): void;
 };
 
@@ -65,12 +64,13 @@ export class Networked3dWebExperienceServer {
     }
 
     this.userNetworkingServer = new UserNetworkingServer({
+      legacyAdapterEnabled: true,
       connectionLimit: config.connectionLimit,
       onClientConnect: (
         clientId: number,
         sessionToken: string,
-        userIdentityPresentedOnConnection?: UserIdentity,
-      ): Promise<UserData | null> | UserData | null => {
+        userIdentityPresentedOnConnection?: UserData,
+      ): Promise<UserData | true | Error> | UserData | true | Error => {
         return this.config.userAuthenticator.onClientConnect(
           clientId,
           sessionToken,
@@ -79,7 +79,7 @@ export class Networked3dWebExperienceServer {
       },
       onClientUserIdentityUpdate: (
         clientId: number,
-        userIdentity: UserIdentity,
+        userIdentity: UserData,
       ): UserData | null => {
         // Called whenever a user connects or updates their character/identity
         return this.config.userAuthenticator.onClientUserIdentityUpdate(clientId, userIdentity);

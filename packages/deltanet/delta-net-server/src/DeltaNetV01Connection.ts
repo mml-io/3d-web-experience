@@ -216,10 +216,10 @@ export class DeltaNetV01Connection {
     this.isAuthenticating = false;
   }
 
-  public async handleStateUpdate(stateId: number, stateValue: Uint8Array): Promise<boolean> {
+  public async handleStateUpdate(stateId: number, stateValue: Uint8Array): Promise<void> {
     if (!this.isAuthenticated) {
       console.error("State update received before authentication completed");
-      return false;
+      return;
     }
 
     // Cancel any existing pending validation for this state
@@ -248,14 +248,14 @@ export class DeltaNetV01Connection {
         // Check if this validation is still current
         const currentValidation = this.pendingStateValidations.get(stateId);
         if (!currentValidation || currentValidation.validationId !== validationId) {
-          return false; // Validation was superseded
+          return; // Validation was superseded
         }
 
         this.pendingStateValidations.delete(stateId);
 
         if (asyncResult instanceof DeltaNetServerError) {
           this.disconnectWithError(asyncResult, asyncResult.errorType, asyncResult.retryable);
-          return false;
+          return;
         }
         if (asyncResult instanceof Error) {
           this.disconnectWithError(
@@ -263,10 +263,10 @@ export class DeltaNetV01Connection {
             DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
             false,
           );
-          return false;
+          return;
         }
 
-        return true;
+        return;
       } catch (error) {
         // Check if validation is still current
         const currentValidation = this.pendingStateValidations.get(stateId);
@@ -289,13 +289,13 @@ export class DeltaNetV01Connection {
             );
           }
         }
-        return false;
+        return;
       }
     } else {
       // Synchronous result
       if (result instanceof DeltaNetServerError) {
         this.disconnectWithError(result, result.errorType, result.retryable);
-        return false;
+        return;
       }
       if (result instanceof Error) {
         this.disconnectWithError(
@@ -303,9 +303,9 @@ export class DeltaNetV01Connection {
           DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
           false,
         );
-        return false;
+        return;
       }
-      return true;
+      return;
     }
   }
 

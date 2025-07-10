@@ -39,6 +39,7 @@ export class GroundPlane extends Group {
       roughness: 0.95,
     });
     this.floorMesh = new Mesh(this.floorGeometry, this.floorMaterial);
+    this.floorMesh.castShadow = true;
     this.floorMesh.receiveShadow = true;
     this.floorMesh.rotation.x = Math.PI * -0.5;
     this.add(this.floorMesh);

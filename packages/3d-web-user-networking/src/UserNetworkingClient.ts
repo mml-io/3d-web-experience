@@ -19,9 +19,7 @@ export type UserNetworkingClientConfig = {
   statusUpdateCallback: (status: WebsocketStatus) => void;
   assignedIdentity: (clientId: number) => void;
   onServerError: (error: { message: string; errorType: string; }) => void;
-  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any; }) => void;
   onCustomMessage?: (customType: number, contents: string) => void;
-
   onUpdate(update: NetworkUpdate): void;
 };
 

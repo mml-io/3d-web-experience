@@ -2,22 +2,22 @@ import { DeltaNetServerError } from "@deltanet/delta-net-server";
 
 export type CharacterDescription =
   | {
-      meshFileUrl: string;
-      mmlCharacterString?: null;
-      mmlCharacterUrl?: null;
-    }
+    meshFileUrl: string;
+    mmlCharacterString?: null;
+    mmlCharacterUrl?: null;
+  }
   | {
-      meshFileUrl?: null;
-      mmlCharacterString: string;
-      mmlCharacterUrl?: null;
-    }
+    meshFileUrl?: null;
+    mmlCharacterString: string;
+    mmlCharacterUrl?: null;
+  }
   | {
-      meshFileUrl?: null;
-      mmlCharacterString?: null;
-      mmlCharacterUrl: string;
-    };
+    meshFileUrl?: null;
+    mmlCharacterString?: null;
+    mmlCharacterUrl: string;
+  };
 
-export class UserNetworkingServerError extends DeltaNetServerError {}
+export class UserNetworkingServerError extends DeltaNetServerError { }
 
 export type ClientChatMessage = {
   message: string;
@@ -28,9 +28,16 @@ export type ServerChatMessage = {
   message: string;
 };
 
+export type ServerBroadcastMessage = {
+  broadcastType: string; 
+  payload: any;
+};
+
 // Custom message types
-export const FROM_CLIENT_CHAT_MESSAGE_TYPE = 1;
-export const FROM_SERVER_CHAT_MESSAGE_TYPE = 2;
+export const SERVER_BROADCAST_MESSAGE_TYPE = 1;
+export const FROM_CLIENT_CHAT_MESSAGE_TYPE = 2;
+export const FROM_SERVER_CHAT_MESSAGE_TYPE = 3;
+
 
 export function parseClientChatMessage(contents: string): ClientChatMessage | Error {
   try {
@@ -72,5 +79,21 @@ export function parseServerChatMessage(contents: string): ServerChatMessage | Er
     }
   } catch (error) {
     return new Error(`Invalid server chat message: ${error}`);
+  }
+}
+
+export function parseServerBroadcastMessage(contents: string): ServerBroadcastMessage | Error {
+  try {
+    const parsed = JSON.parse(contents) as unknown;
+    if (typeof parsed === "object" && parsed !== null && "broadcastType" in parsed && typeof parsed.broadcastType === "string" && "payload" in parsed && typeof parsed.payload === "object") {
+      return {
+        broadcastType: parsed.broadcastType as string,
+        payload: parsed.payload as any,
+      };
+    } else {
+      throw new Error("Invalid server broadcast message");
+    }
+  } catch (error) {
+    return new Error(`Invalid server broadcast message: ${error}`);
   }
 }

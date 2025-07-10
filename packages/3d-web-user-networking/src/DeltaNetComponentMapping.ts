@@ -18,8 +18,8 @@ export const STATE_CHARACTER_DESCRIPTION = 1;
 export const STATE_USERNAME = 2;
 export const STATE_COLORS = 3;
 
-const rotationMultiplier = 360;
-const positionMultiplier = 100;
+export const rotationMultiplier = 360;
+export const positionMultiplier = 100;
 const textDecoder = new TextDecoder();
 
 export class DeltaNetComponentMapping {

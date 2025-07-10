@@ -38,6 +38,9 @@ import {
   parseServerChatMessage,
   DeltaNetV01ServerErrors,
   NetworkUpdate,
+  SERVER_BROADCAST_MESSAGE_TYPE,
+  ServerBroadcastMessage,
+  parseServerBroadcastMessage,
 } from "@mml-io/3d-web-user-networking";
 import {
   IMMLScene,
@@ -75,7 +78,7 @@ export type Networked3dWebExperienceClientConfig = {
   animationConfig: AnimationConfig;
   voiceChatAddress?: string;
   updateURLLocation?: boolean;
-  onServerBroadcast?: (broadcast: { broadcastType: string; payload: any }) => void;
+  onServerBroadcast?: (broadcast: ServerBroadcastMessage) => void;
   loadingScreen?: LoadingScreenConfig;
 } & UpdatableConfig;
 
@@ -260,11 +263,15 @@ export class Networked3dWebExperienceClient {
             this.disposeWithError(error.message);
         }
       },
-      onServerBroadcast: (broadcast: { broadcastType: string; payload: any }) => {
-        this.config.onServerBroadcast?.(broadcast);
-      },
       onCustomMessage: (customType: number, contents: string) => {
-        if (customType === FROM_SERVER_CHAT_MESSAGE_TYPE) {
+        if (customType === SERVER_BROADCAST_MESSAGE_TYPE) {
+          const serverBroadcastMessage = parseServerBroadcastMessage(contents);
+          if (serverBroadcastMessage instanceof Error) {
+            console.error(`Invalid server broadcast message: ${contents}`);
+          } else {
+            this.config.onServerBroadcast?.(serverBroadcastMessage);
+          }
+        } else if (customType === FROM_SERVER_CHAT_MESSAGE_TYPE) {
           const serverChatMessage = parseServerChatMessage(contents);
           if (serverChatMessage instanceof Error) {
             console.error(`Invalid server chat message: ${contents}`);
@@ -549,7 +556,6 @@ export class Networked3dWebExperienceClient {
         console.error(`User not found for clientId ${fromUserId}`);
         return;
       }
-      console.log(`Adding chat message from user ${user.username}`);
       const username = user.username ?? `Unknown User ${fromUserId}`;
       this.textChatUI.addTextMessage(username, message);
       this.characterManager.addChatBubble(fromUserId, message);

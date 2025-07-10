@@ -74,14 +74,14 @@ export type DeltaNetServerOptions = {
     | void
     | Error
     | DeltaNetServerError
-    | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
     | Promise<
-        | true
-        | void
-        | Error
-        | DeltaNetServerError
-        | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
-      >;
+      | true
+      | void
+      | Error
+      | DeltaNetServerError
+      | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
+    >;
   onComponentsUpdate?: (
     opts: onComponentsUpdateOptions,
   ) => true | void | Error | DeltaNetServerError;
@@ -92,14 +92,14 @@ export type DeltaNetServerOptions = {
     | void
     | Error
     | DeltaNetServerError
-    | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
     | Promise<
-        | true
-        | void
-        | Error
-        | DeltaNetServerError
-        | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
-      >;
+      | true
+      | void
+      | Error
+      | DeltaNetServerError
+      | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
+    >;
   onLeave?: (opts: onLeaveOptions) => void;
   onCustomMessage?: (opts: onCustomMessageOptions) => void;
   // If provided, the server will create a state for each user that contains their connection id
@@ -119,6 +119,8 @@ export class DeltaNetServer {
     // This is state that will be flushed to clients in the next tick, but messages handled before the tick could change it
     unoccupyingIndices: new Set<number>(),
     newJoinerConnections: new Set<DeltaNetV01Connection>(),
+    // Allows for arbitrary processes to be run that can imitate a new joiner connection (currently used for legacy adapter)
+    newJoinerCallbacks: new Set<(index: number) => { id: number, afterAddCallback?: (() => void); } | null>(),
     componentsUpdated: 0,
   };
 
@@ -255,7 +257,13 @@ export class DeltaNetServer {
     return this.webSocketToDeltaNetServerConnection.has(webSocket);
   }
 
-  
+  public dangerouslyGetConnectionsToComponentIndex(): Map<number, number> {
+    return this.connectionIdToComponentIndex;
+  }
+
+  public dangerouslyAddNewJoinerCallback(callback: (index: number) => { id: number, afterAddCallback?: (() => void); } | null): void {
+    this.preTickData.newJoinerCallbacks.add(callback);
+  }
 
   private disconnectWithError(
     deltaNetV01Connection: DeltaNetV01Connection,
@@ -292,6 +300,10 @@ export class DeltaNetServer {
     }
   }
 
+  public getComponentValue(componentId: number, componentIndex: number): number {
+    return Number(this.components.get(componentId)!.getTargetValue(componentIndex));
+  }
+
   public getNextConnectionId(): number {
     return this.currentConnectionId++;
   }
@@ -306,9 +318,9 @@ export class DeltaNetServer {
     components: Array<[number, bigint]>,
     states: Array<[number, Uint8Array]>,
   ):
-    | Promise<{ success: true } | { success: false; error: string }>
-    | { success: true }
-    | { success: false; error: string } {
+    | Promise<{ success: true; } | { success: false; error: string; }>
+    | { success: true; }
+    | { success: false; error: string; } {
     if (this.disposed) {
       return { success: false, error: "This DeltaNetServer has been disposed" };
     }
@@ -329,10 +341,10 @@ export class DeltaNetServer {
         | void
         | Error
         | DeltaNetServerError
-        | { success: true; stateOverrides?: Array<[number, Uint8Array]> },
+        | { success: true; stateOverrides?: Array<[number, Uint8Array]>; },
     ):
-      | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
-      | { success: false; error: string } {
+      | { success: true; stateOverrides?: Array<[number, Uint8Array]>; }
+      | { success: false; error: string; } {
       if (result instanceof DeltaNetServerError) {
         return { success: false, error: result.message };
       }
@@ -361,7 +373,7 @@ export class DeltaNetServer {
       });
       if (rawResult instanceof Promise) {
         return rawResult
-          .then((resolvedResult): { success: true } | { success: false; error: string } => {
+          .then((resolvedResult): { success: true; } | { success: false; error: string; } => {
             return resultToReturn(resolvedResult);
           })
           .catch((error) => {
@@ -450,14 +462,14 @@ export class DeltaNetServer {
               if (asyncResult instanceof DeltaNetServerError || asyncResult instanceof Error) {
                 return asyncResult;
               }
-    
+
               if (asyncResult === true || asyncResult === undefined) {
                 this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
                   [stateId, stateValue],
                 ]);
                 return true;
               }
-    
+
               // If asyncResult is an object with success: true, apply the state overrides
               if (asyncResult.success) {
                 if (asyncResult.stateOverrides) {
@@ -527,7 +539,7 @@ export class DeltaNetServer {
     }
   }
 
-  private clearInternalConnectionId(internalConnectionId: number) {
+  public clearInternalConnectionId(internalConnectionId: number) {
     const index = this.connectionIdToComponentIndex.get(internalConnectionId);
     if (index === undefined) {
       throw new Error("Index for removing user is undefined");
@@ -539,8 +551,6 @@ export class DeltaNetServer {
     for (const [, collection] of this.states) {
       collection.setValue(index, null);
     }
-    this.connectionIdToComponentIndex.delete(internalConnectionId);
-    this.componentIndexToConnectionId.delete(index);
 
     this.preTickData.unoccupyingIndices.add(index);
   }
@@ -562,12 +572,18 @@ export class DeltaNetServer {
     });
   }
 
-  public tick() {
+  public tick(): {
+    removedIds: Set<number>;
+    addedIds: Set<number>;
+  } {
     if (this.disposed) {
-      return; // Silently ignore ticks after disposal
+      return { removedIds: new Set(), addedIds: new Set() }; // Silently ignore ticks after disposal
     }
 
     this.preTickData.componentsUpdated = 0;
+
+    const removedIds: Set<number> = new Set();
+    const addedIds: Set<number> = new Set();
 
     // Determine the indices of the removed connections. Send the original indices to the clients so they can be removed.
     const sortedUnoccupyingIndices = Array.from(this.preTickData.unoccupyingIndices);
@@ -579,6 +595,16 @@ export class DeltaNetServer {
     }
     for (const stateCollection of this.states.values()) {
       stateCollection.removeIndices(sortedUnoccupyingIndices);
+    }
+
+    for (const index of sortedUnoccupyingIndices) {
+      const connectionId = this.componentIndexToConnectionId.get(index);
+      if (connectionId === undefined) {
+        throw new Error("Connection id not found for index " + index);
+      }
+      removedIds.add(connectionId);
+      this.connectionIdToComponentIndex.delete(connectionId);
+      this.componentIndexToConnectionId.delete(index);
     }
 
     let writeIndex = 0;
@@ -622,6 +648,8 @@ export class DeltaNetServer {
 
         this.connectionIdToComponentIndex.set(internalConnectionId, index);
         this.componentIndexToConnectionId.set(index, internalConnectionId);
+        addedIds.add(internalConnectionId);
+
 
         // Create new collections for any components or states that are not already present
         for (const [componentId] of deltaNetV01Connection.components) {
@@ -667,6 +695,32 @@ export class DeltaNetServer {
           type: "userIndex",
           index,
         });
+      }
+    }
+
+    for (const callback of this.preTickData.newJoinerCallbacks) {
+      const index = this.nextIndex++;
+      const result = callback(index);
+      if (result === null) {
+        // If the callback returns false, the index is not used and should be decremented
+        this.nextIndex--;
+      } else {
+        const { id, afterAddCallback } = result;
+        this.connectionIdToComponentIndex.set(id, index);
+        this.componentIndexToConnectionId.set(index, id);
+        addedIds.add(id);
+
+        if (
+          this.opts.serverConnectionIdStateId !== undefined
+        ) {
+          const writer = new BufferWriter(8);
+          writer.writeUVarint(id);
+          const buffer = writer.getBuffer();
+          this.setUserState(index, this.opts.serverConnectionIdStateId, buffer);
+        }
+        if (afterAddCallback) {
+          afterAddCallback();
+        }
       }
     }
 
@@ -746,6 +800,12 @@ export class DeltaNetServer {
 
     this.preTickData.unoccupyingIndices.clear();
     this.preTickData.newJoinerConnections.clear();
+    this.preTickData.newJoinerCallbacks.clear();
+
+    return {
+      removedIds,
+      addedIds,
+    };
   }
 
   public getServerTime(): number {
@@ -756,7 +816,7 @@ export class DeltaNetServer {
     deltaNetV01Connection: DeltaNetV01Connection,
     internalConnectionId: number,
     components: Array<[number, bigint]>,
-  ): { success: true } | { success: false; error: string } {
+  ): { success: true; } | { success: false; error: string; } {
     if (this.disposed) {
       console.error("Cannot dispatch remote event after dispose");
       return { success: false, error: "This DeltaNetServer has been disposed" };
@@ -797,10 +857,17 @@ export class DeltaNetServer {
     // Apply component updates immediately (components don't have async validation)
     this.applyComponentUpdates(deltaNetV01Connection, internalConnectionId, components);
 
-    // States are now handled individually in the connection, so we don't process them here
-    // The states parameter is kept for backward compatibility but ignored
-
     return { success: true };
+  }
+
+  public setComponentValue(componentId: number, index: number, value: bigint): void {
+    this.preTickData.componentsUpdated++;
+    let collection = this.components.get(componentId);
+    if (!collection) {
+      collection = new ComponentCollection();
+      this.components.set(componentId, collection);
+    }
+    collection.setValue(index, value);
   }
 
   private applyComponentUpdates(
@@ -822,30 +889,37 @@ export class DeltaNetServer {
     }
 
     for (const [componentId, componentValue] of components) {
-      this.preTickData.componentsUpdated++;
-      let collection = this.components.get(componentId);
-      if (!collection) {
-        collection = new ComponentCollection();
-        this.components.set(componentId, collection);
-      }
-      collection.setValue(index, BigInt(componentValue));
+      this.setComponentValue(componentId, index, componentValue);
     }
   }
 
   public overrideUserStates(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    deltaNetV01Connection: DeltaNetV01Connection | null,
     internalConnectionId: number,
     states: Array<[number, Uint8Array]>,
   ) {
     this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, states);
   }
 
+  public setUserState(
+    index: number,
+    stateId: number,
+    stateValue: Uint8Array,
+  ) {
+    let collection = this.states.get(stateId);
+    if (!collection) {
+      collection = new StateCollection();
+      this.states.set(stateId, collection);
+    }
+    collection.setValue(index, stateValue);
+  }
+
   private applyStateUpdates(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    deltaNetV01Connection: DeltaNetV01Connection | null,
     internalConnectionId: number,
     states: Array<[number, Uint8Array]>,
   ): void {
-    if (this.preTickData.newJoinerConnections.has(deltaNetV01Connection)) {
+    if (deltaNetV01Connection !== null && this.preTickData.newJoinerConnections.has(deltaNetV01Connection)) {
       for (const [stateId, stateValue] of states) {
         deltaNetV01Connection.states.set(stateId, stateValue);
       }
@@ -854,18 +928,15 @@ export class DeltaNetServer {
 
     const index = this.connectionIdToComponentIndex.get(internalConnectionId);
     if (index === undefined) {
+      console.log("applyStateUpdates - connection was likely removed while async validation was pending");
       // Connection was likely removed while async validation was pending
       // This is expected behavior and not an error
       return;
     }
 
     for (const [stateId, stateValue] of states) {
-      let collection = this.states.get(stateId);
-      if (!collection) {
-        collection = new StateCollection();
-        this.states.set(stateId, collection);
-      }
-      collection.setValue(index, stateValue);
+      console.log("applyStateUpdates", stateId, stateValue);
+      this.setUserState(index, stateId, stateValue);
     }
   }
 
