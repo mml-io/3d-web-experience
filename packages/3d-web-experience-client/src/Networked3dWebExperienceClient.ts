@@ -652,12 +652,6 @@ export class Networked3dWebExperienceClient {
     });
   }
 
-  private randomWithVariance(value: number, variance: number): number {
-    const min = value - variance;
-    const max = value + variance;
-    return Math.random() * (max - min) + min;
-  }
-
   private spawnCharacter({
     spawnPosition,
     spawnRotation,

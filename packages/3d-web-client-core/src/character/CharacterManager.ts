@@ -114,7 +114,7 @@ export class CharacterManager {
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
 
-  private readonly MAX_REAL_REMOTE_CHARACTERS = 2;
+  private readonly MAX_REAL_REMOTE_CHARACTERS = 30;
   private readonly LOD_CHANGE_COOLDOWN_MS = 2000;
   private readonly MAX_SCENE_ADDITIONS_PER_FRAME = 3;
 

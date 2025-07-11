@@ -76,6 +76,7 @@ export class CameraManager {
     const aspect = window.innerWidth / window.innerHeight;
 
     this.camera = new PerspectiveCamera(this.fov, aspect, 0.1, 400);
+    this.camera.far = 10000;
     this.camera.position.set(0, 1.4, -this.initialDistance);
     this.camera.name = "MainCamera";
     this.flyCamera = new PerspectiveCamera(this.initialFOV, aspect, 0.1, 400);

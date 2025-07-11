@@ -28,6 +28,7 @@ import {
   LEGACY_USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
   LEGACY_USER_NETWORKING_PONG_MESSAGE_TYPE,
   LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+  LEGACY_USER_NETWORKING_UNKNOWN_ERROR,
   LEGACY_USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE,
   LEGACY_USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
   LEGACY_USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE,
@@ -48,6 +49,15 @@ export type LegacyUserNetworkingServerClient = {
   authenticatedUser: LegacyUserData | null;
 };
 
+function toArrayBuffer(buffer: Buffer) {
+  const arrayBuffer = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < buffer.length; ++i) {
+    view[i] = buffer[i];
+  }
+  return arrayBuffer;
+}
+
 const WebSocketOpenStatus = 1;
 
 export class LegacyAdapter {
@@ -57,7 +67,7 @@ export class LegacyAdapter {
   constructor(
     private readonly userNetworkingServer: UserNetworkingServer,
     private readonly deltaNetServer: DeltaNetServer,
-  ) {}
+  ) { }
 
   public broadcastMessage(broadcastType: number, broadcastPayload: string) {
     // The new broadcast type is a number and then the payload is a string
@@ -107,196 +117,206 @@ export class LegacyAdapter {
     this.allClientsById.set(id, client);
 
     socket.addEventListener("message", (message: MessageEvent) => {
-      if (message.data instanceof ArrayBuffer) {
-        if (client.authenticatedUser) {
-          const arrayBuffer = message.data;
-          const update = LegacyUserNetworkingCodec.decodeUpdate(arrayBuffer);
-          update.id = id;
-          const index = this.deltaNetServer.dangerouslyGetConnectionsToComponentIndex().get(id);
-          client.update = update;
-          if (index !== undefined) {
-            this.deltaNetServer.setComponentValue(
-              COMPONENT_POSITION_X,
-              index,
-              BigInt(Math.round(update.position.x * positionMultiplier)),
-            );
-            this.deltaNetServer.setComponentValue(
-              COMPONENT_POSITION_Y,
-              index,
-              BigInt(Math.round(update.position.y * positionMultiplier)),
-            );
-            this.deltaNetServer.setComponentValue(
-              COMPONENT_POSITION_Z,
-              index,
-              BigInt(Math.round(update.position.z * positionMultiplier)),
-            );
-            this.deltaNetServer.setComponentValue(
-              COMPONENT_ROTATION_Y,
-              index,
-              BigInt(Math.round(update.rotation.quaternionY * rotationMultiplier)),
-            );
-            this.deltaNetServer.setComponentValue(
-              COMPONENT_ROTATION_W,
-              index,
-              BigInt(Math.round(update.rotation.quaternionW * rotationMultiplier)),
-            );
-            this.deltaNetServer.setComponentValue(
-              COMPONENT_STATE,
-              index,
-              BigInt(Math.round(update.state)),
-            );
+      try {
+        if (message.data instanceof ArrayBuffer || message.data instanceof Buffer) {
+          if (client.authenticatedUser) {
+            const arrayBuffer = message.data instanceof ArrayBuffer ? message.data : toArrayBuffer(message.data);
+            const update = LegacyUserNetworkingCodec.decodeUpdate(arrayBuffer);
+            update.id = id;
+            const index = this.deltaNetServer.dangerouslyGetConnectionsToComponentIndex().get(id);
+            client.update = update;
+            if (index !== undefined) {
+              this.deltaNetServer.setComponentValue(
+                COMPONENT_POSITION_X,
+                index,
+                BigInt(Math.round(update.position.x * positionMultiplier)),
+              );
+              this.deltaNetServer.setComponentValue(
+                COMPONENT_POSITION_Y,
+                index,
+                BigInt(Math.round(update.position.y * positionMultiplier)),
+              );
+              this.deltaNetServer.setComponentValue(
+                COMPONENT_POSITION_Z,
+                index,
+                BigInt(Math.round(update.position.z * positionMultiplier)),
+              );
+              this.deltaNetServer.setComponentValue(
+                COMPONENT_ROTATION_Y,
+                index,
+                BigInt(Math.round(update.rotation.quaternionY * rotationMultiplier)),
+              );
+              this.deltaNetServer.setComponentValue(
+                COMPONENT_ROTATION_W,
+                index,
+                BigInt(Math.round(update.rotation.quaternionW * rotationMultiplier)),
+              );
+              this.deltaNetServer.setComponentValue(
+                COMPONENT_STATE,
+                index,
+                BigInt(Math.round(update.state)),
+              );
+            }
           }
-        }
-      } else {
-        let parsed;
-        try {
-          parsed = JSON.parse(message.data as string) as LegacyFromUserNetworkingClientMessage;
-        } catch (e) {
-          console.error("Error parsing JSON message", message, e);
-          return;
-        }
-        if (!client.authenticatedUser) {
-          if (parsed.type === LEGACY_USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE) {
-            this.handleUserAuth(client, parsed).then((authResult) => {
-              if (client.socket.readyState !== WebSocketOpenStatus) {
-                // The client disconnected before the authentication was completed
-                return;
-              }
-              if (!authResult) {
-                console.error(`Client-id ${client.id} user_auth failed`, authResult);
-                // If the user is not authorized, disconnect the client
-                const serverError = JSON.stringify({
-                  type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-                  errorType: LEGACY_USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
-                  message: "Authentication failed",
-                } as LegacyFromUserNetworkingServerMessage);
-                socket.send(serverError);
-                socket.close();
-              } else {
-                if (!this.userNetworkingServer.hasCapacityForLegacyClient()) {
-                  // There is a connection limit and it has been met - disconnect the user
+        } else {
+          let parsed;
+          try {
+            parsed = JSON.parse(message.data as string) as LegacyFromUserNetworkingClientMessage;
+          } catch (e) {
+            console.error("Error parsing JSON message", message, e);
+            return;
+          }
+          if (!client.authenticatedUser) {
+            if (parsed.type === LEGACY_USER_NETWORKING_USER_AUTHENTICATE_MESSAGE_TYPE) {
+              this.handleUserAuth(client, parsed).then((authResult) => {
+                if (client.socket.readyState !== WebSocketOpenStatus) {
+                  // The client disconnected before the authentication was completed
+                  return;
+                }
+                if (!authResult) {
+                  console.error(`Client-id ${client.id} user_auth failed`, authResult);
+                  // If the user is not authorized, disconnect the client
                   const serverError = JSON.stringify({
                     type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-                    errorType: LEGACY_USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
-                    message: "Connection limit reached",
+                    errorType: LEGACY_USER_NETWORKING_AUTHENTICATION_FAILED_ERROR_TYPE,
+                    message: "Authentication failed",
                   } as LegacyFromUserNetworkingServerMessage);
                   socket.send(serverError);
                   socket.close();
-                  return;
-                }
-
-                const userData = authResult;
-
-                this.deltaNetServer.dangerouslyAddNewJoinerCallback((index) => {
-                  if (client.socket.readyState !== WebSocketOpenStatus) {
-                    return null;
+                } else {
+                  if (!this.userNetworkingServer.hasCapacityForLegacyClient()) {
+                    // There is a connection limit and it has been met - disconnect the user
+                    const serverError = JSON.stringify({
+                      type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+                      errorType: LEGACY_USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE,
+                      message: "Connection limit reached",
+                    } as LegacyFromUserNetworkingServerMessage);
+                    socket.send(serverError);
+                    socket.close();
+                    return;
                   }
-                  client.authenticatedUser = userData;
-                  this.deltaNetServer.setComponentValue(COMPONENT_POSITION_X, index, BigInt(0));
-                  this.deltaNetServer.setComponentValue(COMPONENT_POSITION_Y, index, BigInt(0));
-                  this.deltaNetServer.setComponentValue(COMPONENT_POSITION_Z, index, BigInt(0));
-                  this.deltaNetServer.setComponentValue(COMPONENT_ROTATION_Y, index, BigInt(0));
-                  this.deltaNetServer.setComponentValue(COMPONENT_ROTATION_W, index, BigInt(0));
-                  this.deltaNetServer.setComponentValue(COMPONENT_STATE, index, BigInt(0));
 
-                  const asUserData: UserData = {
-                    ...userData,
-                    colors: [],
-                  };
-                  return {
-                    id: client.id,
-                    afterAddCallback: () => {
-                      this.userNetworkingServer.setAuthenticatedLegacyClientConnection(
-                        client.id,
-                        client.socket,
-                        asUserData,
-                      );
-                      this.userNetworkingServer.updateUserCharacter(client.id, asUserData);
-                    },
-                  };
-                });
+                  const userData = authResult;
 
-                // Give the client its own profile
-                const userProfileMessage = JSON.stringify({
-                  id: client.id,
-                  type: LEGACY_USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
-                  username: userData.username,
-                  characterDescription: userData.characterDescription,
-                } as LegacyFromUserNetworkingServerMessage);
-                client.socket.send(userProfileMessage);
+                  this.deltaNetServer.dangerouslyAddNewJoinerCallback((index) => {
+                    if (client.socket.readyState !== WebSocketOpenStatus) {
+                      return null;
+                    }
+                    client.authenticatedUser = userData;
+                    this.deltaNetServer.setComponentValue(COMPONENT_POSITION_X, index, BigInt(0));
+                    this.deltaNetServer.setComponentValue(COMPONENT_POSITION_Y, index, BigInt(0));
+                    this.deltaNetServer.setComponentValue(COMPONENT_POSITION_Z, index, BigInt(0));
+                    this.deltaNetServer.setComponentValue(COMPONENT_ROTATION_Y, index, BigInt(0));
+                    this.deltaNetServer.setComponentValue(COMPONENT_ROTATION_W, index, BigInt(0));
+                    this.deltaNetServer.setComponentValue(COMPONENT_STATE, index, BigInt(0));
 
-                // Give the client its own identity
-                const identityMessage = JSON.stringify({
-                  id: client.id,
-                  type: LEGACY_USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
-                } as LegacyFromUserNetworkingServerMessage);
-                client.socket.send(identityMessage);
-
-                const allUsers: Map<number, number> =
-                  this.deltaNetServer.dangerouslyGetConnectionsToComponentIndex();
-                for (const [connectionId, componentIndex] of allUsers) {
-                  if (connectionId === client.id) {
-                    continue;
-                  }
-                  const x =
-                    this.deltaNetServer.getComponentValue(COMPONENT_POSITION_X, componentIndex) /
-                    positionMultiplier;
-                  const y =
-                    this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Y, componentIndex) /
-                    positionMultiplier;
-                  const z =
-                    this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Z, componentIndex) /
-                    positionMultiplier;
-                  const quaternionY =
-                    this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_Y, componentIndex) /
-                    rotationMultiplier;
-                  const quaternionW =
-                    this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_W, componentIndex) /
-                    rotationMultiplier;
-                  const state = this.deltaNetServer.getComponentValue(
-                    COMPONENT_STATE,
-                    componentIndex,
-                  );
-                  const update = LegacyUserNetworkingCodec.encodeUpdate({
-                    id: connectionId,
-                    position: { x, y, z },
-                    rotation: { quaternionY, quaternionW },
-                    state,
+                    const asUserData: UserData = {
+                      ...userData,
+                      colors: [],
+                    };
+                    return {
+                      id: client.id,
+                      afterAddCallback: () => {
+                        this.userNetworkingServer.setAuthenticatedLegacyClientConnection(
+                          client.id,
+                          client.socket,
+                          asUserData,
+                        );
+                        this.userNetworkingServer.updateUserCharacter(client.id, asUserData);
+                      },
+                    };
                   });
-                  // Send the update about the other user to the newly connected client
-                  client.socket.send(
-                    JSON.stringify({
+
+                  // Give the client its own profile
+                  const userProfileMessage = JSON.stringify({
+                    id: client.id,
+                    type: LEGACY_USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
+                    username: userData.username,
+                    characterDescription: userData.characterDescription,
+                  } as LegacyFromUserNetworkingServerMessage);
+                  client.socket.send(userProfileMessage);
+
+                  // Give the client its own identity
+                  const identityMessage = JSON.stringify({
+                    id: client.id,
+                    type: LEGACY_USER_NETWORKING_IDENTITY_MESSAGE_TYPE,
+                  } as LegacyFromUserNetworkingServerMessage);
+                  client.socket.send(identityMessage);
+
+                  const allUsers: Map<number, number> =
+                    this.deltaNetServer.dangerouslyGetConnectionsToComponentIndex();
+                  for (const [connectionId, componentIndex] of allUsers) {
+                    if (connectionId === client.id) {
+                      continue;
+                    }
+                    const x =
+                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_X, componentIndex) /
+                      positionMultiplier;
+                    const y =
+                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Y, componentIndex) /
+                      positionMultiplier;
+                    const z =
+                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Z, componentIndex) /
+                      positionMultiplier;
+                    const quaternionY =
+                      this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_Y, componentIndex) /
+                      rotationMultiplier;
+                    const quaternionW =
+                      this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_W, componentIndex) /
+                      rotationMultiplier;
+                    const state = this.deltaNetServer.getComponentValue(
+                      COMPONENT_STATE,
+                      componentIndex,
+                    );
+                    const update = LegacyUserNetworkingCodec.encodeUpdate({
                       id: connectionId,
-                      type: LEGACY_USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
-                      username: this.userNetworkingServer.getUsername(connectionId),
-                      characterDescription:
-                        this.userNetworkingServer.getCharacterDescription(connectionId),
-                    } satisfies LegacyFromUserNetworkingServerMessage),
-                  );
-                  client.socket.send(update);
+                      position: { x, y, z },
+                      rotation: { quaternionY, quaternionW },
+                      state,
+                    });
+                    // Send the update about the other user to the newly connected client
+                    client.socket.send(
+                      JSON.stringify({
+                        id: connectionId,
+                        type: LEGACY_USER_NETWORKING_USER_PROFILE_MESSAGE_TYPE,
+                        username: this.userNetworkingServer.getUsername(connectionId),
+                        characterDescription:
+                          this.userNetworkingServer.getCharacterDescription(connectionId),
+                      } satisfies LegacyFromUserNetworkingServerMessage),
+                    );
+                    client.socket.send(update);
+                  }
+
+                  this.legacyAuthenticatedClientsById.set(id, client);
                 }
-
-                this.legacyAuthenticatedClientsById.set(id, client);
-              }
-            });
+              });
+            } else {
+              console.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
+              socket.close();
+            }
           } else {
-            console.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
-            socket.close();
-          }
-        } else {
-          switch (parsed.type) {
-            case LEGACY_USER_NETWORKING_PONG_MESSAGE_TYPE:
-              client.lastPong = Date.now();
-              break;
+            switch (parsed.type) {
+              case LEGACY_USER_NETWORKING_PONG_MESSAGE_TYPE:
+                client.lastPong = Date.now();
+                break;
 
-            case LEGACY_USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE:
-              this.handleUserUpdate(id, parsed as LegacyUserNetworkingUserUpdateMessage);
-              break;
+              case LEGACY_USER_NETWORKING_USER_UPDATE_MESSAGE_TYPE:
+                this.handleUserUpdate(id, parsed as LegacyUserNetworkingUserUpdateMessage);
+                break;
 
-            default:
-              console.error(`Unhandled message: ${JSON.stringify(parsed)}`);
+              default:
+                console.error(`Unhandled message: ${JSON.stringify(parsed)}`);
+            }
           }
         }
+      } catch (e) {
+        console.error("Error handling message", message, e);
+        socket.send(JSON.stringify({
+          type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+          errorType: LEGACY_USER_NETWORKING_UNKNOWN_ERROR,
+          message: "Error handling message",
+        } satisfies LegacyFromUserNetworkingServerMessage));
+        socket.close();
       }
     });
 
@@ -435,7 +455,6 @@ export class LegacyAdapter {
         username: this.userNetworkingServer.getUsername(id),
         characterDescription: this.userNetworkingServer.getCharacterDescription(id),
       } satisfies LegacyFromUserNetworkingServerMessage);
-      console.log("Sending update to client", id, identityMessage);
       for (const [, otherClient] of this.legacyAuthenticatedClientsById) {
         if (otherClient.socket.readyState === WebSocketOpenStatus) {
           otherClient.socket.send(identityMessage);

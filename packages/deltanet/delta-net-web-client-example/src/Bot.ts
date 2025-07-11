@@ -11,6 +11,7 @@ import {
 import ws from "ws";
 
 import { BotConfig } from "./BotRunner";
+import { getBotColors } from "./BotColors";
 
 // WebSocket fallback for Node.js versions without native WebSocket
 function createWebSocket(url: string, protocols?: string | string[]): WebSocket {
@@ -133,9 +134,10 @@ export class Bot {
   }
 
   private initializeStates(): void {
+    const mmlCharacterUrl = `https://casual-v1.msquaredavatars.com/${this.config.id}.mml`;
     if (this.config.characterDescriptionStateId) {
       const characterDescription = {
-        mmlCharacterUrl: `https://casual-v1.msquaredavatars.com/${this.config.id}.mml`,
+        mmlCharacterUrl,
       };
       this.states.set(
         this.config.characterDescriptionStateId,
@@ -149,7 +151,7 @@ export class Bot {
 
     if (this.config.avatarColorStateId) {
       // Send consistent bot colors in the proper format expected by DeltaNetComponentMapping.decodeColors()
-      const characterColors = generateBotCharacterColors();
+      const characterColors = getBotColors(mmlCharacterUrl);
       const encodedColors = encodeColors(characterColors);
       this.states.set(this.config.avatarColorStateId, encodedColors);
     }
