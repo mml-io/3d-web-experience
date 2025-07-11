@@ -1,8 +1,8 @@
 import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
 
 import { UserNetworkingClientUpdate } from "./types";
-import { CharacterDescription } from "./UserNetworkingMessages";
 import { UserData } from "./UserData";
+import { CharacterDescription } from "./UserNetworkingMessages";
 
 // Component IDs used in the deltanet implementation
 export const COMPONENT_POSITION_X = 1;
@@ -63,9 +63,7 @@ export class DeltaNetComponentMapping {
   /**
    * Convert deltanet components back to UserNetworkingClientUpdate
    */
-  static fromComponents(
-    components: Map<number, bigint>,
-  ): UserNetworkingClientUpdate {
+  static fromComponents(components: Map<number, bigint>): UserNetworkingClientUpdate {
     const positionX =
       Number(components.get(COMPONENT_POSITION_X) || BigInt(0)) / positionMultiplier;
     const positionY =
@@ -126,7 +124,9 @@ export class DeltaNetComponentMapping {
   /**
    * Encode character description to binary state
    */
-  static toCharacterDescriptionState(characterDescription: CharacterDescription): Map<number, Uint8Array> {
+  static toCharacterDescriptionState(
+    characterDescription: CharacterDescription,
+  ): Map<number, Uint8Array> {
     const states = new Map<number, Uint8Array>();
     const textEncoder = new TextEncoder();
     states.set(
@@ -154,12 +154,12 @@ export class DeltaNetComponentMapping {
 
     switch (stateId) {
       case STATE_USERNAME:
-        if (typeof value === 'string') {
+        if (typeof value === "string") {
           states.set(stateId, textEncoder.encode(value));
         }
         break;
       case STATE_CHARACTER_DESCRIPTION:
-        if (typeof value === 'object' && value !== null) {
+        if (typeof value === "object" && value !== null) {
           states.set(stateId, textEncoder.encode(JSON.stringify(value)));
         }
         break;
@@ -208,10 +208,14 @@ export class DeltaNetComponentMapping {
 
   static fromUserStates(states: Map<number, Uint8Array>): UserData {
     const usernameBytes = states.get(STATE_USERNAME);
-    const username = usernameBytes ? DeltaNetComponentMapping.usernameFromBytes(usernameBytes) : null;
+    const username = usernameBytes
+      ? DeltaNetComponentMapping.usernameFromBytes(usernameBytes)
+      : null;
 
     const characterDescBytes = states.get(STATE_CHARACTER_DESCRIPTION);
-    const characterDescription = characterDescBytes ? DeltaNetComponentMapping.characterDescriptionFromBytes(characterDescBytes) : null;
+    const characterDescription = characterDescBytes
+      ? DeltaNetComponentMapping.characterDescriptionFromBytes(characterDescBytes)
+      : null;
 
     const colorsBytes = states.get(STATE_COLORS);
     const colorsArray = colorsBytes ? DeltaNetComponentMapping.decodeColors(colorsBytes) : [];

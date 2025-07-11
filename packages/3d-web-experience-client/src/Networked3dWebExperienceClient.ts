@@ -221,76 +221,80 @@ export class Networked3dWebExperienceClient {
 
     const initialNetworkLoadRef = {};
     this.loadingProgressManager.addLoadingAsset(initialNetworkLoadRef, "network", "network");
-    this.networkClient = new UserNetworkingClient({
-      url: this.config.userNetworkAddress,
-      sessionToken: this.config.sessionToken,
-      websocketFactory: (url: string) => new WebSocket(url, "delta-net-v0.1"),
-      statusUpdateCallback: (status: WebsocketStatus) => {
-        console.log(`Websocket status: ${status}`);
-        if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
-          // The connection was lost after being established - the connection may be re-established with a different client ID
-          this.characterManager.clear();
-          this.remoteUserStates.clear();
-          this.clientId = null;
-        }
-      },
-      assignedIdentity: (clientId: number) => {
-        console.log(`Assigned ID: ${clientId}`);
-        this.clientId = clientId;
-        if (this.initialLoadCompleted) {
-          // Already loaded - respawn the character
-          this.spawnCharacter();
-        } else {
-          this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
-        }
-      },
-      onUpdate: (update: NetworkUpdate): void => {
-        this.onNetworkUpdate(update);
-      },
-      onServerError: (error: { message: string; errorType: string }) => {
-        switch (error.errorType) {
-          case DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE:
-            this.disposeWithError(error.message);
-            break;
-          case DeltaNetV01ServerErrors.USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE:
-            this.disposeWithError(error.message);
-            break;
-          case DeltaNetV01ServerErrors.USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE:
-            this.disposeWithError(error.message || "Server shutdown");
-            break;
-          default:
-            console.error(`Unhandled server error: ${error.message}`);
-            this.disposeWithError(error.message);
-        }
-      },
-      onCustomMessage: (customType: number, contents: string) => {
-        if (customType === SERVER_BROADCAST_MESSAGE_TYPE) {
-          const serverBroadcastMessage = parseServerBroadcastMessage(contents);
-          if (serverBroadcastMessage instanceof Error) {
-            console.error(`Invalid server broadcast message: ${contents}`);
-          } else {
-            this.config.onServerBroadcast?.(serverBroadcastMessage);
+    this.networkClient = new UserNetworkingClient(
+      {
+        url: this.config.userNetworkAddress,
+        sessionToken: this.config.sessionToken,
+        websocketFactory: (url: string) => new WebSocket(url, "delta-net-v0.1"),
+        statusUpdateCallback: (status: WebsocketStatus) => {
+          console.log(`Websocket status: ${status}`);
+          if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
+            // The connection was lost after being established - the connection may be re-established with a different client ID
+            this.characterManager.clear();
+            this.remoteUserStates.clear();
+            this.clientId = null;
           }
-        } else if (customType === FROM_SERVER_CHAT_MESSAGE_TYPE) {
-          const serverChatMessage = parseServerChatMessage(contents);
-          if (serverChatMessage instanceof Error) {
-            console.error(`Invalid server chat message: ${contents}`);
+        },
+        assignedIdentity: (clientId: number) => {
+          console.log(`Assigned ID: ${clientId}`);
+          this.clientId = clientId;
+          if (this.initialLoadCompleted) {
+            // Already loaded - respawn the character
+            this.spawnCharacter();
           } else {
-            this.handleChatMessage(serverChatMessage.fromUserId, serverChatMessage.message);
+            this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
           }
-        } else {
-          console.warn(`Did not recognize custom message type ${customType}`);
-        }
+        },
+        onUpdate: (update: NetworkUpdate): void => {
+          this.onNetworkUpdate(update);
+        },
+        onServerError: (error: { message: string; errorType: string }) => {
+          switch (error.errorType) {
+            case DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE:
+              this.disposeWithError(error.message);
+              break;
+            case DeltaNetV01ServerErrors.USER_NETWORKING_CONNECTION_LIMIT_REACHED_ERROR_TYPE:
+              this.disposeWithError(error.message);
+              break;
+            case DeltaNetV01ServerErrors.USER_NETWORKING_SERVER_SHUTDOWN_ERROR_TYPE:
+              this.disposeWithError(error.message || "Server shutdown");
+              break;
+            default:
+              console.error(`Unhandled server error: ${error.message}`);
+              this.disposeWithError(error.message);
+          }
+        },
+        onCustomMessage: (customType: number, contents: string) => {
+          if (customType === SERVER_BROADCAST_MESSAGE_TYPE) {
+            const serverBroadcastMessage = parseServerBroadcastMessage(contents);
+            if (serverBroadcastMessage instanceof Error) {
+              console.error(`Invalid server broadcast message: ${contents}`);
+            } else {
+              this.config.onServerBroadcast?.(serverBroadcastMessage);
+            }
+          } else if (customType === FROM_SERVER_CHAT_MESSAGE_TYPE) {
+            const serverChatMessage = parseServerChatMessage(contents);
+            if (serverChatMessage instanceof Error) {
+              console.error(`Invalid server chat message: ${contents}`);
+            } else {
+              this.handleChatMessage(serverChatMessage.fromUserId, serverChatMessage.message);
+            }
+          } else {
+            console.warn(`Did not recognize custom message type ${customType}`);
+          }
+        },
       },
-    }, {
-      username: null,
-      characterDescription: null,
-      colors: null,
-    }, {
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { quaternionY: 0, quaternionW: 1 },
-      state: 0,
-    });
+      {
+        username: null,
+        characterDescription: null,
+        colors: null,
+      },
+      {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { quaternionY: 0, quaternionW: 1 },
+        state: 0,
+      },
+    );
 
     if (this.config.allowOrbitalCamera) {
       this.keyInputManager.createKeyBinding(Key.C, () => {
@@ -606,7 +610,7 @@ export class Networked3dWebExperienceClient {
     this.avatarSelectionUI = new AvatarSelectionUI({
       holderElement: this.element,
       visibleByDefault: false,
-      displayName: ownIdentity.username ?? `Unknown User ${this.clientId}`, 
+      displayName: ownIdentity.username ?? `Unknown User ${this.clientId}`,
       characterDescription: ownIdentity.characterDescription ?? {
         meshFileUrl: "",
       },

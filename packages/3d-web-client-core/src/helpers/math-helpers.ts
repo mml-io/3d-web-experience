@@ -10,8 +10,8 @@ export const toArray = (origin: Vect3 | Quat, precision: number = 3): number[] =
   array[0] = roundToDecimalPlaces(origin.x, precision);
   array[1] = roundToDecimalPlaces(origin.y, precision);
   array[2] = roundToDecimalPlaces(origin.z, precision);
-  if ((origin as any).w !== undefined) {
-    array[3] = roundToDecimalPlaces((origin as any).w, precision);
+  if ((origin as Quat).w !== undefined) {
+    array[3] = roundToDecimalPlaces((origin as Quat).w, precision);
   }
   return array;
 };

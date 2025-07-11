@@ -41,18 +41,20 @@ export class DeltaNetV01Connection {
 
     this.websocketListener = (messageEvent: MessageEvent) => {
       const buffer = new Uint8Array(messageEvent.data as ArrayBuffer);
-      
+
       // Check message size before attempting to decode
       const maxMessageSize = this.deltaNetServer.getMaxMessageSize();
       if (buffer.length > maxMessageSize) {
         this.disconnectWithError(
-          new Error(`Message size ${buffer.length} bytes exceeds maximum allowed size of ${maxMessageSize} bytes`),
+          new Error(
+            `Message size ${buffer.length} bytes exceeds maximum allowed size of ${maxMessageSize} bytes`,
+          ),
           DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
           false,
         );
         return;
       }
-      
+
       const messages = decodeClientMessages(new BufferReader(buffer));
       for (const parsed of messages) {
         this.handleClientMessage(parsed);

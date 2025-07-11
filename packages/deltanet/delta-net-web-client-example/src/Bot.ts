@@ -50,7 +50,11 @@ function generateBotCharacterColors(): Array<[number, number, number]> {
   // Order matches colorPartNamesIndex: hair, skin, lips, shirt_short, shirt_long, pants_short, pants_long, shoes
   // All bots will have the same colors - a distinctive bot appearance
   return [
-    [Math.floor(Math.random() * 255), Math.floor(Math.random() * 255), Math.floor(Math.random() * 255)], // hair
+    [
+      Math.floor(Math.random() * 255),
+      Math.floor(Math.random() * 255),
+      Math.floor(Math.random() * 255),
+    ], // hair
     [248, 206, 180], // skin
     [180, 120, 120], // lips
     [47, 43, 78], // shirt_short
@@ -123,7 +127,7 @@ export class Bot {
     for (const key of config.valuesToUpdate ?? [xComponent, zComponent]) {
       this.values.set(key, 0n);
     }
-    
+
     // Initialize states
     this.initializeStates();
   }
@@ -133,7 +137,10 @@ export class Bot {
       const characterDescription = {
         mmlCharacterUrl: `https://casual-v1.msquaredavatars.com/${this.config.id}.mml`,
       };
-      this.states.set(this.config.characterDescriptionStateId, textEncoder.encode(JSON.stringify(characterDescription)));
+      this.states.set(
+        this.config.characterDescriptionStateId,
+        textEncoder.encode(JSON.stringify(characterDescription)),
+      );
     }
 
     if (this.config.usernameStateId) {

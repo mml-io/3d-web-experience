@@ -9,7 +9,6 @@ import {
   onLeaveOptions,
   onStatesUpdateOptions,
 } from "@deltanet/delta-net-server";
-import WebSocket from "ws";
 
 import { DeltaNetComponentMapping } from "./DeltaNetComponentMapping";
 import { LegacyAdapter } from "./legacy/LegacyAdapter";
@@ -44,7 +43,7 @@ export type UserNetworkingServerOptions = {
   onClientUserIdentityUpdate: (
     clientId: number,
     userIdentity: UserData,
-  ) => Promise<UserData | null | false | Error> | UserData | null | false | Error;
+  ) => Promise<UserData | null | false | true | Error> | UserData | null | false | true | Error;
   onClientDisconnect: (clientId: number) => void;
 };
 
@@ -450,7 +449,7 @@ export class UserNetworkingServer {
     // Add websocket to deltanet server
     this.deltaNetServer.addWebSocket(socket as unknown as globalThis.WebSocket);
 
-    socket.on("close", () => {
+    socket.addEventListener("close", () => {
       this.deltaNetServer.removeWebSocket(socket as unknown as globalThis.WebSocket);
     });
   }

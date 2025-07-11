@@ -7,10 +7,16 @@ import {
   DeltaNetClientWebsocketUserIndex,
 } from "@deltanet/delta-net-web";
 
-import { DeltaNetComponentMapping, STATE_CHARACTER_DESCRIPTION, STATE_COLORS, STATE_INTERNAL_CONNECTION_ID, STATE_USERNAME } from "./DeltaNetComponentMapping";
+import {
+  DeltaNetComponentMapping,
+  STATE_CHARACTER_DESCRIPTION,
+  STATE_COLORS,
+  STATE_INTERNAL_CONNECTION_ID,
+  STATE_USERNAME,
+} from "./DeltaNetComponentMapping";
 import { UserNetworkingClientUpdate, WebsocketFactory, WebsocketStatus } from "./types";
-import { CharacterDescription } from "./UserNetworkingMessages";
 import { UserData } from "./UserData";
+import { CharacterDescription } from "./UserNetworkingMessages";
 
 export type UserNetworkingClientConfig = {
   url: string;
@@ -18,7 +24,7 @@ export type UserNetworkingClientConfig = {
   websocketFactory: WebsocketFactory;
   statusUpdateCallback: (status: WebsocketStatus) => void;
   assignedIdentity: (clientId: number) => void;
-  onServerError: (error: { message: string; errorType: string; }) => void;
+  onServerError: (error: { message: string; errorType: string }) => void;
   onCustomMessage?: (customType: number, contents: string) => void;
   onUpdate(update: NetworkUpdate): void;
 };
@@ -52,14 +58,15 @@ export class UserNetworkingClient {
   };
 
   private stableIdToUserId: Map<number, number> = new Map();
-  private userProfiles: Map<
-    number,
-    UserData
-  > = new Map();
+  private userProfiles: Map<number, UserData> = new Map();
   private isAuthenticated = false;
   private pendingUpdate: UserNetworkingClientUpdate;
 
-  constructor(private config: UserNetworkingClientConfig, initialUserState?: UserData, initialUpdate?: UserNetworkingClientUpdate) {
+  constructor(
+    private config: UserNetworkingClientConfig,
+    initialUserState?: UserData,
+    initialUpdate?: UserNetworkingClientUpdate,
+  ) {
     this.pendingUpdate = initialUpdate ?? {
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
@@ -83,8 +90,7 @@ export class UserNetworkingClient {
       {
         ignoreData: false,
         onInitialCheckout: (initialCheckout: DeltaNetClientWebsocketInitialCheckout) => {
-          const { addedStableIds } =
-            this.deltaNetState.handleInitialCheckout(initialCheckout);
+          const { addedStableIds } = this.deltaNetState.handleInitialCheckout(initialCheckout);
 
           // Process any state updates
           const networkUpdate = this.processNetworkUpdate([], addedStableIds, []);
@@ -102,9 +108,7 @@ export class UserNetworkingClient {
               this.userId = userId;
               this.isAuthenticated = true;
               this.config.assignedIdentity(this.userId);
-              console.log(
-                `Resolved userIndex ${this.userIndex} to stable userId: ${this.userId}`,
-              );
+              console.log(`Resolved userIndex ${this.userIndex} to stable userId: ${this.userId}`);
             } else {
               console.error(
                 `Invalid userIndex ${this.userIndex}, userIds length: ${userIds.length}`,
@@ -113,9 +117,14 @@ export class UserNetworkingClient {
           }
         },
         onTick: (tick: DeltaNetClientWebsocketTick) => {
-          const { stateUpdates, removedStableIds, addedStableIds } = this.deltaNetState.handleTick(tick);
+          const { stateUpdates, removedStableIds, addedStableIds } =
+            this.deltaNetState.handleTick(tick);
           // Process state updates
-          const networkUpdate = this.processNetworkUpdate(removedStableIds, addedStableIds, stateUpdates);
+          const networkUpdate = this.processNetworkUpdate(
+            removedStableIds,
+            addedStableIds,
+            stateUpdates,
+          );
           this.config.onUpdate(networkUpdate);
         },
         onUserIndex: (userIndex: DeltaNetClientWebsocketUserIndex) => {
@@ -175,7 +184,6 @@ export class UserNetworkingClient {
         }
         this.config.statusUpdateCallback(mappedStatus);
       },
-
     );
   }
 
@@ -202,7 +210,7 @@ export class UserNetworkingClient {
   private processNetworkUpdate(
     removedStableIds: number[],
     addedStableIdsArray: number[],
-    stateUpdates: Array<{ stableId: number; stateId: number; state: Uint8Array; }>,
+    stateUpdates: Array<{ stableId: number; stateId: number; state: Uint8Array }>,
   ): NetworkUpdate {
     const addedUserIds = new Map<number, AddedUser>();
     const removedUserIds = new Set<number>();
@@ -254,9 +262,7 @@ export class UserNetworkingClient {
       }
       if (!addedUserIds.has(userId)) {
         if (userInfo.components.size > 0) {
-          const clientUpdate = DeltaNetComponentMapping.fromComponents(
-            userInfo.components,
-          );
+          const clientUpdate = DeltaNetComponentMapping.fromComponents(userInfo.components);
           updatedUsers.set(userId, {
             components: clientUpdate,
           });
@@ -282,7 +288,7 @@ export class UserNetworkingClient {
         console.warn(`No profile found for user ${userId}, skipping update`);
         continue;
       }
-      let existingUpdate = updatedUsers.get(userId)!;
+      const existingUpdate = updatedUsers.get(userId)!;
       let existingUserStateUpdate: Partial<UserData> | undefined = existingUpdate.userState;
       if (!existingUserStateUpdate) {
         existingUserStateUpdate = {};
@@ -301,7 +307,9 @@ export class UserNetworkingClient {
           }
           break;
         case STATE_CHARACTER_DESCRIPTION:
-          const characterDescription = DeltaNetComponentMapping.characterDescriptionFromBytes(update.state);
+          const characterDescription = DeltaNetComponentMapping.characterDescriptionFromBytes(
+            update.state,
+          );
           profile.characterDescription = characterDescription;
           existingUserStateUpdate.characterDescription = characterDescription;
           break;

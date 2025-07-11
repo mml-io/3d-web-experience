@@ -531,8 +531,16 @@ export class Composer {
     this.targetIntensity = sunValues.sunIntensity;
 
     // Lerp towards target angles and intensity
-    this.currentAzimuthalAngle = this.lerpAngle(this.currentAzimuthalAngle, this.targetAzimuthalAngle, this.lerpSpeed);
-    this.currentPolarAngle = this.lerpAngle(this.currentPolarAngle, this.targetPolarAngle, this.lerpSpeed);
+    this.currentAzimuthalAngle = this.lerpAngle(
+      this.currentAzimuthalAngle,
+      this.targetAzimuthalAngle,
+      this.lerpSpeed,
+    );
+    this.currentPolarAngle = this.lerpAngle(
+      this.currentPolarAngle,
+      this.targetPolarAngle,
+      this.lerpSpeed,
+    );
     this.currentIntensity = this.lerp(this.currentIntensity, this.targetIntensity, this.lerpSpeed);
 
     // Update sun with lerped values
@@ -554,7 +562,7 @@ export class Composer {
   private lerpAngle(current: number, target: number, speed: number): number {
     // Calculate the shortest angular distance
     let diff = target - current;
-    
+
     // Normalize the difference to [-π, π]
     while (diff > Math.PI) {
       diff -= 2 * Math.PI;
@@ -562,7 +570,7 @@ export class Composer {
     while (diff < -Math.PI) {
       diff += 2 * Math.PI;
     }
-    
+
     // Lerp using the shortest path
     return current + diff * speed;
   }
@@ -572,7 +580,11 @@ export class Composer {
       return;
     }
     // Use lerped angles for sky shader instead of sunValues directly
-    const sunPosition = new Vector3().setFromSphericalCoords(1, this.currentPolarAngle, this.currentAzimuthalAngle);
+    const sunPosition = new Vector3().setFromSphericalCoords(
+      1,
+      this.currentPolarAngle,
+      this.currentAzimuthalAngle,
+    );
 
     this.sky.material.uniforms.sunPosition.value = sunPosition;
     this.sky.material.uniforms.turbidity.value = sunValues.skyTurbidity;
@@ -668,4 +680,3 @@ export class Composer {
     );
   }
 }
-

@@ -15,20 +15,20 @@ export type LegacyUserNetworkingIdentityMessage = {
 
 export type LegacyCharacterDescription =
   | {
-    meshFileUrl: string;
-    mmlCharacterString?: null;
-    mmlCharacterUrl?: null;
-  }
+      meshFileUrl: string;
+      mmlCharacterString?: null;
+      mmlCharacterUrl?: null;
+    }
   | {
-    meshFileUrl?: null;
-    mmlCharacterString: string;
-    mmlCharacterUrl?: null;
-  }
+      meshFileUrl?: null;
+      mmlCharacterString: string;
+      mmlCharacterUrl?: null;
+    }
   | {
-    meshFileUrl?: null;
-    mmlCharacterString?: null;
-    mmlCharacterUrl: string;
-  };
+      meshFileUrl?: null;
+      mmlCharacterString?: null;
+      mmlCharacterUrl: string;
+    };
 
 export type LegacyUserData = {
   readonly username: string;

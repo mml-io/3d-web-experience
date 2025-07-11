@@ -62,7 +62,10 @@ function characterHeightToTooltipHeightOffset(characterHeight: number): number {
   return characterHeight - 0.4 + 0.1;
 }
 
-function characterDescriptionMatches(a: CharacterDescription | null, b: CharacterDescription | null): boolean {
+function characterDescriptionMatches(
+  a: CharacterDescription | null,
+  b: CharacterDescription | null,
+): boolean {
   if (a === null && b === null) {
     return true;
   }

@@ -890,7 +890,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       });
 
       await jest.advanceTimersByTimeAsync(10);
-      
+
       // Process all changes in a single tick
       doc.tick();
 
@@ -1068,7 +1068,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(newUser1Checkout.type).toBe("initialCheckout");
       expect(newUser1Checkout.indicesCount).toBe(3);
       expect(newUser1Checkout.states[0].values).toHaveLength(3);
-      
+
       // Index 0: user3 (shifted), Index 1: newUser1, Index 2: newUser2
       expect(newUser1Checkout.states[0].values[0]).toEqual(new Uint8Array([3])); // user3
       expect(newUser1Checkout.states[0].values[1]).toEqual(new Uint8Array([10])); // newUser1
@@ -1085,8 +1085,12 @@ describe("DeltaNetServer - Edge Cases", () => {
 
       // All users should receive the update at index 1 (newUser1's index)
       const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetV01Tick;
-      const newUser1UpdateTick = (await newUser1.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
-      const newUser2UpdateTick = (await newUser2.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const newUser1UpdateTick = (
+        await newUser1.waitForTotalMessageCount(3, 2)
+      )[0] as DeltaNetV01Tick;
+      const newUser2UpdateTick = (
+        await newUser2.waitForTotalMessageCount(3, 2)
+      )[0] as DeltaNetV01Tick;
 
       expect(user3UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
       expect(user3UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([11]));

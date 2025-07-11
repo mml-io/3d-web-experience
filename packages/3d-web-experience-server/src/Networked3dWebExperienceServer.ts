@@ -6,7 +6,7 @@ import {
 import cors from "cors";
 import express from "express";
 import enableWs from "express-ws";
-import WebSocket from "ws";
+import ws from "ws";
 
 import { MMLDocumentsServer } from "./MMLDocumentsServer";
 import { websocketDirectoryChangeListener } from "./websocketDirectoryChangeListener";
@@ -21,7 +21,7 @@ type UserAuthenticator = {
     sessionToken: string,
     userIdentityPresentedOnConnection?: UserData,
   ): Promise<UserData | true | Error> | UserData | true | Error;
-  onClientUserIdentityUpdate(clientId: number, userIdentity: UserData): UserData | null;
+  onClientUserIdentityUpdate(clientId: number, userIdentity: UserData): UserData | true | Error;
   onClientDisconnect(clientId: number): void;
 };
 
@@ -77,10 +77,7 @@ export class Networked3dWebExperienceServer {
           userIdentityPresentedOnConnection,
         );
       },
-      onClientUserIdentityUpdate: (
-        clientId: number,
-        userIdentity: UserData,
-      ): UserData | null => {
+      onClientUserIdentityUpdate: (clientId: number, userIdentity: UserData): UserData | true | Error => {
         // Called whenever a user connects or updates their character/identity
         return this.config.userAuthenticator.onClientUserIdentityUpdate(clientId, userIdentity);
       },
@@ -104,7 +101,7 @@ export class Networked3dWebExperienceServer {
 
   registerExpressRoutes(app: enableWs.Application) {
     app.ws(this.config.networkPath, (ws) => {
-      this.userNetworkingServer.connectClient(ws);
+      this.userNetworkingServer.connectClient(ws as unknown as WebSocket);
     });
 
     const webClientServing = this.config.webClientServing;
@@ -135,7 +132,7 @@ export class Networked3dWebExperienceServer {
     const mmlServing = this.config.mmlServing;
     // Handle example document sockets
     if (mmlServing && mmlDocumentsServer) {
-      app.ws(`${mmlServing.documentsUrl}*`, (ws: WebSocket, req: express.Request) => {
+      app.ws(`${mmlServing.documentsUrl}*`, (ws: ws.WebSocket, req: express.Request) => {
         const path = req.params[0];
         console.log("document requested", { path });
         mmlDocumentsServer.handle(path, ws);

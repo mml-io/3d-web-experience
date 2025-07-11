@@ -263,7 +263,7 @@ export class CharacterManager {
 
     const character = new Character({
       username: characterInfo.username ?? `Unknown User ${id}`,
-      characterDescription: characterInfo.characterDescription ,
+      characterDescription: characterInfo.characterDescription,
       animationsPromise: this.config.animationsPromise,
       characterModelLoader: this.config.characterModelLoader,
       characterId: id,

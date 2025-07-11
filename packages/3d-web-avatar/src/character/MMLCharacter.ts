@@ -8,9 +8,14 @@ type MMLCharacterModelLoader = {
 };
 
 export class MMLCharacter {
-  constructor(private modelLoader: MMLCharacterModelLoader) { }
+  constructor(private modelLoader: MMLCharacterModelLoader) {}
 
-  public static load(fullBodyURL: string, bodyParts: Array<MMLCharacterDescriptionPart>, modelLoader: MMLCharacterModelLoader, abortController?: AbortController): Promise<Object3D | null> {
+  public static load(
+    fullBodyURL: string,
+    bodyParts: Array<MMLCharacterDescriptionPart>,
+    modelLoader: MMLCharacterModelLoader,
+    abortController?: AbortController,
+  ): Promise<Object3D | null> {
     const mmlCharacter = new MMLCharacter(modelLoader);
     return mmlCharacter.load(fullBodyURL, bodyParts, abortController);
   }
@@ -67,7 +72,7 @@ export class MMLCharacter {
     const fullBodyAssetPromise = this.modelLoader.load(fullBodyURL, abortController);
 
     const assetPromises: Array<
-      Promise<{ asset: ModelLoadResult; part: MMLCharacterDescriptionPart; } | null>
+      Promise<{ asset: ModelLoadResult; part: MMLCharacterDescriptionPart } | null>
     > = bodyParts.map((part) => {
       return new Promise((resolve) => {
         this.modelLoader.load(part.url, abortController).then((asset: ModelLoadResult | null) => {

@@ -206,11 +206,11 @@ export class DeltaNetClientState {
       }
     }
 
-    let addedStableIds: Array<number> = [];
+    const addedStableIds: Array<number> = [];
 
     if (indicesCount > this.indicesCount) {
       const addedIndices = indicesCount - this.indicesCount;
-      
+
       for (let i = 0; i < addedIndices; i++) {
         const stableId = this.stableIdCounter++;
         this.stableIds.push(stableId);
@@ -257,11 +257,11 @@ export class DeltaNetClientState {
           existingComponent.deltas = newDeltas;
           existingComponent.deltaDeltas = newDeltaDelta;
         }
-        
+
         for (let i = 0; i < deltaDeltas.length; i++) {
           const deltaDelta = deltaDeltas[i];
           const stableId = this.stableIds[i];
-          
+
           existingComponent.deltaDeltas[i] = deltaDelta;
           existingComponent.deltas[i] += deltaDelta;
           existingComponent.values[i] += existingComponent.deltas[i];
@@ -284,14 +284,14 @@ export class DeltaNetClientState {
         state = [];
         this.allStates.set(stateId, state);
       }
-      
+
       for (const [index, value] of states) {
         const stableId = this.stableIds[index];
-        
+
         if (stableId === undefined) {
           throw new Error(`Stable ID is undefined for index ${index} in state ${stateId}`);
         }
-        
+
         stateUpdates.push({
           stableId,
           stateId,
@@ -337,7 +337,7 @@ export class DeltaNetClientState {
 
       writeIndex++;
     }
-    
+
     // Actually shrink the array to the correct size
     this.stableIds.length = writeIndex;
   }

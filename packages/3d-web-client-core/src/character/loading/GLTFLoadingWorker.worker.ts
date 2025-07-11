@@ -92,7 +92,7 @@ class GLTFLoadingWorker {
   private async resizeImageData(
     imageData: ImageData,
     maxSize: number,
-  ): Promise<{ data: Uint8Array; width: number; height: number; }> {
+  ): Promise<{ data: Uint8Array; width: number; height: number }> {
     const { width: originalWidth, height: originalHeight } = imageData;
 
     // Calculate new dimensions maintaining aspect ratio
@@ -234,7 +234,7 @@ class GLTFLoadingWorker {
 
         if (expectedSize && asUint8Array.length !== expectedSize) {
           const error = new Error(
-            `Response truncated: expected ${expectedSize} bytes but got ${asUint8Array.length} bytes`
+            `Response truncated: expected ${expectedSize} bytes but got ${asUint8Array.length} bytes`,
           );
           console.error("Truncated response detected:", {
             fileUrl,
@@ -252,7 +252,6 @@ class GLTFLoadingWorker {
           lastError = error;
           continue; // Try again
         }
-
 
         // Check if canceled before parsing
         if (abortController?.signal.aborted) {
@@ -296,7 +295,6 @@ class GLTFLoadingWorker {
         }
 
         return new Uint8Array(result);
-
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
 
@@ -313,7 +311,7 @@ class GLTFLoadingWorker {
         console.warn(`Fetch attempt ${attempt} failed, retrying...`, lastError.message);
 
         // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt - 1) * 100));
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt - 1) * 100));
       }
     }
 
@@ -400,7 +398,7 @@ class WorkerConcurrencyManager {
     }
   }
 
-  getStats(): { active: number; queued: number; maxConcurrent: number; } {
+  getStats(): { active: number; queued: number; maxConcurrent: number } {
     return {
       active: this.activeRequests,
       queued: this.requestQueue.length,

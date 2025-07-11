@@ -232,8 +232,8 @@ export class DeltaNetClientWebsocket {
           }
           if (retryable) {
             if (!didConnect) {
-              // The websocket did not deliver any contents. 
-              // It may have been successfully opened, but immediately closed. 
+              // The websocket did not deliver any contents.
+              // It may have been successfully opened, but immediately closed.
               // This client should back off to prevent this happening in a rapid loop.
               await this.waitBackoffTime();
             }

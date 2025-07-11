@@ -331,10 +331,13 @@ describe("DeltaNetClientState", () => {
       const initialCheckout: DeltaNetClientWebsocketInitialCheckout = {
         indicesCount: 4,
         initialComponents: new Map([
-          [1, {
-            values: new BigInt64Array([BigInt(100), BigInt(200), BigInt(300), BigInt(400)]),
-            deltas: new BigInt64Array([BigInt(0), BigInt(0), BigInt(0), BigInt(0)]),
-          }],
+          [
+            1,
+            {
+              values: new BigInt64Array([BigInt(100), BigInt(200), BigInt(300), BigInt(400)]),
+              deltas: new BigInt64Array([BigInt(0), BigInt(0), BigInt(0), BigInt(0)]),
+            },
+          ],
         ]),
         initialStates: new Map(),
       };
@@ -353,7 +356,7 @@ describe("DeltaNetClientState", () => {
       clientState.handleTick(tick);
 
       const finalStableIds = clientState.getStableIds();
-      
+
       expect(finalStableIds).toEqual([1000, 1002, 1003]);
       expect(finalStableIds.length).toBe(3);
       expect(new Set(finalStableIds).size).toBe(3);
@@ -363,10 +366,13 @@ describe("DeltaNetClientState", () => {
       const initialCheckout: DeltaNetClientWebsocketInitialCheckout = {
         indicesCount: 4,
         initialComponents: new Map([
-          [1, {
-            values: new BigInt64Array([BigInt(100), BigInt(200), BigInt(300), BigInt(400)]),
-            deltas: new BigInt64Array([BigInt(0), BigInt(0), BigInt(0), BigInt(0)]),
-          }],
+          [
+            1,
+            {
+              values: new BigInt64Array([BigInt(100), BigInt(200), BigInt(300), BigInt(400)]),
+              deltas: new BigInt64Array([BigInt(0), BigInt(0), BigInt(0), BigInt(0)]),
+            },
+          ],
         ]),
         initialStates: new Map(),
       };
@@ -385,10 +391,10 @@ describe("DeltaNetClientState", () => {
       clientState.handleTick(tick);
 
       const finalStableIds = clientState.getStableIds();
-      
+
       expect(finalStableIds.length).toBe(4);
       expect(new Set(finalStableIds).size).toBe(4);
-      
+
       const duplicates = finalStableIds.filter((id, index) => finalStableIds.indexOf(id) !== index);
       expect(duplicates).toEqual([]);
     });
@@ -400,7 +406,13 @@ describe("DeltaNetClientState", () => {
           [
             1,
             {
-              values: new BigInt64Array([BigInt(100), BigInt(200), BigInt(300), BigInt(400), BigInt(500)]),
+              values: new BigInt64Array([
+                BigInt(100),
+                BigInt(200),
+                BigInt(300),
+                BigInt(400),
+                BigInt(500),
+              ]),
               deltas: new BigInt64Array([BigInt(0), BigInt(0), BigInt(0), BigInt(0), BigInt(0)]),
             },
           ],
@@ -414,7 +426,17 @@ describe("DeltaNetClientState", () => {
         indicesCount: 6,
         unoccupying: [1, 3],
         componentDeltaDeltas: new Map([
-          [1, new BigInt64Array([BigInt(10), BigInt(20), BigInt(30), BigInt(40), BigInt(50), BigInt(60)])],
+          [
+            1,
+            new BigInt64Array([
+              BigInt(10),
+              BigInt(20),
+              BigInt(30),
+              BigInt(40),
+              BigInt(50),
+              BigInt(60),
+            ]),
+          ],
         ]),
         stateChanges: new Map(),
       };
@@ -473,14 +495,7 @@ describe("DeltaNetClientState", () => {
         componentDeltaDeltas: new Map([
           [1, new BigInt64Array([BigInt(10), BigInt(20), BigInt(30), BigInt(40)])],
         ]),
-        stateChanges: new Map([
-          [
-            1,
-            new Map([
-              [3, new Uint8Array([13, 14, 15])],
-            ]),
-          ],
-        ]),
+        stateChanges: new Map([[1, new Map([[3, new Uint8Array([13, 14, 15])]])]]),
       };
 
       const result = clientState.handleTick(tick);
@@ -489,10 +504,10 @@ describe("DeltaNetClientState", () => {
       expect(result.addedStableIds.length).toBe(1);
 
       const finalStableIds = clientState.getStableIds();
-      
+
       expect(finalStableIds.length).toBe(4);
       expect(new Set(finalStableIds).size).toBe(4);
-      
+
       const duplicates = finalStableIds.filter((id, index) => finalStableIds.indexOf(id) !== index);
       expect(duplicates).toEqual([]);
     });
@@ -504,14 +519,7 @@ describe("DeltaNetClientState", () => {
         componentDeltaDeltas: new Map([
           [1, new BigInt64Array([BigInt(10), BigInt(20), BigInt(30), BigInt(40)])],
         ]),
-        stateChanges: new Map([
-          [
-            1,
-            new Map([
-              [3, new Uint8Array([13, 14, 15])],
-            ]),
-          ],
-        ]),
+        stateChanges: new Map([[1, new Map([[3, new Uint8Array([13, 14, 15])]])]]),
       };
 
       const result = clientState.handleTick(tick);
@@ -526,8 +534,8 @@ describe("DeltaNetClientState", () => {
 
       const newStableId = result.addedStableIds[0];
       expect(finalStableIds[3]).toBe(newStableId);
-      
-      const stateUpdate = result.stateUpdates.find(update => update.stableId === newStableId);
+
+      const stateUpdate = result.stateUpdates.find((update) => update.stableId === newStableId);
       expect(stateUpdate).toBeDefined();
       expect(stateUpdate?.stateId).toBe(1);
     });

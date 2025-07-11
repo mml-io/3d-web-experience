@@ -15,7 +15,7 @@ import {
   Vector3,
 } from "three";
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
-import { lowPolyLoDModelURL } from "../LowPolyModel";
+
 import { CameraManager } from "../../camera/CameraManager";
 import { EulXYZ, Vect3 } from "../../math";
 import { TimeManager } from "../../time/TimeManager";
@@ -23,6 +23,7 @@ import { LoadedAnimations } from "../Character";
 import { ColorPartName } from "../CharacterModel";
 import { AnimationState } from "../CharacterState";
 import { CharacterModelLoader } from "../loading/CharacterModelLoader";
+import { lowPolyLoDModelURL } from "../LowPolyModel";
 
 import { createSingleTimeline, SegmentTime } from "./CharacterInstancingAnimationUtils";
 import { mergeSkinnedMeshes, validateAndCleanSkeleton } from "./CharacterInstancingUtils";
@@ -327,7 +328,7 @@ export class CharacterInstances {
     this.updateInstancedMeshBounds();
   }
 
-  public getInstanceInfo(): { active: number; total: number; available: number; } {
+  public getInstanceInfo(): { active: number; total: number; available: number } {
     if (!this.instancedMesh?.instances) {
       return { active: 0, total: 0, available: 0 };
     }

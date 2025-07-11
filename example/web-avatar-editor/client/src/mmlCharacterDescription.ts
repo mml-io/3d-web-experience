@@ -6,4 +6,3 @@ export const mmlCharacterDescription: string = `
   <m-model src="/assets/avatar/parts/SK_Outfit_One_High_Tops_01.glb"></m-model>
 </m-character>
 `;
-

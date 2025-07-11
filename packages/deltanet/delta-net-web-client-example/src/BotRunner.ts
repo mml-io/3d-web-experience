@@ -90,7 +90,7 @@ export class BotRunner {
     }
 
     const { minInterval, maxInterval } = this.config.restartConfig;
-    
+
     // Clear any existing timer for this bot
     const existingTimer = this.botRestartTimers.get(bot);
     if (existingTimer) {
@@ -102,7 +102,7 @@ export class BotRunner {
     const timer = setTimeout(() => {
       console.log(`Bot ${bot.getId()} restarting after ${Math.round(restartDelay)}ms...`);
       bot.stop();
-      
+
       // Small delay to simulate disconnection
       setTimeout(() => {
         bot.start();

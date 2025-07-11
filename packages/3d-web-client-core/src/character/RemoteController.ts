@@ -15,9 +15,7 @@ export class RemoteController {
   private hasReceivedInitialUpdate = false;
   private interpolationRate = 8.0; // How quickly to interpolate (higher = faster)
 
-  constructor(
-    private character: Character,
-  ) {
+  constructor(private character: Character) {
     const pos = character.getPosition();
     const rot = character.getRotation();
     const currentAnimation = character.getCurrentAnimation();

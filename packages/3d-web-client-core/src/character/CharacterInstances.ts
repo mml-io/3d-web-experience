@@ -156,11 +156,17 @@ export class CharacterInstances {
 
   public async initialize(): Promise<Object3D | null> {
     try {
-      const mmlCharacter = new MMLCharacter(CharacterModel.ModelLoader);
+      const modelLoaderAdapter = {
+        load: async (url: string, abortController?: AbortController) => {
+          const modelLoader = (this.config.characterModelLoader as any).modelLoader;
+          return await modelLoader.load(url, abortController);
+        },
+      };
+      const mmlCharacter = new MMLCharacter(modelLoaderAdapter);
       if (this.debug) {
         console.log("lowPolyLoDModelURL", lowPolyLoDModelURL);
       }
-      const lowPolyModel = await mmlCharacter.mergeBodyParts(lowPolyLoDModelURL, []);
+      const lowPolyModel = await mmlCharacter.load(lowPolyLoDModelURL, []);
       if (!lowPolyModel) {
         throw new Error(`Failed to load model from file ${lowPolyLoDModelURL}`);
       }

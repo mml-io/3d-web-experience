@@ -116,31 +116,37 @@ describe("StateCollection", () => {
 
   it("should return updated indices after values are modified and indices are shifted", () => {
     const collection = new StateCollection();
-    
+
     // Set initial values
     collection.setValue(0, new Uint8Array([118, 97, 108, 117, 101, 48])); // "value0"
     collection.setValue(1, new Uint8Array([118, 97, 108, 117, 101, 49])); // "value1"
     collection.setValue(2, new Uint8Array([118, 97, 108, 117, 101, 50])); // "value2"
     collection.setValue(3, new Uint8Array([118, 97, 108, 117, 101, 51])); // "value3"
     collection.setValue(4, new Uint8Array([118, 97, 108, 117, 101, 52])); // "value4"
-    
+
     // Tick to clear modified indices
     collection.tick();
-    
+
     // Modify values at indices 1 and 3
     collection.setValue(1, new Uint8Array([109, 111, 100, 105, 102, 105, 101, 100, 49])); // "modified1"
     collection.setValue(3, new Uint8Array([109, 111, 100, 105, 102, 105, 101, 100, 51])); // "modified3"
-    
+
     // Remove index 0 (this should shift all subsequent indices down by 1)
     collection.removeIndices([0, 2]);
-    
+
     // After removing index 0:
     // - Original index 1 (with "modified1") should now be at index 0
     // - Original index 3 (with "modified3") should now be at index 1
     const states = collection.tick();
-    
+
     expect(states.length).toBe(2);
-    expect(states).toContainEqual([0, new Uint8Array([109, 111, 100, 105, 102, 105, 101, 100, 49])]); // "modified1" now at index 0
-    expect(states).toContainEqual([1, new Uint8Array([109, 111, 100, 105, 102, 105, 101, 100, 51])]); // "modified3" now at index 2
+    expect(states).toContainEqual([
+      0,
+      new Uint8Array([109, 111, 100, 105, 102, 105, 101, 100, 49]),
+    ]); // "modified1" now at index 0
+    expect(states).toContainEqual([
+      1,
+      new Uint8Array([109, 111, 100, 105, 102, 105, 101, 100, 51]),
+    ]); // "modified3" now at index 2
   });
 });

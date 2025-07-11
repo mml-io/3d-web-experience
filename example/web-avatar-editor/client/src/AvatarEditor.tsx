@@ -37,7 +37,7 @@ const partToCameraOffset = new Map<
 ]);
 
 class MMLCharacterModelLoader implements MMLCharacterModelLoader {
-  constructor(private modelLoader: ModelLoader) { }
+  constructor(private modelLoader: ModelLoader) {}
   load(url: string, abortController?: AbortController): Promise<ModelLoadResult | null> {
     if (abortController?.signal.aborted) {
       return Promise.resolve(null);
