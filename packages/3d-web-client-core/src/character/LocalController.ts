@@ -14,6 +14,7 @@ import { characterControllerValues } from "../tweakpane/blades/characterControls
 import { Character } from "./Character";
 import { SpawnConfigurationState } from "./CharacterManager";
 import { AnimationState, CharacterState } from "./CharacterState";
+import { getSpawnData } from "./Spawning";
 
 const downVector = new Vect3(0, -1, 0);
 
@@ -576,48 +577,29 @@ export class LocalController {
   }
 
   public resetPosition(): void {
-    const randomWithVariance = (value: number, variance: number): number => {
-      const min = value - variance;
-      const max = value + variance;
-      return Math.random() * (max - min) + min;
-    };
-
     this.characterVelocity.x = 0;
     this.characterVelocity.y = 0;
     this.characterVelocity.z = 0;
 
+    this.characterOnGround = false;
+    this.doubleJumpUsed = false;
+    this.jumpReleased = true;
+    this.jumpCounter = 0;
+
+    const spawnData = getSpawnData(this.config.spawnConfiguration, false);
+    
     this.config.character.position.set(
-      randomWithVariance(
-        this.config.spawnConfiguration.spawnPosition.x,
-        this.config.spawnConfiguration.spawnPositionVariance.x,
-      ),
-      randomWithVariance(
-        this.config.spawnConfiguration.spawnPosition.y,
-        this.config.spawnConfiguration.spawnPositionVariance.y,
-      ),
-      randomWithVariance(
-        this.config.spawnConfiguration.spawnPosition.z,
-        this.config.spawnConfiguration.spawnPositionVariance.z,
-      ),
+      spawnData.spawnPosition.x,
+      spawnData.spawnPosition.y,
+      spawnData.spawnPosition.z,
     );
 
-    const respawnEuler = new EulXYZ(
-      0,
-      -this.config.spawnConfiguration.spawnYRotation * (Math.PI / 180),
-      0,
-    );
-    const respawnQuaternion = this.tempQuat.setFromEulerXYZ(respawnEuler);
-
+    const respawnQuaternion = this.tempQuat.setFromEulerXYZ(spawnData.spawnRotation);
     this.config.character.quaternion.set(
       respawnQuaternion.x,
       respawnQuaternion.y,
       respawnQuaternion.z,
       respawnQuaternion.w,
     );
-
-    this.characterOnGround = false;
-    this.doubleJumpUsed = false;
-    this.jumpReleased = true;
-    this.jumpCounter = 0;
   }
 }

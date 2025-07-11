@@ -10,6 +10,7 @@ export {
   SpawnConfiguration,
   SpawnConfigurationState,
 } from "./character/CharacterManager";
+export * from "./character/Spawning";
 export * from "./character/url-position";
 export * from "./helpers/math-helpers";
 export { CharacterModelLoader } from "./character/loading/CharacterModelLoader";

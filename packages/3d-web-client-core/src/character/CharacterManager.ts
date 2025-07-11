@@ -101,7 +101,7 @@ type CharacterReadyForScene = {
 };
 
 export class CharacterManager {
-  public readonly headTargetOffset = new Vect3(0, 1.3, 0);
+  public static readonly headTargetOffset = new Vect3(0, 1.3, 0);
 
   private localClientId: number = 0;
 
@@ -634,7 +634,7 @@ export class CharacterManager {
 
       const targetOffset = new Vect3();
       targetOffset
-        .add(this.headTargetOffset)
+        .add(CharacterManager.headTargetOffset)
         .applyQuat(
           new Quat(
             this.localCharacter.quaternion.x,

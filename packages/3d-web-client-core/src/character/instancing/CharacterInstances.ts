@@ -56,6 +56,19 @@ export type InstanceData = {
   hasNewTarget: boolean;
 };
 
+// Show all instances as grey by default (if no color is provided)
+const defaultColor = new Color().setRGB(0.5, 0.5, 0.5);
+const defaultColorMap = new Map<ColorPartName, Color>([
+  ["hair", defaultColor],
+  ["shirt_short", defaultColor],
+  ["shirt_long", defaultColor],
+  ["pants_short", defaultColor],
+  ["pants_long", defaultColor],
+  ["shoes", defaultColor],
+  ["skin", defaultColor],
+  ["lips", defaultColor],
+]);
+
 export class CharacterInstances {
   private mixer: AnimationMixer | null = null;
   private action: AnimationAction | null = null;
@@ -77,21 +90,11 @@ export class CharacterInstances {
   private currentBindingMode: "full" | "lod" | null = null;
 
   private debug = false;
-  private readonly instanceId = Math.random().toString(36).substr(2, 5);
-
-  private immutableColors = {
-    skin: [0.8509803921568627, 0.6352941176470588, 0.49411764705882355],
-    eyes_black: [0.0, 0.0, 0.0],
-    eyes_white: [1.0, 1.0, 1.0],
-    lips: [0.788235294117647, 0.43529411764705883, 0.39215686274509803],
-    shoes: [0.8666666666666667, 0.8666666666666667, 0.8666666666666667],
-  };
 
   // Single merged animation with time segments
   private animationClip: AnimationClip | null = null;
   private animationSegments: Map<string, SegmentTime> = new Map();
 
-  private startWithHiddenInstances = true;
   private characterIdToInstanceIdMap = new Map<number, number>();
 
   private animationStateToSegmentName(state: AnimationState): string {
@@ -120,22 +123,12 @@ export class CharacterInstances {
   private applyInstanceColors(instanceIndex: number, colors?: Map<ColorPartName, Color>): void {
     if (!this.instancedMesh) return;
 
-    if (colors) {
+    if (colors && colors.size > 0) {
       // Use specific colors provided
       this.instancedMesh.setMaterialColorsAt(instanceIndex, colors);
     } else {
       // Use default random colors
-      this.instancedMesh.setMaterialColorsAt(instanceIndex, new Map([
-        ["hair", new Color().setRGB(Math.random(), Math.random(), Math.random())],
-        ["shirt_short", new Color().setRGB(Math.random(), Math.random(), Math.random())],
-        ["shirt_long", new Color().setRGB(Math.random(), Math.random(), Math.random())],
-        ["pants_short", new Color().setRGB(Math.random(), Math.random(), Math.random())],
-        ["pants_long", new Color().setRGB(Math.random(), Math.random(), Math.random())],
-        ["shoes", new Color(...this.immutableColors.shoes)],
-        ["skin", new Color(...this.immutableColors.skin)],
-        ["lips", new Color(...this.immutableColors.lips)],
-      ]),
-      );
+       this.instancedMesh.setMaterialColorsAt(instanceIndex, defaultColorMap);
     }
 
     // Update texture if needed
@@ -147,9 +140,6 @@ export class CharacterInstances {
 
   constructor(private config: CharacterInstancesConfig) {
     this.debug = config.debug || false;
-    if (this.debug) {
-      console.log(`CharacterInstances created with ID: ${this.instanceId}`);
-    }
   }
 
   public async initialize(): Promise<Object3D | null> {
@@ -224,6 +214,8 @@ export class CharacterInstances {
       if (!instance.isActive) {
         instance.position.copy(position);
         instance.position.y -= 0.45;
+        instance.targetPosition.copy(instance.position);
+        instance.targetPosition.y -= 0.45;
         instance.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
         instance.isActive = true;
         instance.isShadowed = false;
@@ -276,6 +268,8 @@ export class CharacterInstances {
         isFirstNewInstance = false;
         obj.position.copy(position);
         obj.position.y -= 0.45;
+        obj.targetPosition.copy(obj.position);
+        obj.targetPosition.y -= 0.45;
         obj.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
         obj.isActive = true;
         obj.visible = true;
@@ -385,6 +379,16 @@ export class CharacterInstances {
     // Skip updates for shadowed instances as they're hidden by real characters
     if (instance.isShadowed) {
       return;
+    }
+
+    const squaredDistanceFromCurrentPosition = instance.position.distanceToSquared(position);
+    // More than 5m of movement in a tick
+    // the character is likely teleporting rather than just moving quickly
+    // snap to the new position
+    if (squaredDistanceFromCurrentPosition > 5 * 5) {
+      instance.position.copy(position);
+      instance.position.y -= 0.45;
+      instance.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
     }
 
     instance.targetPosition.copy(position);

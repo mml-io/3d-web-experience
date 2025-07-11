@@ -8,7 +8,6 @@ import {
   CharacterState,
   CollisionsManager,
   Composer,
-  decodeCharacterAndCamera,
   EnvironmentConfiguration,
   ErrorScreen,
   EulXYZ,
@@ -25,6 +24,8 @@ import {
   Vect3,
   VirtualJoystick,
   Character,
+  Quat,
+  getSpawnData,
 } from "@mml-io/3d-web-client-core";
 import { StringToHslOptions, TextChatUI, TextChatUIProps } from "@mml-io/3d-web-text-chat";
 import {
@@ -219,6 +220,11 @@ export class Networked3dWebExperienceClient {
     });
     resizeObserver.observe(this.element);
 
+    this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
+
+    const spawnData = getSpawnData(this.spawnConfiguration, true);
+    const spawnRotation = new Quat().setFromEulerXYZ(spawnData.spawnRotation);
+
     const initialNetworkLoadRef = {};
     this.loadingProgressManager.addLoadingAsset(initialNetworkLoadRef, "network", "network");
     this.networkClient = new UserNetworkingClient(
@@ -240,7 +246,8 @@ export class Networked3dWebExperienceClient {
           this.clientId = clientId;
           if (this.initialLoadCompleted) {
             // Already loaded - respawn the character
-            this.spawnCharacter();
+            const spawnData = getSpawnData(this.spawnConfiguration, true);
+            this.spawnCharacter(spawnData);
           } else {
             this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
           }
@@ -290,8 +297,11 @@ export class Networked3dWebExperienceClient {
         colors: null,
       },
       {
-        position: { x: 0, y: 0, z: 0 },
-        rotation: { quaternionY: 0, quaternionW: 1 },
+        position: spawnData.spawnPosition,
+        rotation: {
+          quaternionY: spawnRotation.y,
+          quaternionW: spawnRotation.w,
+        },
         state: 0,
       },
     );
@@ -305,8 +315,6 @@ export class Networked3dWebExperienceClient {
         }
       });
     }
-
-    this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
 
     const animationsPromise = Character.loadAnimations(
       this.characterModelLoader,
@@ -361,7 +369,7 @@ export class Networked3dWebExperienceClient {
 
         this.connectToTextChat();
         this.mountAvatarSelectionUI();
-        this.spawnCharacter();
+        this.spawnCharacter(spawnData);
       }
     });
     this.loadingProgressManager.setInitialLoad(true);
@@ -650,43 +658,19 @@ export class Networked3dWebExperienceClient {
     return Math.random() * (max - min) + min;
   }
 
-  private spawnCharacter() {
+  private spawnCharacter({
+    spawnPosition,
+    spawnRotation,
+    cameraPosition,
+  }: {
+    spawnPosition: Vect3;
+    spawnRotation: EulXYZ;
+    cameraPosition: Vect3;
+  }) {
     if (this.clientId === null) {
       throw new Error("Client ID not set");
     }
 
-    const spawnPosition = new Vect3();
-    spawnPosition.set(
-      this.randomWithVariance(
-        this.spawnConfiguration.spawnPosition.x,
-        this.spawnConfiguration.spawnPositionVariance.x,
-      ),
-      this.randomWithVariance(
-        this.spawnConfiguration.spawnPosition.y,
-        this.spawnConfiguration.spawnPositionVariance.y,
-      ),
-      this.randomWithVariance(
-        this.spawnConfiguration.spawnPosition!.z,
-        this.spawnConfiguration.spawnPositionVariance.z,
-      ),
-    );
-    const spawnRotation = new EulXYZ(
-      0,
-      -this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
-      0,
-    );
-
-    let cameraPosition: Vect3 | null = null;
-    const offset = new Vect3(0, 0, 3.3);
-    offset.applyEulerXYZ(new EulXYZ(0, spawnRotation.y, 0));
-    cameraPosition = spawnPosition.clone().sub(offset).add(this.characterManager.headTargetOffset);
-
-    if (window.location.hash && window.location.hash.length > 1) {
-      const urlParams = decodeCharacterAndCamera(window.location.hash.substring(1));
-      spawnPosition.copy(urlParams.character.position);
-      spawnRotation.setFromQuaternion(urlParams.character.quaternion);
-      cameraPosition = new Vect3(urlParams.camera.position);
-    }
     const ownIdentity = this.userProfiles.get(this.clientId);
     if (!ownIdentity) {
       throw new Error("Own identity not found");
@@ -703,7 +687,7 @@ export class Networked3dWebExperienceClient {
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
       this.cameraManager.setTarget(
-        new Vect3().add(spawnPosition).add(this.characterManager.headTargetOffset),
+        new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset),
       );
       this.cameraManager.reverseUpdateFromPositions();
     }

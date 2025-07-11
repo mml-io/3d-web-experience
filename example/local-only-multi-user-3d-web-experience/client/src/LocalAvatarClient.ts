@@ -213,12 +213,12 @@ export class LocalAvatarClient {
     let cameraPosition: Vect3 | null = null;
     const offset = new Vect3(0, 0, 3.3);
     offset.applyEulerXYZ(new EulXYZ(0, spawnRotation.y, 0));
-    cameraPosition = spawnPosition.clone().sub(offset).add(this.characterManager.headTargetOffset);
+    cameraPosition = spawnPosition.clone().sub(offset).add(CharacterManager.headTargetOffset);
 
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.copy(cameraPosition);
       this.cameraManager.setTarget(
-        new Vect3().add(spawnPosition).add(this.characterManager.headTargetOffset),
+        new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset),
       );
       this.cameraManager.reverseUpdateFromPositions();
     }
