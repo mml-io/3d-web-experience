@@ -323,15 +323,11 @@ export class Networked3dWebExperienceClient {
       virtualJoystick: this.virtualJoystick,
       remoteUserStates: this.remoteUserStates,
       sendUpdate: (characterState: CharacterState) => {
-        if (this.latestCharacterObject.characterState?.colors !== characterState.colors) {
-          // TODO - this is a hack to update the colors, but it should be done in a reactive way when the colors are actually set
-          console.log("Updating colors", characterState.colors);
-          if (characterState.colors) {
-            this.networkClient.updateColors(characterState.colors);
-          }
-        }
         this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
+      },
+      sendLocalCharacterColors: (colors: Array<[number, number, number]>) => {
+        this.networkClient.updateColors(colors);
       },
       animationsPromise: animationsPromise,
       spawnConfiguration: this.spawnConfiguration,
@@ -499,8 +495,8 @@ export class Networked3dWebExperienceClient {
       this.userProfiles.set(clientId, userData.userState);
       this.remoteUserStates.set(clientId, userData.components);
     }
-    for (const [clientId, userData] of updatedUsers) {
-      const userState = userData.userState;
+    for (const [clientId, userDataUpdate] of updatedUsers) {
+      const userState = userDataUpdate.userState;
       if (userState) {
         if (userState.username !== undefined) {
           this.userProfiles.get(clientId)!.username = userState.username;
@@ -511,9 +507,9 @@ export class Networked3dWebExperienceClient {
         if (userState.colors !== undefined) {
           this.userProfiles.get(clientId)!.colors = userState.colors;
         }
-        this.characterManager.remoteCharacterInfoUpdated(clientId);
+        this.characterManager.networkCharacterInfoUpdated(clientId);
       }
-      this.remoteUserStates.set(clientId, userData.components);
+      this.remoteUserStates.set(clientId, userDataUpdate.components);
     }
   }
 

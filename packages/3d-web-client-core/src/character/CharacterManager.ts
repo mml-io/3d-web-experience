@@ -68,6 +68,7 @@ export type CharacterManagerConfig = {
   virtualJoystick?: VirtualJoystick;
   remoteUserStates: Map<number, CharacterState>;
   sendUpdate: (update: CharacterState) => void;
+  sendLocalCharacterColors: (colors: Array<[number, number, number]>) => void;
   animationsPromise: Promise<LoadedAnimations>;
   spawnConfiguration: SpawnConfigurationState;
   characterResolve: (clientId: number) => {
@@ -113,7 +114,7 @@ export class CharacterManager {
   public readonly group: Group;
   private lastUpdateSentTime: number = 0;
 
-  private readonly MAX_REAL_REMOTE_CHARACTERS = 30;
+  private readonly MAX_REAL_REMOTE_CHARACTERS = 2;
   private readonly LOD_CHANGE_COOLDOWN_MS = 2000;
   private readonly MAX_SCENE_ADDITIONS_PER_FRAME = 3;
 
@@ -142,7 +143,7 @@ export class CharacterManager {
       characterModelLoader: this.config.characterModelLoader,
       characterId: id,
       modelLoadedCallback: () => {
-        // no-op for local character
+        this.config.sendLocalCharacterColors(character.getColors());
       },
       modelLoadFailedCallback: (error: Error) => {
         console.error(`CharacterManager: Local character ${id} model failed to load:`, error);
@@ -160,7 +161,6 @@ export class CharacterManager {
       },
       rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
       state: AnimationState.idle,
-      colors: character.getColors(),
     });
     this.localClientId = id;
     this.localCharacter = character;
@@ -233,8 +233,8 @@ export class CharacterManager {
 
     // mark character as loading and update active character state
     this.loadingCharacters.add(id);
-    const activeChar = this.remoteCharacters.get(id);
-    if (!activeChar) {
+    const remoteChar = this.remoteCharacters.get(id);
+    if (!remoteChar) {
       throw new Error(
         `CharacterManager: Cannot promote character ${id}: not found in remoteCharacters`,
       );
@@ -242,7 +242,7 @@ export class CharacterManager {
 
     // Create AbortController for this loading operation
     const abortController = new AbortController();
-    activeChar.abortController = abortController;
+    remoteChar.abortController = abortController;
 
     const characterInfo = this.config.characterResolve(id);
     let position = new Vect3(
@@ -259,8 +259,6 @@ export class CharacterManager {
     );
     const rotation = new EulXYZ(euler.x, euler.y, euler.z);
 
-    const initialAnimationState = networkState.state;
-
     const character = new Character({
       username: characterInfo.username ?? `Unknown User ${id}`,
       characterDescription: characterInfo.characterDescription,
@@ -274,11 +272,7 @@ export class CharacterManager {
           return;
         }
 
-        if (initialAnimationState !== undefined) {
-          character.updateAnimation(initialAnimationState);
-        }
-
-        const loadedCharacterState = activeChar.loadedCharacterState;
+        const loadedCharacterState = remoteChar.loadedCharacterState;
         if (!loadedCharacterState) {
           console.warn("CharacterManager: No loadedCharacterState found for character", id);
           return;
@@ -298,7 +292,7 @@ export class CharacterManager {
         // Called when the real character has finished loading
         // Mark as loaded and clear abort controller
         this.loadingCharacters.delete(id);
-        activeChar.abortController = undefined;
+        remoteChar.abortController = undefined;
 
         // Add to queue for throttled scene addition
         this.charactersReadyForScene.push({
@@ -325,16 +319,16 @@ export class CharacterManager {
 
         // Clean up the failed character state
         this.loadingCharacters.delete(id);
-        activeChar.abortController = undefined;
+        remoteChar.abortController = undefined;
 
         // Remove the failed character from the scene if it was added
-        if (activeChar.loadedCharacterState?.character.parent) {
-          this.group.remove(activeChar.loadedCharacterState.character);
+        if (remoteChar.loadedCharacterState?.character.parent) {
+          this.group.remove(remoteChar.loadedCharacterState.character);
         }
 
         // Dispose of the failed character
-        activeChar.loadedCharacterState?.character.dispose();
-        activeChar.loadedCharacterState = null;
+        remoteChar.loadedCharacterState?.character.dispose();
+        remoteChar.loadedCharacterState = null;
 
         // Instance remains visible and character can be promoted again later
         // The instance was never shadowed since the modelLoadedCallback was never called
@@ -355,7 +349,7 @@ export class CharacterManager {
     );
     // Character will be added to scene when processed from queue
     const remoteController = new RemoteController(character);
-    activeChar.loadedCharacterState = {
+    remoteChar.loadedCharacterState = {
       character,
       remoteController,
       characterLoaded: false,
@@ -477,8 +471,6 @@ export class CharacterManager {
         characterModelLoader: this.config.characterModelLoader,
         cameraManager: this.config.cameraManager,
         timeManager: this.config.timeManager,
-        instanceCount: 512,
-        spawnRadius: 50,
         debug: false,
       });
 
@@ -563,24 +555,47 @@ export class CharacterManager {
     this.remoteCharacters.get(id)?.loadedCharacterState?.character?.addChatBubble(message);
   }
 
-  public remoteCharacterInfoUpdated(id: number) {
+  public networkCharacterInfoUpdated(id: number) {
     const characterInfo = this.config.characterResolve(id);
     const colors = colorArrayToColors(characterInfo.colors ?? []);
 
     if (this.localCharacter && this.localClientId == id) {
+      const abortController = new AbortController();
+      const localCharacter = this.localCharacter;
       this.localCharacter.updateCharacter(
         characterInfo.username ?? `Unknown User ${id}`,
         characterInfo.characterDescription,
+        abortController,
+        () => {
+          if (abortController.signal.aborted) {
+            return;
+          }
+          this.config.sendLocalCharacterColors(localCharacter.getColors());
+        },
+        (error) => {
+          console.error("local.modelLoadFailedCallback", id, error);
+        },
       );
     }
 
     const remoteCharacter = this.remoteCharacters.get(id);
     if (remoteCharacter) {
       if (remoteCharacter.loadedCharacterState) {
+        const abortController = new AbortController();
         remoteCharacter.loadedCharacterState.character.updateCharacter(
           characterInfo.username ?? `Unknown User ${id}`,
           characterInfo.characterDescription,
+          abortController,
+          () => {
+            if (abortController.signal.aborted) {
+              return;
+            }
+          },
+          (error) => {
+            console.error("remote.modelLoadFailedCallback", id, error);
+          },
         );
+        remoteCharacter.abortController = abortController;
       }
       if (this.characterInstances) {
         this.characterInstances.updateInstanceColors(id, colors);
@@ -651,20 +666,6 @@ export class CharacterManager {
         const currentPosition = { x: position.x, y: position.y, z: position.z };
         let existingCharacter = this.remoteCharacters.get(id);
         if (!existingCharacter) {
-          const instanceInfo = this.characterInstances?.getInstanceInfo() || {
-            active: 0,
-            total: 0,
-            available: 0,
-          };
-
-          const canSpawnAsInstance = instanceInfo.available > 0 && characterInstances;
-          if (!canSpawnAsInstance) {
-            console.error(
-              `CharacterManager: Cannot spawn character ${id}: Real character limit reached and no instance capacity available`,
-            );
-            return;
-          }
-
           existingCharacter = {
             id,
             loadedCharacterState: null,
@@ -687,7 +688,7 @@ export class CharacterManager {
           );
           const rotation = new EulXYZ(euler.x, euler.y, euler.z);
 
-          characterInstances.spawnInstanceWithCachedColors(
+          characterInstances.spawnInstance(
             id,
             colorMap,
             new Vect3(position.x, position.y, position.z),

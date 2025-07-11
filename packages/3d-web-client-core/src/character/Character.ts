@@ -142,21 +142,28 @@ export class Character extends Group {
     return this.model?.getColors() || [];
   }
 
-  updateCharacter(username: string, characterDescription: CharacterDescription | null) {
+  updateCharacter(
+    username: string,
+    characterDescription: CharacterDescription | null,
+    abortController: AbortController,
+    onModelLoaded: () => void,
+    onModelLoadFailed: (error: Error) => void,
+  ) {
     if (!characterDescriptionMatches(this.config.characterDescription, characterDescription)) {
       this.config.characterDescription = characterDescription;
       this.load()
         .then(() => {
           // Check if operation was canceled after loading
-          if (this.config.abortController?.signal.aborted) {
+          if (abortController.signal.aborted) {
             console.log(`Character update canceled for ${this.config.characterId}`);
             return;
           }
           this.setTooltipHeights();
+          onModelLoaded();
         })
         .catch((error) => {
           // Check if the error is due to cancellation
-          if (this.config.abortController?.signal.aborted) {
+          if (abortController.signal.aborted) {
             console.log(`Character update canceled during loading for ${this.config.characterId}`);
             return;
           }
@@ -166,8 +173,8 @@ export class Character extends Group {
           );
 
           // Call the error callback if provided
-          if (this.config.modelLoadFailedCallback) {
-            this.config.modelLoadFailedCallback(error);
+          if (onModelLoadFailed) {
+            onModelLoadFailed(error);
           }
         });
     }

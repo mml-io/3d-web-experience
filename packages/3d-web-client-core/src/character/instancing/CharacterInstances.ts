@@ -34,8 +34,6 @@ export type CharacterInstancesConfig = {
   characterModelLoader: CharacterModelLoader;
   cameraManager: CameraManager;
   timeManager: TimeManager;
-  instanceCount?: number;
-  spawnRadius?: number;
   debug?: boolean;
 };
 
@@ -51,21 +49,6 @@ export type InstanceData = {
 
   currentAnimationState: string;
   animationTime: number;
-
-  skinColor: Color;
-  eyesBlackColor: Color;
-  eyesWhiteColor: Color;
-  lipsColor: Color;
-  hairColor: Color;
-
-  shirtColor: Color;
-  pantsColor: Color;
-  shoesColor: Color;
-
-  shirtShortColor: Color;
-  shirtLongColor: Color;
-  pantsShortColor: Color;
-  pantsLongColor: Color;
 
   targetPosition: Vector3;
   targetQuaternion: Quaternion;
@@ -92,8 +75,6 @@ export class CharacterInstances {
   private characterScale = 1;
 
   private currentBindingMode: "full" | "lod" | null = null;
-  private instanceCount: number;
-  private spawnRadius: number;
 
   private debug = false;
   private readonly instanceId = Math.random().toString(36).substr(2, 5);
@@ -131,9 +112,40 @@ export class CharacterInstances {
     }
   }
 
+  /**
+   * Apply colors to an instance at the given index
+   * @param instanceIndex The index of the instance to apply colors to
+   * @param colors Optional specific colors to apply, if not provided, random colors will be used
+   */
+  private applyInstanceColors(instanceIndex: number, colors?: Map<ColorPartName, Color>): void {
+    if (!this.instancedMesh) return;
+
+    if (colors) {
+      // Use specific colors provided
+      this.instancedMesh.setMaterialColorsAt(instanceIndex, colors);
+    } else {
+      // Use default random colors
+      this.instancedMesh.setMaterialColorsAt(instanceIndex, new Map([
+        ["hair", new Color().setRGB(Math.random(), Math.random(), Math.random())],
+        ["shirt_short", new Color().setRGB(Math.random(), Math.random(), Math.random())],
+        ["shirt_long", new Color().setRGB(Math.random(), Math.random(), Math.random())],
+        ["pants_short", new Color().setRGB(Math.random(), Math.random(), Math.random())],
+        ["pants_long", new Color().setRGB(Math.random(), Math.random(), Math.random())],
+        ["shoes", new Color(...this.immutableColors.shoes)],
+        ["skin", new Color(...this.immutableColors.skin)],
+        ["lips", new Color(...this.immutableColors.lips)],
+      ]),
+      );
+    }
+
+    // Update texture if needed
+    if (this.instancedMesh.materialColorsTexture) {
+      this.instancedMesh.materialColorsTexture.needsUpdate = true;
+      this.instancedMesh.materialsNeedsUpdate();
+    }
+  }
+
   constructor(private config: CharacterInstancesConfig) {
-    this.instanceCount = config.instanceCount || 100;
-    this.spawnRadius = config.spawnRadius || 50;
     this.debug = config.debug || false;
     if (this.debug) {
       console.log(`CharacterInstances created with ID: ${this.instanceId}`);
@@ -175,7 +187,7 @@ export class CharacterInstances {
       // create the instanced mesh
       await this.createInstancedMesh();
       this.setupAnimationOptimization();
-      this.addInstances();
+      this.instancedMesh!.addInstances(0);
       this.initializeSkeletonData();
 
       return this.instancedMesh;
@@ -185,7 +197,7 @@ export class CharacterInstances {
     }
   }
 
-  public spawnInstanceWithCachedColors(
+  public spawnInstance(
     characterId: number,
     colors: Map<ColorPartName, Color>,
     position: Vect3,
@@ -193,16 +205,6 @@ export class CharacterInstances {
     animationState: AnimationState,
   ) {
     const animationSegmentName = this.animationStateToSegmentName(animationState);
-    this.spawnInstanceWithColors(characterId, colors, position, rotation, animationSegmentName);
-  }
-
-  private spawnInstanceWithColors(
-    characterId: number,
-    colors: Map<ColorPartName, Color>,
-    position: Vect3,
-    rotation: EulXYZ,
-    animationState: string,
-  ) {
     if (!this.instancedMesh) {
       throw new Error("CharacterInstances: Cannot spawn instance, mesh not initialized.");
     }
@@ -214,11 +216,8 @@ export class CharacterInstances {
     }
 
     const instances = this.instancedMesh.instances!;
-    let assigned = false;
-    let index = -1;
 
-    const activeCount = instances.filter((inst) => inst.isActive).length;
-
+    // First, try to find an available instance
     for (let i = 0; i < instances.length; i++) {
       const instance = instances[i];
 
@@ -237,39 +236,69 @@ export class CharacterInstances {
         instance.animationTime = 0;
         instance.offset = Math.random() * 0.5; // slight time offset to avoid synchronicity
         instance.speed = 1.0;
-        instance.currentAnimationState = animationState; // Use provided animation state instead of defaulting to "idle"
+        instance.currentAnimationState = animationSegmentName; // Use provided animation state instead of defaulting to "idle"
 
         instance.updateMatrix();
         this.updateInstancedMeshBounds();
 
-        assigned = true;
-        index = i;
-        break;
+        this.applyInstanceColors(i, colors);
+        return;
       }
     }
 
-    if (index !== -1) {
-      this.instancedMesh.setMaterialColorsAt(index, {
-        hair: colors.get("hair"),
-        shirt_short: colors.get("shirt_short"),
-        shirt_long: colors.get("shirt_long"),
-        pants_short: colors.get("pants_short"),
-        pants_long: colors.get("pants_long"),
-        shoes: colors.get("shoes"),
-        skin: colors.get("skin"),
-        lips: colors.get("lips"),
-      });
-      if (this.instancedMesh.materialColorsTexture) {
-        this.instancedMesh.materialColorsTexture.needsUpdate = true;
-        this.instancedMesh.materialsNeedsUpdate();
-      }
-    }
+    // If no available instance found, expand capacity
+    const expansionSize = Math.max(50, Math.ceil(instances.length * 0.5)); // Expand by 50% or minimum 50 instances
 
-    if (!assigned) {
-      throw new Error(
-        `CharacterInstances: Failed to spawn instance for character ${characterId}. ${activeCount}/${instances.length} instances active. All instances are in use!`,
+    if (this.debug) {
+      console.log(
+        `CharacterInstances: Expanding capacity from ${instances.length} to ${instances.length + expansionSize} instances (needed for character ${characterId})`,
       );
     }
+
+    let isFirstNewInstance = true;
+
+    this.instancedMesh.addInstances(expansionSize, (obj: Entity<InstanceData>, instanceIndex: number) => {
+      obj.visible = false;
+      obj.time = 0;
+      obj.offset = Math.random() * 0.5;
+      obj.speed = 1.0;
+      obj.currentAnimationState = animationSegmentName;
+      obj.animationTime = 0;
+      obj.isShadowed = false;
+      obj.instanceId = instanceIndex;
+
+      obj.targetPosition = new Vector3();
+      obj.targetQuaternion = new Quaternion();
+      obj.lerpSpeed = 15.0;
+      obj.hasNewTarget = false;
+
+      if (isFirstNewInstance) {
+        isFirstNewInstance = false;
+        obj.position.copy(position);
+        obj.position.y -= 0.45;
+        obj.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
+        obj.isActive = true;
+        obj.visible = true;
+        obj.characterId = characterId;
+        obj.currentAnimationState = animationSegmentName;
+
+        // Set the character mapping
+        this.characterIdToInstanceIdMap.set(characterId, instanceIndex);
+
+        obj.updateMatrix();
+
+        this.applyInstanceColors(instanceIndex, colors);
+      } else {
+        obj.isActive = false;
+        obj.characterId = -1;
+        obj.currentAnimationState = "idle";
+        this.applyInstanceColors(instanceIndex, undefined);
+      }
+    });
+
+    // Update bounds after expansion
+    this.updateInstancedMeshBounds();
+
   }
 
   public despawnInstance(characterId: number): void {
@@ -326,20 +355,6 @@ export class CharacterInstances {
     instance.visible = true;
     instance.updateMatrix();
     this.updateInstancedMeshBounds();
-  }
-
-  public getInstanceInfo(): { active: number; total: number; available: number } {
-    if (!this.instancedMesh?.instances) {
-      return { active: 0, total: 0, available: 0 };
-    }
-
-    const active = this.instancedMesh.instances.filter(
-      (inst) => inst.isActive && !inst.isShadowed,
-    ).length;
-    const total = this.instancedMesh.instances.length;
-    const available = total - this.instancedMesh.instances.filter((inst) => inst.isActive).length;
-
-    return { active, total, available };
   }
 
   public updateInstance(
@@ -416,23 +431,8 @@ export class CharacterInstances {
       );
     }
 
-    // Update the colors using the existing setMaterialColorsAt method
-    this.instancedMesh.setMaterialColorsAt(instanceId, {
-      hair: colors.get("hair"),
-      shirt_short: colors.get("shirt_short"),
-      shirt_long: colors.get("shirt_long"),
-      pants_short: colors.get("pants_short"),
-      pants_long: colors.get("pants_long"),
-      shoes: colors.get("shoes"),
-      skin: colors.get("skin"),
-      lips: colors.get("lips"),
-    });
-
-    // Force texture update
-    if (this.instancedMesh.materialColorsTexture) {
-      this.instancedMesh.materialColorsTexture.needsUpdate = true;
-      this.instancedMesh.materialsNeedsUpdate();
-    }
+    // Update the colors using the helper method
+    this.applyInstanceColors(instanceId, colors as Map<ColorPartName, Color>);
   }
 
   private updateInstancedMeshBounds(): void {
@@ -457,12 +457,13 @@ export class CharacterInstances {
     const originalMaterials: any[] = [];
 
     mesh.traverse((child) => {
-      if (child instanceof SkinnedMesh) {
+      if (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh) {
+        const asSkinnedMesh = child as SkinnedMesh;
         originalSkinnedMeshes++;
-        if (Array.isArray(child.material)) {
-          originalMaterials.push(...child.material);
+        if (Array.isArray(asSkinnedMesh.material)) {
+          originalMaterials.push(...asSkinnedMesh.material);
         } else {
-          originalMaterials.push(child.material);
+          originalMaterials.push(asSkinnedMesh.material);
         }
       }
     });
@@ -474,12 +475,13 @@ export class CharacterInstances {
       const clonedMaterials: any[] = [];
 
       mainMesh.traverse((child) => {
-        if (child instanceof SkinnedMesh) {
+        if (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh) {
+          const asSkinnedMesh = child as SkinnedMesh;
           clonedSkinnedMeshes++;
-          if (Array.isArray(child.material)) {
-            clonedMaterials.push(...child.material);
+          if (Array.isArray(asSkinnedMesh.material)) {
+            clonedMaterials.push(...asSkinnedMesh.material);
           } else {
-            clonedMaterials.push(child.material);
+            clonedMaterials.push(asSkinnedMesh.material);
           }
         }
       });
@@ -514,9 +516,7 @@ export class CharacterInstances {
     // merge all skinnedMeshes
     const skinnedMeshes: SkinnedMesh[] = [];
     mainMesh.traverse((child) => {
-      if (child instanceof SkinnedMesh) {
-        skinnedMeshes.push(child);
-      } else if ((child as SkinnedMesh).isSkinnedMesh) {
+      if (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh) {
         skinnedMeshes.push(child as SkinnedMesh);
       }
     });
@@ -610,7 +610,7 @@ export class CharacterInstances {
     if (!this.skinnedMesh) return;
 
     this.instancedMesh = createInstancedMesh2From<InstanceData>(this.skinnedMesh, {
-      capacity: this.instanceCount,
+      capacity: 0, // Default initial capacity
       createEntities: true,
     });
 
@@ -639,25 +639,12 @@ export class CharacterInstances {
 
     clonedMaterials.forEach((material: any) => {
       if (material) {
-        const isClothing = [
-          "shirt_short",
-          "shirt_long",
-          "pants_short",
-          "pants_long",
-          "shoes",
-          "hair",
-        ].includes(material.name);
-
-        if (material.color && isClothing) {
+        if (material.color) {
           if (this.debug) {
             console.log(`Original color for ${material.name}: #${material.color.getHexString()} `);
-            console.log(`Set material color to white for clothing: ${material.name}`);
+            console.log(`Set material color to white: ${material.name}`);
           }
           material.color.setHex(0xffffff);
-        } else {
-          if (this.debug) {
-            console.log(`Keeping original color for non-clothing material: ${material.name}`);
-          }
         }
         material.vertexColors = true;
         material.needsUpdate = true;
@@ -683,67 +670,6 @@ export class CharacterInstances {
     if (this.debug) {
       console.log(`${this.propertyBindings.length} bindings (bones to animate)`);
     }
-  }
-
-  private addInstances(): void {
-    const rnd = () => Math.random() * 2 - 1;
-    const randomColor = () => new Color().setRGB(Math.random(), Math.random(), Math.random());
-
-    this.instancedMesh!.addInstances(
-      this.instanceCount,
-      (obj: Entity<InstanceData>, index: number) => {
-        if (this.startWithHiddenInstances) {
-          obj.visible = false;
-        } else {
-          obj.position
-            .set(rnd() * this.spawnRadius, 0, rnd() * this.spawnRadius)
-            .divideScalar(this.characterScale);
-        }
-
-        obj.time = 0; // animation time
-        obj.offset = Math.random() * 0.5; // animation track offset (prevents synchronicity)
-        // we should keep it small to avoid boundary issues
-        obj.speed = 1.0; // animation speed multiplier
-        obj.currentAnimationState = "idle"; // initial animation state
-        obj.animationTime = 0; // animation time within the segment
-
-        obj.isActive = !this.startWithHiddenInstances;
-        obj.isShadowed = false; // Initialize shadowed state
-        obj.characterId = -1; // -1 means no character is assigned yet
-        obj.instanceId = index; // instance ID
-
-        obj.skinColor = new Color(...this.immutableColors.skin);
-        obj.eyesBlackColor = new Color(...this.immutableColors.eyes_black);
-        obj.eyesWhiteColor = new Color(...this.immutableColors.eyes_white);
-        obj.lipsColor = new Color(...this.immutableColors.lips);
-        obj.hairColor = randomColor();
-        obj.shirtColor = randomColor();
-        obj.pantsColor = randomColor();
-        obj.shoesColor = new Color(...this.immutableColors.shoes);
-        obj.shirtShortColor = obj.shirtColor;
-        obj.shirtLongColor = obj.shirtColor;
-        obj.pantsShortColor = obj.pantsColor;
-        obj.pantsLongColor = obj.pantsColor;
-
-        obj.targetPosition = new Vector3();
-        obj.targetQuaternion = new Quaternion();
-        obj.lerpSpeed = 15.0;
-        obj.hasNewTarget = false;
-
-        if (this.instancedMesh) {
-          this.instancedMesh.setMaterialColorsAt(index, {
-            hair: obj.hairColor,
-            shirt_short: obj.shirtShortColor,
-            shirt_long: obj.shirtLongColor,
-            pants_short: obj.pantsShortColor,
-            pants_long: obj.pantsLongColor,
-            shoes: obj.shoesColor,
-            skin: obj.skinColor,
-            lips: obj.lipsColor,
-          });
-        }
-      },
-    );
   }
 
   private initializeSkeletonData(): void {
@@ -797,6 +723,8 @@ export class CharacterInstances {
 
     this.delta = deltaTime;
 
+    console.log("instance count", this.instancedMesh.instancesCount);
+
     const camera = this.config.cameraManager.camera;
     camera.updateMatrixWorld();
 
@@ -810,10 +738,6 @@ export class CharacterInstances {
 
   public setupFrustumCulling(): void {
     if (!this.instancedMesh || !this.mixer || !this.action) return;
-
-    if (this.debug) {
-      console.log(`Setting up frustum culling for ${this.instanceCount} instances`);
-    }
 
     const maxFps = 60;
     const minFps = 10;

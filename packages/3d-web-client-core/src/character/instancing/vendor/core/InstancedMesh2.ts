@@ -32,6 +32,7 @@ import { InstancedEntity } from "./InstancedEntity";
 import { BVHParams, InstancedMeshBVH } from "./InstancedMeshBVH";
 import { GLInstancedBufferAttribute } from "./utils/GLInstancedBufferAttribute";
 import { SquareDataTexture } from "./utils/SquareDataTexture";
+import { ColorPartName } from "../../../CharacterModel";
 
 // TODO: Add check to not update partial texture if needsuupdate already true
 // TODO: if bvh present, can override?
@@ -869,16 +870,7 @@ export class InstancedMesh2<
    */
   public setMaterialColorsAt(
     id: number,
-    materialColors: {
-      hair?: ColorRepresentation;
-      shirt_short?: ColorRepresentation;
-      shirt_long?: ColorRepresentation;
-      pants_short?: ColorRepresentation;
-      pants_long?: ColorRepresentation;
-      shoes?: ColorRepresentation;
-      skin?: ColorRepresentation;
-      lips?: ColorRepresentation;
-    },
+    materialColors: Map<ColorPartName, Color>,
   ): void {
     if (this.materialColorsTexture === null) {
       this.initMaterialColorsTexture();
@@ -897,13 +889,12 @@ export class InstancedMesh2<
     const baseOffset = id * 8 * 4; // 8 colors per instance, 4 floats per color
 
     materialOrder.forEach((materialName, index) => {
-      const color = materialColors[materialName as keyof typeof materialColors];
+      const color = materialColors.get(materialName as ColorPartName);
       if (color !== undefined) {
         const offset = baseOffset + index * 4;
-        const colorObj = new Color(color);
-        this.materialColorsTexture!._data[offset] = colorObj.r;
-        this.materialColorsTexture!._data[offset + 1] = colorObj.g;
-        this.materialColorsTexture!._data[offset + 2] = colorObj.b;
+        this.materialColorsTexture!._data[offset] = color.r;
+        this.materialColorsTexture!._data[offset + 1] = color.g;
+        this.materialColorsTexture!._data[offset + 2] = color.b;
         this.materialColorsTexture!._data[offset + 3] = 1.0; // Alpha
       }
     });

@@ -72,8 +72,8 @@ export function colorArrayToColors(
 function getSimpleHeight(mesh: Object3D): number {
   let maxY = 0;
   mesh.traverse((child) => {
-    if (child instanceof Mesh) {
-      const geometry = child.geometry;
+    if (child instanceof Mesh || (child as Mesh).isMesh) {
+      const geometry = (child as Mesh).geometry;
       if (geometry) {
         const positionAttribute = geometry.getAttribute("position");
         for (let i = 0; i < positionAttribute.count; i++) {
@@ -116,7 +116,7 @@ export class CharacterModel {
 
   private colors: Array<[number, number, number]> | null = null;
 
-  constructor(private config: CharacterModelConfig) {}
+  constructor(private config: CharacterModelConfig) { }
 
   public async init(): Promise<void> {
     // Check if operation was canceled before starting
@@ -202,21 +202,13 @@ export class CharacterModel {
         if (this.materials.has(originalMaterial.name)) {
           asMesh.material = this.materials.get(originalMaterial.name)!;
         } else {
-          const material =
-            originalMaterial.name === "body_replaceable_color"
-              ? new CharacterMaterial({
-                  isLocal: this.config.isLocal,
-                  cameraManager: this.config.cameraManager,
-                  characterId: this.config.characterId,
-                  originalMaterial,
-                })
-              : new CharacterMaterial({
-                  isLocal: this.config.isLocal,
-                  cameraManager: this.config.cameraManager,
-                  characterId: this.config.characterId,
-                  originalMaterial,
-                  colorOverride: originalMaterial.color,
-                });
+          const material = new CharacterMaterial({
+            isLocal: this.config.isLocal,
+            cameraManager: this.config.cameraManager,
+            characterId: this.config.characterId,
+            originalMaterial,
+            colorOverride: originalMaterial.color,
+          });
           this.materials.set(originalMaterial.name, material);
           asMesh.material = material;
         }
@@ -436,9 +428,18 @@ export class CharacterModel {
       this.animationMixer = null;
     }
     this.mesh?.traverse((child: Object3D) => {
-      if (child instanceof SkinnedMesh) {
-        child.geometry.dispose();
-        child.material.dispose();
+      if (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh) {
+        const asSkinnedMesh = child as SkinnedMesh;
+        if (asSkinnedMesh.geometry) {
+          asSkinnedMesh.geometry.dispose();
+        }
+        if (asSkinnedMesh.material) {
+          if (Array.isArray(asSkinnedMesh.material)) {
+            asSkinnedMesh.material.forEach((material) => material.dispose());
+          } else {
+            asSkinnedMesh.material.dispose();
+          }
+        }
       }
     });
     this.mesh = null;

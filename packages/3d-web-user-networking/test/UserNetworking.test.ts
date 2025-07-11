@@ -5,9 +5,9 @@ import { DeltaNetServer } from "@deltanet/delta-net-server";
 import express from "express";
 import enableWs from "express-ws";
 
-import { UserData, UserIdentity, UserNetworkingClientUpdate } from "../src";
+import { UserData, UserNetworkingClientUpdate } from "../src";
 import { WebsocketStatus } from "../src/types";
-import { UserNetworkingClient } from "../src/UserNetworkingClient";
+import { NetworkUpdate, UserNetworkingClient } from "../src/UserNetworkingClient";
 import { UserNetworkingServer } from "../src/UserNetworkingServer";
 
 import { createWaitable, waitUntil } from "./test-utils";
@@ -129,10 +129,7 @@ describe("UserNetworking", () => {
       assignedIdentity: (clientId: number) => {
         user1IdentityResolve(clientId);
       },
-      clientUpdate: (
-        clientId: number,
-        userNetworkingClientUpdate: null | UserNetworkingClientUpdate,
-      ) => {
+      onUpdate: (update: NetworkUpdate) => {
         if (userNetworkingClientUpdate === null) {
           user1UserStates.delete(clientId);
         } else {

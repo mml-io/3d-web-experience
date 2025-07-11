@@ -160,7 +160,6 @@ export function captureCharacterColors(
         avgColor.b / 255,
       );
 
-      console.log("region", region.name, "sampled color:", materialColor.getHexString());
       if (region.name === "Hair/Head Top") {
         sampledColors.set("hair", materialColor);
       } else if (region.name === "Face/Chin") {
@@ -208,8 +207,8 @@ export function captureCharacterColorsFromObject3D(
   clone.scale.set(1, 1, 1);
   const skinnedMeshes: SkinnedMesh[] = [];
   clone.traverse((child) => {
-    if (child instanceof SkinnedMesh) {
-      skinnedMeshes.push(child);
+    if (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh) {
+      skinnedMeshes.push(child as SkinnedMesh);
     }
   });
 

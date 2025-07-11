@@ -19,5 +19,4 @@ export type CharacterState = {
     quaternionW: number;
   };
   state: AnimationState;
-  colors?: Array<[number, number, number]>;
 };

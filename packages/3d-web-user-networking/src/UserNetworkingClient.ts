@@ -108,7 +108,6 @@ export class UserNetworkingClient {
               this.userId = userId;
               this.isAuthenticated = true;
               this.config.assignedIdentity(this.userId);
-              console.log(`Resolved userIndex ${this.userIndex} to stable userId: ${this.userId}`);
             } else {
               console.error(
                 `Invalid userIndex ${this.userIndex}, userIds length: ${userIds.length}`,

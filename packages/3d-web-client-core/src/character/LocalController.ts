@@ -113,7 +113,6 @@ export class LocalController {
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
       state: AnimationState.idle,
-      colors: [],
     };
     this.minimumX = this.config.spawnConfiguration.respawnTrigger.minX;
     this.maximumX = this.config.spawnConfiguration.respawnTrigger.maxX;
@@ -573,7 +572,6 @@ export class LocalController {
       },
       rotation: { quaternionY: characterQuat.y, quaternionW: characterQuat.w },
       state: this.config.character.getCurrentAnimation(),
-      colors: this.config.character.getColors(),
     };
   }
 
