@@ -6,6 +6,8 @@ import dracoDecoderWasmBase64 from "base64:draco3d/draco_decoder.wasm";
 import dracoEncoderWasmBase64 from "base64:draco3d/draco_encoder.wasm";
 // @ts-ignore - draco3d doesn't have built-in TypeScript definitions
 import draco3d from "draco3d";
+import { MeshoptDecoder } from "meshoptimizer";
+import { MeshoptEncoder } from "meshoptimizer";
 
 function base64ToArrayBuffer(base64: string) {
   const binaryString = atob(base64);
@@ -78,6 +80,8 @@ class GLTFLoadingWorker {
     this.io = new WebIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({
       "draco3d.decoder": dracoDecoder,
       "draco3d.encoder": dracoEncoder,
+      "meshopt.decoder": MeshoptDecoder,
+      "meshopt.encoder": MeshoptEncoder,
     });
   }
 
