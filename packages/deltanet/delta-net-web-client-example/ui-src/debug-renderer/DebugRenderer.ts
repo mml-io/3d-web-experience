@@ -1,4 +1,4 @@
-import { DeltaNetClientState, DeltaNetClientWebsocket } from "@deltanet/delta-net-web";
+import { DeltaNetClientState, DeltaNetClientWebsocket } from "@mml-io/delta-net-web";
 
 import { BandwidthDisplay } from "./BandwidthDisplay";
 import { CoordinateRenderer } from "./CoordinateRenderer";

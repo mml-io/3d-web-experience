@@ -1,4 +1,4 @@
-import { DeltaNetClientWebsocket, DeltaNetClientState, DeltaNetClientWebsocketStatus, DeltaNetClientWebsocketStatusToString } from "@deltanet/delta-net-web";
+import { DeltaNetClientWebsocket, DeltaNetClientState, DeltaNetClientWebsocketStatus, DeltaNetClientWebsocketStatusToString } from "@mml-io/delta-net-web";
 import styles from "./BandwidthDisplay.module.css";
 
 export class BandwidthDisplay {

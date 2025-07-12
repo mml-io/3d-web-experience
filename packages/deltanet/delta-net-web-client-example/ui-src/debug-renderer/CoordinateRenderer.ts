@@ -1,4 +1,4 @@
-import { DeltaNetClientComponent, DeltaNetClientState } from "@deltanet/delta-net-web";
+import { DeltaNetClientComponent, DeltaNetClientState } from "@mml-io/delta-net-web";
 
 import { DebugRendererConfig } from "./DebugRenderer";
 

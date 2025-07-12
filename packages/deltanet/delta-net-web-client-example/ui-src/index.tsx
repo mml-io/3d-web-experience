@@ -1,6 +1,6 @@
 import "./index.css";
 
-import { deltaNetProtocolSubProtocol_v0_1 } from "@deltanet/delta-net-protocol";
+import { deltaNetProtocolSubProtocol_v0_1 } from "@mml-io/delta-net-protocol";
 import {
   DeltaNetClientState,
   DeltaNetClientWebsocket,
@@ -8,7 +8,7 @@ import {
   DeltaNetClientWebsocketStatusToString,
   DeltaNetClientWebsocketTick,
   DeltaNetClientWebsocketUserIndex,
-} from "@deltanet/delta-net-web";
+} from "@mml-io/delta-net-web";
 
 import { DebugRenderer } from "./debug-renderer/DebugRenderer";
 import { WebSocketUrlBar } from "./WebSocketUrlBar";

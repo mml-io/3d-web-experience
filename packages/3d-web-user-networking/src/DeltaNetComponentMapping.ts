@@ -1,4 +1,4 @@
-import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
+import { BufferReader, BufferWriter } from "@mml-io/delta-net-protocol";
 
 import { UserNetworkingClientUpdate } from "./types";
 import { UserData } from "./UserData";

@@ -17,7 +17,7 @@ const jestConfig: JestConfigWithTsJest = {
     ],
   },
   transformIgnorePatterns: [
-    "node_modules/(?!@deltanet/.*)"
+    "node_modules/(?!@mml-io/.*)"
   ],
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],

@@ -1,4 +1,4 @@
-import { DeltaNetServer } from "@deltanet/delta-net-server";
+import { DeltaNetServer } from "@mml-io/delta-net-server";
 
 import {
   COMPONENT_POSITION_X,

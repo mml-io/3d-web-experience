@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import { deltaNetProtocolSubProtocol_v0_1, BufferWriter } from "@deltanet/delta-net-protocol";
+import { deltaNetProtocolSubProtocol_v0_1, BufferWriter } from "@mml-io/delta-net-protocol";
 import {
   DeltaNetClientWebsocket,
   DeltaNetClientWebsocketInitialCheckout,
@@ -7,7 +7,7 @@ import {
   DeltaNetClientWebsocketStatusToString,
   DeltaNetClientWebsocketTick,
   DeltaNetClientWebsocketUserIndex,
-} from "@deltanet/delta-net-web";
+} from "@mml-io/delta-net-web";
 import ws from "ws";
 
 import { BotConfig } from "./BotRunner";

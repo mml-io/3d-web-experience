@@ -1,7 +1,7 @@
 import path from "node:path";
 import * as url from "url";
 
-import { DeltaNetServer } from "@deltanet/delta-net-server";
+import { DeltaNetServer } from "@mml-io/delta-net-server";
 import { watch } from "chokidar";
 import express, { static as expressStatic } from "express";
 import enableWs from "express-ws";

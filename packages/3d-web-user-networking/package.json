@@ -20,9 +20,9 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@deltanet/delta-net-server": "^0.1.0",
-    "@deltanet/delta-net-web": "^0.1.0",
-    "@deltanet/delta-net-protocol": "^0.1.0"
+    "@mml-io/delta-net-server": "^0.1.0",
+    "@mml-io/delta-net-web": "^0.1.0",
+    "@mml-io/delta-net-protocol": "^0.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

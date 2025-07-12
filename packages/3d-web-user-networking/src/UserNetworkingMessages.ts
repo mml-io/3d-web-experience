@@ -1,4 +1,4 @@
-import { DeltaNetServerError } from "@deltanet/delta-net-server";
+import { DeltaNetServerError } from "@mml-io/delta-net-server";
 
 export type CharacterDescription =
   | {

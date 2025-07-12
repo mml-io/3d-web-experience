@@ -1,4 +1,4 @@
-import { DeltaNetClientState } from "@deltanet/delta-net-web";
+import { DeltaNetClientState } from "@mml-io/delta-net-web";
 
 import { GenericTextCell } from "../datagrid/VirtualDataTable/GenericTextCell";
 import {
@@ -93,7 +93,7 @@ function generateSortSettings<K extends keyof NetworkUserRow>(
 }
 
 // Custom row class to handle the network state data
-import { BufferReader } from "@deltanet/delta-net-protocol";
+import { BufferReader } from "@mml-io/delta-net-protocol";
 
 import { ColumnarVirtualDataRow } from "../datagrid/VirtualDataTable/ColumnarVirtualDataRow";
 import styles from "./NetworkStateVirtualDataTable.module.css";

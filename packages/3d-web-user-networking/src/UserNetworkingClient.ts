@@ -5,7 +5,7 @@ import {
   DeltaNetClientWebsocketStatus,
   DeltaNetClientWebsocketTick,
   DeltaNetClientWebsocketUserIndex,
-} from "@deltanet/delta-net-web";
+} from "@mml-io/delta-net-web";
 
 import {
   DeltaNetComponentMapping,

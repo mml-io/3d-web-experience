@@ -22,9 +22,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@deltanet/delta-net-protocol": "^0.1.0",
-    "@deltanet/delta-net-server": "^0.1.0",
-    "@deltanet/delta-net-web": "^0.1.0",
+    "@mml-io/delta-net-protocol": "^0.1.0",
+    "@mml-io/delta-net-server": "^0.1.0",
+    "@mml-io/delta-net-web": "^0.1.0",
     "@ez-elements/core": "^0.0.6",
     "chokidar": "4.0.1",
     "express": "4.21.2",

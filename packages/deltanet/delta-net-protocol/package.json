@@ -1,5 +1,5 @@
 {
-  "name": "@deltanet/delta-net-protocol",
+  "name": "@mml-io/delta-net-protocol",
   "version": "0.1.0",
   "publishConfig": {
     "access": "public"

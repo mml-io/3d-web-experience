@@ -1,4 +1,4 @@
-import { encodeError, DeltaNetV01ServerErrors } from "@deltanet/delta-net-protocol";
+import { encodeError, DeltaNetV01ServerErrors } from "@mml-io/delta-net-protocol";
 import {
   DeltaNetServer,
   DeltaNetServerError,
@@ -8,7 +8,7 @@ import {
   onJoinerOptions,
   onLeaveOptions,
   onStatesUpdateOptions,
-} from "@deltanet/delta-net-server";
+} from "@mml-io/delta-net-server";
 
 import { DeltaNetComponentMapping } from "./DeltaNetComponentMapping";
 import { LegacyAdapter } from "./legacy/LegacyAdapter";

@@ -1,7 +1,7 @@
 import { Server } from "node:http";
 
-import { deltaNetProtocolSubProtocol_v0_1 } from "@deltanet/delta-net-protocol";
-import { DeltaNetServer } from "@deltanet/delta-net-server";
+import { deltaNetProtocolSubProtocol_v0_1 } from "@mml-io/delta-net-protocol";
+import { DeltaNetServer } from "@mml-io/delta-net-server";
 import express from "express";
 import enableWs from "express-ws";
 
