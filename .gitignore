@@ -44,3 +44,4 @@ coverage
 
 .envrc
 .direnv
+.turbo/

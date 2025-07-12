@@ -32,10 +32,8 @@
     "meshoptimizer": "^0.18.1",
     "postprocessing": "6.36.7",
     "three-mesh-bvh": "0.9.0",
+    "three": ">= 0.163.0",
     "tweakpane": "4.0.5"
-  },
-  "peerDependencies": {
-    "three": ">= 0.163.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

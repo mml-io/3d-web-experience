@@ -23,9 +23,7 @@
     "@mml-io/3d-web-client-core": "^0.22.0",
     "@mml-io/3d-web-text-chat": "^0.22.0",
     "@mml-io/3d-web-user-networking": "^0.22.0",
-    "@mml-io/mml-web": "0.19.7"
-  },
-  "peerDependencies": {
+    "@mml-io/mml-web": "0.19.7",
     "three": ">= 0.163.0"
   },
   "devDependencies": {

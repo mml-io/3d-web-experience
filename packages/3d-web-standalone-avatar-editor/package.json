@@ -24,9 +24,7 @@
     "@mml-io/3d-web-avatar-editor-ui": "^0.22.0",
     "@mml-io/3d-web-client-core": "^0.22.0",
     "@mml-io/model-loader": "0.19.7",
-    "react": "^19.0.0"
-  },
-  "peerDependencies": {
+    "react": "^19.0.0",
     "three": ">= 0.163.0"
   },
   "devDependencies": {

@@ -22,10 +22,8 @@
   },
   "dependencies": {
     "@mml-io/model-loader": "0.19.7",
+    "three": ">= 0.163.0",
     "react": "^19.0.0"
-  },
-  "peerDependencies": {
-    "three": ">= 0.163.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
