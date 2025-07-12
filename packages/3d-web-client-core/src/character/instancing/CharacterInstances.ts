@@ -128,7 +128,7 @@ export class CharacterInstances {
       this.instancedMesh.setMaterialColorsAt(instanceIndex, colors);
     } else {
       // Use default random colors
-       this.instancedMesh.setMaterialColorsAt(instanceIndex, defaultColorMap);
+      this.instancedMesh.setMaterialColorsAt(instanceIndex, defaultColorMap);
     }
 
     // Update texture if needed
@@ -249,50 +249,52 @@ export class CharacterInstances {
 
     let isFirstNewInstance = true;
 
-    this.instancedMesh.addInstances(expansionSize, (obj: Entity<InstanceData>, instanceIndex: number) => {
-      obj.visible = false;
-      obj.time = 0;
-      obj.offset = Math.random() * 0.5;
-      obj.speed = 1.0;
-      obj.currentAnimationState = animationSegmentName;
-      obj.animationTime = 0;
-      obj.isShadowed = false;
-      obj.instanceId = instanceIndex;
-
-      obj.targetPosition = new Vector3();
-      obj.targetQuaternion = new Quaternion();
-      obj.lerpSpeed = 15.0;
-      obj.hasNewTarget = false;
-
-      if (isFirstNewInstance) {
-        isFirstNewInstance = false;
-        obj.position.copy(position);
-        obj.position.y -= 0.45;
-        obj.targetPosition.copy(obj.position);
-        obj.targetPosition.y -= 0.45;
-        obj.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
-        obj.isActive = true;
-        obj.visible = true;
-        obj.characterId = characterId;
+    this.instancedMesh.addInstances(
+      expansionSize,
+      (obj: Entity<InstanceData>, instanceIndex: number) => {
+        obj.visible = false;
+        obj.time = 0;
+        obj.offset = Math.random() * 0.5;
+        obj.speed = 1.0;
         obj.currentAnimationState = animationSegmentName;
+        obj.animationTime = 0;
+        obj.isShadowed = false;
+        obj.instanceId = instanceIndex;
 
-        // Set the character mapping
-        this.characterIdToInstanceIdMap.set(characterId, instanceIndex);
+        obj.targetPosition = new Vector3();
+        obj.targetQuaternion = new Quaternion();
+        obj.lerpSpeed = 15.0;
+        obj.hasNewTarget = false;
 
-        obj.updateMatrix();
+        if (isFirstNewInstance) {
+          isFirstNewInstance = false;
+          obj.position.copy(position);
+          obj.position.y -= 0.45;
+          obj.targetPosition.copy(obj.position);
+          obj.targetPosition.y -= 0.45;
+          obj.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
+          obj.isActive = true;
+          obj.visible = true;
+          obj.characterId = characterId;
+          obj.currentAnimationState = animationSegmentName;
 
-        this.applyInstanceColors(instanceIndex, colors);
-      } else {
-        obj.isActive = false;
-        obj.characterId = -1;
-        obj.currentAnimationState = "idle";
-        this.applyInstanceColors(instanceIndex, undefined);
-      }
-    });
+          // Set the character mapping
+          this.characterIdToInstanceIdMap.set(characterId, instanceIndex);
+
+          obj.updateMatrix();
+
+          this.applyInstanceColors(instanceIndex, colors);
+        } else {
+          obj.isActive = false;
+          obj.characterId = -1;
+          obj.currentAnimationState = "idle";
+          this.applyInstanceColors(instanceIndex, undefined);
+        }
+      },
+    );
 
     // Update bounds after expansion
     this.updateInstancedMeshBounds();
-
   }
 
   public despawnInstance(characterId: number): void {

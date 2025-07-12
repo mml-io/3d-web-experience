@@ -77,7 +77,10 @@ export class Networked3dWebExperienceServer {
           userIdentityPresentedOnConnection,
         );
       },
-      onClientUserIdentityUpdate: (clientId: number, userIdentity: UserData): UserData | true | Error => {
+      onClientUserIdentityUpdate: (
+        clientId: number,
+        userIdentity: UserData,
+      ): UserData | true | Error => {
         // Called whenever a user connects or updates their character/identity
         return this.config.userAuthenticator.onClientUserIdentityUpdate(clientId, userIdentity);
       },

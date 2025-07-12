@@ -116,7 +116,7 @@ export class CharacterModel {
 
   private colors: Array<[number, number, number]> | null = null;
 
-  constructor(private config: CharacterModelConfig) { }
+  constructor(private config: CharacterModelConfig) {}
 
   public async init(): Promise<void> {
     // Check if operation was canceled before starting

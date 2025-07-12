@@ -383,7 +383,8 @@ describe("UserNetworking", () => {
     const user1Profiles: Map<number, UserData> = new Map();
     const user1UsernameUpdates: Array<{ userId: number; username: string }> = [];
     const user1CharacterDescUpdates: Array<{ userId: number; characterDescription: any }> = [];
-    const user1ColorUpdates: Array<{ userId: number; colors: Array<[number, number, number]> }> = [];
+    const user1ColorUpdates: Array<{ userId: number; colors: Array<[number, number, number]> }> =
+      [];
 
     const user1 = new UserNetworkingClient({
       url: serverAddress,
@@ -423,7 +424,8 @@ describe("UserNetworking", () => {
     const user2Profiles: Map<number, UserData> = new Map();
     const user2UsernameUpdates: Array<{ userId: number; username: string }> = [];
     const user2CharacterDescUpdates: Array<{ userId: number; characterDescription: any }> = [];
-    const user2ColorUpdates: Array<{ userId: number; colors: Array<[number, number, number]> }> = [];
+    const user2ColorUpdates: Array<{ userId: number; colors: Array<[number, number, number]> }> =
+      [];
 
     const user2 = new UserNetworkingClient({
       url: serverAddress,
@@ -461,8 +463,14 @@ describe("UserNetworking", () => {
     expect(await user2IdentityPromise).toEqual(2);
 
     // Wait for initial profile setup
-    await waitUntil(() => user1Profiles.has(1) && user1Profiles.has(2), "wait for user1 to see both profiles");
-    await waitUntil(() => user2Profiles.has(1) && user2Profiles.has(2), "wait for user2 to see both profiles");
+    await waitUntil(
+      () => user1Profiles.has(1) && user1Profiles.has(2),
+      "wait for user1 to see both profiles",
+    );
+    await waitUntil(
+      () => user2Profiles.has(1) && user2Profiles.has(2),
+      "wait for user2 to see both profiles",
+    );
 
     user1UsernameUpdates.length = 0;
     user1CharacterDescUpdates.length = 0;
@@ -473,9 +481,9 @@ describe("UserNetworking", () => {
 
     // Test individual username update
     user1.updateUsername("updated-user1");
-    
+
     await waitUntil(() => user2UsernameUpdates.length > 0, "wait for user2 to see username update");
-    
+
     expect(user2UsernameUpdates[user2UsernameUpdates.length - 1]).toEqual({
       userId: 1,
       username: "updated-user1",
@@ -485,9 +493,12 @@ describe("UserNetworking", () => {
     user2CharacterDescUpdates.length = 0;
     const newCharacterDescription = { meshFileUrl: "http://example.com/new-user1.glb" };
     user1.updateCharacterDescription(newCharacterDescription);
-    
-    await waitUntil(() => user2CharacterDescUpdates.length > 0, "wait for user2 to see character description update");
-    
+
+    await waitUntil(
+      () => user2CharacterDescUpdates.length > 0,
+      "wait for user2 to see character description update",
+    );
+
     expect(user2CharacterDescUpdates[user2CharacterDescUpdates.length - 1]).toEqual({
       userId: 1,
       characterDescription: newCharacterDescription,
@@ -495,11 +506,14 @@ describe("UserNetworking", () => {
 
     // Test individual colors update
     user2ColorUpdates.length = 0;
-    const newColors: Array<[number, number, number]> = [[255, 0, 0], [0, 255, 0]];
+    const newColors: Array<[number, number, number]> = [
+      [255, 0, 0],
+      [0, 255, 0],
+    ];
     user1.updateColors(newColors);
-    
+
     await waitUntil(() => user2ColorUpdates.length > 0, "wait for user2 to see colors update");
-    
+
     expect(user2ColorUpdates[user2ColorUpdates.length - 1]).toEqual({
       userId: 1,
       colors: newColors,
@@ -509,21 +523,26 @@ describe("UserNetworking", () => {
     user2UsernameUpdates.length = 0;
     user2CharacterDescUpdates.length = 0;
     user2ColorUpdates.length = 0;
-    
+
     user1.updateUserStates({
       username: "batch-updated-user1",
       characterDescription: { meshFileUrl: "http://example.com/batch-user1.glb" },
       colors: [[128, 128, 128]],
     });
 
-    await waitUntil(() => 
-      user2UsernameUpdates.length > 0 && user2CharacterDescUpdates.length > 0 && user2ColorUpdates.length > 0,
-      "wait for batch update to be received"
+    await waitUntil(
+      () =>
+        user2UsernameUpdates.length > 0 &&
+        user2CharacterDescUpdates.length > 0 &&
+        user2ColorUpdates.length > 0,
+      "wait for batch update to be received",
     );
 
     // Test getter methods
     expect(user1.getMyUsername()).toBe("batch-updated-user1");
-    expect(user1.getMyCharacterDescription()).toEqual({ meshFileUrl: "http://example.com/batch-user1.glb" });
+    expect(user1.getMyCharacterDescription()).toEqual({
+      meshFileUrl: "http://example.com/batch-user1.glb",
+    });
     expect(user1.getMyColors()).toEqual([[128, 128, 128]]);
 
     user1.stop();

@@ -67,7 +67,7 @@ export class LegacyAdapter {
   constructor(
     private readonly userNetworkingServer: UserNetworkingServer,
     private readonly deltaNetServer: DeltaNetServer,
-  ) { }
+  ) {}
 
   public broadcastMessage(broadcastType: number, broadcastPayload: string) {
     // The new broadcast type is a number and then the payload is a string
@@ -120,7 +120,8 @@ export class LegacyAdapter {
       try {
         if (message.data instanceof ArrayBuffer || message.data instanceof Buffer) {
           if (client.authenticatedUser) {
-            const arrayBuffer = message.data instanceof ArrayBuffer ? message.data : toArrayBuffer(message.data);
+            const arrayBuffer =
+              message.data instanceof ArrayBuffer ? message.data : toArrayBuffer(message.data);
             const update = LegacyUserNetworkingCodec.decodeUpdate(arrayBuffer);
             update.id = id;
             const index = this.deltaNetServer.dangerouslyGetConnectionsToComponentIndex().get(id);
@@ -311,11 +312,13 @@ export class LegacyAdapter {
         }
       } catch (e) {
         console.error("Error handling message", message, e);
-        socket.send(JSON.stringify({
-          type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
-          errorType: LEGACY_USER_NETWORKING_UNKNOWN_ERROR,
-          message: "Error handling message",
-        } satisfies LegacyFromUserNetworkingServerMessage));
+        socket.send(
+          JSON.stringify({
+            type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
+            errorType: LEGACY_USER_NETWORKING_UNKNOWN_ERROR,
+            message: "Error handling message",
+          } satisfies LegacyFromUserNetworkingServerMessage),
+        );
         socket.close();
       }
     });

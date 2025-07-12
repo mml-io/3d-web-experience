@@ -587,7 +587,7 @@ export class LocalController {
     this.jumpCounter = 0;
 
     const spawnData = getSpawnData(this.config.spawnConfiguration, false);
-    
+
     this.config.character.position.set(
       spawnData.spawnPosition.x,
       spawnData.spawnPosition.y,

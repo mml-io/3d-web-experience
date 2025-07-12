@@ -10,8 +10,8 @@ import {
 } from "@mml-io/delta-net-web";
 import ws from "ws";
 
-import { BotConfig } from "./BotRunner";
 import { getBotColors } from "./BotColors";
+import { BotConfig } from "./BotRunner";
 
 // WebSocket fallback for Node.js versions without native WebSocket
 function createWebSocket(url: string, protocols?: string | string[]): WebSocket {

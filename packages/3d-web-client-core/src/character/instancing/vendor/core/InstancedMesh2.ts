@@ -25,6 +25,8 @@ import {
   WebGLRenderer,
 } from "three";
 
+import { ColorPartName } from "../../../CharacterModel";
+
 import { CustomSortCallback, OnFrustumEnterCallback } from "./feature/FrustumCulling";
 import { Entity } from "./feature/Instances";
 import { LODInfo } from "./feature/LOD";
@@ -32,7 +34,6 @@ import { InstancedEntity } from "./InstancedEntity";
 import { BVHParams, InstancedMeshBVH } from "./InstancedMeshBVH";
 import { GLInstancedBufferAttribute } from "./utils/GLInstancedBufferAttribute";
 import { SquareDataTexture } from "./utils/SquareDataTexture";
-import { ColorPartName } from "../../../CharacterModel";
 
 // TODO: Add check to not update partial texture if needsuupdate already true
 // TODO: if bvh present, can override?
@@ -868,10 +869,7 @@ export class InstancedMesh2<
    * @param id The index of the instance.
    * @param materialColors Object containing colors for different materials.
    */
-  public setMaterialColorsAt(
-    id: number,
-    materialColors: Map<ColorPartName, Color>,
-  ): void {
+  public setMaterialColorsAt(id: number, materialColors: Map<ColorPartName, Color>): void {
     if (this.materialColorsTexture === null) {
       this.initMaterialColorsTexture();
     }
