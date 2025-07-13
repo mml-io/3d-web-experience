@@ -11,8 +11,7 @@
 .textChatUi {
   position: absolute;
   display: flex;
-
-  bottom: 8px;
+  bottom: 0px;
   left: 0px;
   width: 100%;
   max-width: 500px;
@@ -24,26 +23,19 @@
 .textChat {
   z-index: -1;
   width: 100%;
-
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   margin-left: 60px;
-
   max-height: 500px;
-
   color: #ffffff;
-  padding: 7px;
-
-  -webkit-user-select: none;
-  -ms-user-select: none;
+  padding: 5px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   user-select: none;
-
   opacity: 0;
   transform: translateX(-100%);
-  transition:
-    opacity 0.25s ease-in-out,
-    transform 0.2s ease-in-out;
+  transition: opacity 0.25s ease-in-out, transform 0.2s ease-in-out;
+  margin-bottom: 8px;
 }
 
 .fadeIn {
@@ -63,183 +55,164 @@
 }
 
 .openTab {
-  background-color: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
   border-radius: 50%;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   position: absolute;
-  bottom: 12px;
-  left: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.21);
-  -webkit-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
+  bottom: 8px;
+  left: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   z-index: 102;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.openTab:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.openTab:active {
+  transform: scale(0.95);
 }
 
 .openTab img {
-  filter: invert(60%);
-  width: 35px;
-  height: 35px;
-  transition: all 0.3s ease-in-out;
-  position: relative;
-  top: 3px;
-  left: 4px;
-  transform: scale(0.7);
+  filter: invert(80%);
+  width: 24px;
+  height: 24px;
+  transition: all 0.2s ease-in-out;
 }
 
 .stickyButton {
   z-index: 103;
   position: absolute;
-
-  left: 42px;
-  bottom: 42px;
-
-  width: 23px;
-  height: 22px;
-
-  background-color: rgba(0, 0, 0, 0.8);
-  line-height: 24px;
-  text-align: center;
-  vertical-align: middle;
+  left: 38px;
+  bottom: 38px;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: border 0.2s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease-in-out;
   cursor: pointer;
-
-  -webkit-user-select: none;
-  -ms-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   user-select: none;
-
   opacity: 1;
-  transition: opacity 0.3s ease;
+}
+
+.stickyButton:hover {
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
 }
 
 .stickyButtonFadeOut {
   z-index: 103;
   position: absolute;
-
   left: 42px;
   bottom: 42px;
-
-  width: 23px;
-  height: 22px;
-
-  background-color: rgba(0, 0, 0, 0.8);
-  line-height: 24px;
-  text-align: center;
-  vertical-align: middle;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: border 0.2s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease-in-out;
   cursor: pointer;
-
-  -webkit-user-select: none;
-  -ms-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   user-select: none;
-
   opacity: 0;
-  transition: opacity 0.3s ease;
   pointer-events: none;
-}
-
-.stickyButtonFadeOut img {
-  width: 23px;
-  height: 22px;
-  position: relative;
-  top: 1px;
-  left: 0px;
-  filter: invert(0%);
-  transform: scale(0.7);
-  transition: all 0.3s ease-in-out;
 }
 
 .stickyButtonEnabled {
   z-index: 103;
   position: absolute;
-
   left: 42px;
   bottom: 42px;
-
-  width: 23px;
-  height: 22px;
-
-  background-color: rgba(0, 0, 0, 0.9);
-  line-height: 24px;
-  text-align: center;
-  vertical-align: middle;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
   border-radius: 50%;
-  border: 1px solid rgba(21, 250, 21, 0.5);
-  transition: border 0.2s ease-in-out;
+  border: 1px solid rgba(34, 197, 94, 0.6);
+  transition: all 0.2s ease-in-out;
   cursor: pointer;
-
-  -webkit-user-select: none;
-  -ms-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   user-select: none;
-}
-
-.stickyButton:hover {
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
 }
 
 .stickyButtonEnabled:hover {
-  border: 1px solid rgba(55, 255, 55, 1);
+  border-color: rgba(34, 197, 94, 0.8);
+  transform: scale(1.05);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
 }
 
-.stickyButton img {
-  width: 23px;
-  height: 22px;
-  position: relative;
-  top: 1px;
-  left: 0px;
-  filter: invert(50%);
-  transform: scale(0.7);
-  transition: all 0.3s ease-in-out;
+.stickyButton img,
+.stickyButtonFadeOut img {
+  width: 12px;
+  height: 12px;
+  filter: invert(70%);
+  transition: all 0.2s ease-in-out;
 }
 
 .stickyButtonEnabled img {
-  width: 23px;
-  height: 22px;
-  position: relative;
-  top: 1px;
-  left: 0px;
-  filter: invert(50%);
-  transform: scale(0.7);
-  transition: all 0.3s ease-in-out;
-}
-
-.stickyButton:hover img {
+  width: 12px;
+  height: 12px;
   filter: invert(70%);
-  transform: scale(0.8);
+  transition: all 0.2s ease-in-out;
 }
 
+.stickyButton:hover img,
 .stickyButtonEnabled:hover img {
-  filter: invert(70%);
-  transform: scale(0.8);
+  filter: invert(90%);
 }
 
 .controls .closeButton {
-  font-family: "arial black";
-  font-weight: 900;
-  color: #aaaaaa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
   position: absolute;
   top: 3px;
   right: 3px;
-  width: 25px;
-  height: 24px;
-  background-color: rgba(0, 0, 0, 0.9);
-  line-height: 24px;
-  text-align: center;
-  vertical-align: middle;
+  width: 28px;
+  height: 28px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: border 0.2s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease-in-out;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .closeButton:hover {
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.8);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
 }
 
 .messagesWrapper {
@@ -247,4 +220,5 @@
   max-height: 450px;
   direction: rtl;
   width: fit-content;
+  margin-bottom: 8px;
 }

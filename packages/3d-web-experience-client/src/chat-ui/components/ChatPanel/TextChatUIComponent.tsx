@@ -11,7 +11,6 @@ import {
 import { useClickOutside } from "../../helpers";
 import ChatIcon from "../../icons/Chat.svg";
 import PinButton from "../../icons/Pin.svg";
-import { gradient } from "../../images/gradient";
 import { StringToHslOptions, type ChatUIInstance } from "../../TextChatUI";
 import { InputBox } from "../Input/InputBox";
 import { Messages } from "../Messages/Messages";
@@ -36,6 +35,7 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
   const [isSticky, setSticky] = useState<boolean>(visibleByDefault);
   const [isFocused, setIsFocused] = useState(false);
   const [isOpenHovered, setOpenHovered] = useState(false);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(false);
 
   const [panelStyle, setPanelStyle] = useState(styles.fadeOut);
   const [stickyStyle, setStickyStyle] = useState(styles.stickyButton);
@@ -149,7 +149,10 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
   }));
 
   const handleSendMessage = (message: string) => {
+    setShouldAutoScroll(true);
     props.sendMessageToServer(message);
+    // Reset after a short delay
+    setTimeout(() => setShouldAutoScroll(false), 100);
   };
 
   const setFocus = () => setIsFocused(true);
@@ -185,18 +188,8 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
         className={`${styles.textChat} ${panelStyle}`}
         onWheel={handleWheel}
       >
-        <div
-          className={styles.messagesWrapper}
-          style={{
-            WebkitMaskImage: `url(data:image/png;base64,${gradient})`,
-            maskImage: `url(data:image/png;base64,${gradient})`,
-            WebkitMaskRepeat: "repeat-x",
-            maskRepeat: "repeat-x",
-            WebkitMaskSize: "contain",
-            maskSize: "contain",
-          }}
-        >
-          <Messages messages={messages} stringToHslOptions={props.stringToHslOptions} />
+        <div className={styles.messagesWrapper}>
+          <Messages messages={messages} stringToHslOptions={props.stringToHslOptions} shouldAutoScroll={shouldAutoScroll} />
         </div>
         <InputBox
           ref={inputBoxRef}

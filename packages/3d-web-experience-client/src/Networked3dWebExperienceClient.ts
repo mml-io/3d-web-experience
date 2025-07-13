@@ -576,8 +576,6 @@ export class Networked3dWebExperienceClient {
       return;
     }
 
-    // Chat is now integrated into the main deltanet connection
-    // Only create the UI if chat is enabled (not explicitly disabled)
     if (this.config.enableChat && this.textChatUI === null) {
       const user = this.userProfiles.get(this.clientId);
       if (!user) {
@@ -585,7 +583,7 @@ export class Networked3dWebExperienceClient {
       }
 
       const textChatUISettings: TextChatUIProps = {
-        holderElement: this.element,
+        holderElement: this.canvasHolder,
         sendMessageToServerMethod: (message: string) => {
           this.characterManager.addSelfChatBubble(message);
           this.mmlCompositionScene.onChatMessage(message);

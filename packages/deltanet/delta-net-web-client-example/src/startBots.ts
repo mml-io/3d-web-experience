@@ -22,6 +22,8 @@ const webWorldConfig: BotRunnerConfig = {
   restartConfig: {
     minInterval: 10000,
     maxInterval: 20000,
+    minWait: 1000,
+    maxWait: 5000,
   },
 };
 

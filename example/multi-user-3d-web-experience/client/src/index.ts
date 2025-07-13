@@ -33,8 +33,12 @@ const app = new Networked3dWebExperienceClient(holder, {
           hdrJpgUrl,
         }
       : undefined,
+    fog: {
+      fogFar: 0,
+    }
   },
   avatarConfiguration: {
+    allowCustomAvatars: true,
     availableAvatars: [
       {
         name: "bot",

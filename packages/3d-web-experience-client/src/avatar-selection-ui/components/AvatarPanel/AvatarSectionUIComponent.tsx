@@ -241,34 +241,42 @@ export const AvatarSelectionUIComponent: ForwardRefRenderFunction<any, AvatarSel
           {props.allowCustomAvatars && (
             <div className={styles.customAvatarSection}>
               <div className={styles.sectionHeading}>Custom Avatar</div>
-              <input
-                type="radio"
-                id="html"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.mmlUrl)}
-                defaultChecked={customAvatarType === CustomAvatarType.mmlUrl}
-                checked={customAvatarType === CustomAvatarType.mmlUrl}
-              />
-              <label htmlFor="html">MML URL</label>
-              <input
-                type="radio"
-                id="mml"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.mml)}
-                defaultChecked={customAvatarType === CustomAvatarType.mml}
-                checked={customAvatarType === CustomAvatarType.mml}
-              />
-              <label htmlFor="mml">MML</label>
-              <input
-                type="radio"
-                id="glb"
-                name="customAvatarType"
-                onChange={() => handleTypeSwitch(CustomAvatarType.meshFileUrl)}
-                defaultChecked={customAvatarType === CustomAvatarType.meshFileUrl}
-                checked={customAvatarType === CustomAvatarType.meshFileUrl}
-              />
-              <label htmlFor="glb">Mesh URL</label>
-              {!recognizedAvatar && <SelectedPill />}
+              <div className={styles.radioGroup}>
+                <div className={styles.radioItem}>
+                  <input
+                    type="radio"
+                    id="html"
+                    name="customAvatarType"
+                    onChange={() => handleTypeSwitch(CustomAvatarType.mmlUrl)}
+                    defaultChecked={customAvatarType === CustomAvatarType.mmlUrl}
+                    checked={customAvatarType === CustomAvatarType.mmlUrl}
+                  />
+                  <label htmlFor="html">MML URL</label>
+                </div>
+                <div className={styles.radioItem}>
+                  <input
+                    type="radio"
+                    id="mml"
+                    name="customAvatarType"
+                    onChange={() => handleTypeSwitch(CustomAvatarType.mml)}
+                    defaultChecked={customAvatarType === CustomAvatarType.mml}
+                    checked={customAvatarType === CustomAvatarType.mml}
+                  />
+                  <label htmlFor="mml">MML</label>
+                </div>
+                <div className={styles.radioItem}>
+                  <input
+                    type="radio"
+                    id="glb"
+                    name="customAvatarType"
+                    onChange={() => handleTypeSwitch(CustomAvatarType.meshFileUrl)}
+                    defaultChecked={customAvatarType === CustomAvatarType.meshFileUrl}
+                    checked={customAvatarType === CustomAvatarType.meshFileUrl}
+                  />
+                  <label htmlFor="glb">Mesh URL</label>
+                </div>
+                {!recognizedAvatar && <SelectedPill />}
+              </div>
               <div className={styles.customAvatarInputSection}>
                 {customAvatarType === CustomAvatarType.mml ? (
                   <textarea

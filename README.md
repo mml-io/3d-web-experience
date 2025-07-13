@@ -23,14 +23,6 @@ This repository includes the following published packages:
   - WebSocket server and client implementations that synchronize user positions.
 - [`@mml-io/3d-web-avatar`](./packages/3d-web-avatar)
   - Creates and parses MML documents for avatars (using `m-character`).
-- [`@mml-io/3d-web-avatar-editor-ui`](./packages/3d-web-avatar-editor-ui)
-  - UI components (e.g. parts pickers) for creating avatars.
-- [`@mml-io/3d-web-standalone-avatar-editor`](./packages/3d-web-standalone-avatar-editor)
-  - An MML avatar editor (using `m-character`).
-- [`@mml-io/3d-web-text-chat`](./packages/3d-web-text-chat)
-  - Contains WebSocket server and client implementations for text chat.
-- [`@mml-io/3d-web-voice-chat`](./packages/3d-web-voice-chat)
-  - Client implementation for spatial voice chat.
 
 ## Main features
 

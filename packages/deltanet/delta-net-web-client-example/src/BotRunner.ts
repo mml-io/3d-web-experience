@@ -8,6 +8,8 @@ export type BotRunnerConfig = {
   restartConfig?: {
     minInterval: number;
     maxInterval: number;
+    minWait: number;
+    maxWait: number;
   };
   colorStateId?: number;
   avatarColorStateId?: number;
@@ -89,7 +91,7 @@ export class BotRunner {
       return;
     }
 
-    const { minInterval, maxInterval } = this.config.restartConfig;
+    const { minInterval, maxInterval, minWait, maxWait } = this.config.restartConfig;
 
     // Clear any existing timer for this bot
     const existingTimer = this.botRestartTimers.get(bot);
@@ -103,12 +105,13 @@ export class BotRunner {
       console.log(`Bot ${bot.getId()} restarting after ${Math.round(restartDelay)}ms...`);
       bot.stop();
 
+      const delay = minWait + Math.random() * (maxWait - minWait);
       // Small delay to simulate disconnection
       setTimeout(() => {
         bot.start();
         this.setupBotRestart(bot); // Re-schedule next restart
         console.log(`Bot ${bot.getId()} restarted successfully.`);
-      }, 100);
+      }, delay);
     }, restartDelay);
 
     this.botRestartTimers.set(bot, timer);
