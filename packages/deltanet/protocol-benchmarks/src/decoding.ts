@@ -12,13 +12,14 @@ import { prepareData } from "./prepare-data";
 export function runDecodingBenchmark(): Promise<void> {
   return new Promise((resolve, reject) => {
     const data = prepareData(1000);
+    const jsonData = prepareData(1000, true);
 
     const encodedData = data.map((message) => {
       const writer = new BufferWriter(256);
       encodeServerMessage(message, writer);
       return writer.getBuffer();
     });
-    const encodedJSON = data.map((message) => JSON.stringify(message));
+    const encodedJSON = jsonData.map((message) => JSON.stringify(message));
 
     const suite = new Benchmark.Suite();
     suite

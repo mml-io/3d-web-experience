@@ -45,3 +45,4 @@ coverage
 .envrc
 .direnv
 .turbo/
+test-results/

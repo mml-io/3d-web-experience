@@ -109,32 +109,6 @@ Binary+zstd is 0.7030 the length of JSON+zlib
 - Compares with JSON number arrays
 - Demonstrates varint efficiency for small numbers
 
-### String Benchmarks (`encodingStrings.ts` / `decodingStrings.ts`)
-- Tests length-prefixed UTF-8 strings vs JSON
-- Uses randomly generated ASCII strings (10-60 chars)
-- Compares encoding efficiency and decode speed
-- Shows UTF-8 optimization benefits
-
-## Key Improvements Made
-
-### Symmetry & Consistency
-1. **Unified Compression**: All benchmarks now use Node.js built-in compression instead of mixed libraries
-2. **Matching Data**: Encoding and decoding benchmarks use identical test data
-3. **Consistent Metrics**: Standardized output formatting across all benchmarks
-4. **Parallel Structure**: Each encoding benchmark has a corresponding decoding benchmark
-
-### Completeness
-1. **String Benchmarks**: Added comprehensive string encoding/decoding tests
-2. **Multiple Compression Methods**: zlib and zstd support across all benchmarks
-3. **CLI Interface**: Unified command-line interface for running benchmarks
-4. **Documentation**: Complete documentation of benchmark structure and usage
-
-### Performance
-1. **Optimized Data Generation**: Seeded random generation for reproducible results
-2. **Efficient Compression**: Proper compression level settings for fair comparisons
-3. **Memory Management**: Appropriate buffer sizing for different data types
-4. **Error Handling**: Proper validation to ensure benchmark accuracy
-
 ## Contributing
 
 When adding new benchmarks:

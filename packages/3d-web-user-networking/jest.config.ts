@@ -16,11 +16,16 @@ const jestConfig: JestConfigWithTsJest = {
       },
     ],
   },
-  transformIgnorePatterns: [
-    "node_modules/(?!@mml-io/.*)"
-  ],
+  transformIgnorePatterns: ["node_modules/(?!@mml-io/.*)"],
   testEnvironment: "node",
   setupFilesAfterEnv: ["<rootDir>/test/jest.setup.ts"],
+  reporters: [
+    "default",
+    [
+      "jest-junit",
+      { outputDirectory: "./test-results", outputName: "@mml-io/3d-web-user-networking" },
+    ],
+  ],
 };
 
 export default jestConfig;

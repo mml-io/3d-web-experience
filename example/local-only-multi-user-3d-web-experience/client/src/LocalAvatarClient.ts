@@ -163,6 +163,9 @@ export class LocalAvatarClient {
       sendUpdate: (characterState: CharacterState) => {
         localAvatarServer.send(localClientId, characterState);
       },
+      sendLocalCharacterColors: () => {
+        // no-op
+      },
       animationsPromise,
       characterResolve: () => {
         return { username: "User", characterDescription, colors: [] };

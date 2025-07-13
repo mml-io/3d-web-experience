@@ -25,11 +25,9 @@ afterEach(() => {
 
 describe("DeltaNetServer - Edge Cases", () => {
   describe("callback error handling", () => {
-    test("handles callbacks returning unexpected value types", async () => {
-      // Return something that's not Error or boolean
-      const onStatesUpdateMock = jest
-        .fn<() => true>()
-        .mockReturnValue("invalid return value" as any) as any;
+    test("handles callbacks returning undefined", async () => {
+      // Return undefined as what you would expect from a callback that doesn't return anything
+      const onStatesUpdateMock = jest.fn().mockReturnValue(undefined as any) as any;
 
       const doc = new DeltaNetServer({
         onStatesUpdate: onStatesUpdateMock,

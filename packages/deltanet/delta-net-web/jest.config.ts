@@ -20,6 +20,10 @@ const jestConfig: JestConfigWithTsJest = {
       },
     ],
   },
+  reporters: [
+    "default",
+    ["jest-junit", { outputDirectory: "./test-results", outputName: "@mml-io/delta-net-web" }],
+  ],
 };
 
 export default jestConfig;

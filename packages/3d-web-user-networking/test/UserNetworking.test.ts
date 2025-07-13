@@ -1,5 +1,7 @@
 import { Server } from "node:http";
+import * as util from "node:util";
 
+import { jest } from "@jest/globals";
 import { deltaNetProtocolSubProtocol_v0_1 } from "@mml-io/delta-net-protocol";
 import { DeltaNetServer } from "@mml-io/delta-net-server";
 import express from "express";
@@ -59,8 +61,8 @@ describe("UserNetworking", () => {
       onClientConnect: (
         clientId: number,
         sessionToken: string,
-        userIdentity?: UserIdentity,
-      ): UserData | null => {
+        userIdentity?: UserData,
+      ): true | UserData | Error => {
         if (sessionToken === sessionTokenForOne) {
           return {
             username: "user1",
@@ -74,12 +76,9 @@ describe("UserNetworking", () => {
             colors: [[0, 0, 0]],
           };
         }
-        return null;
+        return new Error("Invalid session token");
       },
-      onClientUserIdentityUpdate: (
-        clientId: number,
-        userIdentity: UserIdentity,
-      ): UserData | null => {
+      onClientUserIdentityUpdate: (clientId: number, userIdentity: UserData): UserData | null => {
         return null;
       },
       onClientDisconnect: (clientId: number): void => {},
@@ -92,7 +91,7 @@ describe("UserNetworking", () => {
       },
     });
     app.ws("/user-networking", (ws) => {
-      server!.connectClient(ws);
+      server!.connectClient(ws as unknown as WebSocket);
     });
 
     // Wait for server to be ready
@@ -116,6 +115,11 @@ describe("UserNetworking", () => {
 
     const user1UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
     const user1Profiles: Map<number, UserData> = new Map();
+    const user1UserUpdates: Array<{
+      userId: number;
+      userState: Partial<UserData> | null;
+      removal: boolean;
+    }> = [];
     user1 = new UserNetworkingClient({
       url: serverAddress,
       sessionToken: sessionTokenForOne,
@@ -130,14 +134,34 @@ describe("UserNetworking", () => {
         user1IdentityResolve(clientId);
       },
       onUpdate: (update: NetworkUpdate) => {
-        if (userNetworkingClientUpdate === null) {
-          user1UserStates.delete(clientId);
-        } else {
-          user1UserStates.set(clientId, userNetworkingClientUpdate);
+        for (const [clientId, user] of update.addedUserIds) {
+          const userState = user.userState;
+          if (userState) {
+            user1Profiles.set(clientId, userState);
+            user1UserUpdates.push({ userId: clientId, userState, removal: false });
+          }
+          user1UserStates.set(clientId, user.components);
         }
-      },
-      clientProfileUpdated: (id, username, characterDescription, colors) => {
-        user1Profiles.set(id, { username, characterDescription, colors });
+        for (const [clientId, user] of update.updatedUsers) {
+          const userState = user.userState;
+          if (userState) {
+            const existingUserState = user1Profiles.get(clientId)!;
+            if (!existingUserState) {
+              throw new Error(`User ${clientId} not found in user1Profiles`);
+            }
+            user1Profiles.set(clientId, { ...existingUserState, ...userState });
+            user1UserUpdates.push({
+              userId: clientId,
+              userState,
+              removal: false,
+            });
+          }
+          user1UserStates.set(clientId, user.components);
+        }
+        for (const clientId of update.removedUserIds) {
+          user1UserUpdates.push({ userId: clientId, userState: null, removal: true });
+          user1UserStates.delete(clientId);
+        }
       },
       onServerError: (error) => {
         console.error("Received server error", error);
@@ -157,6 +181,7 @@ describe("UserNetworking", () => {
     );
 
     expect(user1Profiles.get(1)).toEqual({
+      userId: 1,
       username: "user1",
       characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
       colors: [[0, 0, 0]],
@@ -164,7 +189,12 @@ describe("UserNetworking", () => {
 
     const user2UserStates: Map<number, UserNetworkingClientUpdate> = new Map();
     const user2Profiles: Map<number, UserData> = new Map();
-    const user2 = new UserNetworkingClient({
+    const user2UserUpdates: Array<{
+      userId: number;
+      userState: Partial<UserData> | null;
+      removal: boolean;
+    }> = [];
+    user2 = new UserNetworkingClient({
       url: serverAddress,
       sessionToken: sessionTokenForTwo,
       websocketFactory: (url) => new WebSocket(url, [deltaNetProtocolSubProtocol_v0_1]),
@@ -177,18 +207,35 @@ describe("UserNetworking", () => {
       assignedIdentity: (clientId: number) => {
         user2IdentityResolve(clientId);
       },
-      clientUpdate: (
-        clientId: number,
-        userNetworkingClientUpdate: null | UserNetworkingClientUpdate,
-      ) => {
-        if (userNetworkingClientUpdate === null) {
-          user2UserStates.delete(clientId);
-        } else {
-          user2UserStates.set(clientId, userNetworkingClientUpdate);
+      onUpdate: (update: NetworkUpdate) => {
+        for (const [clientId, user] of update.addedUserIds) {
+          const userState = user.userState;
+          if (userState) {
+            user2Profiles.set(clientId, userState);
+            user2UserUpdates.push({ userId: clientId, userState, removal: false });
+          }
+          user2UserStates.set(clientId, user.components);
         }
-      },
-      clientProfileUpdated: (id, username, characterDescription, colors) => {
-        user2Profiles.set(id, { username, characterDescription, colors });
+        for (const [clientId, user] of update.updatedUsers) {
+          const userState = user.userState;
+          if (userState) {
+            const existingUserState = user2Profiles.get(clientId)!;
+            if (!existingUserState) {
+              throw new Error(`User ${clientId} not found in user2Profiles`);
+            }
+            user2Profiles.set(clientId, { ...existingUserState, ...userState });
+            user2UserUpdates.push({
+              userId: clientId,
+              userState,
+              removal: false,
+            });
+          }
+          user2UserStates.set(clientId, user.components);
+        }
+        for (const clientId of update.removedUserIds) {
+          user2UserUpdates.push({ userId: clientId, userState: null, removal: true });
+          user2UserStates.delete(clientId);
+        }
       },
       onServerError: (error) => {
         console.error("Received server error", error);
@@ -209,11 +256,13 @@ describe("UserNetworking", () => {
     );
 
     expect(user2Profiles.get(1)).toEqual({
+      userId: 1,
       username: "user1",
       characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
       colors: [[0, 0, 0]],
     });
     expect(user2Profiles.get(2)).toEqual({
+      userId: 2,
       username: "user2",
       characterDescription: { meshFileUrl: "http://example.com/user2.glb" },
       colors: [[0, 0, 0]],
@@ -282,6 +331,7 @@ describe("UserNetworking", () => {
     ]);
 
     user2.stop();
+    user2 = null;
 
     await waitUntil(
       () => (server as any).authenticatedClientsById.size === 1,
@@ -311,6 +361,7 @@ describe("UserNetworking", () => {
     ]);
 
     user1.stop();
+    user1 = null;
 
     await waitUntil(
       () => (server as any).authenticatedClientsById.size === 0,
@@ -322,12 +373,16 @@ describe("UserNetworking", () => {
     const sessionTokenForOne = "session-token-one";
     const sessionTokenForTwo = "session-token-two";
 
+    const onServerClientUserUpdate = jest.fn((clientId: number, userIdentity: UserData) => {
+      return userIdentity;
+    });
+
     const options = {
       onClientConnect: (
         clientId: number,
         sessionToken: string,
-        userIdentity?: UserIdentity,
-      ): UserData | null => {
+        userIdentity?: UserData,
+      ): true | UserData | Error => {
         if (sessionToken === sessionTokenForOne) {
           return {
             username: "user1",
@@ -341,13 +396,13 @@ describe("UserNetworking", () => {
             colors: [[0, 0, 0]],
           };
         }
-        return null;
+        return new Error("Invalid session token");
       },
       onClientUserIdentityUpdate: (
         clientId: number,
-        userIdentity: UserIdentity,
-      ): UserData | null => {
-        return null;
+        userIdentity: UserData,
+      ): UserData | null | false | true | Error => {
+        return onServerClientUserUpdate(clientId, userIdentity);
       },
       onClientDisconnect: (clientId: number): void => {},
     };
@@ -359,7 +414,7 @@ describe("UserNetworking", () => {
       },
     });
     app.ws("/user-networking", (ws) => {
-      server!.connectClient(ws);
+      server!.connectClient(ws as unknown as WebSocket);
     });
 
     // Wait for server to be ready
@@ -381,12 +436,13 @@ describe("UserNetworking", () => {
     const [user2ConnectPromise, user2ConnectResolve] = await createWaitable<null>();
 
     const user1Profiles: Map<number, UserData> = new Map();
-    const user1UsernameUpdates: Array<{ userId: number; username: string }> = [];
-    const user1CharacterDescUpdates: Array<{ userId: number; characterDescription: any }> = [];
-    const user1ColorUpdates: Array<{ userId: number; colors: Array<[number, number, number]> }> =
-      [];
+    const user1UserUpdates: Array<{
+      userId: number;
+      userState: Partial<UserData> | null;
+      removal: boolean;
+    }> = [];
 
-    const user1 = new UserNetworkingClient({
+    user1 = new UserNetworkingClient({
       url: serverAddress,
       sessionToken: sessionTokenForOne,
       websocketFactory: (url) => new WebSocket(url, [deltaNetProtocolSubProtocol_v0_1]),
@@ -398,20 +454,32 @@ describe("UserNetworking", () => {
       assignedIdentity: (clientId: number) => {
         user1IdentityResolve(clientId);
       },
-      clientUpdate: () => {
-        // Not needed for this test
-      },
-      clientProfileUpdated: (id, username, characterDescription, colors) => {
-        user1Profiles.set(id, { username, characterDescription, colors });
-      },
-      onUsernameUpdated: (userId, username) => {
-        user1UsernameUpdates.push({ userId, username });
-      },
-      onCharacterDescriptionUpdated: (userId, characterDescription) => {
-        user1CharacterDescUpdates.push({ userId, characterDescription });
-      },
-      onColorsUpdated: (userId, colors) => {
-        user1ColorUpdates.push({ userId, colors });
+      onUpdate: (update: NetworkUpdate) => {
+        for (const [clientId, user] of update.addedUserIds) {
+          const userState = user.userState;
+          if (userState) {
+            user1Profiles.set(clientId, userState);
+            user1UserUpdates.push({ userId: clientId, userState, removal: false });
+          }
+        }
+        for (const [clientId, user] of update.updatedUsers) {
+          const userState = user.userState;
+          if (userState) {
+            const existingUserState = user1Profiles.get(clientId)!;
+            if (!existingUserState) {
+              throw new Error(`User ${clientId} not found in user1Profiles`);
+            }
+            user1Profiles.set(clientId, { ...existingUserState, ...userState });
+            user1UserUpdates.push({
+              userId: clientId,
+              userState,
+              removal: false,
+            });
+          }
+        }
+        for (const clientId of update.removedUserIds) {
+          user1UserUpdates.push({ userId: clientId, userState: null, removal: true });
+        }
       },
       onServerError: (error) => {
         console.error("Received server error", error);
@@ -422,12 +490,13 @@ describe("UserNetworking", () => {
     expect(await user1IdentityPromise).toEqual(1);
 
     const user2Profiles: Map<number, UserData> = new Map();
-    const user2UsernameUpdates: Array<{ userId: number; username: string }> = [];
-    const user2CharacterDescUpdates: Array<{ userId: number; characterDescription: any }> = [];
-    const user2ColorUpdates: Array<{ userId: number; colors: Array<[number, number, number]> }> =
-      [];
+    const user2UserUpdates: Array<{
+      userId: number;
+      userState: Partial<UserData> | null;
+      removal: boolean;
+    }> = [];
 
-    const user2 = new UserNetworkingClient({
+    user2 = new UserNetworkingClient({
       url: serverAddress,
       sessionToken: sessionTokenForTwo,
       websocketFactory: (url) => new WebSocket(url, [deltaNetProtocolSubProtocol_v0_1]),
@@ -439,20 +508,32 @@ describe("UserNetworking", () => {
       assignedIdentity: (clientId: number) => {
         user2IdentityResolve(clientId);
       },
-      clientUpdate: () => {
-        // Not needed for this test
-      },
-      clientProfileUpdated: (id, username, characterDescription, colors) => {
-        user2Profiles.set(id, { username, characterDescription, colors });
-      },
-      onUsernameUpdated: (userId, username) => {
-        user2UsernameUpdates.push({ userId, username });
-      },
-      onCharacterDescriptionUpdated: (userId, characterDescription) => {
-        user2CharacterDescUpdates.push({ userId, characterDescription });
-      },
-      onColorsUpdated: (userId, colors) => {
-        user2ColorUpdates.push({ userId, colors });
+      onUpdate: (update: NetworkUpdate) => {
+        for (const [clientId, user] of update.addedUserIds) {
+          const userState = user.userState;
+          if (userState) {
+            user2Profiles.set(clientId, userState);
+            user2UserUpdates.push({ userId: clientId, userState, removal: false });
+          }
+        }
+        for (const [clientId, user] of update.updatedUsers) {
+          const userState = user.userState;
+          if (userState) {
+            const existingUserState = user2Profiles.get(clientId)!;
+            if (!existingUserState) {
+              throw new Error(`User ${clientId} not found in user2Profiles`);
+            }
+            user2Profiles.set(clientId, { ...existingUserState, ...userState });
+            user2UserUpdates.push({
+              userId: clientId,
+              userState,
+              removal: false,
+            });
+          }
+        }
+        for (const clientId of update.removedUserIds) {
+          user2UserUpdates.push({ userId: clientId, userState: null, removal: true });
+        }
       },
       onServerError: (error) => {
         console.error("Received server error", error);
@@ -472,80 +553,80 @@ describe("UserNetworking", () => {
       "wait for user2 to see both profiles",
     );
 
-    user1UsernameUpdates.length = 0;
-    user1CharacterDescUpdates.length = 0;
-    user1ColorUpdates.length = 0;
-    user2UsernameUpdates.length = 0;
-    user2CharacterDescUpdates.length = 0;
-    user2ColorUpdates.length = 0;
-
     // Test individual username update
     user1.updateUsername("updated-user1");
 
-    await waitUntil(() => user2UsernameUpdates.length > 0, "wait for user2 to see username update");
+    let usernameUpdateFromUser1 = null;
+    await waitUntil(
+      () =>
+        (usernameUpdateFromUser1 = user2UserUpdates.find(
+          (u) => u.userId === 1 && u.userState?.username === "updated-user1",
+        )) !== undefined,
+      "wait for user2 to see username update",
+    );
 
-    expect(user2UsernameUpdates[user2UsernameUpdates.length - 1]).toEqual({
+    expect(usernameUpdateFromUser1).toEqual({
+      removal: false,
       userId: 1,
-      username: "updated-user1",
+      userState: {
+        username: "updated-user1",
+        characterDescription: { meshFileUrl: "http://example.com/user1.glb" },
+        userId: 1,
+        colors: [],
+      },
     });
 
     // Test individual character description update
-    user2CharacterDescUpdates.length = 0;
     const newCharacterDescription = { meshFileUrl: "http://example.com/new-user1.glb" };
     user1.updateCharacterDescription(newCharacterDescription);
 
+    let characterDescriptionUpdateFromUser1 = null;
     await waitUntil(
-      () => user2CharacterDescUpdates.length > 0,
+      () =>
+        (characterDescriptionUpdateFromUser1 = user2UserUpdates.find(
+          (u) =>
+            u.userId === 1 &&
+            u.userState?.characterDescription?.meshFileUrl === newCharacterDescription.meshFileUrl,
+        )) !== undefined,
       "wait for user2 to see character description update",
     );
 
-    expect(user2CharacterDescUpdates[user2CharacterDescUpdates.length - 1]).toEqual({
+    expect(characterDescriptionUpdateFromUser1).toEqual({
       userId: 1,
-      characterDescription: newCharacterDescription,
+      removal: false,
+      userState: {
+        username: "updated-user1",
+        characterDescription: newCharacterDescription,
+        userId: 1,
+        colors: [],
+      },
     });
 
     // Test individual colors update
-    user2ColorUpdates.length = 0;
     const newColors: Array<[number, number, number]> = [
       [255, 0, 0],
       [0, 255, 0],
     ];
     user1.updateColors(newColors);
 
-    await waitUntil(() => user2ColorUpdates.length > 0, "wait for user2 to see colors update");
-
-    expect(user2ColorUpdates[user2ColorUpdates.length - 1]).toEqual({
-      userId: 1,
-      colors: newColors,
-    });
-
-    // Test batch update
-    user2UsernameUpdates.length = 0;
-    user2CharacterDescUpdates.length = 0;
-    user2ColorUpdates.length = 0;
-
-    user1.updateUserStates({
-      username: "batch-updated-user1",
-      characterDescription: { meshFileUrl: "http://example.com/batch-user1.glb" },
-      colors: [[128, 128, 128]],
-    });
-
+    let colorsUpdateFromUser1 = null;
     await waitUntil(
       () =>
-        user2UsernameUpdates.length > 0 &&
-        user2CharacterDescUpdates.length > 0 &&
-        user2ColorUpdates.length > 0,
-      "wait for batch update to be received",
+        (colorsUpdateFromUser1 = user2UserUpdates.find(
+          (u) => u.userId === 1 && util.isDeepStrictEqual(u.userState?.colors, newColors),
+        )) !== undefined,
+      "wait for user2 to see colors update",
     );
 
-    // Test getter methods
-    expect(user1.getMyUsername()).toBe("batch-updated-user1");
-    expect(user1.getMyCharacterDescription()).toEqual({
-      meshFileUrl: "http://example.com/batch-user1.glb",
+    expect(colorsUpdateFromUser1).toEqual({
+      userId: 1,
+      removal: false,
+      userState: {
+        username: "updated-user1",
+        characterDescription: newCharacterDescription,
+        userId: 1,
+        colors: newColors,
+      },
     });
-    expect(user1.getMyColors()).toEqual([[128, 128, 128]]);
-
-    user1.stop();
-    user2.stop();
   }, 15000);
 });

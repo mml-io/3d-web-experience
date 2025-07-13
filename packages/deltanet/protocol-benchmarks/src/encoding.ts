@@ -9,6 +9,7 @@ export function runEncodingBenchmark(): Promise<void> {
     let totalJSONLength = 0;
 
     const data = prepareData(1000);
+    const jsonData = prepareData(1000, true);
     const suite = new Benchmark.Suite();
     suite
       .add("Binary", function () {
@@ -26,7 +27,7 @@ export function runEncodingBenchmark(): Promise<void> {
       })
       .add("JSON", function () {
         let totalLength = 0;
-        for (const message of data) {
+        for (const message of jsonData) {
           const encoded = JSON.stringify(message);
           totalLength += encoded.length;
         }

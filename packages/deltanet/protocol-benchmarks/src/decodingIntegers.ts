@@ -1,4 +1,9 @@
-import { deflateSync as nodeDeflate, inflateSync as nodeInflate } from "node:zlib";
+import {
+  deflateSync as nodeDeflate,
+  inflateSync as nodeInflate,
+  zstdCompressSync,
+  zstdDecompressSync,
+} from "node:zlib";
 
 import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
 import Benchmark from "benchmark";
@@ -22,6 +27,7 @@ export function runDecodingIntegersBenchmark(): Promise<void> {
     }
     const varintEncoded = varintWriter.getBuffer();
     const varintCompressed = nodeDeflate(varintEncoded, { level: 1 });
+    const varintZstdCompressed = zstdCompressSync(varintEncoded);
 
     const jsonEncoded = JSON.stringify(data);
     const jsonCompressed = nodeDeflate(jsonEncoded, { level: 1 });
@@ -33,7 +39,7 @@ export function runDecodingIntegersBenchmark(): Promise<void> {
     console.log(`JSON byte length   : ${jsonEncoded.length}`);
 
     let totalVarint = 0;
-    const totalVarintZstd = 0;
+    let totalVarintZstd = 0;
     let totalJSON = 0;
     const suite = new Benchmark.Suite();
     suite
@@ -46,6 +52,17 @@ export function runDecodingIntegersBenchmark(): Promise<void> {
           //   throw new Error("Value mismatch");
           // }
           totalVarint += value;
+        }
+      })
+      .add("Varint+zstd", function () {
+        const reader = new BufferReader(zstdDecompressSync(varintZstdCompressed));
+        totalVarintZstd = 0;
+        for (let i = 0; i < totalValues; i++) {
+          const value = reader.readVarint();
+          // if (value !== data[i]) {
+          //   throw new Error("Value mismatch");
+          // }
+          totalVarintZstd += value;
         }
       })
       .add("JSON", function () {
@@ -64,13 +81,10 @@ export function runDecodingIntegersBenchmark(): Promise<void> {
         console.log(String(event.target));
       })
       .on("complete", () => {
-        if (totalVarint !== totalVarintZstd) {
+        if (totalJSON !== totalVarint || totalVarint !== totalVarintZstd) {
           throw new Error(
-            `Varint and Varint+zstd do not match: ${totalVarint} !== ${totalVarintZstd}`,
+            `Totals do not match: JSON=${totalJSON}, Varint=${totalVarint}, Varint+zstd=${totalVarintZstd}`,
           );
-        }
-        if (totalJSON !== totalVarint) {
-          throw new Error(`JSON and Varint do not match: ${totalJSON} !== ${totalVarint}`);
         }
         console.log(`Fastest is ${suite.filter("fastest").map("name")}`);
         console.log(

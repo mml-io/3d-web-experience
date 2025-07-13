@@ -729,8 +729,6 @@ export class CharacterInstances {
 
     this.delta = deltaTime;
 
-    console.log("instance count", this.instancedMesh.instancesCount);
-
     const camera = this.config.cameraManager.camera;
     camera.updateMatrixWorld();
 
