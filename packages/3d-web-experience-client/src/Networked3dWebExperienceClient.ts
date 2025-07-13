@@ -52,6 +52,7 @@ import { Scene, AudioListener, Vector3 } from "three";
 
 import { AvatarSelectionUI, AvatarConfiguration } from "./avatar-selection-ui";
 import { StringToHslOptions, TextChatUI, TextChatUIProps } from "./chat-ui";
+import styles from "./Networked3dWebExperience.module.css";
 
 type MMLDocumentConfiguration = {
   url: string;
@@ -348,7 +349,8 @@ export class Networked3dWebExperienceClient {
     this.scene.add(this.characterManager.group);
 
     if (this.spawnConfiguration.enableRespawnButton) {
-      this.element.appendChild(this.characterManager.createRespawnButton());
+      this.respawnButton = this.createRespawnButton();
+      this.element.appendChild(this.respawnButton);
     }
 
     this.setGroundPlaneEnabled(this.config.environmentConfiguration?.groundPlane ?? true);
@@ -455,7 +457,7 @@ export class Networked3dWebExperienceClient {
       this.characterManager.localController.updateSpawnConfig(this.spawnConfiguration);
     }
     if (this.spawnConfiguration.enableRespawnButton && !this.respawnButton) {
-      this.respawnButton = this.characterManager.createRespawnButton();
+      this.respawnButton = this.createRespawnButton();
       this.element.appendChild(this.respawnButton);
     } else if (!this.spawnConfiguration.enableRespawnButton && this.respawnButton) {
       this.respawnButton.remove();
@@ -478,6 +480,16 @@ export class Networked3dWebExperienceClient {
     holder.style.overflow = "hidden";
     document.body.appendChild(holder);
     return holder;
+  }
+
+  private createRespawnButton(): HTMLDivElement {
+    const respawnButton = document.createElement("div");
+    respawnButton.className = styles.respawnButton;
+    respawnButton.textContent = "RESPAWN";
+    respawnButton.addEventListener("click", () => {
+      this.characterManager.localController?.resetPosition();
+    });
+    return respawnButton;
   }
 
   private resolveCharacterData(clientId: number): UserData {

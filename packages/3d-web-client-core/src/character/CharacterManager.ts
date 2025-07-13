@@ -433,33 +433,6 @@ export class CharacterManager {
     }
   }
 
-  public createRespawnButton(): HTMLDivElement {
-    const respawnButton = document.createElement("div");
-    respawnButton.className = "respawn-button";
-    respawnButton.textContent = "RESPAWN";
-    respawnButton.addEventListener("click", () => {
-      this.localController.resetPosition();
-    });
-    respawnButton.style.position = "absolute";
-    respawnButton.style.top = "14px";
-    respawnButton.style.left = "8px";
-    respawnButton.style.zIndex = "102";
-    respawnButton.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-    respawnButton.style.color = "#ffffff";
-    respawnButton.style.borderRadius = "8px";
-    respawnButton.style.border = "1px solid rgba(255, 255, 255, 0.21)";
-    respawnButton.style.height = "22px";
-    respawnButton.style.padding = "8px";
-    respawnButton.style.cursor = "pointer";
-    respawnButton.style.fontSize = "12px";
-    respawnButton.style.fontFamily = "Helvetica, sans-serif";
-    respawnButton.style.userSelect = "none";
-    respawnButton.style.display = "flex";
-    respawnButton.style.alignItems = "center";
-    respawnButton.style.justifyContent = "center";
-    return respawnButton;
-  }
-
   public setupTweakPane(tweakPane: TweakPane) {
     tweakPane.setupCharacterController(this.localController);
   }
