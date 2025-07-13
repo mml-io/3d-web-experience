@@ -122,7 +122,7 @@ When adding new benchmarks:
 
 ## Dependencies
 
-- `@deltanet/delta-net-protocol`: Core protocol implementation
+- `@mml-io/delta-net-protocol`: Core protocol implementation
 - `benchmark`: Performance testing framework
 - Node.js built-in `zlib`: Compression support
 - TypeScript: Type safety and development experience

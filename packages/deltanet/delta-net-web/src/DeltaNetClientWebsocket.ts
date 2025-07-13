@@ -1,4 +1,4 @@
-import { deltaNetProtocolSubProtocol_v0_1 } from "@deltanet/delta-net-protocol";
+import { deltaNetProtocolSubProtocol_v0_1 } from "@mml-io/delta-net-protocol";
 
 import { DeltaNetClientWebsocketV01Adapter } from "./DeltaNetClientWebsocketV01Adapter";
 

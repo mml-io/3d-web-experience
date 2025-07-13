@@ -12,7 +12,7 @@ import {
   encodePing,
   encodeTick,
   encodeServerMessage,
-} from "@deltanet/delta-net-protocol";
+} from "@mml-io/delta-net-protocol";
 
 import { ComponentCollection } from "./ComponentCollection";
 import {

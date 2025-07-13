@@ -5,7 +5,7 @@ import {
   zstdDecompressSync,
 } from "node:zlib";
 
-import { BufferReader, BufferWriter } from "@deltanet/delta-net-protocol";
+import { BufferReader, BufferWriter } from "@mml-io/delta-net-protocol";
 import Benchmark from "benchmark";
 
 import { seededRandom } from "./seededRandom";

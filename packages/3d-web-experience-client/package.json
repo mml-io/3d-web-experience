@@ -19,15 +19,19 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-avatar-selection-ui": "^0.22.0",
     "@mml-io/3d-web-client-core": "^0.22.0",
     "@mml-io/3d-web-text-chat": "^0.22.0",
     "@mml-io/3d-web-user-networking": "^0.22.0",
     "@mml-io/mml-web": "0.19.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "three": ">= 0.163.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
-    "@types/node": "^22.13.1"
+    "@types/node": "^22.13.1",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "esbuild-css-modules-plugin": "3.1.4"
   }
 }

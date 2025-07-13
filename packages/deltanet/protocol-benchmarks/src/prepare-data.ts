@@ -1,4 +1,4 @@
-import { DeltaNetV01ServerMessage, DeltaNetV01Tick } from "@deltanet/delta-net-protocol";
+import { DeltaNetV01ServerMessage, DeltaNetV01Tick } from "@mml-io/delta-net-protocol";
 
 /**
  * Generates test data for DeltaNet protocol benchmarks.

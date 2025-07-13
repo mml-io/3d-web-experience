@@ -1,7 +1,7 @@
 import {
   deltaNetProtocolSubProtocol_v0_1,
   DeltaNetV01ServerMessage,
-} from "@deltanet/delta-net-protocol";
+} from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer } from "./DeltaNetServer";
 import { DeltaNetV01Connection } from "./DeltaNetV01Connection";

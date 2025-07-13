@@ -1,4 +1,4 @@
-import { BufferWriter, encodeServerMessage } from "@deltanet/delta-net-protocol";
+import { BufferWriter, encodeServerMessage } from "@mml-io/delta-net-protocol";
 import Benchmark from "benchmark";
 
 import { prepareData } from "./prepare-data";

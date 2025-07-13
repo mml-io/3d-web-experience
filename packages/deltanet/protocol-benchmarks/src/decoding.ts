@@ -4,7 +4,7 @@ import {
   DeltaNetV01ServerMessage,
   encodeServerMessage,
   decodeServerMessages,
-} from "@deltanet/delta-net-protocol";
+} from "@mml-io/delta-net-protocol";
 import Benchmark from "benchmark";
 
 import { prepareData } from "./prepare-data";

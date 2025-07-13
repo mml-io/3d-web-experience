@@ -6,7 +6,7 @@ import {
   DeltaNetV01ClientMessage,
   DeltaNetV01ServerMessage,
   encodeClientMessage,
-} from "@deltanet/delta-net-protocol";
+} from "@mml-io/delta-net-protocol";
 
 export class MockWebsocketV01 {
   public readonly protocol = deltaNetProtocolSubProtocol_v0_1;

@@ -1,4 +1,3 @@
-import { AvatarConfiguration, AvatarSelectionUI } from "@mml-io/3d-web-avatar-selection-ui";
 import {
   AnimationConfig,
   CameraManager,
@@ -27,7 +26,6 @@ import {
   Quat,
   getSpawnData,
 } from "@mml-io/3d-web-client-core";
-import { StringToHslOptions, TextChatUI, TextChatUIProps } from "@mml-io/3d-web-text-chat";
 import {
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
@@ -51,6 +49,9 @@ import {
   setGlobalMMLScene,
 } from "@mml-io/mml-web";
 import { Scene, AudioListener, Vector3 } from "three";
+
+import { AvatarSelectionUI, AvatarConfiguration } from "./avatar-selection-ui";
+import { StringToHslOptions, TextChatUI, TextChatUIProps } from "./chat-ui";
 
 type MMLDocumentConfiguration = {
   url: string;

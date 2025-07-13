@@ -14,7 +14,7 @@ import {
   encodeClientMessage,
   lastInitialCheckoutDebugData,
   lastTickDebugData,
-} from "@deltanet/delta-net-protocol";
+} from "@mml-io/delta-net-protocol";
 
 import {
   DeltaNetClientWebsocketAdapter,

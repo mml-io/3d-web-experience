@@ -1,6 +1,6 @@
 import { deflateSync as nodeDeflate, zstdCompressSync } from "node:zlib";
 
-import { BufferWriter, zigzagEncode } from "@deltanet/delta-net-protocol";
+import { BufferWriter, zigzagEncode } from "@mml-io/delta-net-protocol";
 import Benchmark from "benchmark";
 
 import { seededRandom } from "./seededRandom";

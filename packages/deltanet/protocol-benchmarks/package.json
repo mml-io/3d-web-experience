@@ -1,5 +1,5 @@
 {
-  "name": "@deltanet/protocol-benchmarks",
+  "name": "@mml-io/protocol-benchmarks",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -16,7 +16,7 @@
     "bench-decoding-integers": "npm run bench -- decoding-integers"
   },
   "devDependencies": {
-    "@deltanet/delta-net-protocol": "^0.1.0",
+    "@mml-io/delta-net-protocol": "^0.1.0",
     "@types/benchmark": "2.1.5",
     "benchmark": "2.1.4"
   }

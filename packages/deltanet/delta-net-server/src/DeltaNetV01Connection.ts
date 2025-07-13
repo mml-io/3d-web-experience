@@ -6,7 +6,7 @@ import {
   DeltaNetV01ServerErrorType,
   DeltaNetV01ServerMessage,
   encodeServerMessage,
-} from "@deltanet/delta-net-protocol";
+} from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer, DeltaNetServerError } from "./DeltaNetServer";
 
