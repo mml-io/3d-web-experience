@@ -127,6 +127,13 @@ const EffectCompositer = {
       return (viewMatrixInv * viewSpacePosition).xyz;
     }
 
+    vec4 LinearTosRGB(vec4 linearRGB) {
+      bvec4 cutoff = lessThan(linearRGB, vec4(0.0031308));
+      vec4 higher = vec4(1.055)*pow(linearRGB, vec4(1.0/2.4)) - vec4(0.055);
+      vec4 lower = linearRGB * vec4(12.92);
+      return mix(higher, lower, cutoff);
+    }
+
 
     vec3 computeNormal(vec3 worldPos, vec2 vUv) {
       ivec2 p = ivec2(vUv * resolution);
