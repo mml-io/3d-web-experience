@@ -63,5 +63,10 @@
     "chokidar": "4.0.3",
     "express-ws": "5.0.2",
     "ws": "8.18.0"
+  },
+  "overrides": {
+    "@mml-io/model-loader": {
+      "three": "^0.173.0"
+    }
   }
 }
