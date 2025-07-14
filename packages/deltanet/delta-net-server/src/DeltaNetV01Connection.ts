@@ -55,9 +55,18 @@ export class DeltaNetV01Connection {
         return;
       }
 
-      const messages = decodeClientMessages(new BufferReader(buffer));
-      for (const parsed of messages) {
-        this.handleClientMessage(parsed);
+      try {
+        const messages = decodeClientMessages(new BufferReader(buffer));
+        for (const parsed of messages) {
+          this.handleClientMessage(parsed);
+        }
+      } catch (error) {
+        this.disconnectWithError(
+          new Error(`Failed to decode client messages: ${error instanceof Error ? error.message : error}`),
+          DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+          false,
+        );
+        return;
       }
     };
     webSocket.addEventListener("message", this.websocketListener);
