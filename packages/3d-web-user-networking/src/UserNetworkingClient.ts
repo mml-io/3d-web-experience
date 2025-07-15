@@ -130,10 +130,6 @@ export class UserNetworkingClient {
           // Store the userIndex and set it on deltanet state
           this.userIndex = userIndex.userIndex;
           this.deltaNetState.setLocalIndex(userIndex.userIndex);
-
-          console.log(
-            `Received userIndex: ${userIndex.userIndex}, waiting for initial checkout to resolve stable userId...`,
-          );
         },
         onError: (errorType: string, errorMessage: string, retryable: boolean) => {
           console.error(

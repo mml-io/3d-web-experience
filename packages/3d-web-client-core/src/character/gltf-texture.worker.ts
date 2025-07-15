@@ -423,67 +423,44 @@ class GLTFTextureProcessor {
   }
 
   async processGLTF(fileUrl: string, maxTextureSize: number): Promise<ArrayBuffer> {
-    console.time("processGLTF - " + fileUrl);
 
     // Try to get from cache first
-    console.time("cache lookup - " + fileUrl);
     try {
       const cachedResult = await this.cache.get(fileUrl, maxTextureSize);
       if (cachedResult) {
-        console.timeEnd("cache lookup - " + fileUrl);
-        console.timeEnd("processGLTF - " + fileUrl);
-        console.log("Cache hit for:", fileUrl);
         return cachedResult;
       }
     } catch (error) {
       console.warn("Cache lookup failed:", error);
     }
-    console.timeEnd("cache lookup - " + fileUrl);
-
-    console.log("Cache miss for:", fileUrl);
 
     // Fetch the gLTF file
-    console.time("fetch gLTF file - " + fileUrl);
     const response = await fetch(fileUrl);
     if (!response.ok) {
       throw new Error(`Failed to fetch gLTF file: ${response.statusText}`);
     }
-    console.timeEnd("fetch gLTF file - " + fileUrl);
 
-    console.time("convert to array buffer - " + fileUrl);
     const buffer = await response.arrayBuffer();
-    console.timeEnd("convert to array buffer - " + fileUrl);
 
     // Parse the document
-    console.time("parse document - " + fileUrl);
     const document = await this.io.readBinary(new Uint8Array(buffer));
-    console.timeEnd("parse document - " + fileUrl);
 
     // Process all textures in the document
-    console.time("list textures - " + fileUrl);
     const textures = document.getRoot().listTextures();
-    console.timeEnd("list textures - " + fileUrl);
 
-    console.time("process textures - " + fileUrl);
     for (const texture of textures) {
       await this.processTexture(texture, maxTextureSize);
     }
-    console.timeEnd("process textures - " + fileUrl);
 
-    console.time("write binary - " + fileUrl);
     const result = await this.io.writeBinary(document);
-    console.timeEnd("write binary - " + fileUrl);
 
     // Cache the result
-    console.time("cache store - " + fileUrl);
     try {
       await this.cache.set(fileUrl, maxTextureSize, result);
     } catch (error) {
       console.warn("Failed to cache result:", error);
     }
-    console.timeEnd("cache store - " + fileUrl);
 
-    console.timeEnd("processGLTF - " + fileUrl);
     return result;
   }
 

@@ -42,7 +42,6 @@ const setShadowMapType = (value: number): void => {
 const setToneMappingType = (value: number): void => {
   monitoredValues.toneMappingType = toneMappingTypes[value];
   rendererValues.toneMapping = value;
-  console.log(rendererValues.toneMapping);
 };
 
 export class RendererFolder {

@@ -50,7 +50,11 @@ export function handleLibraryBuild(optionsArg?: Partial<LibraryBuildOptions>) {
     loader: {
       ...options.loader,
     },
-    plugins: [...options.plugins, rebuildOnDependencyChangesPlugin(), dtsPlugin()],
+    plugins: [
+      ...options.plugins,
+      mode === watchMode ? rebuildOnDependencyChangesPlugin() : null,
+      dtsPlugin(),
+    ].filter(Boolean) as esbuild.Plugin[],
   };
 
   switch (mode) {

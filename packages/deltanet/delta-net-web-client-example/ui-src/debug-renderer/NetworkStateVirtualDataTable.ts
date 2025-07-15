@@ -385,9 +385,6 @@ export class NetworkStateVirtualDataTable extends VirtualDataTable<
     this.addFieldColumn(`S${stateId}`, {
       cellFactory: GenericTextCell((row: NetworkUserRow) => {
         const state = row.states.get(stateId);
-        if (stateId === 5) {
-          console.log("State 5", state);
-        }
         return formatState(state || null);
       }),
       removable: false,

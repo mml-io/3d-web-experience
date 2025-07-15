@@ -972,7 +972,6 @@ export class DeltaNetServer {
   }
 
   public broadcastCustomMessage(customType: number, contents: string): void {
-    console.log("Broadcasting custom message", customType, contents);
     if (this.disposed) {
       return;
     }

@@ -92,11 +92,6 @@ export class UserNetworkingServer {
     connectionId: number,
   ): import("./legacy/LegacyUserNetworkingMessages").LegacyCharacterDescription {
     const client = this.authenticatedClientsById.get(connectionId);
-    console.log(
-      "getCharacterDescription",
-      connectionId,
-      client?.authenticatedUser?.characterDescription,
-    );
     return client?.authenticatedUser?.characterDescription ?? { mmlCharacterUrl: "" };
   }
   getUsername(connectionId: number): string {
@@ -437,7 +432,6 @@ export class UserNetworkingServer {
     if (socket.protocol === "") {
       // This is likely a legacy client that does not support deltanet - use legacy adapter if enabled
       if (this.legacyAdapter) {
-        console.log("Legacy client detected - using legacy adapter");
         this.legacyAdapter.addWebSocket(socket as unknown as globalThis.WebSocket);
         return;
       } else {

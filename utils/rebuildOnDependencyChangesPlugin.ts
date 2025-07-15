@@ -189,7 +189,7 @@ export const rebuildOnDependencyChangesPlugin = (
 
               return {
                 external: true,
-                path: resolved,
+                path: args.path,
                 watchFiles,
               };
             }

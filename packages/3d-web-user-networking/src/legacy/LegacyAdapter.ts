@@ -99,7 +99,6 @@ export class LegacyAdapter {
 
   public addWebSocket(socket: WebSocket) {
     const id = this.userNetworkingServer.getLegacyClientId();
-    console.log(`Client ID: ${id} joined, waiting for user-identification`);
 
     // Create a client but without user information
     const client: LegacyUserNetworkingServerClient = {
@@ -324,7 +323,6 @@ export class LegacyAdapter {
     });
 
     socket.addEventListener("close", () => {
-      console.log("Client disconnected", id);
       this.handleDisconnectedClient(client);
     });
   }
@@ -371,8 +369,6 @@ export class LegacyAdapter {
       console.error(`Client-id ${client.id} user_auth unauthorized and ignored`);
       return false;
     }
-
-    console.log("Client authenticated", client.id, resolvedUserData);
 
     return resolvedUserData;
   }
