@@ -24,7 +24,7 @@
     "@mml-io/mml-web": "0.0.0-experimental-b41f621-20250714",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "three": ">= 0.163.0"
+    "three": "0.178.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
