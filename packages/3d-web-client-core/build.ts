@@ -1,4 +1,4 @@
-import { base64Plugin } from "../../utils/base64plugin";
+import { base64Plugin } from "../../utils/base64Plugin";
 import { handleLibraryBuild } from "../../utils/build-library";
 import { workerPlugin } from "../../utils/workerPlugin";
 

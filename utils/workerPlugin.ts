@@ -2,7 +2,7 @@ import * as path from "path";
 
 import * as esbuild from "esbuild";
 
-import { base64Plugin } from "./base64plugin";
+import { base64Plugin } from "./base64Plugin";
 
 export function workerPlugin(): esbuild.Plugin {
   return {
