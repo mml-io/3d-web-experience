@@ -21,11 +21,11 @@ import { EditableNetworkedDOM, NetworkedDOM } from "@mml-io/networked-dom-docume
 import { AudioListener, Scene } from "three";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
-import airAnimationFileUrl from "../../../assets/models/anim_air_new.glb";
-import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump_new.glb";
-import idleAnimationFileUrl from "../../../assets/models/anim_idle_new.glb";
-import jogAnimationFileUrl from "../../../assets/models/anim_jog_new.glb";
-import sprintAnimationFileUrl from "../../../assets/models/anim_run_new.glb";
+import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
+import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
+import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
+import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
 import defaultAvatarMeshFileUrl from "../../../assets/models/bot.glb";
 
 import { LocalAvatarServer } from "./LocalAvatarServer";

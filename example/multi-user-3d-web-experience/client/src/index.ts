@@ -2,11 +2,11 @@ import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import loadingBackground from "../../../assets/images/loading-bg.jpg";
-import airAnimationFileUrl from "../../../assets/models/anim_air_new.glb";
-import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump_new.glb";
-import idleAnimationFileUrl from "../../../assets/models/anim_idle_new.glb";
-import jogAnimationFileUrl from "../../../assets/models/anim_jog_new.glb";
-import sprintAnimationFileUrl from "../../../assets/models/anim_run_new.glb";
+import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
+import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
+import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
+import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
+import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
 
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
