@@ -17,18 +17,6 @@ interface GLTFWorkerResponse {
   error?: string;
 }
 
-/**
- * GLTFTextureWorkerPool - High-performance gLTF loading and texture processing using Web Workers
- *
- * Features:
- * - Loads gLTF files entirely in workers (off main thread)
- * - Uses gltf-transform for proper gLTF manipulation
- * - Processes and resizes all textures in the worker
- * - Returns optimized gLTF data ready for use
- * - Automatic worker load balancing
- * - No main thread blocking
- * - Memory efficient with no caching
- */
 export class GLTFTextureWorkerPool {
   private static instance: GLTFTextureWorkerPool;
   private workers: Worker[] = [];
@@ -78,7 +66,6 @@ export class GLTFTextureWorkerPool {
     this.activeJobs.delete(id);
 
     if (type === "success" && gltfBuffer) {
-      console.timeEnd(`processGLTF ${id}`);
       job.resolve(gltfBuffer);
     } else if (type === "error") {
       job.reject(new Error(error || "Unknown worker error"));
@@ -95,13 +82,6 @@ export class GLTFTextureWorkerPool {
     return worker;
   }
 
-  /**
-   * Process a gLTF file by loading it in a worker and optimizing all textures
-   * @param fileUrl - URL of the gLTF file to process
-   * @param maxTextureSize - Maximum size for any texture dimension
-   * @param abortController - Optional AbortController for cancellation
-   * @returns Promise that resolves to the processed gLTF data as ArrayBuffer
-   */
   public async processGLTF(
     fileUrl: string,
     maxTextureSize: number,
@@ -109,7 +89,6 @@ export class GLTFTextureWorkerPool {
   ): Promise<ArrayBuffer> {
     return new Promise((resolve, reject) => {
       const id = `gltf_${Date.now()}_${Math.random()}`;
-      console.time(`processGLTF ${id}`);
       const message: GLTFWorkerRequest = {
         id,
         type: "process-gltf",

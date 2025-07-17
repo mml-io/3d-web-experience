@@ -16,10 +16,10 @@
   },
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.22.0",
-    "@mml-io/mml-web": "0.0.0-experimental-b41f621-20250714",
-    "@mml-io/mml-web-runner": "0.0.0-experimental-b41f621-20250714",
-    "@mml-io/mml-web-threejs-standalone": "0.0.0-experimental-b41f621-20250714",
-    "@mml-io/networked-dom-document": "0.0.0-experimental-b41f621-20250714",
+    "@mml-io/mml-web": "0.20.0",
+    "@mml-io/mml-web-runner": "0.20.0",
+    "@mml-io/mml-web-threejs-standalone": "0.20.0",
+    "@mml-io/networked-dom-document": "0.20.0",
     "three": "0.178.0"
   },
   "devDependencies": {

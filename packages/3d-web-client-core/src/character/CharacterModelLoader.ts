@@ -3,37 +3,6 @@ import { AnimationClip, Object3D } from "three";
 
 import { GLTFTextureWorkerPool } from "./TextureWorker";
 
-/**
- * CharacterModelLoader with automatic texture downscaling using Web Workers and gltf-transform
- *
- * Performance Features:
- * - Entire gLTF loading and processing happens off main thread using Web Workers
- * - Uses gltf-transform for proper gLTF manipulation and texture processing
- * - Automatic texture resizing with aspect ratio preservation
- * - No caching - each load is fresh to prevent memory leaks
- * - Immediate cleanup of blob URLs to prevent memory accumulation
- * - Configurable maximum texture size
- *
- * Memory Safety:
- * - No LRU cache to prevent memory bloat
- * - Blob URLs are revoked immediately after use
- * - Worker pool handles its own memory management
- * - Direct processing without intermediate storage
- *
- * @example
- * ```typescript
- * // Ultra performance (mobile/low-end devices)
- * const loader = new CharacterModelLoader(false, 128);
- *
- * // Balanced performance (most devices)
- * const loader = new CharacterModelLoader(false, 512);
- *
- * // Quality focused (high-end devices)
- * const loader = new CharacterModelLoader(false, 1024);
- *
- * const model = await loader.load('character.glb', 'model');
- * ```
- */
 export class CharacterModelLoader {
   private readonly modelLoader: ModelLoader = new ModelLoader();
   private workerPool: GLTFTextureWorkerPool;
@@ -147,16 +116,11 @@ export class CharacterModelLoader {
     }
   }
 
-  private async loadFromBlobUrl(
-    blobUrl: string,
+  private async loadFromBuffer(
+    arrayBuffer: ArrayBuffer,
     fileType: "model" | "animation" = "model",
   ): Promise<Object3D | AnimationClip | undefined> {
-    const modelLoadResult: ModelLoadResult = await this.modelLoader.load(
-      blobUrl,
-      (loaded: number, total: number) => {
-        // no-op
-      },
-    );
+    const modelLoadResult: ModelLoadResult = await this.modelLoader.loadFromBuffer(arrayBuffer);
 
     if (fileType === "model") {
       const model = modelLoadResult.group as Object3D;
