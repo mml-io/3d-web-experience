@@ -24,6 +24,7 @@ type ChatUIProps = {
 
 const MAX_MESSAGES = 50;
 const SECONDS_TO_FADE_OUT = 6;
+const AUTO_SCROLL_RESET_DELAY_MS = 100;
 
 export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIProps> = (
   props: ChatUIProps,
@@ -152,7 +153,7 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
     setShouldAutoScroll(true);
     props.sendMessageToServer(message);
     // Reset after a short delay
-    setTimeout(() => setShouldAutoScroll(false), 100);
+    setTimeout(() => setShouldAutoScroll(false), AUTO_SCROLL_RESET_DELAY_MS);
   };
 
   const setFocus = () => setIsFocused(true);

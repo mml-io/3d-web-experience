@@ -284,10 +284,6 @@ export class Composer {
   }
 
   public fitContainer() {
-    if (!this) {
-      console.warn("Composer not initialized");
-      return;
-    }
     const parentElement = this.renderer.domElement.parentNode as HTMLElement;
     if (!parentElement) {
       return;

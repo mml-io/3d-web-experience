@@ -98,12 +98,6 @@ export class CharacterModelLoader {
       pathName,
     );
 
-    const model = modelLoadResult.group as Object3D;
-
-    if (this.debug) {
-      console.log(`Model loaded successfully from blob URL`);
-    }
-
-    return model;
+    return modelLoadResult.group as Object3D;
   }
 }

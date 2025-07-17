@@ -22,9 +22,11 @@ export class TimeManager {
 
   public static maxDeltaTime = 0.1; // 100ms
 
+  public static MILLISECONDS_TO_SECONDS = 1000;
+
   update() {
     const now = performance.now();
-    this.rawDeltaTime = (now - this.previousTime) / 1000;
+    this.rawDeltaTime = (now - this.previousTime) / TimeManager.MILLISECONDS_TO_SECONDS;
     this.previousTime = now;
 
     if (this.rawDeltaTime > TimeManager.maxDeltaTime) {

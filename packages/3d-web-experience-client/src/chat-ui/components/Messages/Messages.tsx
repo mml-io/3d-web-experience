@@ -11,6 +11,8 @@ type MessagesProps = {
   shouldAutoScroll?: boolean;
 };
 
+const SCROLL_THRESHOLD_PX = 10; // Threshold to consider "at bottom" for scroll position
+
 export const Messages: FC<MessagesProps> = ({ messages, stringToHslOptions, shouldAutoScroll }) => {
   const messagesEndRef = useRef<null | HTMLDivElement>(null);
   const containerRef = useRef<null | HTMLDivElement>(null);
@@ -21,7 +23,7 @@ export const Messages: FC<MessagesProps> = ({ messages, stringToHslOptions, shou
   const isAtBottom = () => {
     if (!containerRef.current) return true;
     const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
-    return Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
+    return Math.abs(scrollHeight - clientHeight - scrollTop) < SCROLL_THRESHOLD_PX;
   };
 
   const handleScroll = () => {
