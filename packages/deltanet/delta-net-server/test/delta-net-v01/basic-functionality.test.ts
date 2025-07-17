@@ -1,9 +1,9 @@
+import { jest } from "@jest/globals";
 import {
   DeltaNetV01InitialCheckoutMessage,
   DeltaNetV01Tick,
   DeltaNetV01UserIndexMessage,
 } from "@mml-io/delta-net-protocol";
-import { jest } from "@jest/globals";
 
 import { DeltaNetServer } from "../../src";
 

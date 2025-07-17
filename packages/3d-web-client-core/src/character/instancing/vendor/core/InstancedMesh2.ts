@@ -320,6 +320,7 @@ export class InstancedMesh2<
   public override onBeforeShadow(
     renderer: WebGLRenderer,
     scene: Scene,
+    camera: Camera,
     shadowCamera: Camera,
     geometry: BufferGeometry,
     depthMaterial: Material,
@@ -373,6 +374,7 @@ export class InstancedMesh2<
   public override onAfterShadow(
     renderer: WebGLRenderer,
     scene: Scene,
+    camera: Camera,
     shadowCamera: Camera,
     geometry: BufferGeometry,
     depthMaterial: Material,
@@ -1008,9 +1010,11 @@ export class InstancedMesh2<
     );
   }
 
-  public override copy(source: InstancedMesh2<TData>, recursive?: boolean): this {
+  public override copy(argSource: Object3D, recursive?: boolean): this {
     // @ts-ignore
-    super.copy(source, recursive);
+    super.copy(argSource, recursive);
+
+    const source = argSource as unknown as InstancedMesh2<TData>;
 
     this.count = source._capacity;
     this._instancesCount = source._instancesCount;

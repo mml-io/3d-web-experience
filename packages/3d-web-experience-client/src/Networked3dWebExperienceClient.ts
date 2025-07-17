@@ -368,7 +368,6 @@ export class Networked3dWebExperienceClient {
          When all content (in particular MML) has loaded, spawn the character (this is to avoid the character falling
          through as-yet-unloaded geometry)
         */
-        console.log("Initial load completed");
 
         this.connectToTextChat();
         this.mountAvatarSelectionUI();

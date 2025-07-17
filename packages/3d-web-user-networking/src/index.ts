@@ -5,6 +5,7 @@ export * from "./types";
 export * from "./UserNetworkingMessages";
 export * from "./legacy/LegacyUserNetworkingMessages";
 export * from "./DeltaNetComponentMapping";
+export * from "./UserNetworkingLogger";
 export {
   DeltaNetV01ServerErrors,
   deltaNetProtocolSubProtocol_v0_1,

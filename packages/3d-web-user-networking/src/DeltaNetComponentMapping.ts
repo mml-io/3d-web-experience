@@ -2,6 +2,7 @@ import { BufferReader, BufferWriter } from "@mml-io/delta-net-protocol";
 
 import { UserNetworkingClientUpdate } from "./types";
 import { UserData } from "./UserData";
+import { UserNetworkingLogger } from "./UserNetworkingLogger";
 import { CharacterDescription } from "./UserNetworkingMessages";
 
 // Component IDs used in the deltanet implementation
@@ -184,7 +185,10 @@ export class DeltaNetComponentMapping {
     return bufferWriter.getBuffer();
   }
 
-  static decodeColors(colors: Uint8Array): Array<[number, number, number]> {
+  static decodeColors(
+    colors: Uint8Array,
+    logger: UserNetworkingLogger,
+  ): Array<[number, number, number]> {
     if (colors.byteLength === 0) {
       return [];
     }
@@ -201,12 +205,12 @@ export class DeltaNetComponentMapping {
       }
       return colorsArray;
     } catch (e) {
-      console.error("Error decoding colors", colors, e);
+      logger.error("Error decoding colors", colors, e);
       return [];
     }
   }
 
-  static fromUserStates(states: Map<number, Uint8Array>): UserData {
+  static fromUserStates(states: Map<number, Uint8Array>, logger: UserNetworkingLogger): UserData {
     const usernameBytes = states.get(STATE_USERNAME);
     const username = usernameBytes
       ? DeltaNetComponentMapping.usernameFromBytes(usernameBytes)
@@ -218,7 +222,9 @@ export class DeltaNetComponentMapping {
       : null;
 
     const colorsBytes = states.get(STATE_COLORS);
-    const colorsArray = colorsBytes ? DeltaNetComponentMapping.decodeColors(colorsBytes) : [];
+    const colorsArray = colorsBytes
+      ? DeltaNetComponentMapping.decodeColors(colorsBytes, logger)
+      : [];
 
     return { username, characterDescription, colors: colorsArray };
   }
@@ -247,7 +253,10 @@ export class DeltaNetComponentMapping {
   /**
    * Decode binary states back to username and character description
    */
-  static fromStates(states: Map<number, Uint8Array>): {
+  static fromStates(
+    states: Map<number, Uint8Array>,
+    logger: UserNetworkingLogger,
+  ): {
     userId: number | null;
   } & UserData {
     const userIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
@@ -257,7 +266,7 @@ export class DeltaNetComponentMapping {
       userId = reader.readUVarint(false);
     }
 
-    const userStates = DeltaNetComponentMapping.fromUserStates(states);
+    const userStates = DeltaNetComponentMapping.fromUserStates(states, logger);
 
     return { userId, ...userStates };
   }

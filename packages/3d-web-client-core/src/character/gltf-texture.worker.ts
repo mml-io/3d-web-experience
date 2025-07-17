@@ -423,7 +423,6 @@ class GLTFTextureProcessor {
   }
 
   async processGLTF(fileUrl: string, maxTextureSize: number): Promise<ArrayBuffer> {
-
     // Try to get from cache first
     try {
       const cachedResult = await this.cache.get(fileUrl, maxTextureSize);

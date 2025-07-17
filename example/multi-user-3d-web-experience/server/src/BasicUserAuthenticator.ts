@@ -40,11 +40,11 @@ export class BasicUserAuthenticator {
     return sessionToken;
   }
 
-  public onClientConnect(
+  public async onClientConnect(
     clientId: number,
     sessionToken: string,
     userIdentityPresentedOnConnection?: UserData,
-  ): UserData | true | Error {
+  ): Promise<UserData | true | Error> {
     console.log(`Client ID: ${clientId} joined with token`);
     let user = this.userBySessionToken.get(sessionToken);
     if (!user && this.options.devAllowUnrecognizedSessions) {

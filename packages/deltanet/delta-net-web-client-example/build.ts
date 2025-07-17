@@ -31,7 +31,7 @@ const buildOptions: esbuild.BuildOptions = {
   packages: "external",
   sourcemap: "inline",
   platform: "node",
-  target: "es2020",
+  target: "es2022",
   loader: {
     ".html": "text",
   },

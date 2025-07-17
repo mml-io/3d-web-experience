@@ -1,5 +1,5 @@
-import { DeltaNetV01ServerErrors, DeltaNetV01Tick } from "@mml-io/delta-net-protocol";
 import { jest } from "@jest/globals";
+import { DeltaNetV01ServerErrors, DeltaNetV01Tick } from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer, DeltaNetServerError } from "../../src";
 

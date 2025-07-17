@@ -11,6 +11,7 @@ import {
   positionMultiplier,
 } from "../DeltaNetComponentMapping";
 import { UserData } from "../UserData";
+import { UserNetworkingLogger } from "../UserNetworkingLogger";
 import {
   parseServerBroadcastMessage,
   SERVER_BROADCAST_MESSAGE_TYPE,
@@ -67,6 +68,7 @@ export class LegacyAdapter {
   constructor(
     private readonly userNetworkingServer: UserNetworkingServer,
     private readonly deltaNetServer: DeltaNetServer,
+    private logger: UserNetworkingLogger,
   ) {}
 
   public broadcastMessage(broadcastType: number, broadcastPayload: string) {
@@ -78,7 +80,7 @@ export class LegacyAdapter {
 
     const parsedPayload = parseServerBroadcastMessage(broadcastPayload);
     if (parsedPayload instanceof Error) {
-      console.error("Error parsing server broadcast message", parsedPayload);
+      this.logger.error("Error parsing server broadcast message", parsedPayload);
       return;
     }
 
@@ -163,7 +165,7 @@ export class LegacyAdapter {
           try {
             parsed = JSON.parse(message.data as string) as LegacyFromUserNetworkingClientMessage;
           } catch (e) {
-            console.error("Error parsing JSON message", message, e);
+            this.logger.error("Error parsing JSON message", message, e);
             return;
           }
           if (!client.authenticatedUser) {
@@ -174,7 +176,7 @@ export class LegacyAdapter {
                   return;
                 }
                 if (!authResult) {
-                  console.error(`Client-id ${client.id} user_auth failed`, authResult);
+                  this.logger.error(`Client-id ${client.id} user_auth failed`, authResult);
                   // If the user is not authorized, disconnect the client
                   const serverError = JSON.stringify({
                     type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
@@ -291,7 +293,7 @@ export class LegacyAdapter {
                 }
               });
             } else {
-              console.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
+              this.logger.error(`Unhandled message pre-auth: ${JSON.stringify(parsed)}`);
               socket.close();
             }
           } else {
@@ -305,12 +307,12 @@ export class LegacyAdapter {
                 break;
 
               default:
-                console.error(`Unhandled message: ${JSON.stringify(parsed)}`);
+                this.logger.error(`Unhandled message: ${JSON.stringify(parsed)}`);
             }
           }
         }
       } catch (e) {
-        console.error("Error handling message", message, e);
+        this.logger.error("Error handling message", message, e);
         socket.send(
           JSON.stringify({
             type: LEGACY_USER_NETWORKING_SERVER_ERROR_MESSAGE_TYPE,
@@ -357,16 +359,16 @@ export class LegacyAdapter {
     }
 
     if (resolvedUserData instanceof Error) {
-      console.error(`Client-id ${client.id} user_auth failed`, resolvedUserData);
+      this.logger.error(`Client-id ${client.id} user_auth failed`, resolvedUserData);
       return false;
     } else if (resolvedUserData === true) {
-      console.error(`Client-id ${client.id} user_auth failed`, resolvedUserData);
+      this.logger.error(`Client-id ${client.id} user_auth failed`, resolvedUserData);
       resolvedUserData = credentials.userIdentity as LegacyUserData;
     } else {
       resolvedUserData = resolvedUserData as LegacyUserData;
     }
     if (resolvedUserData === null) {
-      console.error(`Client-id ${client.id} user_auth unauthorized and ignored`);
+      this.logger.error(`Client-id ${client.id} user_auth unauthorized and ignored`);
       return false;
     }
 
@@ -393,7 +395,7 @@ export class LegacyAdapter {
   ): Promise<void> {
     const client = this.legacyAuthenticatedClientsById.get(clientId);
     if (!client) {
-      console.error(`Client-id ${clientId} user_update ignored, client not found`);
+      this.logger.error(`Client-id ${clientId} user_update ignored, client not found`);
       return;
     }
 
@@ -409,7 +411,7 @@ export class LegacyAdapter {
     }
     if (!resolvedAuthorizedUserData) {
       // TODO - inform the client about the unauthorized update
-      console.warn(`Client-id ${clientId} user_update unauthorized and ignored`);
+      this.logger.warn(`Client-id ${clientId} user_update unauthorized and ignored`);
       return;
     }
 
@@ -457,16 +459,6 @@ export class LegacyAdapter {
       for (const [, otherClient] of this.legacyAuthenticatedClientsById) {
         if (otherClient.socket.readyState === WebSocketOpenStatus) {
           otherClient.socket.send(identityMessage);
-        }
-      }
-    }
-
-    for (const [clientId, client] of this.legacyAuthenticatedClientsById) {
-      const encodedUpdate = LegacyUserNetworkingCodec.encodeUpdate(client.update);
-
-      for (const [otherClientId, otherClient] of this.legacyAuthenticatedClientsById) {
-        if (otherClientId !== clientId && otherClient.socket.readyState === WebSocketOpenStatus) {
-          otherClient.socket.send(encodedUpdate);
         }
       }
     }

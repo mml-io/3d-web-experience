@@ -174,10 +174,6 @@ export class LocalAvatarClient {
     });
     this.scene.add(this.characterManager.group);
 
-    if (spawnConfiguration.enableRespawnButton) {
-      this.element.appendChild(this.characterManager.createRespawnButton());
-    }
-
     this.mmlComposition = new MMLCompositionScene({
       targetElement: this.element,
       renderer: this.composer.renderer,

@@ -16,6 +16,7 @@ import {
 } from "./DeltaNetComponentMapping";
 import { UserNetworkingClientUpdate, WebsocketFactory, WebsocketStatus } from "./types";
 import { UserData } from "./UserData";
+import { UserNetworkingConsoleLogger, UserNetworkingLogger } from "./UserNetworkingLogger";
 import { CharacterDescription } from "./UserNetworkingMessages";
 
 export type UserNetworkingClientConfig = {
@@ -66,6 +67,7 @@ export class UserNetworkingClient {
     private config: UserNetworkingClientConfig,
     initialUserState?: UserData,
     initialUpdate?: UserNetworkingClientUpdate,
+    private logger: UserNetworkingLogger = new UserNetworkingConsoleLogger(),
   ) {
     this.pendingUpdate = initialUpdate ?? {
       position: { x: 0, y: 0, z: 0 },
@@ -109,7 +111,7 @@ export class UserNetworkingClient {
               this.isAuthenticated = true;
               this.config.assignedIdentity(this.userId);
             } else {
-              console.error(
+              this.logger.error(
                 `Invalid userIndex ${this.userIndex}, userIds length: ${userIds.length}`,
               );
             }
@@ -132,7 +134,7 @@ export class UserNetworkingClient {
           this.deltaNetState.setLocalIndex(userIndex.userIndex);
         },
         onError: (errorType: string, errorMessage: string, retryable: boolean) => {
-          console.error(
+          this.logger.error(
             "DeltaNet error:",
             errorType,
             "errorMessage:",
@@ -146,7 +148,7 @@ export class UserNetworkingClient {
           });
         },
         onWarning: (warning: string) => {
-          console.warn("DeltaNet warning:", warning);
+          this.logger.warn("DeltaNet warning:", warning);
         },
         onServerCustom: (customType: number, contents: string) => {
           // Handle server custom messages
@@ -239,7 +241,7 @@ export class UserNetworkingClient {
         throw new Error(`Failed to extract userId from bytes for stableId ${stableId}`);
       }
       this.stableIdToUserId.set(stableId, userId);
-      const newProfile = DeltaNetComponentMapping.fromStates(stableUserData.states);
+      const newProfile = DeltaNetComponentMapping.fromStates(stableUserData.states, this.logger);
       this.userProfiles.set(userId, newProfile);
       const clientUpdate = DeltaNetComponentMapping.fromComponents(stableUserData.components);
       addedUserIds.set(userId, {
@@ -280,7 +282,7 @@ export class UserNetworkingClient {
 
       const profile = this.userProfiles.get(userId);
       if (!profile) {
-        console.warn(`No profile found for user ${userId}, skipping update`);
+        this.logger.warn(`No profile found for user ${userId}, skipping update`);
         continue;
       }
       const existingUpdate = updatedUsers.get(userId)!;
@@ -292,7 +294,9 @@ export class UserNetworkingClient {
 
       switch (update.stateId) {
         case STATE_INTERNAL_CONNECTION_ID:
-          console.error("STATE_INTERNAL_CONNECTION_ID is not expected to change in state updates");
+          this.logger.error(
+            "STATE_INTERNAL_CONNECTION_ID is not expected to change in state updates",
+          );
           break;
         case STATE_USERNAME:
           const username = DeltaNetComponentMapping.usernameFromBytes(update.state);
@@ -309,12 +313,12 @@ export class UserNetworkingClient {
           existingUserStateUpdate.characterDescription = characterDescription;
           break;
         case STATE_COLORS:
-          const colors = DeltaNetComponentMapping.decodeColors(update.state);
+          const colors = DeltaNetComponentMapping.decodeColors(update.state, this.logger);
           profile.colors = colors;
           existingUserStateUpdate.colors = colors;
           break;
         default:
-          console.warn(`Unknown state ID: ${update.stateId}`);
+          this.logger.warn(`Unknown state ID: ${update.stateId}`);
       }
     }
 
@@ -339,7 +343,7 @@ export class UserNetworkingClient {
 
   public sendCustomMessage(customType: number, contents: string): void {
     if (!this.isAuthenticated || this.userId === null) {
-      console.warn("Cannot send custom message before authentication");
+      this.logger.warn("Cannot send custom message before authentication");
       return;
     }
 

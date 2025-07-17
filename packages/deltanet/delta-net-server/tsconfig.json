@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "noImplicitAny": true,
-    "module": "esnext",
-    "target": "esnext",
+    "module": "es2022",
+    "target": "es2022",
     "jsx": "react",
     "lib": ["esnext", "dom"],
     "sourceMap": true,

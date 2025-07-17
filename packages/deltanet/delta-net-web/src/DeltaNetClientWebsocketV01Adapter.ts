@@ -15,6 +15,7 @@ import {
   lastInitialCheckoutDebugData,
   lastTickDebugData,
 } from "@mml-io/delta-net-protocol";
+import { DeltaNetV01ConnectUserMessage } from "@mml-io/delta-net-protocol/src";
 
 import {
   DeltaNetClientWebsocketAdapter,
@@ -34,6 +35,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
   private sentUserConnect = false;
   private receivedUserIndex = false;
   private queuedStateUpdates = new Map<number, Uint8Array>();
+  private components = new Map<number, bigint>();
   private states = new Map<number, Uint8Array>();
   private disposed = false;
   private isObserver: boolean;
@@ -76,7 +78,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       observer: this.isObserver,
       components: this.isObserver ? [] : components,
       states: this.isObserver ? [] : states,
-    });
+    } satisfies DeltaNetV01ConnectUserMessage);
   }
 
   public setUserComponents(
@@ -90,6 +92,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     const messageComponents: Array<[number, bigint]> = [];
     for (const [componentId, value] of components) {
       messageComponents.push([componentId, value]);
+      this.components.set(componentId, value);
     }
 
     const messageStates: Array<[number, Uint8Array]> = [];
@@ -112,23 +115,19 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       return;
     }
 
-    let messageStatesToSend: Array<[number, Uint8Array]> = [];
     if (this.receivedUserIndex) {
-      messageStatesToSend = messageStates;
+      if (messageComponents.length > 0 || messageStates.length > 0) {
+        const setUserComponents: DeltaNetV01SetUserComponentsMessage = {
+          type: "setUserComponents",
+          components: messageComponents,
+          states: messageStates,
+        };
+        this.send(setUserComponents);
+      }
     } else {
       for (const [stateId, value] of messageStates) {
         this.queuedStateUpdates.set(stateId, value);
       }
-    }
-
-    if (messageComponents.length > 0 || messageStatesToSend.length > 0) {
-      const setUserComponents: DeltaNetV01SetUserComponentsMessage = {
-        type: "setUserComponents",
-        components: messageComponents,
-        states: messageStatesToSend,
-      };
-
-      this.send(setUserComponents);
     }
   }
 
@@ -219,7 +218,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       }
       const setUserComponents: DeltaNetV01SetUserComponentsMessage = {
         type: "setUserComponents",
-        components: [],
+        components: Array.from(this.components.entries()),
         states: queuedStatesArray,
       };
       this.send(setUserComponents);

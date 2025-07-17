@@ -25,7 +25,7 @@ const buildOptions: esbuild.BuildOptions = {
   packages: "external",
   sourcemap: true,
   platform: "node",
-  target: "es2020",
+  target: "es2022",
   plugins: mode === watchMode ? [rebuildOnDependencyChangesPlugin({
     startCommand: "npm run iterate:start",
   })] : [],

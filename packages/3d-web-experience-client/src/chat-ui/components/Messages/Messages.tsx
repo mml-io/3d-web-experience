@@ -27,7 +27,7 @@ export const Messages: FC<MessagesProps> = ({ messages, stringToHslOptions, shou
   const handleScroll = () => {
     const atBottom = isAtBottom();
     setWasAtBottom(atBottom);
-    
+
     // Mark messages as read when scrolled to bottom
     if (atBottom && unreadCount > 0) {
       setUnreadCount(0);
@@ -46,10 +46,10 @@ export const Messages: FC<MessagesProps> = ({ messages, stringToHslOptions, shou
 
   useEffect(() => {
     if (messages.length === 0) return;
-    
+
     // Should auto-scroll if user sent message or was at bottom
     const shouldScroll = shouldAutoScroll || wasAtBottom;
-    
+
     if (shouldScroll) {
       // Use setTimeout to ensure DOM is updated, then check if we need to scroll
       setTimeout(() => {
@@ -71,11 +71,7 @@ export const Messages: FC<MessagesProps> = ({ messages, stringToHslOptions, shou
 
   return (
     <>
-      <div 
-        ref={containerRef}
-        className={styles.messagesContainer}
-        onScroll={handleScroll}
-      >
+      <div ref={containerRef} className={styles.messagesContainer} onScroll={handleScroll}>
         {messages.map((msg, index) => (
           <Message
             key={index}
@@ -87,11 +83,8 @@ export const Messages: FC<MessagesProps> = ({ messages, stringToHslOptions, shou
         <div ref={messagesEndRef}></div>
       </div>
       {unreadCount > 0 && (
-        <button 
-          className={styles.newMessagesButton}
-          onClick={scrollToBottom}
-        >
-          {unreadCount} new message{unreadCount !== 1 ? 's' : ''}
+        <button className={styles.newMessagesButton} onClick={scrollToBottom}>
+          {unreadCount} new message{unreadCount !== 1 ? "s" : ""}
         </button>
       )}
     </>

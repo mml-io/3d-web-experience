@@ -69,21 +69,30 @@ export function colorArrayToColors(
   return colors;
 }
 
+const tempVector = new Vector3();
+
 function getSimpleHeight(mesh: Object3D): number {
-  let maxY = 0;
+  let maxY = -Infinity;
+  let minY = Infinity;
+
   mesh.traverse((child) => {
     if (child instanceof Mesh || (child as Mesh).isMesh) {
       const geometry = (child as Mesh).geometry;
       if (geometry) {
         const positionAttribute = geometry.getAttribute("position");
         for (let i = 0; i < positionAttribute.count; i++) {
-          const y = positionAttribute.getY(i);
+          const y = (child as Mesh).getVertexPosition(i, tempVector).y;
           maxY = Math.max(maxY, y);
+          minY = Math.min(minY, y);
         }
       }
     }
   });
-  return maxY;
+  if (maxY === -Infinity || minY === Infinity) {
+    console.warn("No valid vertices found in the mesh to calculate height.");
+    return 0;
+  }
+  return maxY - minY;
 }
 
 export type CharacterModelConfig = {

@@ -2,7 +2,7 @@ import * as path from "path";
 
 import * as esbuild from "esbuild";
 
-import { base64Plugin } from "./base64Plugin";
+import { base64Plugin } from "./base64plugin";
 
 export function workerPlugin(): esbuild.Plugin {
   return {
@@ -26,7 +26,7 @@ export function workerPlugin(): esbuild.Plugin {
           bundle: true,
           write: false,
           format: "iife",
-          target: "es2020",
+          target: "es2022",
           platform: "browser",
           packages: "bundle", // Bundle everything for workers
           sourcemap: false,

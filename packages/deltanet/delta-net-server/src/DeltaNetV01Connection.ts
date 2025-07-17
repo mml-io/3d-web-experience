@@ -62,7 +62,9 @@ export class DeltaNetV01Connection {
         }
       } catch (error) {
         this.disconnectWithError(
-          new Error(`Failed to decode client messages: ${error instanceof Error ? error.message : error}`),
+          new Error(
+            `Failed to decode client messages: ${error instanceof Error ? error.message : error}`,
+          ),
           DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
           false,
         );

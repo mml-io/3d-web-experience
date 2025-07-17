@@ -180,7 +180,7 @@ export class CharacterInstances {
       this.instancedMesh!.addInstances(0);
       this.initializeSkeletonData();
 
-      return this.instancedMesh;
+      return this.instancedMesh as unknown as Object3D;
     } catch (error) {
       console.error("Failed to initialize CharacterInstances:", error);
       return null;

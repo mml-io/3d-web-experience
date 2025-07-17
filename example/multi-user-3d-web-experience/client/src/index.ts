@@ -35,7 +35,7 @@ const app = new Networked3dWebExperienceClient(holder, {
       : undefined,
     fog: {
       fogFar: 0,
-    }
+    },
   },
   avatarConfiguration: {
     allowCustomAvatars: true,

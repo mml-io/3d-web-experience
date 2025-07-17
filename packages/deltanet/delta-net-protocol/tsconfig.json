@@ -10,7 +10,7 @@
       "esnext",
       "dom"
     ],
-    "module": "esnext",
+    "module": "es2022",
     "moduleResolution": "node",
     "preserveConstEnums": true,
     "resolveJsonModule": true,
@@ -18,7 +18,7 @@
     "sourceMap": true,
     "strict": true,
     "strictNullChecks": true,
-    "target": "esnext",
+    "target": "es2022",
     "types": [
       "node",
       "jest"

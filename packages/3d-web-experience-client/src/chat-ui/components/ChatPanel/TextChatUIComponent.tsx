@@ -189,7 +189,11 @@ export const ChatUIComponent: ForwardRefRenderFunction<ChatUIInstance, ChatUIPro
         onWheel={handleWheel}
       >
         <div className={styles.messagesWrapper}>
-          <Messages messages={messages} stringToHslOptions={props.stringToHslOptions} shouldAutoScroll={shouldAutoScroll} />
+          <Messages
+            messages={messages}
+            stringToHslOptions={props.stringToHslOptions}
+            shouldAutoScroll={shouldAutoScroll}
+          />
         </div>
         <InputBox
           ref={inputBoxRef}
