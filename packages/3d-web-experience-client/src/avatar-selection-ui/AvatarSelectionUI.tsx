@@ -19,7 +19,6 @@ export type AvatarSelectionUIProps = {
 
 export class AvatarSelectionUI {
   private root: Root;
-  private appRef: React.RefObject<any> = createRef<any>();
 
   private wrapper = document.createElement("div");
 
@@ -58,7 +57,6 @@ export class AvatarSelectionUI {
     flushSync(() =>
       this.root.render(
         <ForwardedAvatarSelectionUIComponent
-          ref={this.appRef}
           onUpdateUserAvatar={this.onUpdateUserAvatar}
           onUpdateDisplayName={this.onUpdateDisplayName}
           visibleByDefault={this.config.visibleByDefault}
