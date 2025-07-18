@@ -127,7 +127,9 @@ class GLTFLoadingWorker {
     this.sourceCtx.putImageData(imageData, 0, 0);
     this.targetCtx.drawImage(this.sourceCanvas, 0, 0, newWidth, newHeight);
 
-    const data = await this.targetCtx.getImageData(0, 0, newWidth, newHeight).data;
+    // Convert to blob and then to array buffer
+    const outputBlob = await this.targetCanvas.convertToBlob({ type: "image/png" });
+    const data = await outputBlob.arrayBuffer();
     return {
       data: new Uint8Array(data),
       width: newWidth,

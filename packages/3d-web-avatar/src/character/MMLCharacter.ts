@@ -116,7 +116,7 @@ export class MMLCharacter {
       const asSkinnedMesh = child as SkinnedMesh;
       if (asSkinnedMesh.isSkinnedMesh) {
         foundSkinnedMeshes.push(asSkinnedMesh);
-        // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustrum culling
+        // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustum culling
         asSkinnedMesh.boundingSphere = new Sphere(new Vector3(), 3);
       }
     });
@@ -174,7 +174,7 @@ export class MMLCharacter {
             const asSkinnedMesh = child as SkinnedMesh;
             if (asSkinnedMesh.isSkinnedMesh) {
               skinnedMeshes.push(asSkinnedMesh);
-              // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustrum culling
+              // Set a default bounding sphere for skinned meshes to avoid costly calculations for frustum culling
               asSkinnedMesh.boundingSphere = new Sphere(new Vector3(), 3);
             }
           });

@@ -298,8 +298,10 @@ export class CharacterModel {
     }
 
     let mmlCharacterSource: string;
+    let mmlCharacterUrl: string | null = null;
     if (this.config.characterDescription.mmlCharacterUrl) {
-      const res = await fetch(this.config.characterDescription.mmlCharacterUrl, {
+      mmlCharacterUrl = this.config.characterDescription.mmlCharacterUrl;
+      const res = await fetch(mmlCharacterUrl, {
         signal: this.config.abortController?.signal,
       });
       mmlCharacterSource = await res.text();
@@ -311,7 +313,7 @@ export class CharacterModel {
       );
     }
 
-    const parsedMMLDescription = parseMMLDescription(mmlCharacterSource);
+    const parsedMMLDescription = parseMMLDescription(mmlCharacterSource, mmlCharacterUrl);
     const mmlCharacterDescription = parsedMMLDescription[0];
     if (parsedMMLDescription[1].length > 0) {
       console.warn("Errors parsing MML Character Description: ", parsedMMLDescription[1]);
