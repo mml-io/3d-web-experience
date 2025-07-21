@@ -2,8 +2,6 @@ import { BladeController, View } from "@tweakpane/core";
 import { Scene } from "three";
 import { BladeApi, ButtonApi, FolderApi, TpChangeEvent } from "tweakpane";
 
-import { Sun } from "../../sun/Sun";
-
 export const sunValues = {
   sunIntensity: 2.1,
   sunPosition: {
