@@ -1,6 +1,5 @@
 import crypto from "crypto";
 
-import { UserIdentity } from "@mml-io/3d-web-user-networking";
 import type { CharacterDescription, UserData } from "@mml-io/3d-web-user-networking";
 import express from "express";
 
@@ -41,11 +40,11 @@ export class BasicUserAuthenticator {
     return sessionToken;
   }
 
-  public onClientConnect(
+  public async onClientConnect(
     clientId: number,
     sessionToken: string,
-    userIdentityPresentedOnConnection?: UserIdentity,
-  ): UserData | null {
+    userIdentityPresentedOnConnection?: UserData,
+  ): Promise<UserData | true | Error> {
     console.log(`Client ID: ${clientId} joined with token`);
     let user = this.userBySessionToken.get(sessionToken);
     if (!user && this.options.devAllowUnrecognizedSessions) {
@@ -59,22 +58,25 @@ export class BasicUserAuthenticator {
 
     if (!user) {
       console.error(`Invalid initial user-update for clientId ${clientId}, unknown session`);
-      return null;
+      return new Error(`Invalid initial user-update for clientId ${clientId}, unknown session`);
     }
 
     if (user.clientId !== null) {
       console.error(`Session token already connected`);
-      return null;
+      return new Error(`Session token already connected`);
     }
 
     user.clientId = clientId;
     user.userData = {
       username: `User ${clientId}`,
-      characterDescription: this.characterDescription,
+      characterDescription:
+        userIdentityPresentedOnConnection?.characterDescription ?? this.characterDescription,
+      colors: userIdentityPresentedOnConnection?.colors ?? [],
     };
     if (userIdentityPresentedOnConnection) {
       console.warn("Ignoring user-identity on initial connect");
     }
+    console.log(`Client ID: ${clientId} connected with user data`, user.userData);
     this.usersByClientId.set(clientId, user);
     return user.userData;
   }
@@ -92,7 +94,7 @@ export class BasicUserAuthenticator {
     return { id: user.clientId };
   }
 
-  public onClientUserIdentityUpdate(clientId: number, msg: UserIdentity): UserData | null {
+  public onClientUserIdentityUpdate(clientId: number, msg: UserData): UserData | true | Error {
     // To allow updating user data after initial connect, return the UserData object that reflects the requested change.
     // Returning null will not update the user data.
 
@@ -100,17 +102,18 @@ export class BasicUserAuthenticator {
 
     if (!user) {
       console.error(`onClientUserIdentityUpdate - unknown clientId ${clientId}`);
-      return null;
+      return new Error(`onClientUserIdentityUpdate - unknown clientId ${clientId}`);
     }
 
     if (!user.userData) {
       console.error(`onClientUserIdentityUpdate - no user data for clientId ${clientId}`);
-      return null;
+      return new Error(`onClientUserIdentityUpdate - no user data for clientId ${clientId}`);
     }
 
     const newUserData: UserData = {
       username: msg.username ?? user.userData.username,
       characterDescription: msg.characterDescription ?? user.userData.characterDescription,
+      colors: msg.colors ?? user.userData.colors,
     };
 
     this.usersByClientId.set(clientId, { ...user, userData: newUserData });

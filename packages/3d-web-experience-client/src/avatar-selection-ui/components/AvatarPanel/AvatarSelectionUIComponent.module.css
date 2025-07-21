@@ -1,0 +1,446 @@
+/* Professional Avatar Selection UI Styles */
+
+.menuButton {
+  width: 70px;
+  min-height: 70px;
+  position: absolute;
+  top: 0px;
+  right: 0px;
+  z-index: 102;
+  user-select: none;
+}
+
+.input {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin-right: 6px;
+  color: #ffffff;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease-in-out;
+  outline: none;
+}
+
+.input:focus {
+  border-color: rgba(255, 255, 255, 0.4);
+  background-color: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.15);
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.closeButton {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.closeButton:hover {
+  background: rgba(0, 0, 0, 0.8);
+  color: rgba(255, 255, 255, 0.9);
+  transform: scale(1.05);
+}
+
+.closeButton:active {
+  transform: scale(0.95);
+}
+
+.openTab {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.openTab:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: scale(1.05);
+}
+
+.openTab:active {
+  transform: scale(0.95);
+}
+
+.openTab img {
+  filter: invert(80%);
+  width: 24px;
+  height: 24px;
+  transition: all 0.2s ease-in-out;
+}
+
+.avatarSelectionContainer {
+  position: absolute;
+  top: 8px;
+  right: 60px;
+  width: 400px;
+  max-width: 78vw;
+  max-height: calc(100vh - 24px);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  z-index: 103;
+  user-select: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.avatarSelectionContainer::-webkit-scrollbar {
+  width: 8px;
+}
+
+.avatarSelectionContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.avatarSelectionContainer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.avatarSelectionContainer::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.avatarSelectionSection {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.avatarSelectionSection:last-child {
+  border-bottom: none;
+}
+
+.avatarSelectionUi {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 320px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.avatarSelectionUi::-webkit-scrollbar {
+  width: 6px;
+}
+
+.avatarSelectionUi::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.avatarSelectionUi::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.avatarSelectionUiHeader {
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  position: relative;
+  font-weight: 600;
+}
+
+.avatarSelectionUiCloseButton {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+}
+
+.avatarSelectionUiAvatar {
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.avatarSelectionUiAvatar:hover {
+  background: rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.avatarSelectionUiAvatarImgContainer {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.avatarSelectionNoImage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  aspect-ratio: 1;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.avatarSelectionNoImage img {
+  width: 40%;
+  filter: invert(70%);
+  opacity: 0.7;
+}
+
+.avatarSelectionUiAvatar p {
+  margin: 4px 0 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.tooltipText {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  pointer-events: none;
+  z-index: 1000;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 8px;
+  padding: 4px 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease-in-out;
+  visibility: hidden;
+  white-space: nowrap;
+}
+
+.avatarSelectionUiAvatar p:hover + .tooltipText {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 0.5s;
+}
+
+.avatarSelectionUiAvatarImgContainer .avatarSelectionUiAvatarImage {
+  aspect-ratio: 1;
+  width: 100%;
+  border-radius: 8px;
+  transition: all 0.2s ease-in-out;
+}
+
+.selectedPill {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border-radius: 6px;
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.avatarSelectionUiAvatarImgContainer .selectedPill {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+}
+
+.avatarSelectionUiAvatar img:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+}
+
+.customAvatarSection {
+  padding: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.customAvatarSection:last-child {
+  border-bottom: none;
+}
+
+.customAvatarSection .radioGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.customAvatarSection .radioItem {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 6px;
+  white-space: nowrap;
+}
+
+.customAvatarSection label {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  transition: color 0.2s ease-in-out;
+  margin: 0;
+}
+
+.customAvatarSection label:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+.customAvatarSection input[type="radio"] {
+  appearance: none;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  outline: none;
+}
+
+.customAvatarSection input[type="radio"]:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.customAvatarSection input[type="radio"]:focus {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.customAvatarSection input[type="radio"]:checked {
+  border-color: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.customAvatarSection input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.customAvatarSection input[type="radio"][disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.customAvatarInputSection {
+  display: flex;
+  align-items: stretch;
+}
+
+.setButton {
+  height: 44px;
+  padding-left: 16px;
+  padding-right: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4));
+  backdrop-filter: blur(10px);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6));
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.setButton:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.setButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.sectionHeading {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: -0.01em;
+}
+
+.customAvatarSection .selectedPill {
+  margin-left: 8px;
+  position: relative;
+  top: -2px;
+}
+
+.displayNameSection {
+  padding: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.displayNameInputSection {
+  display: flex;
+  align-items: stretch;
+}

@@ -23,7 +23,7 @@ const buildOptions: esbuild.BuildOptions = {
   write: true,
   metafile: true,
   sourcemap: "linked",
-  minify: true,
+  minify: false,
   outdir: "./build/",
   assetNames: "[dir]/[name]-[hash]",
   preserveSymlinks: true,

@@ -20,6 +20,7 @@ export class Sun extends Group {
 
   constructor() {
     super();
+
     this.shadowCamera = new OrthographicCamera(
       -this.shadowCamFrustum,
       this.shadowCamFrustum,
@@ -32,7 +33,7 @@ export class Sun extends Group {
       this.camHelper = new CameraHelper(this.shadowCamera);
     }
     this.directionalLight = new DirectionalLight(0xffffff);
-    this.directionalLight.intensity = sunValues.sunIntensity;
+    this.setIntensity(sunValues.sunIntensity);
     this.directionalLight.shadow.normalBias = 0.1;
     this.directionalLight.shadow.radius = 0.02;
     this.directionalLight.shadow.camera = this.shadowCamera;
@@ -55,13 +56,17 @@ export class Sun extends Group {
   }
 
   public setAzimuthalAngle(angle: number) {
-    if (this.sunOffset) this.sunOffset.x = angle;
-    if (this.target) this.updateCharacterPosition(this.target);
+    this.sunOffset.x = angle;
+    if (this.target) {
+      this.setSunPosition(this.sunOffset.x, this.sunOffset.y);
+    }
   }
 
   public setPolarAngle(angle: number) {
-    if (this.sunOffset) this.sunOffset.y = angle;
-    if (this.target) this.updateCharacterPosition(this.target);
+    this.sunOffset.y = angle;
+    if (this.target) {
+      this.setSunPosition(this.sunOffset.x, this.sunOffset.y);
+    }
   }
 
   public setIntensity(intensity: number) {
@@ -79,10 +84,12 @@ export class Sun extends Group {
   private setSunPosition(azimuthalAngle: number, polarAngle: number) {
     if (!this.target) return;
     const distance = this.sunOffset.z;
+    // add 90° offset to align coordinate system with player facing +Z
+    const adjustedAzimuthalAngle = -azimuthalAngle + Math.PI / 2;
     const sphericalPosition = new Vector3(
-      distance * Math.sin(polarAngle) * Math.cos(azimuthalAngle),
+      distance * Math.sin(polarAngle) * Math.cos(adjustedAzimuthalAngle),
       distance * Math.cos(polarAngle),
-      distance * Math.sin(polarAngle) * Math.sin(azimuthalAngle),
+      distance * Math.sin(polarAngle) * Math.sin(adjustedAzimuthalAngle),
     );
     const newSunPosition = this.target.clone().add(sphericalPosition);
     this.directionalLight.position.set(newSunPosition.x, newSunPosition.y, newSunPosition.z);

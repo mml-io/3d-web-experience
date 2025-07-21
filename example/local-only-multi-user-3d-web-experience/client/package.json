@@ -7,6 +7,7 @@
   ],
   "type": "module",
   "scripts": {
+    "depcheck": "depcheck --quiet",
     "build": "rimraf ./build && tsx ./build.ts --build",
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
@@ -15,16 +16,15 @@
   },
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.22.0",
-    "@mml-io/3d-web-text-chat": "^0.22.0",
-    "@mml-io/3d-web-user-networking": "^0.22.0",
-    "@mml-io/3d-web-voice-chat": "^0.22.0",
-    "@mml-io/mml-web": "0.19.7",
-    "@mml-io/mml-web-runner": "0.19.7",
-    "@mml-io/mml-web-threejs-standalone": "0.19.7",
-    "@mml-io/networked-dom-document": "0.19.7",
-    "three": "0.163.0"
+    "@mml-io/mml-web": "0.20.0",
+    "@mml-io/mml-web-runner": "0.20.0",
+    "@mml-io/mml-web-threejs-standalone": "0.20.0",
+    "@mml-io/networked-dom-document": "0.20.0",
+    "three": "0.178.0"
   },
   "devDependencies": {
-    "@types/three": "0.163.0"
+    "@types/three": "0.178.0",
+    "esbuild": "0.24.2",
+    "esbuild-plugin-copy": "2.1.1"
   }
 }

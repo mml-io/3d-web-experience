@@ -11,13 +11,14 @@ import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
 const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
 const userNetworkAddress = `${protocol}//${host}/network`;
-const chatNetworkAddress = `${protocol}//${host}/chat-network`;
+
+const useSkybox = false;
 
 const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
   userNetworkAddress,
-  chatNetworkAddress,
+  enableChat: true,
   animationConfig: {
     airAnimationFileUrl,
     idleAnimationFileUrl,
@@ -27,11 +28,17 @@ const app = new Networked3dWebExperienceClient(holder, {
   },
   mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
   environmentConfiguration: {
-    skybox: {
-      hdrJpgUrl: hdrJpgUrl,
+    skybox: useSkybox
+      ? {
+          hdrJpgUrl,
+        }
+      : undefined,
+    fog: {
+      fogFar: 0,
     },
   },
   avatarConfiguration: {
+    allowCustomAvatars: true,
     availableAvatars: [
       {
         name: "bot",
@@ -39,7 +46,7 @@ const app = new Networked3dWebExperienceClient(holder, {
       },
     ],
   },
-  allowOrbitalCamera: false,
+  allowOrbitalCamera: true,
   loadingScreen: {
     background: "#424242",
     color: "#ffffff",

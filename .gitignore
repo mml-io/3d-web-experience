@@ -20,6 +20,9 @@ tsconfig.tsbuildinfo
 build
 dist
 
+# Coverage
+coverage
+
 # IDEs and editors
 .idea
 .project
@@ -41,3 +44,5 @@ dist
 
 .envrc
 .direnv
+.turbo/
+test-results/

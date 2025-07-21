@@ -2,13 +2,15 @@ import fs from "fs";
 import path from "path";
 import url from "url";
 
-import { Networked3dWebExperienceServer } from "@mml-io/3d-web-experience-server";
+import {
+  Networked3dWebExperienceServer,
+  Networked3dWebExperienceServerConfig,
+} from "@mml-io/3d-web-experience-server";
 import type { CharacterDescription } from "@mml-io/3d-web-user-networking";
 import express from "express";
 import enableWs from "express-ws";
 
 import { BasicUserAuthenticator } from "./BasicUserAuthenticator";
-import { registerDolbyVoiceRoutes } from "./voice-routes";
 
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
 
@@ -22,13 +24,12 @@ const characterDescription: CharacterDescription = {
   // mmlCharacterUrl: "https://...",
   // Option 3 - Use an MML Character from a string
   // mmlCharacterString: `
-  // <m-character src="/assets/models/bot.glb">
-  //   <m-model src="/assets/models/hat.glb"
-  //     socket="head"
-  //     x="0.03" y="0" z="0.0"
-  //     sx="1.03" sy="1.03" sz="1.03"
-  //     rz="-90"
-  //   ></m-model>
+  // <m-character src="/assets/models/mml_body_male.glb">
+  //   <m-model src="/assets/models/mml_head_hispanic_male.glb"></m-model>
+  //   <m-model src="/assets/models/mml_hair_black.glb"></m-model>
+  //   <m-model src="/assets/models/mml_torso_hoodie.glb"></m-model>
+  //   <m-model src="/assets/models/mml_legs_grey_pants.glb"></m-model>
+  //   <m-model src="/assets/models/mml_shoes_retro_white.glb"></m-model>
   // </m-character>
   // `,
 };
@@ -50,11 +51,6 @@ const mmlDocumentsWatchPath = "**/*.html";
 
 const { app } = enableWs(express());
 app.enable("trust proxy");
-const DOLBY_APP_KEY = process.env.DOLBY_APP_KEY ?? "";
-const DOLBY_APP_SECRET = process.env.DOLBY_APP_SECRET ?? "";
-if (DOLBY_APP_KEY && DOLBY_APP_SECRET) {
-  registerDolbyVoiceRoutes(app, { DOLBY_APP_KEY, DOLBY_APP_SECRET });
-}
 
 const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
   networkPath: "/network",
@@ -72,12 +68,12 @@ const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
     clientWatchWebsocketPath:
       process.env.NODE_ENV !== "production" ? "/web-client-build" : undefined,
   },
-  chatNetworkPath: "/chat-network",
+  enableChat: true,
   assetServing: {
     assetsDir: path.resolve(dirname, "../../../assets/"),
     assetsUrl: "/assets/",
   },
-});
+} satisfies Networked3dWebExperienceServerConfig);
 networked3dWebExperienceServer.registerExpressRoutes(app);
 
 // Start listening

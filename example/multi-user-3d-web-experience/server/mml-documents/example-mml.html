@@ -1,5 +1,108 @@
 <m-group id="stairs" z="10" y="0.1"></m-group>
 
+<m-cube z="25" y="1.5" width="3" height="3" depth="3" id="my-cube"></m-cube>
+
+<m-cube x="15" y="0.5" z="5" width="3" height="0.25" depth="3" color="blue">
+  <m-attr-anim
+    attr="z"
+    start="5"
+    end="10000"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    ping-pong-delay="3000"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+</m-cube>
+
+<m-cube x="10" y="0.5" z="5" width="3" height="0.25" depth="3" color="blue">
+  <m-attr-anim
+    attr="z"
+    start="5"
+    end="100"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+</m-cube>
+
+<m-cube x="5" y="0.5" z="5" width="3" height="0.25" depth="3" color="blue">
+  <m-attr-anim
+    attr="z"
+    start="5"
+    end="20"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+</m-cube>
+
+<m-cube x="-5" y="0.5" z="5" width="3" height="0.25" depth="3" color="blue">
+  <m-attr-anim
+    attr="z"
+    start="5"
+    end="20"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+  <m-attr-anim
+    attr="ry"
+    start="0"
+    end="360"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+  <m-attr-anim
+    attr="height"
+    start="0.25"
+    end="3.5"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+</m-cube>
+
+<m-cube x="-10" y="0.5" z="5" width="3" height="0.25" depth="3" color="blue">
+  <m-attr-anim
+    attr="y"
+    start="0.5"
+    end="100"
+    duration="5000"
+    loop="true"
+    ping-pong="true"
+    easing="easeInOutQuart"
+  ></m-attr-anim>
+</m-cube>
+
+<m-cube x="-15" y="2" z="5" width="3" height="0.25" depth="12" rx="-30" color="blue"></m-cube>
+<m-cube x="-20" y="0.5" z="5" width="3" height="0.25" depth="12" rx="-10" color="blue"></m-cube>
+
+<script>
+  // Attach a click listener to the cube and spawn an m-sphere child of the cube wherever it is clicked
+  const cube = document.getElementById("my-cube");
+  console.log(cube);
+  cube.addEventListener("click", (event) => {
+    console.log("Clicked on cube", event, event.detail);
+    const x = event.detail.position.x;
+    const y = event.detail.position.y;
+    const z = event.detail.position.z;
+    const sphere = document.createElement("m-sphere");
+    sphere.setAttribute("x", x);
+    sphere.setAttribute("y", y);
+    sphere.setAttribute("z", z);
+    sphere.setAttribute("radius", 0.5);
+    sphere.setAttribute("color", "red");
+    cube.appendChild(sphere);
+  });
+</script>
+
 <script>
   const stairs = document.getElementById("stairs");
 
