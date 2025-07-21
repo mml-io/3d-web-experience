@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-client-core",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "publishConfig": {
     "access": "public"
   },
@@ -21,7 +21,7 @@
   "dependencies": {
     "@gltf-transform/core": "^4.0.0",
     "@gltf-transform/extensions": "^4.0.0",
-    "@mml-io/3d-web-avatar": "^0.22.0",
+    "@mml-io/3d-web-avatar": "^0.23.0",
     "@mml-io/mml-web": "0.20.0",
     "@mml-io/mml-web-threejs": "0.20.0",
     "@mml-io/model-loader": "0.20.0",

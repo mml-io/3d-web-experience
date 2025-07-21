@@ -1,6 +1,6 @@
 {
   "name": "delta-net-web-client-example",
-  "version": "0.1.0",
+  "version": "0.23.0",
   "private": true,
   "main": "./src/index.js",
   "type": "module",
@@ -22,10 +22,10 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@mml-io/delta-net-protocol": "^0.1.0",
-    "@mml-io/delta-net-server": "^0.1.0",
-    "@mml-io/delta-net-web": "^0.1.0",
     "@ez-elements/core": "^0.0.6",
+    "@mml-io/delta-net-protocol": "^0.23.0",
+    "@mml-io/delta-net-server": "^0.23.0",
+    "@mml-io/delta-net-web": "^0.23.0",
     "chokidar": "4.0.3",
     "express": "4.21.2",
     "express-ws": "5.0.2",
