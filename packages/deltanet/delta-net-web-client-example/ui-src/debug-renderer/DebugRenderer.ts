@@ -39,7 +39,7 @@ export class DebugRenderer {
     this.root.appendChild(gridContainer);
 
     // Initialize network state table
-    this.networkStateVirtualDataTable = new NetworkStateVirtualDataTable({});
+    this.networkStateVirtualDataTable = new NetworkStateVirtualDataTable();
 
     this.tableContainer = document.createElement("div");
     this.tableContainer.className = `${styles.section} ${styles.tableContainer}`;
