@@ -4,16 +4,16 @@ export function getScrollbarWidth() {
   if (memoizedWidth !== undefined) {
     return memoizedWidth;
   }
-  const div = document.createElement('div');
-  div.style.width = '100px';
-  div.style.visibility = 'hidden';
+  const div = document.createElement("div");
+  div.style.width = "100px";
+  div.style.visibility = "hidden";
   document.body.appendChild(div);
 
   const widthWithoutScroll = div.offsetWidth;
-  div.style.overflow = 'scroll';
+  div.style.overflow = "scroll";
 
-  const inner = document.createElement('div');
-  inner.style.width = '100%';
+  const inner = document.createElement("div");
+  inner.style.width = "100%";
   div.appendChild(inner);
 
   const widthWithScroll = inner.offsetWidth;
