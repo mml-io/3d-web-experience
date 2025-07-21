@@ -1,6 +1,6 @@
-import { VirtualDataItem } from "./VirtualDataItem";
-import { getScrollbarWidth } from "./getScrollbarWidth";
 import styles from "./DataGrid.module.css";
+import { getScrollbarWidth } from "./getScrollbarWidth";
+import { VirtualDataItem } from "./VirtualDataItem";
 
 export enum DataGridOrientation {
   VERTICAL,
