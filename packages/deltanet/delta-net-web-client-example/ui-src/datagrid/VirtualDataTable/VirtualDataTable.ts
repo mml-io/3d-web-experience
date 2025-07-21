@@ -2,6 +2,7 @@ import { EZDiv } from "@ez-elements/core";
 
 import { DataGrid, DataGridOrientation, SortSettings } from "../DataGrid/DataGrid";
 import { VirtualDataItem } from "../DataGrid/VirtualDataItem";
+
 import { CellFactory } from "./ColumnarVirtualDataRow";
 import { ColumnHeadings } from "./ColumnHeadings";
 import styles from "./VirtualDataTable.module.css";
