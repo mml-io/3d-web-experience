@@ -32,7 +32,7 @@ function getUrlParameter(name: string): string | null {
 function setUrlParameter(name: string, value: string) {
   const url = new URL(window.location.href);
   url.searchParams.set(name, value);
-  window.history.replaceState({}, '', url.toString());
+  window.history.replaceState({}, "", url.toString());
 }
 
 // Function to get default websocket URL
@@ -48,19 +48,19 @@ const colorStateId = 10;
 window.addEventListener("DOMContentLoaded", () => {
   const root = document.getElementById("root") as HTMLElement;
   const networkState = new DeltaNetClientState();
-  
+
   // Get websocket URL from URL parameters or use default
   const savedWebsocketUrl = getUrlParameter("wsUrl");
   const defaultWebsocketUrl = getDefaultWebsocketUrl();
   let currentWebsocketUrl = savedWebsocketUrl || defaultWebsocketUrl;
-  
+
   // Get observer mode from URL parameters
   const savedObserverMode = getUrlParameter("observer") === "true";
   let isObserverMode = savedObserverMode;
-  
+
   // Get connection state from URL parameters
   const savedConnected = getUrlParameter("connected") === "true";
-  
+
   console.log("websocketUrl", currentWebsocketUrl);
   console.log("observerMode", isObserverMode);
   console.log("shouldAutoConnect", savedConnected);
@@ -88,20 +88,20 @@ window.addEventListener("DOMContentLoaded", () => {
         networkState.reset();
         debugRenderer.update(networkState, null);
       }
-    }
+    },
   });
 
   // Set initial values
   urlBar.setUrl(currentWebsocketUrl);
   urlBar.setObserverMode(isObserverMode);
-  
+
   // Add URL bar to the root element
   root.appendChild(urlBar.getContainer());
 
   // Create a container for the debug renderer
-  const debugContainer = document.createElement('div');
-  debugContainer.style.flex = '1';
-  debugContainer.style.minHeight = '0';
+  const debugContainer = document.createElement("div");
+  debugContainer.style.flex = "1";
+  debugContainer.style.minHeight = "0";
   root.appendChild(debugContainer);
 
   // Create debug renderer in its own container
@@ -115,7 +115,7 @@ window.addEventListener("DOMContentLoaded", () => {
   function createWebsocketConnection() {
     // Reset the network state when reconnecting to avoid duplicate user IDs
     networkState.reset();
-    
+
     deltaNetClientWebsocket = new DeltaNetClientWebsocket(
       currentWebsocketUrl,
       (url: string) => {
@@ -150,18 +150,22 @@ window.addEventListener("DOMContentLoaded", () => {
           console.warn("warning", warning);
         },
       },
-      () => { 
+      () => {
         // On disconnect - button state handled by status callback
       },
       (status) => {
         console.log("status", DeltaNetClientWebsocketStatusToString(status));
         debugRenderer.update(networkState, deltaNetClientWebsocket!);
-        
+
         // Update button state based on connection status
         const statusString = DeltaNetClientWebsocketStatusToString(status);
         if (statusString === "Connected") {
           urlBar.updateButtonState(true);
-        } else if (statusString === "Disconnected" || statusString === "Error" || statusString === "Failed") {
+        } else if (
+          statusString === "Disconnected" ||
+          statusString === "Error" ||
+          statusString === "Failed"
+        ) {
           urlBar.updateButtonState(false);
           setUrlParameter("connected", "false");
         }

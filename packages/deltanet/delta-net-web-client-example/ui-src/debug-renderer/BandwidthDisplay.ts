@@ -1,4 +1,10 @@
-import { DeltaNetClientWebsocket, DeltaNetClientState, DeltaNetClientWebsocketStatus, DeltaNetClientWebsocketStatusToString } from "@mml-io/delta-net-web";
+import {
+  DeltaNetClientWebsocket,
+  DeltaNetClientState,
+  DeltaNetClientWebsocketStatus,
+  DeltaNetClientWebsocketStatusToString,
+} from "@mml-io/delta-net-web";
+
 import styles from "./BandwidthDisplay.module.css";
 
 export class BandwidthDisplay {
@@ -85,7 +91,7 @@ export class BandwidthDisplay {
 
     // Remove old entries (older than HISTORY_LENGTH seconds)
     const cutoff = now - this.HISTORY_LENGTH * 1000;
-    this.history = this.history.filter(entry => entry.timestamp > cutoff);
+    this.history = this.history.filter((entry) => entry.timestamp > cutoff);
   }
 
   private createGraph(): void {
@@ -129,11 +135,9 @@ export class BandwidthDisplay {
 
     // Find max value for scaling
     const maxBandwidth = Math.max(
-      ...this.history.map(entry => Math.max(
-        entry.bytesPerSecond,
-        entry.componentBytesPerSecond,
-        entry.stateBytesPerSecond
-      ))
+      ...this.history.map((entry) =>
+        Math.max(entry.bytesPerSecond, entry.componentBytesPerSecond, entry.stateBytesPerSecond),
+      ),
     );
 
     if (maxBandwidth === 0) return;
@@ -145,12 +149,49 @@ export class BandwidthDisplay {
     this.drawLegend(ctx, width - 150, 10);
 
     // Draw bandwidth lines
-    this.drawBandwidthLine(ctx, leftPadding, otherPadding, drawingWidth, drawingHeight, maxBandwidth, 'bytesPerSecond', '#00ff00', 'Total');
-    this.drawBandwidthLine(ctx, leftPadding, otherPadding, drawingWidth, drawingHeight, maxBandwidth, 'componentBytesPerSecond', '#ff6600', 'Component');
-    this.drawBandwidthLine(ctx, leftPadding, otherPadding, drawingWidth, drawingHeight, maxBandwidth, 'stateBytesPerSecond', '#0066ff', 'State');
+    this.drawBandwidthLine(
+      ctx,
+      leftPadding,
+      otherPadding,
+      drawingWidth,
+      drawingHeight,
+      maxBandwidth,
+      "bytesPerSecond",
+      "#00ff00",
+      "Total",
+    );
+    this.drawBandwidthLine(
+      ctx,
+      leftPadding,
+      otherPadding,
+      drawingWidth,
+      drawingHeight,
+      maxBandwidth,
+      "componentBytesPerSecond",
+      "#ff6600",
+      "Component",
+    );
+    this.drawBandwidthLine(
+      ctx,
+      leftPadding,
+      otherPadding,
+      drawingWidth,
+      drawingHeight,
+      maxBandwidth,
+      "stateBytesPerSecond",
+      "#0066ff",
+      "State",
+    );
   }
 
-  private drawGrid(ctx: CanvasRenderingContext2D, leftPadding: number, topPadding: number, graphWidth: number, graphHeight: number, maxBandwidth: number): void {
+  private drawGrid(
+    ctx: CanvasRenderingContext2D,
+    leftPadding: number,
+    topPadding: number,
+    graphWidth: number,
+    graphHeight: number,
+    maxBandwidth: number,
+  ): void {
     ctx.strokeStyle = "#333";
     ctx.lineWidth = 1;
 
@@ -238,9 +279,9 @@ export class BandwidthDisplay {
 
   private drawLegend(ctx: CanvasRenderingContext2D, x: number, y: number): void {
     const legends = [
-      { color: '#00ff00', label: 'Total' },
-      { color: '#ff6600', label: 'Component' },
-      { color: '#0066ff', label: 'State' }
+      { color: "#00ff00", label: "Total" },
+      { color: "#ff6600", label: "Component" },
+      { color: "#0066ff", label: "State" },
     ];
 
     ctx.font = "12px monospace";
@@ -270,9 +311,9 @@ export class BandwidthDisplay {
     graphWidth: number,
     graphHeight: number,
     maxBandwidth: number,
-    property: keyof typeof this.history[0],
+    property: keyof (typeof this.history)[0],
     color: string,
-    label: string
+    label: string,
   ): void {
     if (this.history.length < 2) return;
 
@@ -282,7 +323,7 @@ export class BandwidthDisplay {
 
     // Always use 30-second range for X positioning
     const now = Date.now();
-    const thirtySecondsAgo = now - (this.HISTORY_LENGTH * 1000);
+    const thirtySecondsAgo = now - this.HISTORY_LENGTH * 1000;
 
     let hasMovedTo = false;
 
@@ -290,7 +331,7 @@ export class BandwidthDisplay {
       // Position based on 30-second timeline
       const timeFromThirtySecondsAgo = entry.timestamp - thirtySecondsAgo;
       const timeProgress = timeFromThirtySecondsAgo / (this.HISTORY_LENGTH * 1000);
-      const x = leftPadding + (timeProgress * graphWidth);
+      const x = leftPadding + timeProgress * graphWidth;
 
       const value = entry[property] as number;
       const y = topPadding + graphHeight - (value / maxBandwidth) * graphHeight;
@@ -324,9 +365,9 @@ export class BandwidthDisplay {
     const statusString = DeltaNetClientWebsocketStatusToString(status);
 
     lines.push(`Status: ${statusString}`);
-    
+
     if (status !== DeltaNetClientWebsocketStatus.Connected) {
-      return lines.join('\n');
+      return lines.join("\n");
     }
 
     const bandwidth = deltaNetClientWebsocket.bandwidthPerSecond;
@@ -350,19 +391,22 @@ export class BandwidthDisplay {
     lines.push(`Components: ${numberOfComponents}`);
 
     if (numberOfComponents > 0 && indicesCount > 0) {
-      const lastSecondComponentMessages = deltaNetClientWebsocket.lastSecondComponentBufferSizes.length || 1;
+      const lastSecondComponentMessages =
+        deltaNetClientWebsocket.lastSecondComponentBufferSizes.length || 1;
       const bytesPerComponent =
         deltaNetClientWebsocket.componentBytesPerSecond /
         lastSecondComponentMessages /
         (numberOfComponents * indicesCount);
       const bitsPerComponent = bytesPerComponent * 8;
 
-      lines.push(`Per component: ${this.formatNumber(bytesPerComponent)} bytes (${this.formatNumber(bitsPerComponent)} bits)`);
+      lines.push(
+        `Per component: ${this.formatNumber(bytesPerComponent)} bytes (${this.formatNumber(bitsPerComponent)} bits)`,
+      );
     }
 
     // Average stats over history
     if (this.history.length > 1) {
-      lines.push('');
+      lines.push("");
 
       // Calculate actual time span of the data
       const oldestTimestamp = this.history[0].timestamp;
@@ -372,10 +416,16 @@ export class BandwidthDisplay {
 
       lines.push(`Averages (${displayTimeSpan}s window):`);
 
-      const avgBandwidth = this.history.reduce((sum, entry) => sum + entry.bytesPerSecond, 0) / this.history.length;
-      const avgComponentBandwidth = this.history.reduce((sum, entry) => sum + entry.componentBytesPerSecond, 0) / this.history.length;
-      const avgStateBandwidth = this.history.reduce((sum, entry) => sum + entry.stateBytesPerSecond, 0) / this.history.length;
-      const avgMessages = this.history.reduce((sum, entry) => sum + entry.messagesPerSecond, 0) / this.history.length;
+      const avgBandwidth =
+        this.history.reduce((sum, entry) => sum + entry.bytesPerSecond, 0) / this.history.length;
+      const avgComponentBandwidth =
+        this.history.reduce((sum, entry) => sum + entry.componentBytesPerSecond, 0) /
+        this.history.length;
+      const avgStateBandwidth =
+        this.history.reduce((sum, entry) => sum + entry.stateBytesPerSecond, 0) /
+        this.history.length;
+      const avgMessages =
+        this.history.reduce((sum, entry) => sum + entry.messagesPerSecond, 0) / this.history.length;
 
       lines.push(`Avg Total Bandwidth: ${this.formatBytes(avgBandwidth)}/s`);
       lines.push(`Avg Component Bandwidth: ${this.formatBytes(avgComponentBandwidth)}/s`);
@@ -383,26 +433,28 @@ export class BandwidthDisplay {
       lines.push(`Avg Messages: ${this.formatNumber(avgMessages)}/s`);
 
       // Peak stats
-      const maxBandwidth = Math.max(...this.history.map(entry => entry.bytesPerSecond));
-      const maxComponentBandwidth = Math.max(...this.history.map(entry => entry.componentBytesPerSecond));
-      const maxStateBandwidth = Math.max(...this.history.map(entry => entry.stateBytesPerSecond));
-      const maxMessages = Math.max(...this.history.map(entry => entry.messagesPerSecond));
+      const maxBandwidth = Math.max(...this.history.map((entry) => entry.bytesPerSecond));
+      const maxComponentBandwidth = Math.max(
+        ...this.history.map((entry) => entry.componentBytesPerSecond),
+      );
+      const maxStateBandwidth = Math.max(...this.history.map((entry) => entry.stateBytesPerSecond));
+      const maxMessages = Math.max(...this.history.map((entry) => entry.messagesPerSecond));
 
-      lines.push('');
-      lines.push('Peak values:');
+      lines.push("");
+      lines.push("Peak values:");
       lines.push(`Peak Total Bandwidth: ${this.formatBytes(maxBandwidth)}/s`);
       lines.push(`Peak Component Bandwidth: ${this.formatBytes(maxComponentBandwidth)}/s`);
       lines.push(`Peak State Bandwidth: ${this.formatBytes(maxStateBandwidth)}/s`);
       lines.push(`Peak Messages: ${maxMessages}/s`);
     }
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   private formatBytes(bytes: number): string {
     if (bytes === 0) return "0 B";
 
-    const units = ['B', 'KB', 'MB', 'GB'];
+    const units = ["B", "KB", "MB", "GB"];
     const base = 1024;
     let value = bytes;
     let unitIndex = 0;
@@ -437,22 +489,24 @@ export class BandwidthDisplay {
   } | null {
     if (this.history.length === 0) return null;
 
-    const entries = seconds
-      ? this.history.slice(-seconds)
-      : this.history;
+    const entries = seconds ? this.history.slice(-seconds) : this.history;
 
     if (entries.length === 0) return null;
 
-    const avgBandwidth = entries.reduce((sum, entry) => sum + entry.bytesPerSecond, 0) / entries.length;
-    const avgComponentBandwidth = entries.reduce((sum, entry) => sum + entry.componentBytesPerSecond, 0) / entries.length;
-    const avgStateBandwidth = entries.reduce((sum, entry) => sum + entry.stateBytesPerSecond, 0) / entries.length;
-    const avgMessages = entries.reduce((sum, entry) => sum + entry.messagesPerSecond, 0) / entries.length;
+    const avgBandwidth =
+      entries.reduce((sum, entry) => sum + entry.bytesPerSecond, 0) / entries.length;
+    const avgComponentBandwidth =
+      entries.reduce((sum, entry) => sum + entry.componentBytesPerSecond, 0) / entries.length;
+    const avgStateBandwidth =
+      entries.reduce((sum, entry) => sum + entry.stateBytesPerSecond, 0) / entries.length;
+    const avgMessages =
+      entries.reduce((sum, entry) => sum + entry.messagesPerSecond, 0) / entries.length;
 
     return {
       bandwidth: avgBandwidth,
       componentBandwidth: avgComponentBandwidth,
       stateBandwidth: avgStateBandwidth,
-      messages: avgMessages
+      messages: avgMessages,
     };
   }
 

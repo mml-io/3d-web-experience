@@ -48,7 +48,7 @@ export class CoordinateRenderer {
   }
 
   private setupResizeObserver(): void {
-    if (!this.coordinateCanvas || typeof ResizeObserver === 'undefined') return;
+    if (!this.coordinateCanvas || typeof ResizeObserver === "undefined") return;
 
     this.resizeObserver = new ResizeObserver((entries) => {
       if (this.disposed) return;
@@ -86,7 +86,10 @@ export class CoordinateRenderer {
       const canvasHeight = availableHeight;
 
       // Only update if size actually changed to avoid unnecessary re-renders
-      if (this.coordinateCanvas.width !== canvasWidth || this.coordinateCanvas.height !== canvasHeight) {
+      if (
+        this.coordinateCanvas.width !== canvasWidth ||
+        this.coordinateCanvas.height !== canvasHeight
+      ) {
         this.coordinateCanvas.width = canvasWidth;
         this.coordinateCanvas.height = canvasHeight;
       }
@@ -300,10 +303,10 @@ export class CoordinateRenderer {
         this.positionHistory.set(userIdFromIndex, positionHistory);
       }
 
-        positionHistory.push({ x: xValue, y: yValue });
-        if (positionHistory.length > trailLength) {
-          positionHistory.shift();
-        }
+      positionHistory.push({ x: xValue, y: yValue });
+      if (positionHistory.length > trailLength) {
+        positionHistory.shift();
+      }
 
       // Draw trail - convert world coordinates to canvas coordinates
       if (positionHistory.length > 1) {
@@ -333,7 +336,7 @@ export class CoordinateRenderer {
     const canvasX = centerX + currentPos.x * scale;
     const canvasY = centerY - currentPos.y * scale;
     ctx.moveTo(canvasX, canvasY);
-    
+
     // Draw backwards through history to create the trail
     for (let i = positionHistory.length - 2; i >= 0; i -= trailSkip) {
       const pos = positionHistory[i];

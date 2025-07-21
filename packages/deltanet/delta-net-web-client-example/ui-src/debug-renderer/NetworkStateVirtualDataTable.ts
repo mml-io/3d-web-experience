@@ -1,5 +1,8 @@
+import { BufferReader } from "@mml-io/delta-net-protocol";
 import { DeltaNetClientState } from "@mml-io/delta-net-web";
 
+import { SortSettings } from "../datagrid/DataGrid/DataGrid";
+import { ColumnarVirtualDataRow } from "../datagrid/VirtualDataTable/ColumnarVirtualDataRow";
 import { GenericTextCell } from "../datagrid/VirtualDataTable/GenericTextCell";
 import {
   ColumnarRenderUpdate,
@@ -7,6 +10,8 @@ import {
   DataTableTheme,
   VirtualDataTable,
 } from "../datagrid/VirtualDataTable/VirtualDataTable";
+
+import styles from "./NetworkStateVirtualDataTable.module.css";
 
 const textDecoder = new TextDecoder();
 
@@ -93,11 +98,6 @@ function generateSortSettings<K extends keyof NetworkUserRow>(
 }
 
 // Custom row class to handle the network state data
-import { BufferReader } from "@mml-io/delta-net-protocol";
-
-import { ColumnarVirtualDataRow } from "../datagrid/VirtualDataTable/ColumnarVirtualDataRow";
-import styles from "./NetworkStateVirtualDataTable.module.css";
-
 const defaultTheme: DataTableTheme = {
   "columnar-virtual-data-row": styles["row-list"] || "",
 };
@@ -117,7 +117,7 @@ export class NetworkStateVirtualDataTable extends VirtualDataTable<
 
   constructor() {
     super(
-      generateSortSettings("userId")(true),
+      generateSortSettings("userId")(true) as unknown as number,
       (
         identifier: number,
         row: NetworkUserRow,

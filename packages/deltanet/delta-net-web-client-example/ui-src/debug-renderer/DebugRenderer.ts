@@ -2,8 +2,8 @@ import { DeltaNetClientState, DeltaNetClientWebsocket } from "@mml-io/delta-net-
 
 import { BandwidthDisplay } from "./BandwidthDisplay";
 import { CoordinateRenderer } from "./CoordinateRenderer";
-import { NetworkStateVirtualDataTable } from "./NetworkStateVirtualDataTable";
 import styles from "./DebugRenderer.module.css";
+import { NetworkStateVirtualDataTable } from "./NetworkStateVirtualDataTable";
 
 export interface DebugRendererConfig {
   halfWidth: number;
@@ -24,34 +24,37 @@ export class DebugRenderer {
   private bandwidthContainer: HTMLElement;
   private disposed = false;
 
-  constructor(root: HTMLElement, private config: DebugRendererConfig) {
+  constructor(
+    root: HTMLElement,
+    private config: DebugRendererConfig,
+  ) {
     this.root = root;
 
-    this.root.innerHTML = '';
+    this.root.innerHTML = "";
     this.root.className = styles.container;
 
     // Create main grid container
-    const gridContainer = document.createElement('div');
+    const gridContainer = document.createElement("div");
     gridContainer.className = styles.grid;
     this.root.appendChild(gridContainer);
 
     // Initialize network state table
     this.networkStateVirtualDataTable = new NetworkStateVirtualDataTable({});
 
-    this.tableContainer = document.createElement('div');
+    this.tableContainer = document.createElement("div");
     this.tableContainer.className = `${styles.section} ${styles.tableContainer}`;
 
     this.tableContainer.appendChild(this.networkStateVirtualDataTable.getNativeElement());
     gridContainer.appendChild(this.tableContainer);
 
     // Initialize coordinate renderer
-    this.coordinateContainer = document.createElement('div');
+    this.coordinateContainer = document.createElement("div");
     this.coordinateContainer.className = `${styles.section} ${styles.coordinateContainer}`;
     gridContainer.appendChild(this.coordinateContainer);
     this.coordinateRenderer = new CoordinateRenderer(this.coordinateContainer, this.config);
 
     // Initialize bandwidth display
-    this.bandwidthContainer = document.createElement('div');
+    this.bandwidthContainer = document.createElement("div");
     this.bandwidthContainer.className = `${styles.section} ${styles.bandwidthContainer}`;
     gridContainer.appendChild(this.bandwidthContainer);
     this.bandwidthDisplay = new BandwidthDisplay(this.bandwidthContainer);
