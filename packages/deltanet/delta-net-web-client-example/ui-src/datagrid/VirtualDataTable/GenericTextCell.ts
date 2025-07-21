@@ -1,6 +1,6 @@
-import { CellFactory } from './ColumnarVirtualDataRow';
-import { DataTableTheme } from './VirtualDataTable';
-import styles from './GenericTextCell.module.css';
+import { CellFactory } from "./ColumnarVirtualDataRow";
+import styles from "./GenericTextCell.module.css";
+import { DataTableTheme } from "./VirtualDataTable";
 
 type TextCell = {
   element: HTMLDivElement;
@@ -13,21 +13,21 @@ export function GenericTextCell<V>(
 ): CellFactory<{ element: HTMLElement }, V> {
   return {
     create: (width: number, theme: DataTableTheme) => {
-      const cellDiv = document.createElement('div');
+      const cellDiv = document.createElement("div");
       cellDiv.classList.add(styles.cell, styles.genericTextCell);
-      if (theme['cell']) {
-        cellDiv.classList.add(theme['cell']);
+      if (theme["cell"]) {
+        cellDiv.classList.add(theme["cell"]);
       }
       cellDiv.style.width = `${width}px`;
 
-      const contentWrapper = document.createElement('span');
+      const contentWrapper = document.createElement("span");
       contentWrapper.classList.add(styles.cell_content_wrapper);
-      if (theme['cell-content-wrapper']) {
-        contentWrapper.classList.add(theme['cell-content-wrapper']);
+      if (theme["cell-content-wrapper"]) {
+        contentWrapper.classList.add(theme["cell-content-wrapper"]);
       }
       cellDiv.append(contentWrapper);
 
-      const textNode = document.createTextNode('');
+      const textNode = document.createTextNode("");
       contentWrapper.append(textNode);
 
       const cell: TextCell = {
