@@ -1,7 +1,8 @@
-import { EZDiv } from '@ez-elements/core';
-import { ColumnInstance, DataTableTheme } from './VirtualDataTable';
-import { ColumnHeading } from './ColumnHeading';
-import styles from './ColumnHeadings.module.css';
+import { EZDiv } from "@ez-elements/core";
+
+import { ColumnHeading } from "./ColumnHeading";
+import styles from "./ColumnHeadings.module.css";
+import { ColumnInstance, DataTableTheme } from "./VirtualDataTable";
 
 const minimumColumnWidth = 100;
 
@@ -15,10 +16,7 @@ export class ColumnHeadings<V, CU> extends EZDiv {
   private columns: Array<ColumnInstance<V, CU>> = [];
   private onRemoveColumn: (columnKey: string) => void;
   private onColumnsResized: () => void;
-  private onSortChange: (
-    column: ColumnInstance<V, CU>,
-    ascending: boolean,
-  ) => void;
+  private onSortChange: (column: ColumnInstance<V, CU>, ascending: boolean) => void;
   private currentSortKey: string | null = null;
   private theme: DataTableTheme;
 
@@ -40,16 +38,14 @@ export class ColumnHeadings<V, CU> extends EZDiv {
   applyStyles(): void {
     this.addClass(
       styles.column_headings,
-      this.theme.column_headings
-        ? this.theme.column_headings
-        : styles.custom_column_headings,
+      this.theme.column_headings ? this.theme.column_headings : styles.custom_column_headings,
     );
   }
 
   addColumn(column: ColumnInstance<V, CU>): void {
     const columnResult = this.findColumn(column.columnKey);
     if (columnResult !== null) {
-      throw new Error('column key already present');
+      throw new Error("column key already present");
     }
 
     this.columns.push(column);
@@ -57,10 +53,7 @@ export class ColumnHeadings<V, CU> extends EZDiv {
       column,
       column.width,
       (ascending: boolean) => {
-        if (
-          this.currentSortKey !== null &&
-          this.currentSortKey !== column.columnKey
-        ) {
+        if (this.currentSortKey !== null && this.currentSortKey !== column.columnKey) {
           const existingColumnResult = this.findColumn(this.currentSortKey);
           if (existingColumnResult !== null) {
             const [columnRecord] = existingColumnResult;
@@ -92,9 +85,7 @@ export class ColumnHeadings<V, CU> extends EZDiv {
     this.updateSize();
   }
 
-  private findColumn(
-    columnKey: string,
-  ): [ColumnHeadingRecord<V, CU>, number] | null {
+  private findColumn(columnKey: string): [ColumnHeadingRecord<V, CU>, number] | null {
     const columnIndex = this.columnRecords.findIndex(
       (column) => column.columnInstance.columnKey === columnKey,
     );
@@ -109,7 +100,7 @@ export class ColumnHeadings<V, CU> extends EZDiv {
   removeColumn(columnKey: string): void {
     const columnResult = this.findColumn(columnKey);
     if (columnResult === null) {
-      throw new Error('missing column');
+      throw new Error("missing column");
     }
 
     const [columnRecord, columnIndex] = columnResult;
