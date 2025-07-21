@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
+          lfs: true
 
       - name: "NPM Install, Build, and Cache"
         id: npm-install-build-and-cache
@@ -33,6 +34,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
+          lfs: true
 
       - name: "Retrieve Dependencies and Build Artifacts"
         id: retrieve-deps-and-build
@@ -50,6 +52,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
+          lfs: true
 
       - name: "Retrieve Dependencies and Build Artifacts"
         id: retrieve-deps-and-build
@@ -67,6 +70,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
+          lfs: true
 
       - name: "Retrieve Dependencies and Build Artifacts"
         id: retrieve-deps-and-build
