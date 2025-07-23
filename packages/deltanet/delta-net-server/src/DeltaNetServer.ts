@@ -304,10 +304,10 @@ export class DeltaNetServer {
     }
   }
 
-  public getComponentValue(componentId: number, componentIndex: number): number {
+  public getComponentValue(componentId: number, componentIndex: number): number | null {
     const componentCollection = this.components.get(componentId);
     if (componentCollection === undefined) {
-      return 0;
+      return null;
     }
     return Number(componentCollection.getTargetValue(componentIndex));
   }
