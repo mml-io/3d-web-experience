@@ -252,24 +252,22 @@ export class LegacyAdapter {
                       continue;
                     }
                     const x =
-                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_X, componentIndex) /
-                      positionMultiplier;
+                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_X, componentIndex) ??
+                      0 / positionMultiplier;
                     const y =
-                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Y, componentIndex) /
-                      positionMultiplier;
+                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Y, componentIndex) ??
+                      0 / positionMultiplier;
                     const z =
-                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Z, componentIndex) /
-                      positionMultiplier;
+                      this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Z, componentIndex) ??
+                      0 / positionMultiplier;
                     const quaternionY =
-                      this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_Y, componentIndex) /
-                      rotationMultiplier;
+                      this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_Y, componentIndex) ??
+                      0 / rotationMultiplier;
                     const quaternionW =
-                      this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_W, componentIndex) /
-                      rotationMultiplier;
-                    const state = this.deltaNetServer.getComponentValue(
-                      COMPONENT_STATE,
-                      componentIndex,
-                    );
+                      this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_W, componentIndex) ??
+                      0 / rotationMultiplier;
+                    const state =
+                      this.deltaNetServer.getComponentValue(COMPONENT_STATE, componentIndex) ?? 0;
                     const update = LegacyUserNetworkingCodec.encodeUpdate({
                       id: connectionId,
                       position: { x, y, z },
@@ -467,21 +465,21 @@ export class LegacyAdapter {
       this.deltaNetServer.dangerouslyGetConnectionsToComponentIndex();
     for (const [connectionId, componentIndex] of allUsers) {
       const x =
-        this.deltaNetServer.getComponentValue(COMPONENT_POSITION_X, componentIndex) /
-        positionMultiplier;
+        this.deltaNetServer.getComponentValue(COMPONENT_POSITION_X, componentIndex) ??
+        0 / positionMultiplier;
       const y =
-        this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Y, componentIndex) /
-        positionMultiplier;
+        this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Y, componentIndex) ??
+        0 / positionMultiplier;
       const z =
-        this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Z, componentIndex) /
-        positionMultiplier;
+        this.deltaNetServer.getComponentValue(COMPONENT_POSITION_Z, componentIndex) ??
+        0 / positionMultiplier;
       const quaternionY =
-        this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_Y, componentIndex) /
-        rotationMultiplier;
+        this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_Y, componentIndex) ??
+        0 / rotationMultiplier;
       const quaternionW =
-        this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_W, componentIndex) /
-        rotationMultiplier;
-      const state = this.deltaNetServer.getComponentValue(COMPONENT_STATE, componentIndex);
+        this.deltaNetServer.getComponentValue(COMPONENT_ROTATION_W, componentIndex) ??
+        0 / rotationMultiplier;
+      const state = this.deltaNetServer.getComponentValue(COMPONENT_STATE, componentIndex) ?? 0;
       const encodedUpdate = LegacyUserNetworkingCodec.encodeUpdate({
         id: connectionId,
         position: { x, y, z },
