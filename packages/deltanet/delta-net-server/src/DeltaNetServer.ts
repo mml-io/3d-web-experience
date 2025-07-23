@@ -305,7 +305,11 @@ export class DeltaNetServer {
   }
 
   public getComponentValue(componentId: number, componentIndex: number): number {
-    return Number(this.components.get(componentId)!.getTargetValue(componentIndex));
+    const componentCollection = this.components.get(componentId);
+    if (componentCollection === undefined) {
+      return 0;
+    }
+    return Number(componentCollection.getTargetValue(componentIndex));
   }
 
   public getNextConnectionId(): number {
