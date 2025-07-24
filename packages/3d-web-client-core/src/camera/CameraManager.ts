@@ -57,7 +57,7 @@ export class CameraManager {
   private isLerping: boolean = false;
   private lerpTarget: Vect3 = new Vect3();
   private lerpFactor: number = 0;
-  private lerpDuration: number = 2.1;
+  private lerpDuration: number = 0.5;
 
   private activePointers = new Map<number, { x: number; y: number }>();
 
@@ -334,7 +334,13 @@ export class CameraManager {
     if (this.isLerping && this.lerpFactor < 1) {
       this.lerpFactor += 0.01 / this.lerpDuration;
       this.lerpFactor = Math.min(1, this.lerpFactor);
-      this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor));
+
+      // Calculate the dot product of the camera heading and camera velocity
+      const cameraHeading = this.camera.getWorldDirection(new Vector3());
+      const targetDelta = this.lerpTarget.clone().sub(this.finalTarget);
+      const dotProduct = 0.5 + Math.abs(Math.max(0, Math.min(1, 1 / cameraHeading.dot(targetDelta)))) * 0.5;
+
+      this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor * dotProduct));
     } else {
       this.adjustCameraPosition();
     }

@@ -617,7 +617,7 @@ export class CharacterManager {
           ),
         )
         .add(this.localCharacter.position);
-      this.config.cameraManager.setTarget(targetOffset);
+      this.config.cameraManager.setLerpedTarget(targetOffset, 10);
 
       if (!this.localCharacter) {
         console.warn("CharacterManager: Local character not spawned yet, skipping update");

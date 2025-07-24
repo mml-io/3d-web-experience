@@ -46,7 +46,7 @@ export class LocalController {
   public jumpCounter: number = 0;
 
   public airResistance = characterControllerValues.airResistance;
-  public groundResistance = 0.99999999 + characterControllerValues.groundResistance * 1e-7;
+  public groundResistance = characterControllerValues.groundResistance;
   public airControlModifier = characterControllerValues.airControlModifier;
   public groundWalkControl = characterControllerValues.groundWalkControl;
   public groundRunControl = characterControllerValues.groundRunControl;
@@ -64,7 +64,9 @@ export class LocalController {
   private currentHeight: number = 0;
   private currentSurfaceAngle = new Vect3();
 
+  private currentControlInfluence: number = 0;
   private characterVelocity: Vect3 = new Vect3();
+  private lastControlState: AnimationState | null = null;
   private vectorUp: Vect3 = new Vect3(0, 1, 0);
   private vectorDown: Vect3 = new Vect3(0, -1, 0);
 
@@ -89,17 +91,17 @@ export class LocalController {
   private surfaceTempRay = new Ray();
   private lastFrameSurfaceState:
     | [
-        CollisionMeshState,
-        {
-          lastMatrix: Matr4;
-        },
-      ]
+      CollisionMeshState,
+      {
+        lastMatrix: Matr4;
+      },
+    ]
     | null = null;
 
   public jumpReleased: boolean = true; // Indicates if the jump button has been released
 
   public networkState: CharacterState;
-  private controlState: { direction: number | null; isSprinting: boolean; jump: boolean } | null =
+  private controlState: { direction: number | null; isSprinting: boolean; jump: boolean; } | null =
     null;
 
   private minimumX: number;
@@ -353,13 +355,6 @@ export class LocalController {
     this.canDoubleJump = !this.doubleJumpUsed && this.jumpReleased && this.jumpCounter === 1;
     this.processJump(acceleration, stepDeltaTime);
 
-    const control =
-      (this.characterOnGround
-        ? this.controlState?.isSprinting
-          ? this.groundRunControl
-          : this.groundWalkControl
-        : this.airControlModifier) * this.baseControl;
-
     const controlAcceleration = this.tempVector2.set(0, 0, 0);
 
     if (this.controlState && this.controlState.direction !== null) {
@@ -369,10 +364,36 @@ export class LocalController {
         .set(0, 0, 1)
         .applyAxisAngle(this.vectorUp, this.azimuthalAngle + heading);
       controlAcceleration.add(headingVector);
-    }
-    if (controlAcceleration.lengthSquared() > 0) {
-      controlAcceleration.normalize();
-      controlAcceleration.multiplyScalar(control);
+
+      const controlState = this.getTargetAnimation();
+      if (controlState !== this.lastControlState) {
+        this.lastControlState = controlState;
+        this.currentControlInfluence = 0;
+      }
+
+      const desiredControl =
+        (this.characterOnGround
+          ? this.controlState?.isSprinting
+            ? this.groundRunControl
+            : this.groundWalkControl
+          : this.airControlModifier) * this.baseControl;
+
+      if (desiredControl === 0) {
+        this.currentControlInfluence = 0;
+      } else {
+        if (desiredControl > this.currentControlInfluence) {
+          this.currentControlInfluence = desiredControl;
+        } else {
+          this.currentControlInfluence = this.currentControlInfluence + (desiredControl - this.currentControlInfluence) * characterControllerValues.controlLerp;
+        }
+      }
+
+      if (controlAcceleration.lengthSquared() > 0) {
+        controlAcceleration.normalize();
+        controlAcceleration.multiplyScalar(this.currentControlInfluence);
+      }
+    } else {
+      this.currentControlInfluence = 0;
     }
     acceleration.add(controlAcceleration);
     this.characterVelocity.addScaledVector(acceleration, stepDeltaTime);
@@ -470,7 +491,7 @@ export class LocalController {
   }
 
   public getMovementFromSurfaces(userPosition: IVect3, deltaTime: number) {
-    let lastMovement: { rotation: Quat; position: Vect3 } | null = null;
+    let lastMovement: { rotation: Quat; position: Vect3; } | null = null;
 
     // If we have a last frame state, we can calculate the movement of the mesh to apply it to the user
     if (this.lastFrameSurfaceState !== null) {
