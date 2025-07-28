@@ -39,7 +39,7 @@ function listAllBoneNames(obj: SkinnedMesh): string[] {
 }
 
 export function captureCharacterColors(
-  characterMesh: SkinnedMesh,
+  characterMesh: Object3D,
   options: ColorSamplingOptions,
 ): Map<ColorPartName, Color> {
   if (options.debug) {
@@ -208,28 +208,14 @@ export function captureCharacterColorsFromObject3D(
   const skinnedMeshes: SkinnedMesh[] = [];
   clone.traverse((child) => {
     if (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh) {
-      skinnedMeshes.push(child as SkinnedMesh);
+      const skinnedMesh = child as SkinnedMesh;
+      skinnedMesh.skeleton.pose();
+      skinnedMesh.skeleton.update();
+      skinnedMesh.updateMatrixWorld(true);
     }
   });
 
-  if (skinnedMeshes.length === 0) {
-    console.warn("No SkinnedMesh objects found in Object3D hierarchy");
-    return new Map();
-  }
-
-  let skinnedMesh: SkinnedMesh;
-  if (skinnedMeshes.length === 1) {
-    skinnedMesh = skinnedMeshes[0];
-  } else {
-    skinnedMesh = mergeSkinnedMeshes(skinnedMeshes);
-  }
-
-  const skeleton = skinnedMesh.skeleton;
-  skeleton.pose();
-  skeleton.update();
-  skinnedMesh.updateMatrixWorld(true);
-  validateAndCleanSkeleton(skinnedMesh);
-  return captureCharacterColors(skinnedMesh, options);
+  return captureCharacterColors(object3D, options);
 }
 
 function findBoneCenter(bone: Bone): Vector3 {
@@ -251,7 +237,7 @@ function findBoneCenter(bone: Bone): Vector3 {
 }
 
 function getBoneRegionsForColorSampling(
-  characterMesh: SkinnedMesh,
+  characterMesh: Object3D,
   camera: Camera,
   renderSize: number,
   circularSamplingRadius?: number,
@@ -274,9 +260,24 @@ function getBoneRegionsForColorSampling(
     shape: "circle" | "rectangle";
   }> = [];
 
+  let firstSkinnedMesh: SkinnedMesh | null = null;
+  characterMesh.traverse((child) => {
+    if (
+      !firstSkinnedMesh &&
+      (child instanceof SkinnedMesh || (child as SkinnedMesh).isSkinnedMesh)
+    ) {
+      firstSkinnedMesh = child as SkinnedMesh;
+    }
+  });
+  if (!firstSkinnedMesh) {
+    console.warn("No SkinnedMesh objects found in Object3D hierarchy");
+    return regions;
+  }
+  const skinnedMesh = firstSkinnedMesh as SkinnedMesh;
+
   if (debug) {
     console.log("Available bones:");
-    console.table(listAllBoneNames(characterMesh));
+    console.table(listAllBoneNames(skinnedMesh));
   }
 
   const boneTargets = [
@@ -298,7 +299,7 @@ function getBoneRegionsForColorSampling(
   const screenPos = new Vector3();
 
   for (const target of boneTargets) {
-    const bone: Bone | undefined = characterMesh.skeleton.bones.find(
+    const bone: Bone | undefined = skinnedMesh.skeleton.bones.find(
       (child) => child.name === target.boneName,
     );
 
