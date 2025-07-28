@@ -208,6 +208,7 @@ export class TweakPane {
 
   public setupCharacterController(localController: LocalController) {
     this.characterControls.setupChangeEvent(localController);
+    this.character.setupChangeEvent();
   }
 
   public setupPostProcessingPane(postProcessingManager: PostProcessingManager): void {
