@@ -1,12 +1,12 @@
 import { BladeController, View } from "@tweakpane/core";
 import { EffectPass } from "postprocessing";
-import { ShadowMapType, ToneMapping, WebGLRenderer } from "three";
+import { NoToneMapping, ShadowMapType, ToneMapping, WebGLRenderer } from "three";
 import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 export const rendererValues = {
   shadowMap: 2,
-  toneMapping: 5,
-  exposure: 2.1,
+  toneMapping: 4,
+  exposure: 0.75,
 };
 
 const rendererOptions = {
@@ -79,6 +79,7 @@ export class RendererFolder {
           const value = e.value as ToneMapping;
           toneMappingFolder.hidden = e.value !== 5;
           toneMappingPass.enabled = e.value === 5 ? true : false;
+          renderer.toneMapping = e.value === 5 ? NoToneMapping : (e.value as ToneMapping);
           setToneMappingType(e.value as ToneMapping);
           break;
         case "exposure":
