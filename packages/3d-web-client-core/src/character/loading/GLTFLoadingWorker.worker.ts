@@ -232,10 +232,17 @@ class GLTFLoadingWorker {
         const asUint8Array = new Uint8Array(buffer);
 
         // Check for truncated response
+
+        /*
+          The content-length header can describe the encoded size of the response which can be smaller than
+          the actual size of the response when it is received by this application code.
+
+          Given this the only check we can do at this stage is that if the uncompressed size is smaller than the
+          content-length header then something is wrong and we should retry.
+        */
         const contentLength = response.headers.get("Content-Length");
         const expectedSize = contentLength ? parseInt(contentLength, 10) : null;
-
-        if (expectedSize && asUint8Array.length !== expectedSize) {
+        if (expectedSize && asUint8Array.length < expectedSize) {
           const error = new Error(
             `Response truncated: expected ${expectedSize} bytes but got ${asUint8Array.length} bytes`,
           );
