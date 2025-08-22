@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-avatar",
-  "version": "0.23.3",
+  "version": "0.23.4",
   "publishConfig": {
     "access": "public"
   },
