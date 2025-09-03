@@ -195,7 +195,8 @@ export class Networked3dWebExperienceClient {
 
     this.collisionsManager = new CollisionsManager(this.scene);
     this.cameraManager = new CameraManager(this.canvasHolder, this.collisionsManager);
-    this.cameraManager.camera.add(this.audioListener);
+    // Add audioListener to scene instead of camera for character head positioning
+    this.scene.add(this.audioListener);
     this.characterModelLoader = new CharacterModelLoader();
 
     this.virtualJoystick = new VirtualJoystick(this.element, {
@@ -640,6 +641,10 @@ export class Networked3dWebExperienceClient {
     this.timeManager.update();
     this.characterManager.update();
     this.cameraManager.update();
+
+    // Update audio listener position to character's head while maintaining camera rotation
+    this.updateAudioListenerPosition();
+
     const characterPosition = this.characterManager.localCharacter?.getPosition();
     this.composer.sun?.updateCharacterPosition(
       new Vector3(characterPosition?.x || 0, characterPosition?.y || 0, characterPosition?.z || 0),
@@ -660,6 +665,26 @@ export class Networked3dWebExperienceClient {
     this.currentRequestAnimationFrame = requestAnimationFrame(() => {
       this.update();
     });
+  }
+
+  private updateAudioListenerPosition(): void {
+    // Try to position audio listener at character's head
+    const localCharacter = this.characterManager.localCharacter;
+    const headWorldPosition = localCharacter?.getHeadWorldPosition();
+
+    if (headWorldPosition) {
+      // Position the audio listener at the character's head
+      this.audioListener.position.copy(headWorldPosition);
+
+      // Copy camera rotation for proper directional audio
+      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
+      this.audioListener.updateMatrixWorld();
+    } else {
+      // Fallback to camera position if head bone not available yet
+      this.audioListener.position.copy(this.cameraManager.camera.position);
+      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
+      this.audioListener.updateMatrixWorld();
+    }
   }
 
   private spawnCharacter({

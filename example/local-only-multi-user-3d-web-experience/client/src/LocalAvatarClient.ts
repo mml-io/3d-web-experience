@@ -101,7 +101,8 @@ export class LocalAvatarClient {
       Math.PI / 2,
       Math.PI / 2,
     );
-    this.cameraManager.camera.add(this.audioListener);
+    // Add audioListener to scene instead of camera for character head positioning
+    this.scene.add(this.audioListener);
 
     this.composer = new Composer({
       scene: this.scene,
@@ -223,6 +224,26 @@ export class LocalAvatarClient {
     }
   }
 
+  private updateAudioListenerPosition(): void {
+    // Try to position audio listener at character's head
+    const localCharacter = this.characterManager.localCharacter;
+    const headWorldPosition = localCharacter?.getHeadWorldPosition();
+
+    if (headWorldPosition) {
+      // Position the audio listener at the character's head
+      this.audioListener.position.copy(headWorldPosition);
+
+      // Copy camera rotation for proper directional audio
+      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
+      this.audioListener.updateMatrixWorld();
+    } else {
+      // Fallback to camera position if head bone not available yet
+      this.audioListener.position.copy(this.cameraManager.camera.position);
+      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
+      this.audioListener.updateMatrixWorld();
+    }
+  }
+
   public dispose() {
     if (this.animationFrameRequest !== null) {
       cancelAnimationFrame(this.animationFrameRequest);
@@ -244,6 +265,10 @@ export class LocalAvatarClient {
     this.timeManager.update();
     this.characterManager.update();
     this.cameraManager.update();
+
+    // Update audio listener position to character's head while maintaining camera rotation
+    this.updateAudioListenerPosition();
+
     this.composer.sun?.updateCharacterPosition(this.characterManager.localCharacter?.position);
     this.composer.render(this.timeManager);
     this.animationFrameRequest = requestAnimationFrame(() => {
