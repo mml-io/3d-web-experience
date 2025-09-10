@@ -1,4 +1,4 @@
-import { AnimationClip, Color, Group, Object3D, Quaternion } from "three";
+import { AnimationClip, Color, Group, Object3D, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { EulXYZ } from "../math/EulXYZ";
@@ -346,6 +346,15 @@ export class Character extends Group {
 
   public getMesh(): Object3D | null {
     return this.model?.mesh || null;
+  }
+
+  public getHeadWorldPosition(): Vector3 | null {
+    if (this.model?.headBone) {
+      const worldPosition = new Vector3();
+      this.model.headBone.getWorldPosition(worldPosition);
+      return worldPosition;
+    }
+    return null;
   }
 
   dispose() {
