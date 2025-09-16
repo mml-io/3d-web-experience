@@ -21,7 +21,7 @@
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.23.4",
     "@mml-io/3d-web-user-networking": "^0.23.4",
-    "@mml-io/mml-web": "0.20.0",
+    "@mml-io/mml-web": "0.21.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "three": "0.178.0"
