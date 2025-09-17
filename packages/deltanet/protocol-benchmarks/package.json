@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/protocol-benchmarks",
-  "version": "0.23.4",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,7 @@
     "bench-decoding-integers": "npm run bench -- decoding-integers"
   },
   "devDependencies": {
-    "@mml-io/delta-net-protocol": "^0.23.4",
+    "@mml-io/delta-net-protocol": "^0.24.0",
     "@types/benchmark": "2.1.5",
     "benchmark": "2.1.4"
   }
