@@ -138,7 +138,7 @@ class GLTFLoadingWorker {
   }
 
   private async processTexture(texture: Texture, maxSize: number): Promise<void> {
-    const image = texture.getImage();
+    const image = texture.getImage() as Uint8Array<ArrayBuffer> | null;
     if (!image) {
       return;
     }
@@ -293,12 +293,12 @@ class GLTFLoadingWorker {
           throw new Error("Operation canceled");
         }
 
-        const result = await io.writeBinary(document);
+        const result = (await io.writeBinary(document)) as Uint8Array<ArrayBuffer>;
 
         // Cache the result (don't cache if canceled)
         if (!abortController?.signal.aborted) {
           try {
-            await this.cache.set(fileUrl, maxTextureSize, result);
+            await this.cache.set(fileUrl, maxTextureSize, result.buffer);
           } catch (error) {
             console.warn("Failed to cache result:", error);
           }
