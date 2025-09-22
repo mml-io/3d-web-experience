@@ -55,7 +55,7 @@ export class GLTFLoadingWorkerPool {
 
     if (type === "success") {
       const { gltfBuffer } = e.data;
-      const asArrayBuffer = gltfBuffer.buffer;
+      const asArrayBuffer = gltfBuffer.buffer as ArrayBuffer;
       job.resolve(asArrayBuffer);
     } else if (type === "error") {
       const { error } = e.data;

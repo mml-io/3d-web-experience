@@ -792,7 +792,7 @@ export class Networked3dWebExperienceClient {
     const loadingProgressManager = new LoadingProgressManager();
     const docRef = {};
     const mmlNetworkSource = MMLNetworkSource.create({
-      url: mmlDocConfig.url,
+      url: MMLNetworkSource.resolveRelativeUrl(window.location.host, mmlDocConfig.url),
       connectionToken: mmlDocConfig.passAuthToken ? (this.config.authToken ?? null) : null,
       mmlScene,
       statusUpdated: (status: NetworkedDOMWebsocketStatus) => {
