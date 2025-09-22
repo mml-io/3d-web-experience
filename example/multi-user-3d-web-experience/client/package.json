@@ -1,7 +1,7 @@
 {
   "name": "@example/multi-user-3d-web-experience-client",
   "private": true,
-  "version": "0.24.1",
+  "version": "0.24.2",
   "files": [
     "/build"
   ],
@@ -15,7 +15,7 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-client": "^0.24.1"
+    "@mml-io/3d-web-experience-client": "^0.24.2"
   },
   "devDependencies": {
     "esbuild": "0.24.2",
