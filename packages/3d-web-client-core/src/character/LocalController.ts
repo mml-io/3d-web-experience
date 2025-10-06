@@ -509,8 +509,8 @@ export class LocalController {
           .copy(userPosition)
           .sub(lastMeshPosition);
 
-        // Calculate the relative quaternion of the mesh in the last frame to the mesh in the current frame
-        const meshRotationDelta = lastMeshRotation.invert().multiply(currentMeshRotation);
+        // Calculate the world-relative rotation delta from the last frame to the current frame
+        const meshRotationDelta = currentMeshRotation.multiply(lastMeshRotation.invert());
 
         // Apply the relative quaternion to the relative user position to determine the new position of the user given just the rotation
         const translationDueToRotation = this.surfaceTempVector4
