@@ -97,6 +97,8 @@ export class Bot {
   private localClientIndex: number | null = null;
   private updateIntervalId: NodeJS.Timeout | null = null;
   private connected = false;
+  private sessionToken: string | null = null;
+  private networkUrl: string | null = null;
 
   // Circular motion parameters
   private radius1: number;
@@ -114,15 +116,15 @@ export class Bot {
     private readonly config: BotConfig,
   ) {
     // Initialize circular motion parameters
-    this.radius1 = 1500;
-    this.center1 = Math.random() * 1000 - 500;
+    this.radius1 = config.randomRange * 0.75;
+    this.center1 = Math.random() * config.randomRange - config.randomRange / 2;
     this.angle1 = Math.random() * 2 * Math.PI;
-    this.rate1 = 0.02;
+    this.rate1 = config.movementRate;
 
-    this.radius2 = 2000;
-    this.center2 = Math.random() * 1000 - 500;
+    this.radius2 = config.randomRange;
+    this.center2 = Math.random() * config.randomRange - config.randomRange / 2;
     this.angle2 = Math.random() * 2 * Math.PI;
-    this.rate2 = 0.01;
+    this.rate2 = config.movementRate * 0.5;
 
     // Initialize values
     for (const key of config.valuesToUpdate ?? [xComponent, zComponent]) {
@@ -157,7 +159,65 @@ export class Bot {
     }
   }
 
-  public start(): void {
+  private async fetchConfiguration(): Promise<void> {
+    try {
+      const configUrl = "https://vsf-test-project-bf86f6_amphitheatre-427cb8.mml.world/";
+      const response = await fetch(configUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch configuration: ${response.status} ${response.statusText}`);
+      }
+
+      const content = await response.text();
+      
+      // Extract the WORLD_RENDER_CONFIG object from the HTML
+      const configMatch = content.match(/window\.WORLD_RENDER_CONFIG\s*=\s*({.*?});/s);
+      
+      if (configMatch) {
+        try {
+          const configJson = configMatch[1];
+          const parsedConfig = JSON.parse(configJson);
+          
+          this.sessionToken = parsedConfig.sessionToken || null;
+          this.networkUrl = parsedConfig.networkUrl || null;
+          
+          console.log(`Bot ${this.config.id}: Successfully extracted configuration from WORLD_RENDER_CONFIG`);
+          console.log(`Bot ${this.config.id}: sessionToken: ${this.sessionToken ? '[PRESENT]' : '[MISSING]'}`);
+          console.log(`Bot ${this.config.id}: networkUrl: ${this.networkUrl || '[MISSING]'}`);
+        } catch (parseError) {
+          console.error(`Bot ${this.config.id}: Error parsing WORLD_RENDER_CONFIG JSON:`, parseError);
+          throw parseError;
+        }
+      } else {
+        // Fallback: try to extract using regex patterns
+        console.warn(`Bot ${this.config.id}: Could not find WORLD_RENDER_CONFIG, trying regex fallback`);
+        
+        const sessionTokenMatch = content.match(/"sessionToken"\s*:\s*"([^"]+)"/);
+        const networkUrlMatch = content.match(/"networkUrl"\s*:\s*"([^"]+)"/);
+        
+        this.sessionToken = sessionTokenMatch ? sessionTokenMatch[1] : null;
+        this.networkUrl = networkUrlMatch ? networkUrlMatch[1] : null;
+      }
+
+      if (!this.sessionToken || !this.networkUrl) {
+        console.warn(`Bot ${this.config.id}: Could not extract sessionToken or networkUrl from configuration`);
+        console.log(`Bot ${this.config.id}: Using fallback values`);
+        // Use the original URL as fallback networkUrl if not found
+        this.networkUrl = this.networkUrl || this.url;
+        // Generate a fallback session token if not found
+        this.sessionToken = this.sessionToken || `bot-token-${this.config.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+      }
+    } catch (error) {
+      console.error(`Bot ${this.config.id}: Error fetching configuration:`, error);
+      // Use fallback values
+      this.networkUrl = this.url;
+      this.sessionToken = `bot-token-${this.config.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+      console.log(`Bot ${this.config.id}: Using fallback values due to error`);
+    }
+  }
+
+  public async start(): Promise<void> {
+    await this.fetchConfiguration();
     this.connect();
     const updateInterval = this.config.updateInterval ?? 50; // Use smaller interval for smoother motion
     this.updateIntervalId = setInterval(() => {
@@ -180,12 +240,15 @@ export class Bot {
       this.client.stop();
     }
 
+    const connectionUrl = this.networkUrl || this.url;
+    const authToken = this.sessionToken || `bot-token-${this.config.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`;
+
     this.client = new DeltaNetClientWebsocket(
-      this.url,
+      connectionUrl,
       (url: string) => {
         return createWebSocket(url, deltaNetProtocolSubProtocol_v0_1);
       },
-      `bot-token-${this.config.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`, // Placeholder authentication token for bot
+      authToken,
       {
         onUserIndex: (userIndex: DeltaNetClientWebsocketUserIndex) => {
           this.localClientIndex = userIndex.userIndex;
@@ -230,9 +293,9 @@ export class Bot {
     this.angle2 -= this.rate2;
 
     // Calculate x and y positions based on combined circular motion
-    const x = BigInt(Math.round(x1 + x2));
+    const x = BigInt(Math.round((this.config.xCenter ?? 0) + (x1 + x2)));
     const y = BigInt(Math.round(this.config.yValue));
-    const z = BigInt(Math.round(y1 + y2));
+    const z = BigInt(Math.round((this.config.zCenter ?? 0) + (y1 + y2)));
 
     // Calculate rotation based on movement direction
     // Get the velocity components by calculating the tangent to the circles

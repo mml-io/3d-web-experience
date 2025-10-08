@@ -4,6 +4,7 @@ export type BotRunnerConfig = {
   serverUrl: string;
   updateInterval: number;
   randomRange: number;
+  movementRate: number;
   logStatusInterval: number;
   restartConfig?: {
     minInterval: number;
@@ -16,6 +17,8 @@ export type BotRunnerConfig = {
   usernameStateId?: number;
   characterDescriptionStateId?: number;
   yValue: number;
+  xCenter?: number;
+  zCenter?: number;
 };
 
 export interface BotConfig {
@@ -23,11 +26,14 @@ export interface BotConfig {
   updateInterval?: number;
   valuesToUpdate?: number[];
   randomRange: number;
+  movementRate: number;
   yValue: number;
   usernameStateId?: number;
   characterDescriptionStateId?: number;
   colorStateId?: number;
   avatarColorStateId?: number;
+  xCenter?: number;
+  zCenter?: number;
 }
 
 export class BotRunner {
@@ -123,6 +129,7 @@ export class BotRunner {
     for (let i = 0; i < count; i++) {
       const config: BotConfig = {
         id: i,
+        movementRate: this.config.movementRate,
         yValue: this.config.yValue,
         updateInterval: this.config.updateInterval,
         randomRange: this.config.randomRange,
@@ -130,6 +137,8 @@ export class BotRunner {
         usernameStateId: this.config.usernameStateId,
         characterDescriptionStateId: this.config.characterDescriptionStateId,
         avatarColorStateId: this.config.avatarColorStateId,
+        xCenter: this.config.xCenter,
+        zCenter: this.config.zCenter,
       };
 
       const bot = this.addBot(config);

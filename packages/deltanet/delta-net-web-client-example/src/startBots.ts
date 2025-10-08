@@ -5,6 +5,7 @@ const defaultConfig: BotRunnerConfig = {
   serverUrl: "ws://localhost:7971/delta-net-websocket",
   updateInterval: 50,
   randomRange: 2048,
+  movementRate: 0.02,
   logStatusInterval: 5000,
   yValue: 0,
   colorStateId: 3,
@@ -13,18 +14,21 @@ const defaultConfig: BotRunnerConfig = {
 const webWorldConfig: BotRunnerConfig = {
   serverUrl: "ws://localhost:8080/network",
   updateInterval: 50,
-  randomRange: 4096,
-  yValue: 45,
+  randomRange: 550,
+  movementRate: 0.05,
+  yValue: 100,
   logStatusInterval: 5000,
   usernameStateId: 2,
   characterDescriptionStateId: 1,
   avatarColorStateId: 3,
-  restartConfig: {
-    minInterval: 10000,
-    maxInterval: 20000,
-    minWait: 1000,
-    maxWait: 5000,
-  },
+  xCenter: 0,
+  zCenter: -300,
+  // restartConfig: {
+  //   minInterval: 10000,
+  //   maxInterval: 20000,
+  //   minWait: 1000,
+  //   maxWait: 5000,
+  // },
 };
 
 let config = defaultConfig;
@@ -43,7 +47,7 @@ function main() {
   console.log("Starting Delta Net Bot Runner");
 
   // Add a bunch of random bots with default settings
-  botRunner.addRandomBots(500);
+  botRunner.addRandomBots(98);
 
   // Start all bots
   botRunner.startAll();
