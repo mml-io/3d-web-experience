@@ -1,3 +1,4 @@
+import { ThreeJSMemoryInspector } from "@mml-io/mml-web-threejs";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
 import { BloomEffect, EffectComposer, EffectPass, ToneMappingEffect } from "postprocessing";
 import { Scene, WebGLRenderer } from "three";
@@ -49,6 +50,7 @@ export class TweakPane {
   private characterControls: CharacterControlsFolder;
 
   private export: FolderApi;
+  private memoryInspector: FolderApi;
 
   private saveVisibilityInLocalStorage: boolean = true;
   public guiVisible: boolean = false;
@@ -127,6 +129,12 @@ export class TweakPane {
     this.export = this.gui.addFolder({ title: "import / export", expanded: false });
 
     this.collisionsStatsFolder.setupChangeEvent(this.toggleCollisionsDebug);
+
+    this.memoryInspector = this.gui.addFolder({ title: "memory inspector", expanded: false });
+    const memoryInspectorButton = this.memoryInspector.addButton({ title: "open memory report" });
+    memoryInspectorButton.on("click", () => {
+      ThreeJSMemoryInspector.openMemoryReport(this.scene);
+    });
 
     this.eventHandlerCollection = new EventHandlerCollection();
 

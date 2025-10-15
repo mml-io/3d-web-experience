@@ -21,10 +21,10 @@
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.24.2",
     "@mml-io/3d-web-user-networking": "^0.24.2",
-    "@mml-io/mml-web": "0.21.2",
+    "@mml-io/mml-web": "0.22.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "three": "0.178.0"
+    "three": "0.180.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

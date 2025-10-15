@@ -17,6 +17,7 @@ import {
   ThreeJSGraphicsAdapter,
   ThreeJSGraphicsInterface,
   ThreeJSInteractionAdapter,
+  ThreeJSResourceManager,
 } from "@mml-io/mml-web-threejs";
 import { PerspectiveCamera, Scene, WebGLRenderer, AudioListener, Group, Object3D } from "three";
 
@@ -43,10 +44,12 @@ export class MMLCompositionScene {
   private readonly chatProbes = new Set<ChatProbe<ThreeJSGraphicsAdapter>>();
   private readonly clickTrigger: ThreeJSClickTrigger;
   private readonly loadingProgressManager: LoadingProgressManager;
+  private readonly resourceManager: ThreeJSResourceManager;
 
   constructor(private config: MMLCompositionSceneConfig) {
     this.group = new Group();
     this.promptManager = PromptManager.init(this.config.targetElement);
+    this.resourceManager = new ThreeJSResourceManager();
 
     const graphicsAdapter: ThreeJSGraphicsAdapter = {
       collisionType: null as unknown as Object3D,
@@ -78,6 +81,9 @@ export class MMLCompositionScene {
       },
       getUserPositionAndRotation: () => {
         return this.config.getUserPositionAndRotation();
+      },
+      getResourceManager: () => {
+        return this.resourceManager;
       },
     };
 
