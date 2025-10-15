@@ -16,12 +16,12 @@ import { CameraFolder } from "./blades/cameraFolder";
 import { CharacterControlsFolder } from "./blades/characterControlsFolder";
 import { CharacterFolder } from "./blades/characterFolder";
 // post processing effects ===================================================
+import { CollisionsStatsFolder } from "./blades/collisionsStatsFolder";
 import { BrightnessContrastSaturationFolder } from "./blades/effects/bcsFolder";
 import { BloomAndGrainFolder } from "./blades/effects/bloomAndGrain";
 import { SSAOFolder } from "./blades/effects/ssaoFolder";
 import { ToneMappingFolder } from "./blades/effects/toneMappingFolder";
 // end post processing effects ===============================================
-import { CollisionsStatsFolder } from "./blades/collisionsStatsFolder";
 import { EnvironmentFolder } from "./blades/environmentFolder";
 import { PostProcessingFolder } from "./blades/postProcessingFolder";
 import { RendererFolder, rendererValues } from "./blades/rendererFolder";
@@ -61,7 +61,7 @@ export class TweakPane {
     private scene: Scene,
     private composer: Composer,
     private postProcessingEnabled: boolean | undefined,
-    private toggleCollisionsDebug: () => void,
+    private toggleCollisionsDebug: (enabled: boolean) => void,
   ) {
     this.tweakPaneWrapper = document.createElement("div");
     this.tweakPaneWrapper.style.position = "fixed";

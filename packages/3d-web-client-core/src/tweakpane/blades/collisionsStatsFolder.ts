@@ -1,17 +1,21 @@
-import { ButtonApi, FolderApi } from "tweakpane";
+import { FolderApi } from "tweakpane";
 
 export class CollisionsStatsFolder {
   private folder: FolderApi;
-  private debugButton: ButtonApi;
+  private debugCheckbox: { enabled: boolean };
 
   constructor(parentFolder: FolderApi, expanded: boolean = true) {
     this.folder = parentFolder.addFolder({ title: "collisions", expanded: expanded });
-    this.debugButton = this.folder.addButton({ title: "Toggle Debug" });
+    this.debugCheckbox = { enabled: false };
   }
 
-  public setupChangeEvent(toggleDebug: () => void): void {
-    this.debugButton.on("click", () => {
-      toggleDebug();
-    });
+  public setupChangeEvent(toggleDebug: (enabled: boolean) => void): void {
+    this.folder
+      .addBinding(this.debugCheckbox, "enabled", {
+        label: "Debug Geometry",
+      })
+      .on("change", (ev) => {
+        toggleDebug(ev.value);
+      });
   }
 }

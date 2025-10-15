@@ -67,8 +67,8 @@ export class CollisionsManager {
     this.toggleDebug = this.toggleDebug.bind(this);
   }
 
-  public toggleDebug() {
-    this.debug = !this.debug;
+  public toggleDebug(enabled: boolean) {
+    this.debug = enabled;
 
     this.collisionMeshState.forEach((meshState) => {
       if (this.debug) {
@@ -235,7 +235,7 @@ export class CollisionsManager {
         ? this.createDebugVisuals({
             source: group,
             meshBVH: meshBVH,
-            matrix: group.matrixWorld.clone(),
+            matrix: new Matr4(group.matrixWorld.elements),
             trackCollisions,
           })
         : undefined,
