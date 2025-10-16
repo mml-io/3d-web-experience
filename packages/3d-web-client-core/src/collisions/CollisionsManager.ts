@@ -180,12 +180,20 @@ export class CollisionsManager {
   private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
     const geometries: Array<BufferGeometry> = [];
     group.updateWorldMatrix(true, false);
-    const invertedRootMatrix = this.tempMatrixThree.copy(group.matrixWorld).invert();
     group.traverse((child: Object3D) => {
       const asMesh = child as Mesh;
       if (asMesh.isMesh) {
         const asInstancedMesh = asMesh as InstancedMesh;
         if (asInstancedMesh.isInstancedMesh) {
+          // Compute the InstancedMesh's transformation relative to the group
+          const instancedMeshRelativeMatrix = new Matrix4();
+          let currentObject: Object3D | null = asInstancedMesh;
+          while (currentObject && currentObject !== group) {
+            currentObject.updateMatrix();
+            instancedMeshRelativeMatrix.premultiply(currentObject.matrix);
+            currentObject = currentObject.parent;
+          }
+
           for (let i = 0; i < asInstancedMesh.count; i++) {
             const clonedGeometry = asInstancedMesh.geometry.clone();
             for (const key in clonedGeometry.attributes) {
@@ -193,9 +201,11 @@ export class CollisionsManager {
                 clonedGeometry.deleteAttribute(key);
               }
             }
+            // Apply instance matrix first, then the InstancedMesh's relative transformation
             clonedGeometry.applyMatrix4(
               this.tempMatrix2Three.fromArray(asInstancedMesh.instanceMatrix.array, i * 16),
             );
+            clonedGeometry.applyMatrix4(instancedMeshRelativeMatrix);
             if (clonedGeometry.index) {
               geometries.push(clonedGeometry.toNonIndexed());
             } else {
@@ -204,15 +214,22 @@ export class CollisionsManager {
           }
         } else {
           const clonedGeometry = asMesh.geometry.clone();
-          asMesh.updateWorldMatrix(true, false);
           for (const key in clonedGeometry.attributes) {
             if (key !== "position") {
               clonedGeometry.deleteAttribute(key);
             }
           }
-          clonedGeometry.applyMatrix4(
-            this.tempMatrix2Three.multiplyMatrices(invertedRootMatrix, asMesh.matrixWorld),
-          );
+
+          // Compute the mesh's transformation relative to the group by accumulating local matrices
+          this.tempMatrix2Three.identity();
+          let currentObject: Object3D | null = asMesh;
+          while (currentObject && currentObject !== group) {
+            currentObject.updateMatrix();
+            this.tempMatrix2Three.premultiply(currentObject.matrix);
+            currentObject = currentObject.parent;
+          }
+
+          clonedGeometry.applyMatrix4(this.tempMatrix2Three);
           if (clonedGeometry.index) {
             geometries.push(clonedGeometry.toNonIndexed());
           } else {

@@ -23,6 +23,14 @@ const dracoEncoderWasmArrayBuffer = base64ToArrayBuffer(dracoEncoderWasmBase64);
 import { GLTFLoadingWorkerBrowserCache } from "./GLTFLoadingWorkerBrowserCache";
 import { GLTFWorkerRequest, GLTFWorkerResponse } from "./GLTFLoadingWorkerTypes";
 
+const compressedImageFormats = [
+  "image/ktx2",
+  "image/ktx",
+  "image/basis",
+  "image/vnd-ms.dds",
+  "image/dds",
+];
+
 class GLTFLoadingWorker {
   private io: WebIO | null = null;
   private sourceCanvas: OffscreenCanvas;
@@ -143,9 +151,17 @@ class GLTFLoadingWorker {
       return;
     }
 
+    const mimeType = texture.getMimeType();
+
+    // Skip processing for compressed texture formats
+    // These formats cannot be decoded by createImageBitmap and should be left as-is
+    if (compressedImageFormats.includes(mimeType)) {
+      return;
+    }
+
     try {
       // Create ImageBitmap from the image buffer
-      const blob = new Blob([image], { type: texture.getMimeType() });
+      const blob = new Blob([image], { type: mimeType });
       const imageBitmap = await createImageBitmap(blob);
 
       if (this.canvas.width !== imageBitmap.width || this.canvas.height !== imageBitmap.height) {
