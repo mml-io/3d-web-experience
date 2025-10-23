@@ -1,13 +1,10 @@
 import { PositionAndRotation, radToDeg } from "@mml-io/mml-web";
-import { Euler, Group, Quaternion } from "three";
+import { Euler, Group, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { KeyInputManager } from "../input/KeyInputManager";
 import { VirtualJoystick } from "../input/VirtualJoystick";
-import { EulXYZ } from "../math/EulXYZ";
-import { Quat } from "../math/Quat";
-import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 import { TimeManager } from "../time/TimeManager";
 import { TweakPane } from "../tweakpane/TweakPane";
@@ -101,7 +98,7 @@ type CharacterReadyForScene = {
 };
 
 export class CharacterManager {
-  public static readonly headTargetOffset = new Vect3(0, 1.3, 0);
+  public static readonly headTargetOffset = new Vector3(0, 1.3, 0);
 
   private localClientId: number = 0;
 
@@ -133,8 +130,8 @@ export class CharacterManager {
     id: number,
     username: string,
     characterDescription: CharacterDescription | null,
-    spawnPosition: Vect3 = new Vect3(),
-    spawnRotation: EulXYZ = new EulXYZ(),
+    spawnPosition: Vector3 = new Vector3(),
+    spawnRotation: Euler = new Euler(),
   ) {
     const character = new Character({
       username,
@@ -175,7 +172,7 @@ export class CharacterManager {
       spawnConfiguration: this.config.spawnConfiguration,
     });
     this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-    const spawnQuat = new Quat().setFromEulerXYZ(spawnRotation);
+    const spawnQuat = new Quaternion().setFromEuler(spawnRotation);
     this.localCharacter.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w);
     this.group.add(character);
   }
@@ -245,7 +242,7 @@ export class CharacterManager {
     remoteChar.abortController = abortController;
 
     const characterInfo = this.config.characterResolve(id);
-    let position = new Vect3(
+    let position = new Vector3(
       networkState.position.x,
       networkState.position.y,
       networkState.position.z,
@@ -257,7 +254,7 @@ export class CharacterManager {
     const euler = new Euler().setFromQuaternion(
       new Quaternion(0, networkState.rotation.quaternionY, 0, networkState.rotation.quaternionW),
     );
-    const rotation = new EulXYZ(euler.x, euler.y, euler.z);
+    const rotation = new Euler(euler.x, euler.y, euler.z);
 
     const character = new Character({
       username: characterInfo.username ?? `Unknown User ${id}`,
@@ -339,7 +336,7 @@ export class CharacterManager {
       abortController,
     });
 
-    const spawnQuaternion = new Quat().setFromEulerXYZ(rotation);
+    const spawnQuaternion = new Quaternion().setFromEuler(rotation);
     character.position.set(position.x, position.y, position.z);
     character.quaternion.set(
       spawnQuaternion.x,
@@ -401,13 +398,13 @@ export class CharacterManager {
     }
 
     // Capture the real character's current position before removing it
-    const realCharacterPosition = new Vect3(
+    const realCharacterPosition = new Vector3(
       loadedCharacterState.character.position.x,
       loadedCharacterState.character.position.y,
       loadedCharacterState.character.position.z,
     );
-    const realCharacterRotation = new EulXYZ().setFromQuaternion(
-      new Quat(
+    const realCharacterRotation = new Euler().setFromQuaternion(
+      new Quaternion(
         loadedCharacterState.character.quaternion.x,
         loadedCharacterState.character.quaternion.y,
         loadedCharacterState.character.quaternion.z,
@@ -605,11 +602,11 @@ export class CharacterManager {
         this.config.sendUpdate(this.localController.networkState);
       }
 
-      const targetOffset = new Vect3();
+      const targetOffset = new Vector3();
       targetOffset
         .add(CharacterManager.headTargetOffset)
-        .applyQuat(
-          new Quat(
+        .applyQuaternion(
+          new Quaternion(
             this.localCharacter.quaternion.x,
             this.localCharacter.quaternion.y,
             this.localCharacter.quaternion.z,
@@ -659,12 +656,12 @@ export class CharacterManager {
           const euler = new Euler().setFromQuaternion(
             new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
           );
-          const rotation = new EulXYZ(euler.x, euler.y, euler.z);
+          const rotation = new Euler(euler.x, euler.y, euler.z);
 
           characterInstances.spawnInstance(
             id,
             colorMap,
-            new Vect3(position.x, position.y, position.z),
+            new Vector3(position.x, position.y, position.z),
             rotation,
             update.state,
           );
@@ -680,8 +677,8 @@ export class CharacterManager {
             if (!loadedCharacterState.characterLoaded) {
               characterInstances.updateInstance(
                 id,
-                new Vect3(position.x, position.y, position.z),
-                new EulXYZ(euler.x, euler.y, euler.z),
+                new Vector3(position.x, position.y, position.z),
+                new Euler(euler.x, euler.y, euler.z),
                 update.state,
               );
             }
@@ -698,8 +695,8 @@ export class CharacterManager {
           } else {
             characterInstances.updateInstance(
               id,
-              new Vect3(position.x, position.y, position.z),
-              new EulXYZ(euler.x, euler.y, euler.z),
+              new Vector3(position.x, position.y, position.z),
+              new Euler(euler.x, euler.y, euler.z),
               update.state,
             );
           }

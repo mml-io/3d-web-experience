@@ -1,4 +1,4 @@
-import { Quat, Vect3 } from "../math";
+import { Quaternion, Vector3 } from "three";
 
 import { Character } from "./Character";
 import { CharacterState } from "./CharacterState";
@@ -7,7 +7,7 @@ export type RemoteControllerConfig = {
   character: Character;
 };
 
-const tempQuaternion = new Quat();
+const tempQuaternion = new Quaternion();
 
 export class RemoteController {
   public networkState: CharacterState;
@@ -36,8 +36,8 @@ export class RemoteController {
   private updateFromNetwork(clientUpdate: CharacterState, deltaTime: number): void {
     const { position, rotation, state } = clientUpdate;
 
-    const currentPos = new Vect3(this.character.getPosition());
-    const targetPos = new Vect3(position.x, position.y, position.z);
+    const currentPos = new Vector3().copy(this.character.getPosition());
+    const targetPos = new Vector3(position.x, position.y, position.z);
 
     const rotationQuaternion = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);
 
@@ -70,7 +70,7 @@ export class RemoteController {
 
       // Smooth rotation interpolation
       const currentRot = this.character.getRotation();
-      const currentRotQuat = new Quat().setFromEulerXYZ(currentRot);
+      const currentRotQuat = new Quaternion().setFromEuler(currentRot);
 
       // Frame-rate independent exponential smoothing for rotation
       const lerpFactor = Math.min(1.0, 1.0 - Math.exp(-this.interpolationRate * deltaTime));

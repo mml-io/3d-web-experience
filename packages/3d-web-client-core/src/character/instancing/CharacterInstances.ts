@@ -17,7 +17,6 @@ import {
 import * as SkeletonUtils from "three/examples/jsm/utils/SkeletonUtils.js";
 
 import { CameraManager } from "../../camera/CameraManager";
-import { EulXYZ, Vect3 } from "../../math";
 import { TimeManager } from "../../time/TimeManager";
 import { LoadedAnimations } from "../Character";
 import { ColorPartName } from "../CharacterModel";
@@ -190,8 +189,8 @@ export class CharacterInstances {
   public spawnInstance(
     characterId: number,
     colors: Map<ColorPartName, Color>,
-    position: Vect3,
-    rotation: EulXYZ,
+    position: Vector3,
+    rotation: Euler,
     animationState: AnimationState,
   ) {
     const animationSegmentName = this.animationStateToSegmentName(animationState);
@@ -355,8 +354,8 @@ export class CharacterInstances {
 
   public updateInstance(
     characterId: number,
-    position: Vect3,
-    rotation: EulXYZ,
+    position: Vector3,
+    rotation: Euler,
     animationState: AnimationState,
   ): void {
     if (!this.instancedMesh) {
@@ -687,7 +686,7 @@ export class CharacterInstances {
     }
   }
 
-  public getPositionForInstance(characterId: number): Vect3 | null {
+  public getPositionForInstance(characterId: number): Vector3 | null {
     const instanceId = this.characterIdToInstanceIdMap.get(characterId);
     if (instanceId === undefined || !this.instancedMesh || !this.instancedMesh.instances) {
       console.warn("CharacterInstances: Mesh or instances not initialized.");
@@ -700,7 +699,7 @@ export class CharacterInstances {
       return null;
     }
 
-    return new Vect3(instance.position.x, instance.position.y, instance.position.z);
+    return new Vector3(instance.position.x, instance.position.y, instance.position.z);
   }
 
   private updateAllInstanceLerping(): void {
@@ -862,8 +861,8 @@ export class CharacterInstances {
    */
   public setInstancePositionImmediate(
     characterId: number,
-    position: Vect3,
-    rotation: EulXYZ,
+    position: Vector3,
+    rotation: Euler,
     animationState: AnimationState,
   ): boolean {
     if (!this.instancedMesh) {

@@ -1,10 +1,9 @@
-import { PerspectiveCamera, Vector3 } from "three";
+import { Matrix4, PerspectiveCamera, Ray, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
-import { Matr4, Ray, Vect3 } from "../math";
 import { camValues } from "../tweakpane/blades/cameraFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
@@ -45,17 +44,17 @@ export class CameraManager {
   private theta: number;
   private targetTheta: number;
 
-  private target: Vect3 = new Vect3(0, 1.55, 0);
+  private target: Vector3 = new Vector3(0, 1.55, 0);
   private hadTarget: boolean = false;
 
   private cameraRay: Ray = new Ray();
-  private tempVec3: Vect3 = new Vect3();
+  private tempVec3: Vector3 = new Vector3();
 
   private eventHandlerCollection: EventHandlerCollection;
 
-  private finalTarget: Vect3 = new Vect3();
+  private finalTarget: Vector3 = new Vector3();
   private isLerping: boolean = false;
-  private lerpTarget: Vect3 = new Vect3();
+  private lerpTarget: Vector3 = new Vector3();
   private lerpFactor: number = 0;
   private lerpDuration: number = 2.1;
 
@@ -210,7 +209,7 @@ export class CameraManager {
     event.preventDefault();
   }
 
-  public setTarget(target: Vect3): void {
+  public setTarget(target: Vector3): void {
     if (!this.isLerping) {
       this.target.copy(target);
     } else {
@@ -225,7 +224,7 @@ export class CameraManager {
     }
   }
 
-  public setLerpedTarget(target: Vect3, targetDistance: number): void {
+  public setLerpedTarget(target: Vector3, targetDistance: number): void {
     this.isLerping = true;
     this.targetDistance = targetDistance;
     this.desiredDistance = targetDistance;
@@ -249,9 +248,9 @@ export class CameraManager {
 
   public adjustCameraPosition(): void {
     const offsetDistance = 0.5;
-    const offset = new Vect3(0, 0, offsetDistance);
-    const matr4 = new Matr4().setRotationFromQuaternion(this.camera.quaternion);
-    offset.applyMatrix4(matr4);
+    const offset = new Vector3(0, 0, offsetDistance);
+    const rotationMatrix = new Matrix4().makeRotationFromQuaternion(this.camera.quaternion);
+    offset.applyMatrix4(rotationMatrix);
     const rayOrigin = this.tempVec3.copy(this.camera.position).add(offset);
     const rayDirection = rayOrigin.sub(this.target.clone()).normalize();
 
@@ -310,7 +309,7 @@ export class CameraManager {
       this.updateAspect(window.innerWidth / window.innerHeight);
       this.flyCamera.position.copy(this.camera.position);
       this.flyCamera.rotation.copy(this.camera.rotation);
-      const target = new Vect3();
+      const target = new Vector3();
       const direction = this.camera.getWorldDirection(new Vector3());
       target.set(direction.x, direction.y, direction.z);
       target.multiplyScalar(this.targetDistance).add(this.camera.position);

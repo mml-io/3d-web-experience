@@ -9,7 +9,6 @@ import {
   Composer,
   EnvironmentConfiguration,
   ErrorScreen,
-  EulXYZ,
   GroundPlane,
   Key,
   KeyInputManager,
@@ -20,10 +19,8 @@ import {
   TweakPane,
   SpawnConfiguration,
   SpawnConfigurationState,
-  Vect3,
   VirtualJoystick,
   Character,
-  Quat,
   getSpawnData,
 } from "@mml-io/3d-web-client-core";
 import {
@@ -50,7 +47,7 @@ import {
   setGlobalDocumentTimeManager,
   setGlobalMMLScene,
 } from "@mml-io/mml-web";
-import { Scene, AudioListener, Vector3 } from "three";
+import { Scene, AudioListener, Vector3, Quaternion, Euler } from "three";
 
 import { AvatarSelectionUI, AvatarConfiguration } from "./avatar-selection-ui";
 import { StringToHslOptions, TextChatUI, TextChatUIProps } from "./chat-ui";
@@ -238,7 +235,7 @@ export class Networked3dWebExperienceClient {
     this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
 
     const spawnData = getSpawnData(this.spawnConfiguration, true);
-    const spawnRotation = new Quat().setFromEulerXYZ(spawnData.spawnRotation);
+    const spawnRotation = new Quaternion().setFromEuler(spawnData.spawnRotation);
 
     const initialNetworkLoadRef = {};
     this.loadingProgressManager.addLoadingAsset(initialNetworkLoadRef, "network", "network");
@@ -705,9 +702,9 @@ export class Networked3dWebExperienceClient {
     spawnRotation,
     cameraPosition,
   }: {
-    spawnPosition: Vect3;
-    spawnRotation: EulXYZ;
-    cameraPosition: Vect3;
+    spawnPosition: Vector3;
+    spawnRotation: Euler;
+    cameraPosition: Vector3;
   }) {
     if (this.clientId === null) {
       throw new Error("Client ID not set");
@@ -729,7 +726,7 @@ export class Networked3dWebExperienceClient {
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
       this.cameraManager.setTarget(
-        new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset),
+        new Vector3().add(spawnPosition).add(CharacterManager.headTargetOffset),
       );
       this.cameraManager.reverseUpdateFromPositions();
     }

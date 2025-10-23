@@ -8,17 +8,15 @@ import {
   CharacterState,
   CollisionsManager,
   Composer,
-  EulXYZ,
   GroundPlane,
   KeyInputManager,
   MMLCompositionScene,
   SpawnConfigurationState,
   TimeManager,
-  Vect3,
 } from "@mml-io/3d-web-client-core";
 import { MMLWebRunnerClient } from "@mml-io/mml-web-runner";
 import { EditableNetworkedDOM, NetworkedDOM } from "@mml-io/networked-dom-document";
-import { AudioListener, Scene } from "three";
+import { AudioListener, Euler, Scene, Vector3 } from "three";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
@@ -192,12 +190,12 @@ export class LocalAvatarClient {
     this.collisionsManager.addMeshesGroup(groundPlane);
     this.scene.add(groundPlane);
 
-    const spawnPosition = new Vect3(
+    const spawnPosition = new Vector3(
       this.spawnConfiguration.spawnPosition!.x,
       this.spawnConfiguration.spawnPosition!.y,
       this.spawnConfiguration.spawnPosition!.z,
     );
-    const spawnRotation = new EulXYZ(
+    const spawnRotation = new Euler(
       0,
       this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
       0,
@@ -210,15 +208,15 @@ export class LocalAvatarClient {
       spawnRotation,
     );
 
-    let cameraPosition: Vect3 | null = null;
-    const offset = new Vect3(0, 0, 3.3);
-    offset.applyEulerXYZ(new EulXYZ(0, spawnRotation.y, 0));
+    let cameraPosition: Vector3 | null = null;
+    const offset = new Vector3(0, 0, 3.3);
+    offset.applyEuler(new Euler(0, spawnRotation.y, 0));
     cameraPosition = spawnPosition.clone().sub(offset).add(CharacterManager.headTargetOffset);
 
     if (cameraPosition !== null) {
       this.cameraManager.camera.position.copy(cameraPosition);
       this.cameraManager.setTarget(
-        new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset),
+        new Vector3().add(spawnPosition).add(CharacterManager.headTargetOffset),
       );
       this.cameraManager.reverseUpdateFromPositions();
     }

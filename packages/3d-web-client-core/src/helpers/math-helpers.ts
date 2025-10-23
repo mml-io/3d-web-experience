@@ -1,17 +1,17 @@
-import { Quat, Vect3 } from "../math";
+import { Quaternion, Vector3 } from "three";
 
 export const roundToDecimalPlaces = (value: number, decimalPlaces: number): number => {
   const mult = 10 ** decimalPlaces;
   return Math.round(value * mult) / mult;
 };
 
-export const toArray = (origin: Vect3 | Quat, precision: number = 3): number[] => {
+export const toArray = (origin: Vector3 | Quaternion, precision: number = 3): number[] => {
   const array = [];
   array[0] = roundToDecimalPlaces(origin.x, precision);
   array[1] = roundToDecimalPlaces(origin.y, precision);
   array[2] = roundToDecimalPlaces(origin.z, precision);
-  if ((origin as Quat).w !== undefined) {
-    array[3] = roundToDecimalPlaces((origin as Quat).w, precision);
+  if ((origin as Quaternion).w !== undefined) {
+    array[3] = roundToDecimalPlaces((origin as Quaternion).w, precision);
   }
   return array;
 };
@@ -21,7 +21,7 @@ export const getSpawnPositionInsideCircle = (
   positions: number,
   id: number,
   yPos: number = 0,
-): Vect3 => {
+): Vector3 => {
   if (id > 0) id += 3;
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
   const theta = id * goldenAngle;
@@ -29,7 +29,7 @@ export const getSpawnPositionInsideCircle = (
   const scaledRadius = scale * radius;
   const x = Math.cos(theta) * scaledRadius;
   const z = Math.sin(theta) * scaledRadius;
-  return new Vect3(x, yPos, z);
+  return new Vector3(x, yPos, z);
 };
 
 export const round = (n: number, digits: number): number => {
