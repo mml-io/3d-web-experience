@@ -1,8 +1,6 @@
-import { AnimationClip, Color, Group, Object3D, Quaternion, Vector3 } from "three";
+import { AnimationClip, Color, Euler, Group, Object3D, Quaternion, Vector3 } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
-import { EulXYZ } from "../math/EulXYZ";
-import { Vect3 } from "../math/Vect3";
 import { Composer } from "../rendering/composer";
 
 import { CharacterModel } from "./CharacterModel";
@@ -303,12 +301,12 @@ export class Character extends Group {
     this.model.update(deltaTime);
   }
 
-  public getPosition(): Vect3 {
-    return this.position as unknown as Vect3;
+  public getPosition(): Vector3 {
+    return this.position as unknown as Vector3;
   }
 
-  public getRotation(): EulXYZ {
-    return this.rotation as unknown as EulXYZ;
+  public getRotation(): Euler {
+    return this.rotation as unknown as Euler;
   }
 
   public setPosition(x: number, y: number, z: number) {
