@@ -1,6 +1,6 @@
+import { spawn } from "child_process";
 import { createRequire } from "node:module";
 
-import { spawn } from "child_process";
 import * as esbuild from "esbuild";
 import { PluginBuild } from "esbuild";
 import CssModulesPlugin from "esbuild-css-modules-plugin";
@@ -74,8 +74,12 @@ const buildOptions: esbuild.BuildOptions = {
                     });
                   });
                 }
-                runningProcess = spawn("npm", ["run", "start-server"], {
+                // Handle Windows npm execution properly
+                const isWindows = process.platform === "win32";
+                const npmCommand = isWindows ? "npm.cmd" : "npm";
+                runningProcess = spawn(npmCommand, ["run", "start-server"], {
                   stdio: "inherit",
+                  shell: isWindows,
                 });
               });
             },
