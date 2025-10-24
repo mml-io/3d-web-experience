@@ -1,32 +1,22 @@
 import { EulXYZ } from "./EulXYZ";
 import { Matr4, Matr4Data } from "./Matr4";
-import { Quat } from "./Quat";
+import { IQuat, Quat } from "./Quat";
 
 export type IVect3 = { x: number; y: number; z: number };
 
 const tempQuaternion = new Quat();
 
 export class Vect3 {
-  public x: number;
-  public y: number;
-  public z: number;
-
-  constructor(x?: number | IVect3, y?: number, z?: number) {
-    if (x && typeof x === "object") {
-      this.x = x.x;
-      this.y = x.y;
-      this.z = x.z;
-      return;
-    }
-    this.x = x || 0;
-    this.y = y || 0;
-    this.z = z || 0;
-  }
+  constructor(
+    public x: number = 0,
+    public y: number = 0,
+    public z: number = 0,
+  ) {}
 
   copy(other: IVect3): this {
-    this.x = other.x || 0;
-    this.y = other.y || 0;
-    this.z = other.z || 0;
+    this.x = other.x;
+    this.y = other.y;
+    this.z = other.z;
     return this;
   }
 
@@ -39,7 +29,7 @@ export class Vect3 {
   }
 
   clone(): Vect3 {
-    return new Vect3(this);
+    return new Vect3(this.x, this.y, this.z);
   }
 
   set(x: number, y: number, z: number): this {
@@ -82,20 +72,20 @@ export class Vect3 {
   }
 
   add(other: IVect3) {
-    this.x += other.x || 0;
-    this.y += other.y || 0;
-    this.z += other.z || 0;
+    this.x += other.x;
+    this.y += other.y;
+    this.z += other.z;
     return this;
   }
 
   sub(other: IVect3) {
-    this.x -= other.x || 0;
-    this.y -= other.y || 0;
-    this.z -= other.z || 0;
+    this.x -= other.x;
+    this.y -= other.y;
+    this.z -= other.z;
     return this;
   }
 
-  applyQuat(q: Quat): this {
+  applyQuat(q: IQuat): this {
     const vx = this.x,
       vy = this.y,
       vz = this.z;

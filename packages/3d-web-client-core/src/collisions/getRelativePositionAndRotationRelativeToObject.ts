@@ -18,7 +18,7 @@ export function getRelativePositionAndRotationRelativeToObject(
   const { x: rx, y: ry, z: rz } = positionAndRotation.rotation;
 
   container.updateWorldMatrix(true, false);
-  tempContainerMatrix.set(new Float32Array(container.matrixWorld.elements)).invert();
+  tempContainerMatrix.fromArray(container.matrixWorld.elements).invert();
 
   tempPositionVector.set(x, y, z);
   tempRotationEuler.set(rx, ry, rz);

@@ -4,12 +4,14 @@ import { toArray } from "../helpers/math-helpers";
 import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
 
+const tempQuat = new Quat();
+
 export function encodeCharacterAndCamera(character: Object3D, camera: Object3D): string {
   return [
-    ...toArray(new Vect3(character.position)),
-    ...toArray(new Quat().setFromEulerXYZ(character.rotation)),
-    ...toArray(new Vect3(camera.position)),
-    ...toArray(new Quat().setFromEulerXYZ(camera.rotation)),
+    ...toArray(character.position),
+    ...toArray(tempQuat.setFromEulerXYZ(character.rotation)),
+    ...toArray(camera.position),
+    ...toArray(tempQuat.setFromEulerXYZ(camera.rotation)),
   ].join(",");
 }
 

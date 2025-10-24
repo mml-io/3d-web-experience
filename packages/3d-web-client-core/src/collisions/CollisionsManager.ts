@@ -53,6 +53,9 @@ export class CollisionsManager {
   private tempEulXYZ = new EulXYZ();
   private tempSegment = new Line();
   private tempSegment2 = new Line();
+  private tempCollisionPosition = new Vect3();
+  private tempMinimalNormal = new Vect3();
+  private tempMinimalPoint = new Vect3();
 
   public collisionMeshState: Map<Group, CollisionMeshState> = new Map();
   private collisionTrigger: MMLCollisionTrigger<Group>;
@@ -104,8 +107,8 @@ export class CollisionsManager {
   ): [number, Vect3, CollisionMeshState, Vect3] | null {
     let minimumDistance: number | null = null;
     let minimumHit: CollisionMeshState | null = null;
-    let minimumNormal: Vect3 | null = null;
-    let minimumPoint: Vect3 | null = null;
+    let minimumNormal: Vect3 = this.tempMinimalNormal;
+    let minimumPoint: Vect3 = this.tempMinimalPoint;
     for (const [, collisionMeshState] of this.collisionMeshState) {
       const invertedMatrix = this.tempMatrix.copy(collisionMeshState.matrix).invert();
 
@@ -127,13 +130,7 @@ export class CollisionsManager {
         ) {
           minimumDistance = dist;
           minimumHit = collisionMeshState;
-          if (minimumNormal === null) {
-            minimumNormal = new Vect3();
-          }
-          if (minimumPoint === null) {
-            minimumPoint = new Vect3();
-          }
-          minimumNormal = (hit.normal ? minimumNormal.copy(hit.normal) : minimumNormal)
+          minimumNormal = (hit.normal ? minimumNormal.copy(hit.normal) : minimumNormal.set(0, 1, 0))
             // Apply the rotation of the mesh to the normal
             .applyQuat(this.tempQuat.setFromRotationMatrix(collisionMeshState.matrix))
             .normalize();
@@ -141,12 +138,7 @@ export class CollisionsManager {
         }
       }
     }
-    if (
-      minimumDistance === null ||
-      minimumNormal === null ||
-      minimumHit === null ||
-      minimumPoint === null
-    ) {
+    if (minimumDistance === null || minimumHit === null) {
       return null;
     }
     return [minimumDistance, minimumNormal, minimumHit, minimumPoint];
@@ -246,13 +238,13 @@ export class CollisionsManager {
     const meshState: CollisionMeshState = {
       source: group,
       meshBVH,
-      matrix: new Matr4(group.matrixWorld.elements),
+      matrix: new Matr4().fromArray(group.matrixWorld.elements),
       trackCollisions,
       debugGroup: this.debug
         ? this.createDebugVisuals({
             source: group,
             meshBVH: meshBVH,
-            matrix: new Matr4(group.matrixWorld.elements),
+            matrix: new Matr4().fromArray(group.matrixWorld.elements),
             trackCollisions,
           })
         : undefined,
@@ -275,7 +267,7 @@ export class CollisionsManager {
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
       group.updateWorldMatrix(true, false);
-      meshState.matrix.set(group.matrixWorld.elements);
+      meshState.matrix.fromArray(group.matrixWorld.elements);
       if (meshState.debugGroup) {
         group.matrixWorld.decompose(
           meshState.debugGroup.position,
@@ -356,7 +348,7 @@ export class CollisionsManager {
         // and the triangle
         if (realDistance < capsuleRadius) {
           if (!collisionPosition) {
-            collisionPosition = new Vect3()
+            collisionPosition = this.tempCollisionPosition
               .copy(closestPointOnTriangle)
               .applyMatrix4(meshState.matrix);
             currentCollisionDistance = realDistance;

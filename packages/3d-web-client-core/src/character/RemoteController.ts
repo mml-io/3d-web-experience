@@ -36,7 +36,7 @@ export class RemoteController {
   private updateFromNetwork(clientUpdate: CharacterState, deltaTime: number): void {
     const { position, rotation, state } = clientUpdate;
 
-    const currentPos = new Vect3(this.character.getPosition());
+    const currentPos = new Vect3().copy(this.character.getPosition());
     const targetPos = new Vect3(position.x, position.y, position.z);
 
     const rotationQuaternion = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);

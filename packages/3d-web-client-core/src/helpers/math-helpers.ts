@@ -1,11 +1,11 @@
-import { Quat, Vect3 } from "../math";
+import { IQuat, IVect3, Quat, Vect3 } from "../math";
 
 export const roundToDecimalPlaces = (value: number, decimalPlaces: number): number => {
   const mult = 10 ** decimalPlaces;
   return Math.round(value * mult) / mult;
 };
 
-export const toArray = (origin: Vect3 | Quat, precision: number = 3): number[] => {
+export const toArray = (origin: IVect3 | IQuat, precision: number = 3): number[] => {
   const array = [];
   array[0] = roundToDecimalPlaces(origin.x, precision);
   array[1] = roundToDecimalPlaces(origin.y, precision);

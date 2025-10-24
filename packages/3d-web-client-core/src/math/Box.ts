@@ -1,16 +1,7 @@
 import { Matr4 } from "./Matr4";
 import { IVect3, Vect3 } from "./Vect3";
 
-const tempPoints = [
-  new Vect3(),
-  new Vect3(),
-  new Vect3(),
-  new Vect3(),
-  new Vect3(),
-  new Vect3(),
-  new Vect3(),
-  new Vect3(),
-];
+const tempVect3 = new Vect3();
 
 export class Box {
   public min = new Vect3();
@@ -73,18 +64,17 @@ export class Box {
       return this;
     }
 
-    tempPoints[0].set(this.min.x, this.min.y, this.min.z).applyMatrix4(matr4);
-    tempPoints[1].set(this.min.x, this.min.y, this.max.z).applyMatrix4(matr4);
-    tempPoints[2].set(this.min.x, this.max.y, this.min.z).applyMatrix4(matr4);
-    tempPoints[3].set(this.min.x, this.max.y, this.max.z).applyMatrix4(matr4);
-    tempPoints[4].set(this.max.x, this.min.y, this.min.z).applyMatrix4(matr4);
-    tempPoints[5].set(this.max.x, this.min.y, this.max.z).applyMatrix4(matr4);
-    tempPoints[6].set(this.max.x, this.max.y, this.min.z).applyMatrix4(matr4);
-    tempPoints[7].set(this.max.x, this.max.y, this.max.z).applyMatrix4(matr4);
-
     this.makeEmpty();
-    for (const p of tempPoints) {
-      this.expandByPoint(p);
-    }
+
+    this.expandByPoint(tempVect3.set(this.min.x, this.min.y, this.min.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.min.x, this.min.y, this.max.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.min.x, this.max.y, this.min.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.min.x, this.max.y, this.max.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.max.x, this.min.y, this.min.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.max.x, this.min.y, this.max.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.max.x, this.max.y, this.min.z).applyMatrix4(matr4));
+    this.expandByPoint(tempVect3.set(this.max.x, this.max.y, this.max.z).applyMatrix4(matr4));
+
+    return this;
   }
 }
