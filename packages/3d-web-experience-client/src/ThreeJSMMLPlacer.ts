@@ -1,5 +1,5 @@
 import { Key, KeyInputManager } from "@mml-io/3d-web-client-core";
-import { degToRad, EventHandlerCollection, MElement, PositionAndRotation } from "@mml-io/mml-web";
+import { degToRad, EventHandlerCollection, MElement, PositionAndRotation, RemoteDocument, RemoteDocumentWrapper } from "@mml-io/mml-web";
 import { ThreeJSGraphicsAdapter } from "@mml-io/mml-web-threejs";
 import * as THREE from "three";
 import { Euler } from "three";
@@ -18,7 +18,7 @@ type ThreeJSMMLPlacerConfig = {
     isClick: boolean,
     existingElement: MElement | null,
   ) => void;
-  selectedEditFrame: (mElement: MElement) => void;
+  selectedEditFrame: (mElement: RemoteDocument) => void;
 };
 
 /**
@@ -34,7 +34,7 @@ export class ThreeJSMMLPlacer {
   private latestMousePosition: { x: number; y: number } = { x: 0, y: 0 };
   private latestWorldPositionAndRotation: PositionAndRotation | null = null;
   private editMode: boolean = false;
-  private selectedFrame: MElement | null = null;
+  private selectedFrame: RemoteDocument | null = null;
 
   static init(config: ThreeJSMMLPlacerConfig): ThreeJSMMLPlacer {
     return new ThreeJSMMLPlacer(config);
@@ -77,7 +77,9 @@ export class ThreeJSMMLPlacer {
     ) {
       this.handleMovePlacement(event);
       if (this.editMode && !this.selectedFrame) {
+        console.log("raycasting to get root m frame");
         const editFrame = this.raycastToGetRootMFrame();
+        console.log("editFrame", editFrame);
         if (editFrame) {
           this.selectFrameToEdit(editFrame);
         }
@@ -119,19 +121,7 @@ export class ThreeJSMMLPlacer {
     this.latestMousePosition = { x, y };
   }
 
-  public findRootMFrameFromElement(mElement: MElement): MElement | null {
-    let parent: HTMLElement | null = mElement;
-    let lastFrame: MElement | null = null;
-    while (parent !== null) {
-      if (parent.tagName === "M-FRAME") {
-        lastFrame = parent as MElement;
-      }
-      parent = parent.parentElement;
-    }
-    return lastFrame;
-  }
-
-  public raycastToGetRootMFrame(): MElement | null {
+  public raycastToGetRootMFrame(): RemoteDocument | null {
     const { x, y } = this.latestMousePosition;
     this.raycaster.setFromCamera(new THREE.Vector2(x, y), this.config.camera);
     const intersections = this.raycaster.intersectObject(this.config.rootContainer, true);
@@ -147,8 +137,12 @@ export class ThreeJSMMLPlacer {
           }
 
           const mElement = MElement.getMElementFromObject(obj);
+          console.log("mElement", mElement, "obj", obj);
           if (mElement) {
-            return this.findRootMFrameFromElement(mElement);
+            const remoteDocumentWrapper = mElement.getInitiatedRemoteDocument();
+            if (remoteDocumentWrapper) {
+              return remoteDocumentWrapper;
+            }
           }
           obj = obj.parent;
         }
@@ -231,7 +225,8 @@ export class ThreeJSMMLPlacer {
     return false;
   }
 
-  public selectFrameToEdit(editFrame: MElement<ThreeJSGraphicsAdapter>) {
+  public selectFrameToEdit(editFrame: RemoteDocument) {
+    console.log("selectFrameToEdit", editFrame);
     this.selectedFrame = editFrame;
     const ryAttr = parseFloat(editFrame.getAttribute("ry") || "");
     const cameraY = this.getCameraRotationY();

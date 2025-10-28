@@ -80,7 +80,7 @@ export type MMLDocumentConfiguration = {
   passAuthToken?: boolean;
 };
 
-type MMLDocumentState = {
+export type MMLDocumentState = {
   docRef: unknown;
   loadingProgressManager: LoadingProgressManager;
   config: MMLDocumentConfiguration;
@@ -185,13 +185,11 @@ export class Networked3dWebExperienceClient {
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
   private groundPlane: GroundPlane | null = null;
-<<<<<<< HEAD
   private respawnButton: HTMLDivElement | null = null;
 
   private currentRequestAnimationFrame: number | null = null;
-=======
   private iframeBody: HTMLElement;
->>>>>>> 55a5793b (Semi-working ghost mode)
+  private iframeWindow: Window;
 
   constructor(
     private holderElement: HTMLElement,
@@ -756,10 +754,10 @@ export class Networked3dWebExperienceClient {
   public dispose() {
     this.characterManager.dispose();
     this.networkClient.stop();
-    for (const mmlDocumentState of Object.values(this.mmlDocumentStates)) {
-      mmlDocumentState.dispose();
+    for (const [key, value] of Object.entries(this.mmlDocumentStates)) {
+      value.dispose();
+      delete this.mmlDocumentStates[key];
     }
-    this.mmlDocumentStates = {};
     this.textChatUI?.dispose();
     this.mmlCompositionScene.dispose();
     this.mmlEditingMode.dispose();
@@ -778,6 +776,7 @@ export class Networked3dWebExperienceClient {
     IframeWrapper.create().then((iframeWrapperResult) => {
       const { iframeWindow, iframeBody } = iframeWrapperResult;
       this.iframeBody = iframeBody;
+      this.iframeWindow = iframeWindow;
 
       registerCustomElementsToWindow(iframeWindow);
 
@@ -802,9 +801,21 @@ export class Networked3dWebExperienceClient {
         keyInputManager: this.keyInputManager,
         iframeBody: iframeBody,
         iframeWindow: iframeWindow,
+        mmlDocumentStates: this.mmlDocumentStates,
         graphicsAdapter: this.mmlCompositionScene.graphicsAdapter,
         camera: this.cameraManager.camera,
         collisionsManager: this.collisionsManager,
+        onRemove: (docState: MMLDocumentState) => {
+          console.log("onRemove", docState);
+          for (const [key, value] of Object.entries(this.mmlDocumentStates)) {
+            console.log("key", key, "value", value);
+            if (value === docState) {
+              delete this.mmlDocumentStates[key];
+              break;
+            }
+          }
+          docState.dispose();
+        },
         onMove: (existingFrame: HTMLElement, mmlDocument: PositionAndRotation) => {
           console.log("Root.onMove", { existingFrame, mmlDocument });
           return new Promise((resolve) => {
@@ -822,8 +833,7 @@ export class Networked3dWebExperienceClient {
             console.log({ mmlDocument });
             const existingSet = new Map(mmlProgressManager.loadingDocuments);
             let newDoc;
-            const frame = this.createFrame(mmlDocument);
-            this.iframeBody.appendChild(frame);
+            this.mmlDocumentStates[Math.random().toString()] = this.createMMLDocument(mmlDocument);
             const newSet = new Map(mmlProgressManager.loadingDocuments);
             for (const [key, value] of newSet) {
               if (!existingSet.has(key)) {
@@ -872,8 +882,8 @@ export class Networked3dWebExperienceClient {
       statusUpdated: (status: NetworkedDOMWebsocketStatus) => {
         // no-op
       },
-      windowTarget: window,
-      targetForWrappers: document.body,
+      windowTarget: this.iframeWindow,
+      targetForWrappers: this.iframeBody,
     });
 
     this.updateMMLDocumentAttributes(mmlNetworkSource, mmlDocConfig);
@@ -950,9 +960,12 @@ export class Networked3dWebExperienceClient {
         newMMLDocuments[key] = existing;
       }
     }
-    for (const element of Object.values(this.mmlDocumentStates)) {
+    for (const [key, element] of Object.entries(this.mmlDocumentStates)) {
       element.dispose();
+      delete this.mmlDocumentStates[key];
     }
-    this.mmlDocumentStates = newMMLDocuments;
+    for (const [key, value] of Object.entries(newMMLDocuments)) {
+      this.mmlDocumentStates[key] = value;
+    }
   }
 }

@@ -10,12 +10,13 @@ import {
   PositionAndRotation,
   PromptProps,
   radToDeg,
+  RemoteDocument,
   RemoteDocumentWrapper,
 } from "@mml-io/mml-web";
-import { ThreeJSGraphicsAdapter } from "@mml-io/mml-web-threejs";
+import { ThreeJSGraphicsAdapter, ThreeJSResourceManager } from "@mml-io/mml-web-threejs";
 import { Group, Material, Mesh, Object3D, PerspectiveCamera, Scene } from "three";
 
-import { MMLDocumentConfiguration } from "./Networked3dWebExperienceClient";
+import { MMLDocumentConfiguration, MMLDocumentState } from "./Networked3dWebExperienceClient";
 import { ThreeJSMMLPlacer } from "./ThreeJSMMLPlacer";
 
 type MMLEditingModeConfig = {
@@ -25,15 +26,17 @@ type MMLEditingModeConfig = {
   keyInputManager: KeyInputManager;
   iframeWindow: Window;
   graphicsAdapter: ThreeJSGraphicsAdapter;
+  mmlDocumentStates: { [key: string]: MMLDocumentState };
   onMove: (existingFrame: MElement, mmlDoc: PositionAndRotation) => Promise<void>;
   onCreate: (mmlDoc: MMLDocumentConfiguration) => Promise<void>;
+  onRemove: (docState: MMLDocumentState) => void;
   camera: PerspectiveCamera;
   collisionsManager: CollisionsManager;
 };
 
 export class MMLEditingMode {
   public group: Group;
-  private ghostMMLScene: IMMLScene;
+  private ghostMMLScene: IMMLScene<ThreeJSGraphicsAdapter>;
   private placer: ThreeJSMMLPlacer;
   private controlsPanel: HTMLDivElement;
   private continuousCheckbox: HTMLInputElement;
@@ -94,13 +97,14 @@ export class MMLEditingMode {
 
     const mutationObserver = new MutationObserver(() => {
       this.existingDocumentsPanel.innerHTML = "";
-      for (const child of this.config.iframeBody.children) {
-        const frame = child;
+      for (const [key, child] of Object.entries(this.config.mmlDocumentStates)) {
+        const frame = child.source.remoteDocumentWrapper.remoteDocument;
         if (frame !== this.currentGhost?.remoteDocumentWrapper.remoteDocument) {
           const docRow = document.createElement("div");
           docRow.style.display = "flex";
           const documentButton = document.createElement("button");
-          documentButton.textContent = frame.getAttribute("src") ?? "";
+          console.log("frame", frame);
+          documentButton.textContent = child.config.url;
           documentButton.addEventListener("click", () => {
             this.placer.selectFrameToEdit(frame);
           });
@@ -108,7 +112,7 @@ export class MMLEditingMode {
           const removeButton = document.createElement("button");
           removeButton.textContent = "Remove";
           removeButton.addEventListener("click", () => {
-            frame.remove();
+            this.config.onRemove(child);
           });
           docRow.appendChild(removeButton);
           this.existingDocumentsPanel.appendChild(docRow);
@@ -124,9 +128,26 @@ export class MMLEditingMode {
     const cube = new Group();
     this.group.add(cube);
 
-    const graphicsAdapterProxy: GraphicsAdapter = {
+    const ghostResourceManager = new ThreeJSResourceManager();
+    const graphicsAdapterProxy: ThreeJSGraphicsAdapter = {
+      containerType: null as unknown as Object3D,
+      collisionType: null as unknown as Object3D,
       getGraphicsAdapterFactory: (): MMLGraphicsInterface<ThreeJSGraphicsAdapter> => {
         return this.config.graphicsAdapter.getGraphicsAdapterFactory();
+      },
+      getResourceManager: () => {
+        // TODO - this is a workaround to keep the ghost scene from sharing resources with 
+        // the main scene as the ghost scene modifies the materials of the resources
+        return ghostResourceManager;
+      },
+      getThreeScene: () => {
+        return this.config.scene;
+      },
+      getCamera: () => {
+        return this.config.camera;
+      },
+      getAudioListener: () => {
+        return this.config.graphicsAdapter.getAudioListener();
       },
       getRootContainer: () => {
         return cube;
@@ -144,7 +165,7 @@ export class MMLEditingMode {
 
     this.ghostMMLScene = {
       getGraphicsAdapter: () => {
-        return graphicsAdapterProxy;
+        return graphicsAdapterProxy as any;
       },
       hasGraphicsAdapter(): boolean {
         return true;
@@ -204,11 +225,8 @@ export class MMLEditingMode {
       camera: this.config.camera,
       keyInputManager: this.config.keyInputManager,
       placementGhostRoot: cube,
-      selectedEditFrame: (mElement: MElement) => {
-        const src = mElement.getAttribute("src");
-        if (src) {
-          this.setGhostUrl(src);
-        }
+      selectedEditFrame: (mElement: RemoteDocument) => {
+        this.setGhostUrl(mElement.documentAddress);
       },
       updatePosition: (
         positionAndRotation: PositionAndRotation | null,
