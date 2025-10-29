@@ -182,6 +182,9 @@ export class Networked3dWebExperienceClient {
   private respawnButton: HTMLDivElement | null = null;
 
   private currentRequestAnimationFrame: number | null = null;
+  private lastUpdateTime: number = 0;
+  private readonly targetFPS: number = 60;
+  private readonly frameInterval: number = 1000 / this.targetFPS;
 
   constructor(
     private holderElement: HTMLElement,
@@ -651,30 +654,42 @@ export class Networked3dWebExperienceClient {
   }
 
   public update(): void {
-    this.timeManager.update();
-    this.characterManager.update();
-    this.cameraManager.update();
+    const currentTime = performance.now();
+    const elapsed = currentTime - this.lastUpdateTime;
 
-    // Update audio listener position to character's head while maintaining camera rotation
-    this.updateAudioListenerPosition();
+    if (elapsed >= this.frameInterval) {
+      this.lastUpdateTime = currentTime - (elapsed % this.frameInterval);
 
-    const characterPosition = this.characterManager.localCharacter?.getPosition();
-    this.composer.sun?.updateCharacterPosition(
-      new Vector3(characterPosition?.x || 0, characterPosition?.y || 0, characterPosition?.z || 0),
-    );
-    this.composer.render(this.timeManager);
-    if (this.tweakPane?.guiVisible) {
-      this.tweakPane.updateStats(this.timeManager);
-      this.tweakPane.updateCameraData(this.cameraManager);
-      if (this.characterManager.localCharacter && this.characterManager.localController) {
-        if (!this.characterControllerPaneSet) {
-          this.characterControllerPaneSet = true;
-          this.characterManager.setupTweakPane(this.tweakPane);
-        } else {
-          this.tweakPane.updateCharacterData(this.characterManager.localController);
+      this.timeManager.update();
+      this.characterManager.update();
+      this.cameraManager.update();
+
+      // Update audio listener position to character's head while maintaining camera rotation
+      this.updateAudioListenerPosition();
+
+      const characterPosition = this.characterManager.localCharacter?.getPosition();
+      this.composer.sun?.updateCharacterPosition(
+        new Vector3(
+          characterPosition?.x || 0,
+          characterPosition?.y || 0,
+          characterPosition?.z || 0,
+        ),
+      );
+      this.composer.render(this.timeManager);
+      if (this.tweakPane?.guiVisible) {
+        this.tweakPane.updateStats(this.timeManager);
+        this.tweakPane.updateCameraData(this.cameraManager);
+        if (this.characterManager.localCharacter && this.characterManager.localController) {
+          if (!this.characterControllerPaneSet) {
+            this.characterControllerPaneSet = true;
+            this.characterManager.setupTweakPane(this.tweakPane);
+          } else {
+            this.tweakPane.updateCharacterData(this.characterManager.localController);
+          }
         }
       }
     }
+
     this.currentRequestAnimationFrame = requestAnimationFrame(() => {
       this.update();
     });
