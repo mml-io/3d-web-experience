@@ -109,6 +109,7 @@ export class Composer {
   public sun: Sun | null = null;
   public spawnSun: boolean;
   private sky: Sky | null = null;
+  private skyDirty = true;
   private skyCubeCamera: CubeCamera | null = null;
   private skyRenderTarget: WebGLCubeRenderTarget | null = null;
 
@@ -313,7 +314,10 @@ export class Composer {
 
     this.renderer.info.reset();
     if (this.sky && this.skyCubeCamera && this.skyRenderTarget) {
-      this.skyCubeCamera?.update(this.renderer, this.sky);
+      if (this.skyDirty) {
+        this.skyDirty = false;
+        this.skyCubeCamera?.update(this.renderer, this.sky);
+      }
       this.scene.environment = this.skyRenderTarget.texture;
     }
     if (this.postProcessingManager.isGloballyEnabled) {
@@ -495,6 +499,7 @@ export class Composer {
     this.sky.material.uniforms.rayleigh.value = sunValues.skyRayleigh;
     this.sky.material.uniforms.mieCoefficient.value = sunValues.skyMieCoefficient;
     this.sky.material.uniforms.mieDirectionalG.value = sunValues.skyMieDirectionalG;
+    this.skyDirty = true;
   }
 
   public updateSunValues() {
@@ -525,24 +530,50 @@ export class Composer {
     this.targetPolarAngle = MathUtils.degToRad(sunValues.sunPosition.sunPolarAngle);
     this.targetIntensity = sunValues.sunIntensity;
 
+    let hasDiff = false;
+
     // Lerp towards target angles and intensity
+    if (this.currentAzimuthalAngle !== this.targetAzimuthalAngle) {
+      hasDiff = true;
+    }
     this.currentAzimuthalAngle = this.lerpAngle(
       this.currentAzimuthalAngle,
       this.targetAzimuthalAngle,
       this.lerpSpeed,
     );
+    if (Math.abs(this.currentAzimuthalAngle - this.targetAzimuthalAngle) < 0.001) {
+      this.currentAzimuthalAngle = this.targetAzimuthalAngle;
+    }
+
+    if (this.currentPolarAngle !== this.targetPolarAngle) {
+      hasDiff = true;
+    }
     this.currentPolarAngle = this.lerpAngle(
       this.currentPolarAngle,
       this.targetPolarAngle,
       this.lerpSpeed,
     );
-    this.currentIntensity = this.lerp(this.currentIntensity, this.targetIntensity, this.lerpSpeed);
+    if (Math.abs(this.currentPolarAngle - this.targetPolarAngle) < 0.001) {
+      this.currentPolarAngle = this.targetPolarAngle;
+    }
 
+    if (this.currentIntensity !== this.targetIntensity) {
+      hasDiff = true;
+    }
+    this.currentIntensity = this.lerp(this.currentIntensity, this.targetIntensity, this.lerpSpeed);
+    if (Math.abs(this.currentIntensity - this.targetIntensity) < 0.001) {
+      this.currentIntensity = this.targetIntensity;
+    }
+
+    this.sun.setColor();
+
+    if (!hasDiff) {
+      return; // No changes, skip update
+    }
     // Update sun with lerped values
     this.sun.setAzimuthalAngle(this.currentAzimuthalAngle);
     this.sun.setPolarAngle(this.currentPolarAngle);
     this.sun.setIntensity(this.currentIntensity);
-    this.sun.setColor();
 
     // Update sky shader with lerped angles
     if (this.sky) {
@@ -586,6 +617,7 @@ export class Composer {
     this.sky.material.uniforms.rayleigh.value = sunValues.skyRayleigh;
     this.sky.material.uniforms.mieCoefficient.value = sunValues.skyMieCoefficient;
     this.sky.material.uniforms.mieDirectionalG.value = sunValues.skyMieDirectionalG;
+    this.skyDirty = true;
   }
 
   private updateFogValues() {
