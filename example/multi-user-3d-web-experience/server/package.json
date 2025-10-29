@@ -1,7 +1,7 @@
 {
   "name": "@example/multi-user-3d-web-experience-server",
   "private": true,
-  "version": "0.24.2",
+  "version": "0.25.0",
   "engines": {
     "node": "20.x"
   },
@@ -18,8 +18,8 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-server": "^0.24.2",
-    "@mml-io/3d-web-user-networking": "^0.24.2",
+    "@mml-io/3d-web-experience-server": "^0.25.0",
+    "@mml-io/3d-web-user-networking": "^0.25.0",
     "express": "4.21.2",
     "express-ws": "5.0.2"
   },

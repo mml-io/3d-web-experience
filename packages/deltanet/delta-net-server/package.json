@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/delta-net-server",
-  "version": "0.24.2",
+  "version": "0.25.0",
   "publishConfig": {
     "access": "public"
   },
@@ -19,7 +19,7 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/delta-net-protocol": "^0.24.2",
+    "@mml-io/delta-net-protocol": "^0.25.0",
     "pako": "2.1.0"
   },
   "devDependencies": {
