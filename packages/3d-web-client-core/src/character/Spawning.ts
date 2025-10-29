@@ -35,7 +35,7 @@ export function getSpawnData(
     const urlParams = decodeCharacterAndCamera(window.location.hash.substring(1));
     spawnPosition.copy(urlParams.character.position);
     spawnRotation.setFromQuaternion(urlParams.character.quaternion);
-    cameraPosition = new Vect3(urlParams.camera.position);
+    cameraPosition = new Vect3().copy(urlParams.camera.position);
   }
 
   return {

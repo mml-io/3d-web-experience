@@ -3,6 +3,8 @@ import { clamp } from "../helpers/math-helpers";
 
 import { Matr4 } from "./Matr4";
 
+export type IQuat = { x: number; y: number; z: number; w: number };
+
 export class Quat {
   public x: number;
   public y: number;

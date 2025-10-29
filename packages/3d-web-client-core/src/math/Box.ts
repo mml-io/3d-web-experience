@@ -83,8 +83,11 @@ export class Box {
     tempPoints[7].set(this.max.x, this.max.y, this.max.z).applyMatrix4(matr4);
 
     this.makeEmpty();
+
     for (const p of tempPoints) {
       this.expandByPoint(p);
     }
+
+    return this;
   }
 }

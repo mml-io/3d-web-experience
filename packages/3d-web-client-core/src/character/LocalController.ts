@@ -1,3 +1,5 @@
+import { Vector3 } from "three";
+
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsManager";
 import { KeyInputManager } from "../input/KeyInputManager";
@@ -87,6 +89,7 @@ export class LocalController {
   private surfaceTempVector4 = new Vect3();
   private surfaceTempVector5 = new Vect3();
   private surfaceTempRay = new Ray();
+  private lastMatrixTemp: Matr4 = new Matr4();
   private lastFrameSurfaceState:
     | [
         CollisionMeshState,
@@ -176,12 +179,7 @@ export class LocalController {
     this.controlState =
       this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
 
-    const position = new Vect3(
-      this.config.character.position.x,
-      this.config.character.position.y,
-      this.config.character.position.z,
-    );
-    this.tempRay.set(position, this.vectorDown);
+    this.tempRay.set(this.config.character.position, this.vectorDown);
     const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.tempRay);
     if (firstRaycastHit !== null) {
       this.currentHeight = firstRaycastHit[0];
@@ -377,10 +375,10 @@ export class LocalController {
     acceleration.add(controlAcceleration);
     this.characterVelocity.addScaledVector(acceleration, stepDeltaTime);
 
-    const currentPosition = this.config.character.position;
-    const newPosition = new Vect3(currentPosition.x, currentPosition.y, currentPosition.z);
-    newPosition.addScaledVector(this.characterVelocity, stepDeltaTime);
-    this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
+    this.config.character.position.addScaledVector(
+      this.characterVelocity as unknown as Vector3,
+      stepDeltaTime,
+    );
   }
 
   private updatePosition(deltaTime: number, stepDeltaTime: number, iter: number): void {
@@ -545,7 +543,7 @@ export class LocalController {
       const currentCollisionMeshState = hit[2];
       this.lastFrameSurfaceState = [
         currentCollisionMeshState,
-        { lastMatrix: currentCollisionMeshState.matrix.clone() },
+        { lastMatrix: this.lastMatrixTemp.copy(currentCollisionMeshState.matrix) },
       ];
     } else {
       if (this.lastFrameSurfaceState !== null && lastMovement) {

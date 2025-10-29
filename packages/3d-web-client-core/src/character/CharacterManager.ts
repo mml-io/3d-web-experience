@@ -118,6 +118,8 @@ export class CharacterManager {
   private readonly LOD_CHANGE_COOLDOWN_MS = 2000;
   private readonly MAX_SCENE_ADDITIONS_PER_FRAME = 3;
 
+  private tempCameraTarget = new Vect3();
+
   private pendingSpawns = new Set<number>();
   // Track characters that are loading to keep instances visible
   private loadingCharacters = new Set<number>();
@@ -605,17 +607,10 @@ export class CharacterManager {
         this.config.sendUpdate(this.localController.networkState);
       }
 
-      const targetOffset = new Vect3();
-      targetOffset
+      const targetOffset = this.tempCameraTarget
+        .set(0, 0, 0)
         .add(CharacterManager.headTargetOffset)
-        .applyQuat(
-          new Quat(
-            this.localCharacter.quaternion.x,
-            this.localCharacter.quaternion.y,
-            this.localCharacter.quaternion.z,
-            this.localCharacter.quaternion.w,
-          ),
-        )
+        .applyQuat(this.localCharacter.quaternion)
         .add(this.localCharacter.position);
       this.config.cameraManager.setTarget(targetOffset);
 

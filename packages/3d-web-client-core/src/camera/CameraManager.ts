@@ -59,6 +59,8 @@ export class CameraManager {
   private lerpFactor: number = 0;
   private lerpDuration: number = 2.1;
 
+  private tempMatr4: Matr4 = new Matr4();
+
   private activePointers = new Map<number, { x: number; y: number }>();
 
   constructor(
@@ -249,13 +251,13 @@ export class CameraManager {
 
   public adjustCameraPosition(): void {
     const offsetDistance = 0.5;
-    const offset = new Vect3(0, 0, offsetDistance);
-    const matr4 = new Matr4().setRotationFromQuaternion(this.camera.quaternion);
+    const offset = this.tempVec3.set(0, 0, offsetDistance);
+    const matr4 = this.tempMatr4.setRotationFromQuaternion(this.camera.quaternion);
     offset.applyMatrix4(matr4);
-    const rayOrigin = this.tempVec3.copy(this.camera.position).add(offset);
-    const rayDirection = rayOrigin.sub(this.target.clone()).normalize();
+    const rayOrigin = offset.add(this.camera.position);
+    const rayDirection = rayOrigin.sub(this.target).normalize();
 
-    this.cameraRay.set(this.target.clone(), rayDirection);
+    this.cameraRay.set(this.target, rayDirection);
     const firstRaycastHit = this.collisionsManager.raycastFirst(this.cameraRay);
     if (firstRaycastHit !== null && firstRaycastHit[0] <= this.desiredDistance) {
       const distanceToCollision = firstRaycastHit[0] - 0.1;
