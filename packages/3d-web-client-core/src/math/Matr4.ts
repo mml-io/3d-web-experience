@@ -29,17 +29,70 @@ export class Matr4 {
   static tempVect3 = new Vect3();
   static tempQuat = new Quat();
 
-  public data: Matr4Data;
+  public data: Matr4Data = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 
-  constructor(data?: Matr4Data | Matr4 | Float32Array | Array<number>) {
-    if (data instanceof Matr4) {
-      this.data = [...data.data];
-    } else if (data instanceof Array) {
-      this.data = [...data] as Matr4Data;
-    } else if (data instanceof Float32Array) {
-      this.data = [...data] as Matr4Data;
-    } else {
-      this.data = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+  constructor();
+  constructor(
+    n11: number,
+    n12: number,
+    n13: number,
+    n14: number,
+    n21: number,
+    n22: number,
+    n23: number,
+    n24: number,
+    n31: number,
+    n32: number,
+    n33: number,
+    n34: number,
+    n41: number,
+    n42: number,
+    n43: number,
+    n44: number,
+  );
+  constructor(
+    ...args:
+      | []
+      | [
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+        ]
+  ) {
+    if (args.length > 0) {
+      this.set(
+        ...(args as [
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+        ]),
+      );
     }
   }
 
@@ -49,18 +102,105 @@ export class Matr4 {
   }
 
   copy(m: Matr4): Matr4 {
-    this.data = [...m.data];
+    const te = this.data;
+    const me = m.data;
+
+    te[0] = me[0];
+    te[1] = me[1];
+    te[2] = me[2];
+    te[3] = me[3];
+    te[4] = me[4];
+    te[5] = me[5];
+    te[6] = me[6];
+    te[7] = me[7];
+    te[8] = me[8];
+    te[9] = me[9];
+    te[10] = me[10];
+    te[11] = me[11];
+    te[12] = me[12];
+    te[13] = me[13];
+    te[14] = me[14];
+    te[15] = me[15];
+
     return this;
   }
 
-  set(...args: Matr4Data | [Float32Array] | [Matr4Data] | [Array<number>]): this {
-    if (args[0] instanceof Array) {
-      this.data = args[0] as Matr4Data;
-    } else if (args[0] instanceof Float32Array) {
-      this.data = [...args[0]] as Matr4Data;
-    } else {
-      this.data = args as Matr4Data;
-    }
+  fromArray(
+    data: [
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+    ],
+  ): this {
+    this.data[0] = data[0];
+    this.data[1] = data[1];
+    this.data[2] = data[2];
+    this.data[3] = data[3];
+    this.data[4] = data[4];
+    this.data[5] = data[5];
+    this.data[6] = data[6];
+    this.data[7] = data[7];
+    this.data[8] = data[8];
+    this.data[9] = data[9];
+    this.data[10] = data[10];
+    this.data[11] = data[11];
+    this.data[12] = data[12];
+    this.data[13] = data[13];
+    this.data[14] = data[14];
+    this.data[15] = data[15];
+    return this;
+  }
+
+  set(
+    n11: number,
+    n12: number,
+    n13: number,
+    n14: number,
+    n21: number,
+    n22: number,
+    n23: number,
+    n24: number,
+    n31: number,
+    n32: number,
+    n33: number,
+    n34: number,
+    n41: number,
+    n42: number,
+    n43: number,
+    n44: number,
+  ): this {
+    const te = this.data;
+
+    te[0] = n11;
+    te[4] = n12;
+    te[8] = n13;
+    te[12] = n14;
+    te[1] = n21;
+    te[5] = n22;
+    te[9] = n23;
+    te[13] = n24;
+    te[2] = n31;
+    te[6] = n32;
+    te[10] = n33;
+    te[14] = n34;
+    te[3] = n41;
+    te[7] = n42;
+    te[11] = n43;
+    te[15] = n44;
+
     return this;
   }
 
@@ -69,7 +209,7 @@ export class Matr4 {
   }
 
   clone(): Matr4 {
-    return new Matr4(this.data);
+    return new Matr4().copy(this);
   }
 
   determinant(): number {
