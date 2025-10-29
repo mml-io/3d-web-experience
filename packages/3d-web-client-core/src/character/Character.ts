@@ -59,7 +59,7 @@ export type CharacterConfig = {
 };
 
 function characterHeightToTooltipHeightOffset(characterHeight: number): number {
-  return characterHeight - 0.4 + 0.1;
+  return characterHeight + 0.15;
 }
 
 function characterDescriptionMatches(

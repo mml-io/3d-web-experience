@@ -213,9 +213,7 @@ export class CharacterInstances {
 
       if (!instance.isActive) {
         instance.position.copy(position);
-        instance.position.y -= 0.45;
         instance.targetPosition.copy(instance.position);
-        instance.targetPosition.y -= 0.45;
         instance.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
         instance.isActive = true;
         instance.isShadowed = false;
@@ -269,9 +267,7 @@ export class CharacterInstances {
         if (isFirstNewInstance) {
           isFirstNewInstance = false;
           obj.position.copy(position);
-          obj.position.y -= 0.45;
           obj.targetPosition.copy(obj.position);
-          obj.targetPosition.y -= 0.45;
           obj.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
           obj.isActive = true;
           obj.visible = true;
@@ -389,12 +385,10 @@ export class CharacterInstances {
     // snap to the new position
     if (squaredDistanceFromCurrentPosition > 5 * 5) {
       instance.position.copy(position);
-      instance.position.y -= 0.45;
       instance.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
     }
 
     instance.targetPosition.copy(position);
-    instance.targetPosition.y -= 0.45;
     instance.targetQuaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
     instance.hasNewTarget = true;
     instance.lerpSpeed = 15.0;
@@ -886,7 +880,6 @@ export class CharacterInstances {
     }
 
     instance.position.copy(position);
-    instance.position.y -= 0.45;
     instance.quaternion.setFromEuler(new Euler(rotation.x, rotation.y, rotation.z));
     instance.targetPosition.copy(instance.position); // Set target to current to prevent lerping
     instance.targetQuaternion.copy(instance.quaternion);

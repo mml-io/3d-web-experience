@@ -149,7 +149,7 @@ export class CharacterModel {
 
     if (mainMesh) {
       this.mesh = mainMesh;
-      this.mesh.position.set(0, -0.44, 0);
+      this.mesh.position.set(0, -0.01, 0);
       this.mesh.traverse((child: Object3D) => {
         if (child.type === "SkinnedMesh") {
           child.castShadow = true;

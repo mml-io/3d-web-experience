@@ -180,6 +180,7 @@ export class LocalController {
       this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
 
     this.tempRay.set(this.config.character.position, this.vectorDown);
+    this.tempRay.origin.y += this.capsuleInfo.radius;
     const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.tempRay);
     if (firstRaycastHit !== null) {
       this.currentHeight = firstRaycastHit[0];
@@ -209,12 +210,12 @@ export class LocalController {
 
     // bounds check
     const outOfBounds =
-      this.config.character.getPosition().x < this.minimumX || // left
-      this.config.character.getPosition().x > this.maximumX || // right
-      this.config.character.getPosition().z < this.minimumZ || // back
-      this.config.character.getPosition().z > this.maximumZ || // front
-      this.config.character.getPosition().y < this.minimumY || // down
-      this.config.character.getPosition().y > this.maximumY; //   up
+      this.config.character.position.x < this.minimumX || // left
+      this.config.character.position.x > this.maximumX || // right
+      this.config.character.position.z < this.minimumZ || // back
+      this.config.character.position.z > this.maximumZ || // front
+      this.config.character.position.y < this.minimumY || // down
+      this.config.character.position.y > this.maximumY; //   up
 
     if (outOfBounds) {
       this.resetPosition();
@@ -406,7 +407,9 @@ export class LocalController {
     const avatarSegment = this.tempSegment;
     avatarSegment.copy(this.capsuleInfo.segment!);
     avatarSegment.start.add(this.config.character.position);
+    avatarSegment.start.y += this.capsuleInfo.radius;
     avatarSegment.end.add(this.config.character.position);
+    avatarSegment.end.y += this.capsuleInfo.radius;
 
     const positionBeforeCollisions = this.tempVector.copy(avatarSegment.start);
     this.config.collisionsManager.applyColliders(avatarSegment, this.capsuleInfo.radius!);
@@ -439,7 +442,7 @@ export class LocalController {
 
     this.config.character.position.set(
       avatarSegment.start.x,
-      avatarSegment.start.y,
+      avatarSegment.start.y - this.capsuleInfo.radius,
       avatarSegment.start.z,
     );
     const deltaCollisionPosition = avatarSegment.start.sub(positionBeforeCollisions);

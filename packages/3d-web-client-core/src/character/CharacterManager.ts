@@ -101,7 +101,7 @@ type CharacterReadyForScene = {
 };
 
 export class CharacterManager {
-  public static readonly headTargetOffset = new Vect3(0, 1.3, 0);
+  public static readonly headTargetOffset = new Vect3(0, 1.75, 0);
 
   private localClientId: number = 0;
 
