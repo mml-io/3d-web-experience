@@ -14,7 +14,7 @@ const webWorldConfig: BotRunnerConfig = {
   serverUrl: "ws://localhost:8080/network",
   updateInterval: 50,
   randomRange: 4096,
-  yValue: 45,
+  yValue: 0,
   logStatusInterval: 5000,
   usernameStateId: 2,
   characterDescriptionStateId: 1,
