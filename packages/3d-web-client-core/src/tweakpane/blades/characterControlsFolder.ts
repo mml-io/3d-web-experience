@@ -3,21 +3,37 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 import { LocalController } from "../../character/LocalController";
 
-export const characterControllerValues = {
-  gravity: 37,
-  jumpForce: 17,
-  doubleJumpForce: 16.7,
-  coyoteJump: 120,
-  airResistance: 0.5,
-  groundResistance: 0,
-  airControlModifier: 0.05,
-  groundWalkControl: 0.625,
-  groundRunControl: 0.8,
-  baseControlMultiplier: 200,
-  minimumSurfaceAngle: 0.905,
+export type CharacterControllerValues = {
+  gravity: number;
+  jumpForce: number;
+  doubleJumpForce: number;
+  coyoteJump: number;
+  airResistance: number;
+  groundResistance: number;
+  airControlModifier: number;
+  groundWalkControl: number;
+  groundRunControl: number;
+  baseControlMultiplier: number;
+  minimumSurfaceAngle: number;
 };
 
-export const characterControllerOptions = {
+export function createDefaultCharacterControllerValues(): CharacterControllerValues {
+  return {
+    gravity: 37,
+    jumpForce: 17,
+    doubleJumpForce: 16.7,
+    coyoteJump: 120,
+    airResistance: 0.5,
+    groundResistance: 0,
+    airControlModifier: 0.05,
+    groundWalkControl: 0.625,
+    groundRunControl: 0.8,
+    baseControlMultiplier: 200,
+    minimumSurfaceAngle: 0.905,
+  };
+}
+
+const characterControllerOptions = {
   gravity: { min: 1, max: 100, step: 0.05 },
   jumpForce: { min: 1, max: 50, step: 0.05 },
   doubleJumpForce: { min: 1, max: 50, step: 0.05 },
@@ -54,7 +70,11 @@ export class CharacterControlsFolder {
     coyoteJumped: "false",
   };
 
-  constructor(parentFolder: FolderApi, expand: boolean = false) {
+  constructor(
+    parentFolder: FolderApi,
+    private controllerValues: CharacterControllerValues,
+    expand: boolean = false,
+  ) {
     this.folder = parentFolder.addFolder({ title: "character", expanded: expand });
     this.folder.addBinding(this.characterData, "position", { readonly: true });
     this.folder.addBinding(this.characterData, "onGround", { readonly: true });
@@ -63,58 +83,54 @@ export class CharacterControlsFolder {
     this.folder.addBinding(this.characterData, "jumpCount", { readonly: true });
     this.folder.addBinding(this.characterData, "coyoteTime", { readonly: true });
     this.folder.addBinding(this.characterData, "coyoteJumped", { readonly: true });
+    this.folder.addBinding(this.controllerValues, "gravity", characterControllerOptions.gravity);
     this.folder.addBinding(
-      characterControllerValues,
-      "gravity",
-      characterControllerOptions.gravity,
-    );
-    this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "jumpForce",
       characterControllerOptions.jumpForce,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "doubleJumpForce",
       characterControllerOptions.doubleJumpForce,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "coyoteJump",
       characterControllerOptions.coyoteJump,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "airResistance",
       characterControllerOptions.airResistance,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "groundResistance",
       characterControllerOptions.groundResistance,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "airControlModifier",
       characterControllerOptions.airControlModifier,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "groundWalkControl",
       characterControllerOptions.groundWalkControl,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "groundRunControl",
       characterControllerOptions.groundRunControl,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "baseControlMultiplier",
       characterControllerOptions.baseControlMultiplier,
     );
     this.folder.addBinding(
-      characterControllerValues,
+      this.controllerValues,
       "minimumSurfaceAngle",
       characterControllerOptions.minimumSurfaceAngle,
     );

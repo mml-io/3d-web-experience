@@ -1,35 +1,35 @@
-import { PerspectiveCamera, Vector3 } from "three";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { remap } from "../helpers/math-helpers";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
-import { Matr4, Ray, Vect3 } from "../math";
-import { camValues } from "../tweakpane/blades/cameraFolder";
-import { TweakPane } from "../tweakpane/TweakPane";
+import { Matr4, Quat, Ray, Vect3 } from "../math";
 import { getTweakpaneActive } from "../tweakpane/tweakPaneActivity";
+
+export type CameraState = {
+  position: Vect3;
+  rotation: Quat;
+  fov: number;
+  aspect: number;
+};
 
 const cameraPanSensitivity = 20;
 const scrollZoomSensitivity = 0.1;
 const pinchZoomSensitivity = 0.025;
 
 export class CameraManager {
-  public readonly camera: PerspectiveCamera;
-  private flyCamera: PerspectiveCamera;
-  private orbitControls: OrbitControls;
   private isMainCameraActive: boolean = true;
 
-  public initialDistance: number = camValues.initialDistance;
-  public minDistance: number = camValues.minDistance;
-  public maxDistance: number = camValues.maxDistance;
-  public damping: number = camValues.damping;
-  public zoomScale: number = camValues.zoomScale;
-  public zoomDamping: number = camValues.zoomDamping;
+  public initialDistance = 3.3;
+  public minDistance = 0.1;
+  public maxDistance = 5;
+  public damping = 0.21;
+  public zoomScale = 0.04;
+  public zoomDamping = 0.04;
 
-  public initialFOV: number = camValues.initialFOV;
-  public maxFOV: number = camValues.maxFOV;
-  public minFOV: number = camValues.minFOV;
-  public invertFOVMapping: boolean = camValues.invertFOVMapping;
+  public initialFOV = 60;
+  public maxFOV = 70;
+  public minFOV = 60;
+  public invertFOVMapping = false;
+
   public fov: number = this.initialFOV;
   private targetFOV: number = this.initialFOV;
 
@@ -63,6 +63,35 @@ export class CameraManager {
 
   private activePointers = new Map<number, { x: number; y: number }>();
 
+  private cameraState: CameraState;
+  private flyCameraState: CameraState;
+  private aspect: number;
+
+  // Fly camera orbit controls state
+  private flyCameraLookAt: Vect3 = new Vect3(0, 0, 0);
+  private flyCameraYaw: number = 0;
+  private flyCameraPitch: number = Math.PI * 0.4;
+  private flyCameraDistance: number = 15.0;
+  private flyCameraMouseDown: boolean = false;
+  private flyCameraIsPanning: boolean = false;
+  private flyCameraLastMouseX: number = 0;
+  private flyCameraLastMouseY: number = 0;
+  private flyCameraEventHandlerCollection: EventHandlerCollection | null = null;
+
+  // Orbit controls settings
+  private orbitControlsRotateSensitivity: number = 0.002;
+  private orbitControlsPanSensitivity: number = 0.01;
+  private orbitControlsZoomSensitivity: number = 0.1;
+  // Polar angle constraints: 0 = camera above lookAt (looking down), π = camera below lookAt (looking up)
+  // Constrain to prevent going over the top (pitch < 0) but allow pointing above horizon (pitch > π/2)
+  private orbitControlsMinPolarAngle: number = 0.001; // Just above 0 to prevent going over the top
+  private orbitControlsMaxPolarAngle: number = Math.PI - 0.001; // Just below π to allow looking up
+
+  // Temporary vectors for panning calculations
+  private tempPanRight: Vect3 = new Vect3();
+  private tempPanUp: Vect3 = new Vect3();
+  private tempPanForward: Vect3 = new Vect3();
+
   constructor(
     private targetElement: HTMLElement,
     private collisionsManager: CollisionsManager,
@@ -75,22 +104,24 @@ export class CameraManager {
     this.theta = initialTheta;
     this.targetTheta = this.theta;
 
-    const aspect = window.innerWidth / window.innerHeight;
+    this.aspect = window.innerWidth / window.innerHeight;
 
-    this.camera = new PerspectiveCamera(this.fov, aspect, 0.1, 400);
-    this.camera.far = 10000;
-    this.camera.position.set(0, 1.4, -this.initialDistance);
-    this.camera.name = "MainCamera";
-    this.flyCamera = new PerspectiveCamera(this.initialFOV, aspect, 0.1, 400);
-    this.flyCamera.name = "FlyCamera";
-    this.flyCamera.position.copy(this.camera.position);
-    this.flyCamera.name = "FlyCamera";
+    const initialPosition = new Vect3(0, 1.4, -this.initialDistance);
+    const initialRotation = new Quat();
 
-    this.orbitControls = new OrbitControls(this.flyCamera, this.targetElement);
-    this.orbitControls.enableDamping = true;
-    this.orbitControls.dampingFactor = 0.05;
-    this.orbitControls.enablePan = true;
-    this.orbitControls.enabled = false;
+    this.cameraState = {
+      position: initialPosition,
+      rotation: initialRotation,
+      fov: this.fov,
+      aspect: this.aspect,
+    };
+
+    this.flyCameraState = {
+      position: new Vect3().copy(initialPosition),
+      rotation: new Quat().copy(initialRotation),
+      fov: this.initialFOV,
+      aspect: this.aspect,
+    };
 
     this.createEventHandlers();
   }
@@ -111,13 +142,134 @@ export class CameraManager {
     this.eventHandlerCollection.clear();
   }
 
+  private createFlyCameraEventHandlers(): void {
+    this.flyCameraEventHandlerCollection = EventHandlerCollection.create([
+      [window, "blur", this.onFlyCameraBlur.bind(this)],
+      [this.targetElement, "mousedown", this.onFlyCameraMouseDown.bind(this)],
+      [document, "mousemove", this.onFlyCameraMouseMove.bind(this)],
+      [document, "mouseup", this.onFlyCameraMouseUp.bind(this)],
+      [this.targetElement, "wheel", this.onFlyCameraWheel.bind(this)],
+      [this.targetElement, "contextmenu", this.onContextMenu.bind(this)],
+    ]);
+  }
+
+  private disposeFlyCameraEventHandlers(): void {
+    if (this.flyCameraEventHandlerCollection) {
+      this.flyCameraEventHandlerCollection.clear();
+      this.flyCameraEventHandlerCollection = null;
+    }
+  }
+
+  private onFlyCameraBlur(): void {
+    this.flyCameraMouseDown = false;
+    this.flyCameraIsPanning = false;
+  }
+
+  private onFlyCameraMouseDown(event: MouseEvent): void {
+    if (event.button === 0) {
+      // Left mouse button - rotate
+      this.flyCameraMouseDown = true;
+      this.flyCameraIsPanning = false;
+      this.flyCameraLastMouseX = event.clientX;
+      this.flyCameraLastMouseY = event.clientY;
+      document.body.style.cursor = "none";
+      event.preventDefault();
+    } else if (event.button === 1 || event.button === 2) {
+      // Middle or right mouse button - pan
+      this.flyCameraMouseDown = true;
+      this.flyCameraIsPanning = true;
+      this.flyCameraLastMouseX = event.clientX;
+      this.flyCameraLastMouseY = event.clientY;
+      document.body.style.cursor = "move";
+      event.preventDefault();
+    }
+  }
+
+  private onFlyCameraMouseUp(event: MouseEvent): void {
+    this.flyCameraMouseDown = false;
+    this.flyCameraIsPanning = false;
+    document.body.style.cursor = "default";
+  }
+
+  private onFlyCameraMouseMove(event: MouseEvent): void {
+    if (!this.flyCameraMouseDown || getTweakpaneActive()) {
+      return;
+    }
+
+    const movementX =
+      event.movementX !== undefined ? event.movementX : event.clientX - this.flyCameraLastMouseX;
+    const movementY =
+      event.movementY !== undefined ? event.movementY : event.clientY - this.flyCameraLastMouseY;
+
+    if (this.flyCameraIsPanning) {
+      // Pan the lookAt target
+      this.panFlyCameraLookAt(movementX, movementY);
+    } else {
+      // Rotate around lookAt target
+      this.flyCameraYaw -= movementX * this.orbitControlsRotateSensitivity;
+      this.flyCameraPitch -= movementY * this.orbitControlsRotateSensitivity;
+
+      this.flyCameraYaw = this.flyCameraYaw % (Math.PI * 2);
+      this.flyCameraPitch = Math.max(
+        this.orbitControlsMinPolarAngle,
+        Math.min(this.orbitControlsMaxPolarAngle, this.flyCameraPitch),
+      );
+    }
+
+    this.flyCameraLastMouseX = event.clientX;
+    this.flyCameraLastMouseY = event.clientY;
+    event.preventDefault();
+  }
+
+  private panFlyCameraLookAt(deltaX: number, deltaY: number): void {
+    // Calculate camera's forward direction (from camera to lookAt)
+    const sinPhi = Math.sin(this.flyCameraPitch);
+    const cosPhi = Math.cos(this.flyCameraPitch);
+    const sinTheta = Math.sin(this.flyCameraYaw);
+    const cosTheta = Math.cos(this.flyCameraYaw);
+
+    // Forward vector (from camera position towards lookAt)
+    this.tempPanForward.set(-sinPhi * sinTheta, -cosPhi, -sinPhi * cosTheta).normalize();
+
+    // World up vector
+    const worldUp = new Vect3(0, 1, 0);
+
+    // Right vector = forward × worldUp (perpendicular to forward and world up)
+    this.tempPanRight.copy(this.tempPanForward).cross(worldUp).normalize();
+
+    // If forward is parallel to world up, use a different approach
+    if (this.tempPanRight.lengthSquared() < 0.01) {
+      // Camera is looking straight up or down, use yaw-based right vector
+      this.tempPanRight.set(cosTheta, 0, -sinTheta).normalize();
+    }
+
+    // Up vector = right × forward (perpendicular to both)
+    this.tempPanUp.copy(this.tempPanRight).cross(this.tempPanForward).normalize();
+
+    // Pan distance is proportional to camera distance
+    const panDistance = this.flyCameraDistance * this.orbitControlsPanSensitivity;
+
+    // Move lookAt target along camera's right and up vectors
+    // Clone vectors before scaling to avoid mutation
+    const panRight = this.tempPanRight.clone().multiplyScalar(-deltaX * panDistance);
+    const panUp = this.tempPanUp.clone().multiplyScalar(deltaY * panDistance);
+
+    this.flyCameraLookAt.add(panRight);
+    this.flyCameraLookAt.add(panUp);
+  }
+
+  private onFlyCameraWheel(event: WheelEvent): void {
+    if (getTweakpaneActive()) {
+      return;
+    }
+    event.preventDefault();
+    this.flyCameraDistance += event.deltaY * this.orbitControlsZoomSensitivity;
+    this.flyCameraDistance = Math.max(0.01, Math.min(this.flyCameraDistance, 1000));
+  }
+
   private preventDefaultAndStopPropagation(evt: PointerEvent): void {
     evt.preventDefault();
     evt.stopPropagation();
-  }
-
-  public setupTweakPane(tweakPane: TweakPane) {
-    tweakPane.setupCamPane(this);
   }
 
   private onPointerDown(event: PointerEvent): void {
@@ -223,7 +375,7 @@ export class CameraManager {
 
     if (!this.hadTarget) {
       this.hadTarget = true;
-      this.reverseUpdateFromPositions();
+      this.reverseUpdateFromPositions(this.cameraState.position, this.cameraState.rotation);
     }
   }
 
@@ -234,8 +386,7 @@ export class CameraManager {
     this.setTarget(target);
   }
 
-  public reverseUpdateFromPositions(): void {
-    const position = this.camera.position;
+  public reverseUpdateFromPositions(position: Vect3, rotation: Quat): void {
     const dx = position.x - this.target.x;
     const dy = position.y - this.target.y;
     const dz = position.z - this.target.z;
@@ -249,12 +400,12 @@ export class CameraManager {
     this.recomputeFoV(true);
   }
 
-  public adjustCameraPosition(): void {
+  public adjustCameraPosition(position: Vect3, rotation: Quat): void {
     const offsetDistance = 0.5;
     const offset = this.tempVec3.set(0, 0, offsetDistance);
-    const matr4 = this.tempMatr4.setRotationFromQuaternion(this.camera.quaternion);
+    const matr4 = this.tempMatr4.setRotationFromQuaternion(rotation);
     offset.applyMatrix4(matr4);
-    const rayOrigin = offset.add(this.camera.position);
+    const rayOrigin = offset.add(position);
     const rayDirection = rayOrigin.sub(this.target).normalize();
 
     this.cameraRay.set(this.target, rayDirection);
@@ -268,9 +419,53 @@ export class CameraManager {
     }
   }
 
+  private updateFlyCameraOrbitControls(): void {
+    // Convert spherical coordinates to cartesian position
+    const sinPhi = Math.sin(this.flyCameraPitch);
+    const cosPhi = Math.cos(this.flyCameraPitch);
+    const sinTheta = Math.sin(this.flyCameraYaw);
+    const cosTheta = Math.cos(this.flyCameraYaw);
+
+    const x = this.flyCameraLookAt.x + this.flyCameraDistance * sinPhi * sinTheta;
+    const y = this.flyCameraLookAt.y + this.flyCameraDistance * cosPhi;
+    const z = this.flyCameraLookAt.z + this.flyCameraDistance * sinPhi * cosTheta;
+
+    this.flyCameraState.position.set(x, y, z);
+
+    // Calculate rotation to look at target
+    const direction = new Vect3()
+      .copy(this.flyCameraLookAt)
+      .sub(this.flyCameraState.position)
+      .normalize();
+    const up = new Vect3(0, 1, 0);
+    const right = new Vect3().copy(direction).cross(up).normalize();
+    const correctedUp = new Vect3().copy(right).cross(direction).normalize();
+
+    const lookAtMatrix = this.tempMatr4.set(
+      right.x,
+      correctedUp.x,
+      -direction.x,
+      0,
+      right.y,
+      correctedUp.y,
+      -direction.y,
+      0,
+      right.z,
+      correctedUp.z,
+      -direction.z,
+      0,
+      0,
+      0,
+      0,
+      1,
+    );
+
+    this.flyCameraState.rotation.setFromRotationMatrix(lookAtMatrix);
+  }
+
   public dispose() {
     this.disposeEventHandlers();
-    this.orbitControls.dispose();
+    this.disposeFlyCameraEventHandlers();
     document.body.style.cursor = "";
   }
 
@@ -279,8 +474,9 @@ export class CameraManager {
   }
 
   public updateAspect(aspect: number): void {
-    this.camera.aspect = aspect;
-    this.flyCamera.aspect = aspect;
+    this.aspect = aspect;
+    this.cameraState.aspect = aspect;
+    this.flyCameraState.aspect = aspect;
   }
 
   public recomputeFoV(immediately: boolean = false): void {
@@ -297,48 +493,94 @@ export class CameraManager {
   }
 
   public isFlyCameraOn(): boolean {
-    return this.isMainCameraActive === false && this.orbitControls.enabled === true;
+    return this.isMainCameraActive === false;
   }
 
   public toggleFlyCamera(): void {
     this.isMainCameraActive = !this.isMainCameraActive;
-    if (this.isMainCameraActive) {
-      this.orbitControls.enabled = false;
-    } else {
-      this.orbitControls.enabled = true;
-    }
 
     if (!this.isMainCameraActive) {
+      // Entering fly camera mode - initialize from current camera
       this.updateAspect(window.innerWidth / window.innerHeight);
-      this.flyCamera.position.copy(this.camera.position);
-      this.flyCamera.rotation.copy(this.camera.rotation);
-      const target = new Vect3();
-      const direction = this.camera.getWorldDirection(new Vector3());
-      target.set(direction.x, direction.y, direction.z);
-      target.multiplyScalar(this.targetDistance).add(this.camera.position);
-      this.orbitControls.target.copy(target);
-      this.orbitControls.update();
+
+      // Copy current camera state including FOV
+      this.flyCameraState.position.copy(this.cameraState.position);
+      this.flyCameraState.rotation.copy(this.cameraState.rotation);
+      this.flyCameraState.fov = this.cameraState.fov;
+
+      // Use the main camera's target as the lookAt point
+      this.flyCameraLookAt.copy(this.target);
+
+      // Calculate spherical coordinates from current camera position relative to target
+      const toCamera = new Vect3().copy(this.flyCameraState.position).sub(this.flyCameraLookAt);
+      this.flyCameraDistance = toCamera.length();
+      if (this.flyCameraDistance > 0.001) {
+        this.flyCameraPitch = Math.acos(toCamera.y / this.flyCameraDistance);
+        this.flyCameraYaw = Math.atan2(toCamera.x, toCamera.z);
+      } else {
+        // Fallback if camera is at target
+        this.flyCameraDistance = this.distance;
+        this.flyCameraPitch = Math.PI * 0.4;
+        this.flyCameraYaw = 0;
+      }
+
+      // Immediately update fly camera orbit controls to ensure position matches exactly
+      // This prevents any shift when the first update() call recalculates position
+      this.updateFlyCameraOrbitControls();
+
+      // Dispose main camera handlers and create fly camera handlers
       this.disposeEventHandlers();
+      this.createFlyCameraEventHandlers();
     } else {
+      // Exiting fly camera mode
+      this.disposeFlyCameraEventHandlers();
       this.createEventHandlers();
     }
   }
 
-  get activeCamera(): PerspectiveCamera {
-    return this.isMainCameraActive ? this.camera : this.flyCamera;
+  public getCameraState(): CameraState {
+    return this.isMainCameraActive ? this.cameraState : this.flyCameraState;
   }
 
-  public update(): void {
+  public getMainCameraState(): CameraState {
+    return this.cameraState;
+  }
+
+  public getFlyCameraState(): CameraState {
+    return this.flyCameraState;
+  }
+
+  public getCameraPosition(): Vect3 {
+    const state = this.getCameraState();
+    return state.position;
+  }
+
+  public getCameraRotation(): Quat {
+    const state = this.getCameraState();
+    return state.rotation;
+  }
+
+  public getCameraFOV(): number {
+    const state = this.getCameraState();
+    return state.fov;
+  }
+
+  public update(onFlyCameraUpdate?: (state: CameraState) => void): void {
     if (!this.isMainCameraActive) {
-      this.orbitControls.update();
+      // Update fly camera orbit controls
+      this.updateFlyCameraOrbitControls();
+      if (onFlyCameraUpdate) {
+        onFlyCameraUpdate(this.flyCameraState);
+      }
       return;
     }
+
     if (this.isLerping && this.lerpFactor < 1) {
       this.lerpFactor += 0.01 / this.lerpDuration;
       this.lerpFactor = Math.min(1, this.lerpFactor);
       this.target.lerpVectors(this.lerpTarget, this.finalTarget, this.easeOutExpo(this.lerpFactor));
     } else {
-      this.adjustCameraPosition();
+      this.adjustCameraPosition(this.cameraState.position, this.cameraState.rotation);
     }
 
     this.distance += (this.targetDistance - this.distance) * this.zoomDamping;
@@ -352,11 +594,36 @@ export class CameraManager {
 
     this.recomputeFoV();
     this.fov += (this.targetFOV - this.fov) * this.zoomDamping;
-    this.camera.fov = this.fov;
-    this.camera.updateProjectionMatrix();
 
-    this.camera.position.set(x, y, z);
-    this.camera.lookAt(new Vector3(this.target.x, this.target.y, this.target.z));
+    this.cameraState.position.set(x, y, z);
+    this.cameraState.fov = this.fov;
+
+    const lookAtTarget = new Vect3(this.target.x, this.target.y, this.target.z);
+    const direction = new Vect3().copy(lookAtTarget).sub(this.cameraState.position).normalize();
+    const up = new Vect3(0, 1, 0);
+    const right = new Vect3().copy(direction).cross(up).normalize();
+    const correctedUp = new Vect3().copy(right).cross(direction).normalize();
+
+    const lookAtMatrix = this.tempMatr4.set(
+      right.x,
+      correctedUp.x,
+      -direction.x,
+      0,
+      right.y,
+      correctedUp.y,
+      -direction.y,
+      0,
+      right.z,
+      correctedUp.z,
+      -direction.z,
+      0,
+      0,
+      0,
+      0,
+      1,
+    );
+
+    this.cameraState.rotation.setFromRotationMatrix(lookAtMatrix);
 
     if (this.isLerping && this.lerpFactor >= 1) {
       this.isLerping = false;

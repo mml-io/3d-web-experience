@@ -1,6 +1,6 @@
 // Largely based on https://github.com/mrdoob/three.js/blob/master/src/math/Matrix4.js
 import { Quat } from "./Quat";
-import { Vect3 } from "./Vect3";
+import { IVect3, Vect3 } from "./Vect3";
 
 const Vect3Zeroes = { x: 0, y: 0, z: 0 };
 const Vect3Ones = { x: 1, y: 1, z: 1 };
@@ -126,24 +126,26 @@ export class Matr4 {
   }
 
   fromArray(
-    data: [
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-    ],
+    data:
+      | [
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+          number,
+        ]
+      | Float32Array,
   ): this {
     this.data[0] = data[0];
     this.data[1] = data[1];
@@ -404,6 +406,24 @@ export class Matr4 {
     scale.z = sz;
 
     return this;
+  }
+
+  getScale(vect3: IVect3): IVect3 {
+    const te = this.data;
+
+    const _v1 = Matr4.tempVect3;
+    let sx = _v1.set(te[0], te[1], te[2]).length();
+    const sy = _v1.set(te[4], te[5], te[6]).length();
+    const sz = _v1.set(te[8], te[9], te[10]).length();
+
+    // if determine is negative, we need to invert one scale
+    const det = this.determinant();
+    if (det < 0) sx = -sx;
+
+    vect3.x = sx;
+    vect3.y = sy;
+    vect3.z = sz;
+    return vect3;
   }
 
   multiply(m: Matr4): this {

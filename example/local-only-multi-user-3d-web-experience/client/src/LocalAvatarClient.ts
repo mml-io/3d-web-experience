@@ -1,24 +1,24 @@
 import {
   AnimationConfig,
   CameraManager,
-  Character,
+  CameraTransform,
   CharacterDescription,
   CharacterManager,
-  CharacterModelLoader,
   CharacterState,
   CollisionsManager,
-  Composer,
   EulXYZ,
-  GroundPlane,
+  IRenderer,
   KeyInputManager,
-  MMLCompositionScene,
+  RenderState,
+  RendererConfig,
   SpawnConfigurationState,
-  TimeManager,
   Vect3,
+  createDefaultCharacterControllerValues,
 } from "@mml-io/3d-web-client-core";
+import { ThreeJSWorldRenderer } from "@mml-io/3d-web-threejs";
+import { LoadingProgressManager } from "@mml-io/mml-web";
 import { MMLWebRunnerClient } from "@mml-io/mml-web-runner";
 import { EditableNetworkedDOM, NetworkedDOM } from "@mml-io/networked-dom-document";
-import { AudioListener, Scene } from "three";
 
 import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
@@ -52,42 +52,41 @@ export class LocalAvatarClient {
   public element: HTMLDivElement;
   private canvasHolder: HTMLDivElement;
 
-  private readonly scene = new Scene();
-  private readonly audioListener = new AudioListener();
-  private readonly characterModelLoader = new CharacterModelLoader();
-  public readonly composer: Composer;
-  private readonly timeManager = new TimeManager();
+  private renderer: IRenderer;
+  private rendererConfig: RendererConfig;
   private readonly keyInputManager = new KeyInputManager(() => {
     return this.cameraManager.hasActiveInput();
   });
   private readonly characterManager: CharacterManager;
   private readonly cameraManager: CameraManager;
 
-  private readonly collisionsManager = new CollisionsManager(this.scene);
+  private readonly collisionsManager = new CollisionsManager();
   private readonly remoteUserStates = new Map<number, CharacterState>();
 
-  private mmlComposition: MMLCompositionScene;
   private resizeObserver: ResizeObserver;
   private documentRunnerClients = new Set<MMLWebRunnerClient>();
   private animationFrameRequest: number | null = null;
 
   private spawnConfiguration: SpawnConfigurationState;
+  private cachedCameraTransform: CameraTransform = {
+    position: new Vect3(),
+    rotation: { x: 0, y: 0, z: 0 },
+    fov: 0,
+  };
+  private lastUpdateTimeMs: number = 0;
+  private frameCounter: number = 0;
 
   constructor(
     private localAvatarServer: LocalAvatarServer,
     private localClientId: number,
     spawnConfiguration: SpawnConfigurationState,
+    mmlTargetWindow: Window,
+    mmlTargetElement: HTMLElement,
   ) {
     this.element = document.createElement("div");
     this.element.style.position = "absolute";
     this.element.style.width = "100%";
     this.element.style.height = "100%";
-
-    document.addEventListener("mousedown", () => {
-      if (this.audioListener.context.state === "suspended") {
-        this.audioListener.context.resume();
-      }
-    });
 
     this.canvasHolder = document.createElement("div");
     this.canvasHolder.style.position = "absolute";
@@ -101,19 +100,34 @@ export class LocalAvatarClient {
       Math.PI / 2,
       Math.PI / 2,
     );
-    // Add audioListener to scene instead of camera for character head positioning
-    this.scene.add(this.audioListener);
 
-    this.composer = new Composer({
-      scene: this.scene,
-      cameraManager: this.cameraManager,
+    this.rendererConfig = {
+      animationConfig,
+      environmentConfiguration: {
+        skybox: {
+          hdrJpgUrl,
+        },
+      },
+      postProcessingEnabled: false,
       spawnSun: true,
+      enableTweakPane: false,
+    };
+
+    this.renderer = new ThreeJSWorldRenderer({
+      targetElement: this.canvasHolder,
+      coreCameraManager: this.cameraManager,
+      collisionsManager: this.collisionsManager,
+      config: this.rendererConfig,
+      tweakPane: null,
+      mmlTargetWindow,
+      mmlTargetElement,
+      loadingProgressManager: new LoadingProgressManager(),
+      mmlDocuments: {},
+      mmlAuthToken: null,
     });
-    this.composer.useHDRJPG(hdrJpgUrl);
-    this.element.appendChild(this.composer.renderer.domElement);
 
     this.resizeObserver = new ResizeObserver(() => {
-      this.composer.fitContainer();
+      this.renderer.fitContainer();
     });
     this.resizeObserver.observe(this.element);
 
@@ -151,14 +165,9 @@ export class LocalAvatarClient {
       enableRespawnButton: spawnConfiguration?.enableRespawnButton ?? false,
     };
 
-    const animationsPromise = Character.loadAnimations(this.characterModelLoader, animationConfig);
-
     this.characterManager = new CharacterManager({
-      composer: this.composer,
-      characterModelLoader: this.characterModelLoader,
       collisionsManager: this.collisionsManager,
       cameraManager: this.cameraManager,
-      timeManager: this.timeManager,
       keyInputManager: this.keyInputManager,
       remoteUserStates: this.remoteUserStates,
       sendUpdate: (characterState: CharacterState) => {
@@ -167,30 +176,12 @@ export class LocalAvatarClient {
       sendLocalCharacterColors: () => {
         // no-op
       },
-      animationsPromise,
       characterResolve: () => {
         return { username: "User", characterDescription, colors: [] };
       },
       spawnConfiguration: this.spawnConfiguration,
+      characterControllerValues: createDefaultCharacterControllerValues(),
     });
-    this.scene.add(this.characterManager.group);
-
-    this.mmlComposition = new MMLCompositionScene({
-      targetElement: this.element,
-      renderer: this.composer.renderer,
-      scene: this.scene,
-      camera: this.cameraManager.camera,
-      audioListener: this.audioListener,
-      collisionsManager: this.collisionsManager,
-      getUserPositionAndRotation: () => {
-        return this.characterManager.getLocalCharacterPositionAndRotation();
-      },
-    });
-    this.scene.add(this.mmlComposition.group);
-
-    const groundPlane = new GroundPlane();
-    this.collisionsManager.addMeshesGroup(groundPlane);
-    this.scene.add(groundPlane);
 
     const spawnPosition = new Vect3(
       this.spawnConfiguration.spawnPosition!.x,
@@ -202,13 +193,7 @@ export class LocalAvatarClient {
       this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
       0,
     );
-    this.characterManager.spawnLocalCharacter(
-      localClientId,
-      "User",
-      characterDescription,
-      spawnPosition,
-      spawnRotation,
-    );
+    this.characterManager.spawnLocalCharacter(localClientId, spawnPosition, spawnRotation);
 
     let cameraPosition: Vect3 | null = null;
     const offset = new Vect3(0, 0, 3.3);
@@ -216,31 +201,12 @@ export class LocalAvatarClient {
     cameraPosition = spawnPosition.clone().sub(offset).add(CharacterManager.headTargetOffset);
 
     if (cameraPosition !== null) {
-      this.cameraManager.camera.position.copy(cameraPosition);
+      const cameraState = this.cameraManager.getMainCameraState();
+      cameraState.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
       this.cameraManager.setTarget(
         new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset),
       );
-      this.cameraManager.reverseUpdateFromPositions();
-    }
-  }
-
-  private updateAudioListenerPosition(): void {
-    // Try to position audio listener at character's head
-    const localCharacter = this.characterManager.localCharacter;
-    const headWorldPosition = localCharacter?.getHeadWorldPosition();
-
-    if (headWorldPosition) {
-      // Position the audio listener at the character's head
-      this.audioListener.position.copy(headWorldPosition);
-
-      // Copy camera rotation for proper directional audio
-      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
-      this.audioListener.updateMatrixWorld();
-    } else {
-      // Fallback to camera position if head bone not available yet
-      this.audioListener.position.copy(this.cameraManager.camera.position);
-      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
-      this.audioListener.updateMatrixWorld();
+      this.cameraManager.reverseUpdateFromPositions(cameraState.position, cameraState.rotation);
     }
   }
 
@@ -254,37 +220,78 @@ export class LocalAvatarClient {
     this.localAvatarServer.removeClient(this.localClientId);
     this.documentRunnerClients.clear();
     this.resizeObserver.disconnect();
-    this.mmlComposition.dispose();
-    this.characterManager.clear();
+    this.characterManager.dispose();
     this.cameraManager.dispose();
-    this.composer.dispose();
+    this.renderer.dispose();
     this.element.remove();
   }
 
   public update(): void {
-    this.timeManager.update();
-    this.characterManager.update();
+    const currentTimeMs = performance.now();
+    const elapsedMs = currentTimeMs - this.lastUpdateTimeMs;
+    this.lastUpdateTimeMs = currentTimeMs;
+
+    let deltaTimeSeconds = elapsedMs / 1000;
+    if (deltaTimeSeconds > 0.1) {
+      deltaTimeSeconds = 0.1;
+    }
+    this.frameCounter++;
+
+    // Update character manager and get state updates (may update camera target)
+    const { updatedCharacterDescriptions, removedUserIds } = this.characterManager.update(
+      deltaTimeSeconds,
+      this.frameCounter,
+    );
+
+    // Update camera manager (computes camera position/rotation from target, input, etc.)
+    // Will be synced to Three.js cameras in renderer.render() via ThreeJSCameraManager
     this.cameraManager.update();
 
-    // Update audio listener position to character's head while maintaining camera rotation
-    this.updateAudioListenerPosition();
+    // Build render state - getAllCharacterStates() returns the cached Map directly
+    const allCharacterStates = this.characterManager.getAllCharacterStates();
 
-    this.composer.sun?.updateCharacterPosition(this.characterManager.localCharacter?.position);
-    this.composer.render(this.timeManager);
+    // Read camera state after update
+    const cameraState = this.cameraManager.getCameraState();
+    const cameraRotation = new EulXYZ().setFromQuaternion(cameraState.rotation);
+    this.cachedCameraTransform.position.set(
+      cameraState.position.x,
+      cameraState.position.y,
+      cameraState.position.z,
+    );
+    this.cachedCameraTransform.rotation.x = cameraRotation.x;
+    this.cachedCameraTransform.rotation.y = cameraRotation.y;
+    this.cachedCameraTransform.rotation.z = cameraRotation.z;
+    this.cachedCameraTransform.fov = cameraState.fov;
+
+    const renderState: RenderState = {
+      characters: allCharacterStates,
+      updatedCharacterDescriptions,
+      removedUserIds,
+      cameraTransform: this.cachedCameraTransform,
+      localCharacterId: this.characterManager.getLocalClientId(),
+      deltaTimeSeconds: deltaTimeSeconds,
+    };
+
+    // Render frame
+    this.renderer.render(renderState);
+
     this.animationFrameRequest = requestAnimationFrame(() => {
       this.update();
     });
   }
 
-  public addDocument(
+  public async addDocument(
     mmlDocument: NetworkedDOM | EditableNetworkedDOM,
     windowTarget: Window,
     remoteHolderElement: HTMLElement,
   ) {
+    // Connect MML document using the shared iframe context
+    // Both windowTarget and remoteHolderElement are from the shared iframe document
+    // The MML scene's targetElement is also in the iframe document, so everything is consistent
     const mmlWebRunnerClient = new MMLWebRunnerClient(
       windowTarget,
       remoteHolderElement,
-      this.mmlComposition.mmlScene,
+      (this.renderer as ThreeJSWorldRenderer).mmlCompositionScene!.mmlScene,
     );
     mmlWebRunnerClient.connect(mmlDocument);
     this.documentRunnerClients.add(mmlWebRunnerClient);

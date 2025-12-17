@@ -1,31 +1,33 @@
 import {
   AnimationConfig,
   CameraManager,
+  CameraTransform,
   CharacterDescription,
-  CharacterManager,
-  CharacterModelLoader,
   CharacterState,
   CollisionsManager,
-  Composer,
   EnvironmentConfiguration,
   ErrorScreen,
   EulXYZ,
-  GroundPlane,
   Key,
   KeyInputManager,
   LoadingScreen,
   LoadingScreenConfig,
-  MMLCompositionScene,
-  TimeManager,
-  TweakPane,
   SpawnConfiguration,
   SpawnConfigurationState,
   Vect3,
   VirtualJoystick,
-  Character,
   Quat,
   getSpawnData,
+  IRenderer,
+  RenderState,
+  CharacterManager,
+  MMLDocumentConfiguration,
+  TweakPane,
+  createDefaultCharacterControllerValues,
+  createDefaultCameraValues,
+  RendererConfig,
 } from "@mml-io/3d-web-client-core";
+import { ThreeJSWorldRenderer } from "@mml-io/3d-web-threejs";
 import {
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
@@ -41,48 +43,11 @@ import {
   ServerBroadcastMessage,
   parseServerBroadcastMessage,
 } from "@mml-io/3d-web-user-networking";
-import {
-  IMMLScene,
-  LoadingProgressManager,
-  MMLNetworkSource,
-  NetworkedDOMWebsocketStatus,
-  registerCustomElementsToWindow,
-  setGlobalDocumentTimeManager,
-  setGlobalMMLScene,
-} from "@mml-io/mml-web";
-import { Scene, AudioListener, Vector3 } from "three";
+import { LoadingProgressManager, registerCustomElementsToWindow } from "@mml-io/mml-web";
 
 import { AvatarSelectionUI, AvatarConfiguration } from "./avatar-selection-ui";
 import { StringToHslOptions, TextChatUI, TextChatUIProps } from "./chat-ui";
 import styles from "./Networked3dWebExperience.module.css";
-
-type MMLDocumentConfiguration = {
-  url: string;
-  position?: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  rotation?: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  scale?: {
-    x: number;
-    y: number;
-    z: number;
-  };
-  passAuthToken?: boolean;
-};
-
-type MMLDocumentState = {
-  docRef: unknown;
-  loadingProgressManager: LoadingProgressManager;
-  config: MMLDocumentConfiguration;
-  source: MMLNetworkSource;
-  dispose: () => void;
-};
 
 export type Networked3dWebExperienceClientConfig = {
   userNetworkAddress: string;
@@ -95,6 +60,7 @@ export type Networked3dWebExperienceClientConfig = {
   updateURLLocation?: boolean;
   onServerBroadcast?: (broadcast: ServerBroadcastMessage) => void;
   loadingScreen?: LoadingScreenConfig;
+  createRenderer?: (options: CreateRendererOptions) => IRenderer;
 } & UpdatableConfig;
 
 export type UpdatableConfig = {
@@ -107,6 +73,20 @@ export type UpdatableConfig = {
   enableTweakPane?: boolean;
   allowOrbitalCamera?: boolean;
   postProcessingEnabled?: boolean;
+};
+
+export type CreateRendererOptions = {
+  targetElement: HTMLElement;
+  coreCameraManager: CameraManager;
+  collisionsManager: CollisionsManager;
+  config: RendererConfig;
+  tweakPane: TweakPane;
+  mmlTargetWindow: Window;
+  mmlTargetElement: HTMLElement;
+  loadingProgressManager: LoadingProgressManager;
+  mmlDocuments: { [key: string]: MMLDocumentConfiguration };
+  mmlAuthToken: string | null;
+  onInitialized: () => void;
 };
 
 function normalizeSpawnConfiguration(spawnConfig?: SpawnConfiguration): SpawnConfigurationState {
@@ -138,25 +118,14 @@ export class Networked3dWebExperienceClient {
   private element: HTMLDivElement;
   private canvasHolder: HTMLDivElement;
 
-  private scene: Scene = new Scene();
-  private composer: Composer;
-  private tweakPane: TweakPane | null = null;
-  private audioListener = new AudioListener();
+  private renderer: IRenderer;
+  private rendererConfig: RendererConfig;
 
   private cameraManager: CameraManager;
-
   private collisionsManager: CollisionsManager;
-
-  private characterModelLoader: CharacterModelLoader;
   private characterManager: CharacterManager;
-
-  private timeManager = new TimeManager();
-
   private keyInputManager = new KeyInputManager();
   private virtualJoystick: VirtualJoystick;
-
-  private mmlCompositionScene: MMLCompositionScene;
-  private mmlDocumentStates: { [key: string]: MMLDocumentState } = {};
 
   private clientId: number | null = null;
   private networkClient: UserNetworkingClient;
@@ -164,27 +133,33 @@ export class Networked3dWebExperienceClient {
   private userProfiles = new Map<number, UserData>();
 
   private textChatUI: TextChatUI | null = null;
-
   private avatarSelectionUI: AvatarSelectionUI | null = null;
-
-  private readonly latestCharacterObject = {
-    characterState: null as null | CharacterState,
-  };
-  private characterControllerPaneSet: boolean = false;
+  private tweakPane: TweakPane;
 
   private spawnConfiguration: SpawnConfigurationState;
+  private cameraValues = createDefaultCameraValues();
+  private characterControllerValues = createDefaultCharacterControllerValues();
 
   private initialLoadCompleted = false;
   private loadingProgressManager = new LoadingProgressManager();
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
-  private groundPlane: GroundPlane | null = null;
   private respawnButton: HTMLDivElement | null = null;
 
+  // Frame timing
   private currentRequestAnimationFrame: number | null = null;
-  private lastUpdateTime: number = 0;
+  private lastUpdateTimeMs: number = 0;
+  private frameCounter: number = 0;
   private readonly targetFPS: number = 60;
   private readonly frameInterval: number = 1000 / this.targetFPS;
+  private epochFramesRendered: number = 0;
+  private epochStartTimeMs: number = 0;
+
+  private cachedCameraTransform: CameraTransform = {
+    position: new Vect3(),
+    rotation: { x: 0, y: 0, z: 0 },
+    fov: 0,
+  };
 
   constructor(
     private holderElement: HTMLElement,
@@ -196,23 +171,14 @@ export class Networked3dWebExperienceClient {
     this.element.style.height = "100%";
     this.holderElement.appendChild(this.element);
 
-    document.addEventListener("mousedown", () => {
-      if (this.audioListener.context.state === "suspended") {
-        this.audioListener.context.resume();
-      }
-    });
-
     this.canvasHolder = document.createElement("div");
     this.canvasHolder.style.position = "absolute";
     this.canvasHolder.style.width = "100%";
     this.canvasHolder.style.height = "100%";
     this.element.appendChild(this.canvasHolder);
 
-    this.collisionsManager = new CollisionsManager(this.scene);
+    this.collisionsManager = new CollisionsManager();
     this.cameraManager = new CameraManager(this.canvasHolder, this.collisionsManager);
-    // Add audioListener to scene instead of camera for character head positioning
-    this.scene.add(this.audioListener);
-    this.characterModelLoader = new CharacterModelLoader();
 
     this.virtualJoystick = new VirtualJoystick(this.element, {
       radius: 70,
@@ -220,23 +186,14 @@ export class Networked3dWebExperienceClient {
       mouseSupport: false,
     });
 
-    this.composer = new Composer({
-      scene: this.scene,
-      cameraManager: this.cameraManager,
-      spawnSun: true,
-      environmentConfiguration: this.config.environmentConfiguration,
-      postProcessingEnabled: this.config.postProcessingEnabled,
-    });
-    this.canvasHolder.appendChild(this.composer.renderer.domElement);
-
-    if (this.config.enableTweakPane !== false) {
-      this.setupTweakPane();
-    }
-
-    const resizeObserver = new ResizeObserver(() => {
-      this.composer.fitContainer();
-    });
-    resizeObserver.observe(this.element);
+    this.tweakPane = new TweakPane(
+      this.canvasHolder,
+      {
+        cameraValues: this.cameraValues,
+        characterControllerValues: this.characterControllerValues,
+      },
+      config.enableTweakPane ?? false,
+    );
 
     this.spawnConfiguration = normalizeSpawnConfiguration(this.config.spawnConfiguration);
 
@@ -253,7 +210,6 @@ export class Networked3dWebExperienceClient {
         statusUpdateCallback: (status: WebsocketStatus) => {
           console.log(`Websocket status: ${status}`);
           if (status === WebsocketStatus.Disconnected || status === WebsocketStatus.Reconnecting) {
-            // The connection was lost after being established - the connection may be re-established with a different client ID
             this.characterManager.clear();
             this.remoteUserStates.clear();
             this.clientId = null;
@@ -262,8 +218,10 @@ export class Networked3dWebExperienceClient {
         assignedIdentity: (clientId: number) => {
           console.log(`Assigned ID: ${clientId}`);
           this.clientId = clientId;
+          // Set the local client ID early to prevent the local character from being
+          // spawned as a remote character when network updates arrive before loading completes
+          this.characterManager.setLocalClientId(clientId);
           if (this.initialLoadCompleted) {
-            // Already loaded - respawn the character
             const spawnData = getSpawnData(this.spawnConfiguration, true);
             this.spawnCharacter(spawnData);
           } else {
@@ -327,51 +285,36 @@ export class Networked3dWebExperienceClient {
     if (this.config.allowOrbitalCamera) {
       this.keyInputManager.createKeyBinding(Key.C, () => {
         if (document.activeElement === document.body) {
-          // No input is selected - accept the key press
           this.cameraManager.toggleFlyCamera();
-          this.composer.fitContainer();
+          this.renderer.fitContainer();
         }
       });
     }
 
-    const animationsPromise = Character.loadAnimations(
-      this.characterModelLoader,
-      this.config.animationConfig,
-    );
-
     this.characterManager = new CharacterManager({
-      composer: this.composer,
-      characterModelLoader: this.characterModelLoader,
       collisionsManager: this.collisionsManager,
       cameraManager: this.cameraManager,
-      timeManager: this.timeManager,
       keyInputManager: this.keyInputManager,
       virtualJoystick: this.virtualJoystick,
       remoteUserStates: this.remoteUserStates,
       sendUpdate: (characterState: CharacterState) => {
-        this.latestCharacterObject.characterState = characterState;
         this.networkClient.sendUpdate(characterState);
       },
       sendLocalCharacterColors: (colors: Array<[number, number, number]>) => {
         this.networkClient.updateColors(colors);
       },
-      animationsPromise: animationsPromise,
       spawnConfiguration: this.spawnConfiguration,
-      characterResolve: (characterId: number) => {
-        return this.resolveCharacterData(characterId);
+      characterControllerValues: this.characterControllerValues,
+      characterResolve: (clientId: number) => {
+        return this.resolveCharacterData(clientId);
       },
       updateURLLocation: this.config.updateURLLocation !== false,
     });
-    this.scene.add(this.characterManager.group);
 
     if (this.spawnConfiguration.enableRespawnButton) {
       this.respawnButton = this.createRespawnButton();
       this.element.appendChild(this.respawnButton);
     }
-
-    this.setGroundPlaneEnabled(this.config.environmentConfiguration?.groundPlane ?? true);
-
-    this.setupMMLScene();
 
     this.loadingScreen = new LoadingScreen(this.loadingProgressManager, this.config.loadingScreen);
     this.element.append(this.loadingScreen.element);
@@ -380,29 +323,62 @@ export class Networked3dWebExperienceClient {
       const [, completed] = this.loadingProgressManager.toRatio();
       if (completed && !this.initialLoadCompleted) {
         this.initialLoadCompleted = true;
-        /*
-         When all content (in particular MML) has loaded, spawn the character (this is to avoid the character falling
-         through as-yet-unloaded geometry)
-        */
-
         this.connectToTextChat();
         this.mountAvatarSelectionUI();
         this.spawnCharacter(spawnData);
       }
     });
-    this.loadingProgressManager.setInitialLoad(true);
-  }
 
-  private setGroundPlaneEnabled(enabled: boolean) {
-    if (enabled && this.groundPlane === null) {
-      this.groundPlane = new GroundPlane();
-      this.collisionsManager.addMeshesGroup(this.groundPlane);
-      this.scene.add(this.groundPlane);
-    } else if (!enabled && this.groundPlane !== null) {
-      this.collisionsManager.removeMeshesGroup(this.groundPlane);
-      this.scene.remove(this.groundPlane);
-      this.groundPlane = null;
+    registerCustomElementsToWindow(window);
+    this.rendererConfig = {
+      animationConfig: config.animationConfig,
+      environmentConfiguration: config.environmentConfiguration,
+      postProcessingEnabled: config.postProcessingEnabled,
+      spawnSun: true,
+      enableTweakPane: config.enableTweakPane,
+    };
+
+    if (this.config.createRenderer) {
+      this.renderer = this.config.createRenderer({
+        targetElement: this.canvasHolder,
+        coreCameraManager: this.cameraManager,
+        collisionsManager: this.collisionsManager,
+        config: this.rendererConfig,
+        tweakPane: this.tweakPane,
+        mmlTargetWindow: window,
+        mmlTargetElement: document.body,
+        loadingProgressManager: this.loadingProgressManager,
+        mmlDocuments: this.config.mmlDocuments ?? {},
+        mmlAuthToken: this.config.authToken ?? null,
+        onInitialized: () => {
+          this.loadingProgressManager.setInitialLoad(true);
+        },
+      });
+    } else {
+      // Default to ThreeJS renderer
+      this.renderer = new ThreeJSWorldRenderer({
+        targetElement: this.canvasHolder,
+        coreCameraManager: this.cameraManager,
+        collisionsManager: this.collisionsManager,
+        config: this.rendererConfig,
+        tweakPane: this.tweakPane,
+        mmlTargetWindow: window,
+        mmlTargetElement: document.body,
+        loadingProgressManager: this.loadingProgressManager,
+        mmlDocuments: this.config.mmlDocuments ?? {},
+        mmlAuthToken: this.config.authToken ?? null,
+      });
+      this.loadingProgressManager.setInitialLoad(true);
     }
+
+    if (this.characterManager.localController) {
+      this.characterManager.setupTweakPane(this.tweakPane);
+    }
+
+    const resizeObserver = new ResizeObserver(() => {
+      this.renderer.fitContainer();
+    });
+    resizeObserver.observe(this.element);
   }
 
   public updateConfig(config: Partial<UpdatableConfig>) {
@@ -410,9 +386,25 @@ export class Networked3dWebExperienceClient {
       ...this.config,
       ...config,
     };
-    if (config.environmentConfiguration) {
-      this.composer.updateEnvironmentConfiguration(config.environmentConfiguration);
-      this.setGroundPlaneEnabled(config.environmentConfiguration.groundPlane ?? true);
+
+    // Update renderer config if any renderer-related config changed
+    const rendererConfigUpdate: Partial<RendererConfig> = {};
+    if (config.environmentConfiguration !== undefined) {
+      rendererConfigUpdate.environmentConfiguration = config.environmentConfiguration;
+    }
+    if (config.postProcessingEnabled !== undefined) {
+      rendererConfigUpdate.postProcessingEnabled = config.postProcessingEnabled;
+    }
+    if (config.enableTweakPane !== undefined) {
+      rendererConfigUpdate.enableTweakPane = config.enableTweakPane;
+    }
+
+    if (Object.keys(rendererConfigUpdate).length > 0) {
+      this.rendererConfig = {
+        ...this.rendererConfig,
+        ...rendererConfigUpdate,
+      };
+      this.renderer.updateConfig(rendererConfigUpdate);
     }
 
     if (this.avatarSelectionUI) {
@@ -422,37 +414,17 @@ export class Networked3dWebExperienceClient {
       this.avatarSelectionUI.updateAllowCustomDisplayName(config.allowCustomDisplayName || false);
     }
 
-    if (config.enableTweakPane !== undefined) {
-      if (config.enableTweakPane === false && this.tweakPane !== null) {
-        this.tweakPane.dispose();
-        this.tweakPane = null;
-      } else if (config.enableTweakPane === true && this.tweakPane === null) {
-        this.setupTweakPane();
-      }
-    }
-
-    if (this.config.postProcessingEnabled !== undefined) {
-      this.composer.togglePostProcessing(this.config.postProcessingEnabled);
-      if (this.tweakPane) {
-        this.tweakPane.dispose();
-        this.tweakPane = null;
-        this.setupTweakPane();
-      }
-    }
-
     if (config.allowOrbitalCamera !== undefined) {
       if (config.allowOrbitalCamera === false) {
         this.keyInputManager.removeKeyBinding(Key.C);
         if (this.cameraManager.isFlyCameraOn() === true) {
-          // Disable the fly camera if it was enabled
           this.cameraManager.toggleFlyCamera();
         }
       } else if (config.allowOrbitalCamera === true) {
         this.keyInputManager.createKeyBinding(Key.C, () => {
           if (document.activeElement === document.body) {
-            // No input is selected - accept the key press
             this.cameraManager.toggleFlyCamera();
-            this.composer.fitContainer();
+            this.renderer.fitContainer();
           }
         });
       }
@@ -479,8 +451,8 @@ export class Networked3dWebExperienceClient {
       this.respawnButton = null;
     }
 
-    if (config.mmlDocuments) {
-      this.setMMLDocuments(config.mmlDocuments);
+    if (config.mmlDocuments !== undefined) {
+      this.renderer.setMMLConfiguration(config.mmlDocuments, this.config.authToken ?? null);
     }
   }
 
@@ -561,33 +533,14 @@ export class Networked3dWebExperienceClient {
     this.networkClient.updateCharacterDescription(characterDescription);
   }
 
-  private setupTweakPane() {
-    if (this.tweakPane) {
-      return;
-    }
-
-    this.tweakPane = new TweakPane(
-      this.element,
-      this.composer.renderer,
-      this.scene,
-      this.composer,
-      this.config.postProcessingEnabled,
-      this.collisionsManager.toggleDebug,
-    );
-    this.cameraManager.setupTweakPane(this.tweakPane);
-    this.composer.setupTweakPane(this.tweakPane);
-  }
-
   private handleChatMessage(fromUserId: number, message: string) {
     if (this.textChatUI === null) {
       return;
     }
 
     if (fromUserId === 0) {
-      // Server message - handle as system message
       this.textChatUI.addTextMessage("System", message);
     } else {
-      // User message
       const user = this.userProfiles.get(fromUserId);
       if (!user) {
         console.error(`User not found for clientId ${fromUserId}`);
@@ -595,7 +548,7 @@ export class Networked3dWebExperienceClient {
       }
       const username = user.username ?? `Unknown User ${fromUserId}`;
       this.textChatUI.addTextMessage(username, message);
-      this.characterManager.addChatBubble(fromUserId, message);
+      this.renderer.addChatBubble(fromUserId, message);
     }
   }
 
@@ -613,10 +566,8 @@ export class Networked3dWebExperienceClient {
       const textChatUISettings: TextChatUIProps = {
         holderElement: this.canvasHolder,
         sendMessageToServerMethod: (message: string) => {
-          this.characterManager.addSelfChatBubble(message);
-          this.mmlCompositionScene.onChatMessage(message);
+          this.renderer.onChatMessage(message);
 
-          // Send chat message through deltanet custom message
           this.networkClient.sendCustomMessage(
             FROM_CLIENT_CHAT_MESSAGE_TYPE,
             JSON.stringify({ message } satisfies ClientChatMessage),
@@ -654,65 +605,81 @@ export class Networked3dWebExperienceClient {
   }
 
   public update(): void {
-    const currentTime = performance.now();
-    const elapsed = currentTime - this.lastUpdateTime;
-
-    if (elapsed >= this.frameInterval) {
-      this.lastUpdateTime = currentTime - (elapsed % this.frameInterval);
-
-      this.timeManager.update();
-      this.characterManager.update();
-      this.cameraManager.update();
-
-      // Update audio listener position to character's head while maintaining camera rotation
-      this.updateAudioListenerPosition();
-
-      const characterPosition = this.characterManager.localCharacter?.getPosition();
-      this.composer.sun?.updateCharacterPosition(
-        new Vector3(
-          characterPosition?.x || 0,
-          characterPosition?.y || 0,
-          characterPosition?.z || 0,
-        ),
-      );
-      this.composer.render(this.timeManager);
-      if (this.tweakPane?.guiVisible) {
-        this.tweakPane.updateStats(this.timeManager);
-        this.tweakPane.updateCameraData(this.cameraManager);
-        if (this.characterManager.localCharacter && this.characterManager.localController) {
-          if (!this.characterControllerPaneSet) {
-            this.characterControllerPaneSet = true;
-            this.characterManager.setupTweakPane(this.tweakPane);
-          } else {
-            this.tweakPane.updateCharacterData(this.characterManager.localController);
-          }
-        }
-      }
+    const currentTimeMs = performance.now();
+    const elapsedMs = currentTimeMs - this.lastUpdateTimeMs;
+    let deltaTimeSeconds = elapsedMs / 1000;
+    if (deltaTimeSeconds > 0.1) {
+      deltaTimeSeconds = 0.1;
     }
 
     this.currentRequestAnimationFrame = requestAnimationFrame(() => {
       this.update();
     });
-  }
 
-  private updateAudioListenerPosition(): void {
-    // Try to position audio listener at character's head
-    const localCharacter = this.characterManager.localCharacter;
-    const headWorldPosition = localCharacter?.getHeadWorldPosition();
-
-    if (headWorldPosition) {
-      // Position the audio listener at the character's head
-      this.audioListener.position.copy(headWorldPosition);
-
-      // Copy camera rotation for proper directional audio
-      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
-      this.audioListener.updateMatrixWorld();
-    } else {
-      // Fallback to camera position if head bone not available yet
-      this.audioListener.position.copy(this.cameraManager.camera.position);
-      this.audioListener.rotation.copy(this.cameraManager.camera.rotation);
-      this.audioListener.updateMatrixWorld();
+    if (this.epochStartTimeMs === 0) {
+      this.epochStartTimeMs = currentTimeMs;
     }
+
+    const timeSinceEpochStartMs = currentTimeMs - this.epochStartTimeMs;
+    const idealFramesRendered = timeSinceEpochStartMs / this.frameInterval;
+    const deltaFrames = this.epochFramesRendered - idealFramesRendered;
+    if (deltaFrames > 0) {
+      return;
+    }
+
+    if (timeSinceEpochStartMs > 1000) {
+      // Reset the epoch every second to avoid accumulating error
+      this.epochStartTimeMs = currentTimeMs;
+      this.epochFramesRendered = 0;
+    }
+    this.epochFramesRendered++;
+
+    this.lastUpdateTimeMs = currentTimeMs;
+
+    this.frameCounter++;
+
+    // Update character manager and get state updates (may update camera target)
+    const { updatedCharacterDescriptions, removedUserIds } = this.characterManager.update(
+      deltaTimeSeconds,
+      this.frameCounter,
+    );
+
+    // Update camera manager (computes camera position/rotation from target, input, etc.)
+    // Will be synced to renderer's camera in renderer.render()
+    this.cameraManager.update();
+
+    // Update TweakPane character data if visible (skip expensive operations when hidden)
+    if (this.tweakPane.guiVisible && this.characterManager.localController) {
+      this.tweakPane.updateCharacterData(this.characterManager.localController);
+    }
+
+    // Build render state - getAllCharacterStates() returns a cached Map
+    const allCharacterStates = this.characterManager.getAllCharacterStates();
+
+    // Read camera state after update
+    const cameraState = this.cameraManager.getCameraState();
+    const cameraRotation = new EulXYZ().setFromQuaternion(cameraState.rotation);
+    this.cachedCameraTransform.position.set(
+      cameraState.position.x,
+      cameraState.position.y,
+      cameraState.position.z,
+    );
+    this.cachedCameraTransform.rotation.x = cameraRotation.x;
+    this.cachedCameraTransform.rotation.y = cameraRotation.y;
+    this.cachedCameraTransform.rotation.z = cameraRotation.z;
+    this.cachedCameraTransform.fov = cameraState.fov;
+
+    const renderState: RenderState = {
+      characters: allCharacterStates,
+      updatedCharacterDescriptions,
+      removedUserIds,
+      cameraTransform: this.cachedCameraTransform,
+      localCharacterId: this.characterManager.getLocalClientId(),
+      deltaTimeSeconds: deltaTimeSeconds,
+    };
+
+    // Render the actual frame using the associated renderer
+    this.renderer.render(renderState);
   }
 
   private spawnCharacter({
@@ -733,20 +700,16 @@ export class Networked3dWebExperienceClient {
       throw new Error("Own identity not found");
     }
 
-    this.characterManager.spawnLocalCharacter(
-      this.clientId!,
-      ownIdentity.username ?? `Unknown User ${this.clientId}`,
-      ownIdentity.characterDescription,
-      spawnPosition,
-      spawnRotation,
-    );
+    this.characterManager.spawnLocalCharacter(this.clientId!, spawnPosition, spawnRotation);
+
+    this.characterManager.setupTweakPane(this.tweakPane);
 
     if (cameraPosition !== null) {
-      this.cameraManager.camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
-      this.cameraManager.setTarget(
-        new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset),
-      );
-      this.cameraManager.reverseUpdateFromPositions();
+      const cameraState = this.cameraManager.getMainCameraState();
+      cameraState.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+      const target = new Vect3().add(spawnPosition).add(CharacterManager.headTargetOffset);
+      this.cameraManager.setTarget(target);
+      this.cameraManager.reverseUpdateFromPositions(cameraState.position, cameraState.rotation);
     }
   }
 
@@ -759,14 +722,9 @@ export class Networked3dWebExperienceClient {
   public dispose() {
     this.characterManager.dispose();
     this.networkClient.stop();
-    for (const mmlDocumentState of Object.values(this.mmlDocumentStates)) {
-      mmlDocumentState.dispose();
-    }
-    this.mmlDocumentStates = {};
     this.textChatUI?.dispose();
-    this.mmlCompositionScene.dispose();
-    this.composer.dispose();
-    this.tweakPane?.dispose();
+    this.tweakPane.dispose();
+    this.renderer.dispose();
     if (this.currentRequestAnimationFrame !== null) {
       cancelAnimationFrame(this.currentRequestAnimationFrame);
       this.currentRequestAnimationFrame = null;
@@ -774,127 +732,5 @@ export class Networked3dWebExperienceClient {
     this.cameraManager.dispose();
     this.loadingScreen.dispose();
     this.errorScreen?.dispose();
-  }
-
-  private setupMMLScene() {
-    registerCustomElementsToWindow(window);
-    this.mmlCompositionScene = new MMLCompositionScene({
-      targetElement: this.element,
-      renderer: this.composer.renderer,
-      scene: this.scene,
-      camera: this.cameraManager.camera,
-      audioListener: this.audioListener,
-      collisionsManager: this.collisionsManager,
-      getUserPositionAndRotation: () => {
-        return this.characterManager.getLocalCharacterPositionAndRotation();
-      },
-    });
-    this.scene.add(this.mmlCompositionScene.group);
-    setGlobalMMLScene(this.mmlCompositionScene.mmlScene as IMMLScene);
-    setGlobalDocumentTimeManager(this.mmlCompositionScene.documentTimeManager);
-
-    this.setMMLDocuments(this.config.mmlDocuments ?? {});
-
-    const mmlProgressManager = this.mmlCompositionScene.mmlScene.getLoadingProgressManager!()!;
-    this.loadingProgressManager.addLoadingDocument(mmlProgressManager, "mml", mmlProgressManager);
-    mmlProgressManager.addProgressCallback(() => {
-      this.loadingProgressManager.updateDocumentProgress(mmlProgressManager);
-    });
-    mmlProgressManager.setInitialLoad(true);
-  }
-
-  private createMMLDocument(mmlDocConfig: MMLDocumentConfiguration): MMLDocumentState {
-    const mmlScene = this.mmlCompositionScene.mmlScene;
-    const loadingProgressManager = new LoadingProgressManager();
-    const docRef = {};
-    const mmlNetworkSource = MMLNetworkSource.create({
-      url: MMLNetworkSource.resolveRelativeUrl(window.location.host, mmlDocConfig.url),
-      connectionToken: mmlDocConfig.passAuthToken ? (this.config.authToken ?? null) : null,
-      mmlScene,
-      statusUpdated: (status: NetworkedDOMWebsocketStatus) => {
-        // no-op
-      },
-      windowTarget: window,
-      targetForWrappers: document.body,
-    });
-
-    this.updateMMLDocumentAttributes(mmlNetworkSource, mmlDocConfig);
-    return {
-      docRef,
-      loadingProgressManager,
-      config: mmlDocConfig,
-      source: mmlNetworkSource,
-      dispose: () => {
-        mmlNetworkSource.dispose();
-      },
-    };
-  }
-
-  private updateMMLDocumentAttributes(
-    mmlNetworkSource: MMLNetworkSource,
-    mmlDocument: MMLDocumentConfiguration,
-  ) {
-    const remoteDocument = mmlNetworkSource.remoteDocumentWrapper.remoteDocument;
-    if (mmlDocument.position) {
-      remoteDocument.setAttribute("x", mmlDocument.position.x.toString());
-      remoteDocument.setAttribute("y", mmlDocument.position.y.toString());
-      remoteDocument.setAttribute("z", mmlDocument.position.z.toString());
-    } else {
-      remoteDocument.setAttribute("x", "0");
-      remoteDocument.setAttribute("y", "0");
-      remoteDocument.setAttribute("z", "0");
-    }
-    if (mmlDocument.rotation) {
-      remoteDocument.setAttribute("rx", mmlDocument.rotation.x.toString());
-      remoteDocument.setAttribute("ry", mmlDocument.rotation.y.toString());
-      remoteDocument.setAttribute("rz", mmlDocument.rotation.z.toString());
-    } else {
-      remoteDocument.setAttribute("rx", "0");
-      remoteDocument.setAttribute("ry", "0");
-      remoteDocument.setAttribute("rz", "0");
-    }
-    if (mmlDocument.scale?.x !== undefined) {
-      remoteDocument.setAttribute("sx", mmlDocument.scale.x.toString());
-    } else {
-      remoteDocument.setAttribute("sx", "1");
-    }
-    if (mmlDocument.scale?.y !== undefined) {
-      remoteDocument.setAttribute("sy", mmlDocument.scale.y.toString());
-    } else {
-      remoteDocument.setAttribute("sy", "1");
-    }
-    if (mmlDocument.scale?.z !== undefined) {
-      remoteDocument.setAttribute("sz", mmlDocument.scale.z.toString());
-    } else {
-      remoteDocument.setAttribute("sz", "1");
-    }
-    return mmlNetworkSource;
-  }
-
-  private setMMLDocuments(mmlDocuments: { [key: string]: MMLDocumentConfiguration }) {
-    const newMMLDocuments: { [key: string]: MMLDocumentState } = {};
-    for (const [key, mmlDocConfig] of Object.entries(mmlDocuments)) {
-      let existing: MMLDocumentState | undefined = this.mmlDocumentStates[key];
-      if (
-        existing &&
-        (existing.config.url !== mmlDocConfig.url ||
-          existing.config.passAuthToken !== mmlDocConfig.passAuthToken)
-      ) {
-        // URL or auth token changed - dispose of existing and create new
-        existing.dispose();
-        existing = undefined;
-      }
-      if (!existing) {
-        newMMLDocuments[key] = this.createMMLDocument(mmlDocConfig);
-      } else {
-        delete this.mmlDocumentStates[key];
-        this.updateMMLDocumentAttributes(existing.source, mmlDocConfig);
-        newMMLDocuments[key] = existing;
-      }
-    }
-    for (const element of Object.values(this.mmlDocumentStates)) {
-      element.dispose();
-    }
-    this.mmlDocumentStates = newMMLDocuments;
   }
 }

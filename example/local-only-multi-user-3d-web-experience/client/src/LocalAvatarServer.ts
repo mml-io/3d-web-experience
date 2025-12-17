@@ -22,6 +22,13 @@ export class LocalAvatarServer {
   }
 
   removeClient(clientId: number) {
+    // Notify all other clients that this client has been removed
+    this.callbacks.forEach((callback, callbackClientId) => {
+      if (callbackClientId !== clientId) {
+        callback(clientId, null);
+      }
+    });
+    // Remove the callback for the removed client
     this.callbacks.delete(clientId);
   }
 }

@@ -3,22 +3,18 @@ import { clamp } from "../helpers/math-helpers";
 
 import { Matr4 } from "./Matr4";
 
+export type IEulXYZ = { x: number; y: number; z: number };
+
 export class EulXYZ {
   private static tempMatrix = new Matr4();
   public x: number;
   public y: number;
   public z: number;
 
-  constructor(x?: number | EulXYZ, y?: number, z?: number) {
-    if (x instanceof EulXYZ) {
-      this.x = x.x;
-      this.y = x.y;
-      this.z = x.z;
-      return;
-    }
-    this.x = x || 0;
-    this.y = y || 0;
-    this.z = z || 0;
+  constructor(x: number = 0, y: number = 0, z: number = 0) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
   }
 
   setFromRotationMatrix(m: Matr4): this {
@@ -66,7 +62,7 @@ export class EulXYZ {
   }
 
   clone(): EulXYZ {
-    return new EulXYZ(this);
+    return new EulXYZ(this.x, this.y, this.z);
   }
 
   set(x: number, y: number, z: number): this {

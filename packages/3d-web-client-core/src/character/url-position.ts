@@ -1,12 +1,19 @@
-import { Object3D } from "three";
-
 import { toArray } from "../helpers/math-helpers";
+import { IEulXYZ } from "../math/EulXYZ";
 import { Quat } from "../math/Quat";
-import { Vect3 } from "../math/Vect3";
+import { IVect3, Vect3 } from "../math/Vect3";
 
 const tempQuat = new Quat();
 
-export function encodeCharacterAndCamera(character: Object3D, camera: Object3D): string {
+type PositionAndRotation = {
+  position: IVect3;
+  rotation: IEulXYZ;
+};
+
+export function encodeCharacterAndCamera(
+  character: PositionAndRotation,
+  camera: PositionAndRotation,
+): string {
   return [
     ...toArray(character.position),
     ...toArray(tempQuat.setFromEulerXYZ(character.rotation)),
