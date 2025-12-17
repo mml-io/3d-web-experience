@@ -19,27 +19,15 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@gltf-transform/core": "^4.0.0",
-    "@gltf-transform/extensions": "^4.0.0",
-    "@loaders.gl/core": "^4.3.4",
-    "@loaders.gl/textures": "^4.3.4",
-    "@mml-io/3d-web-avatar": "^0.25.0",
-    "@mml-io/mml-web": "0.23.0",
-    "@mml-io/mml-web-threejs": "0.23.0",
-    "@mml-io/model-loader": "0.23.0",
-    "@monogrid/gainmap-js": "^3.1.0",
+    "@mml-io/mml-web": "0.23.1",
     "@tweakpane/core": "2.0.5",
     "@tweakpane/plugin-essentials": "0.2.1",
-    "draco3d": "^1.5.7",
-    "meshoptimizer": "^0.18.1",
-    "postprocessing": "6.37.8",
-    "three": "0.180.0",
     "three-mesh-bvh": "0.9.0",
     "tweakpane": "4.0.5"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^22.13.1",
-    "@types/three": "0.180.0"
+    "@types/three": "0.181.0"
   }
 }

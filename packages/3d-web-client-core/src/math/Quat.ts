@@ -11,18 +11,11 @@ export class Quat {
   public z: number;
   public w: number;
 
-  constructor(x?: number | Quat, y?: number, z?: number, w?: number) {
-    if (x instanceof Quat) {
-      this.x = x.x;
-      this.y = x.y;
-      this.z = x.z;
-      this.w = x.w;
-      return;
-    }
-    this.x = x || 0;
-    this.y = y || 0;
-    this.z = z || 0;
-    this.w = w || 1;
+  constructor(x: number = 0, y: number = 0, z: number = 0, w: number = 1) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.w = w;
   }
 
   copy(other: { x?: number; y?: number; z?: number; w?: number }): this {
@@ -148,7 +141,7 @@ export class Quat {
   }
 
   clone(): Quat {
-    return new Quat(this);
+    return new Quat(this.x, this.y, this.z, this.w);
   }
 
   set(x: number, y: number, z: number, w: number): this {

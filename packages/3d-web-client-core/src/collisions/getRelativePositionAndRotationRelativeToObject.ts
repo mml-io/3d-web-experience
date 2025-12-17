@@ -1,7 +1,6 @@
 import { PositionAndRotation } from "@mml-io/mml-web";
-import { Object3D } from "three";
 
-import { EulXYZ, Matr4, Quat, Vect3 } from "../math";
+import { EulXYZ, IVect3, Matr4, Quat, Vect3 } from "../math";
 
 const tempContainerMatrix = new Matr4();
 const tempTargetMatrix = new Matr4();
@@ -12,13 +11,13 @@ const tempScaleVector = new Vect3();
 
 export function getRelativePositionAndRotationRelativeToObject(
   positionAndRotation: PositionAndRotation,
-  container: Object3D,
+  matrix: Matr4,
+  localScale: IVect3,
 ): PositionAndRotation {
   const { x, y, z } = positionAndRotation.position;
   const { x: rx, y: ry, z: rz } = positionAndRotation.rotation;
 
-  container.updateWorldMatrix(true, false);
-  tempContainerMatrix.fromArray(container.matrixWorld.elements).invert();
+  tempContainerMatrix.copy(matrix).invert();
 
   tempPositionVector.set(x, y, z);
   tempRotationEuler.set(rx, ry, rz);
@@ -31,8 +30,7 @@ export function getRelativePositionAndRotationRelativeToObject(
 
   tempRotationEuler.setFromQuaternion(tempRotationQuaternion);
 
-  // Correct for the container's local scale
-  tempPositionVector.multiply(new Vect3(container.scale.x, container.scale.y, container.scale.z));
+  tempPositionVector.multiply(localScale);
 
   return {
     position: {

@@ -21,14 +21,14 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/model-loader": "0.23.0",
+    "@mml-io/model-loader": "0.23.1",
     "react": "^19.0.0",
-    "three": "0.180.0"
+    "three": "0.181.2"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
     "@types/node": "^22.13.1",
-    "@types/three": "0.180.0",
+    "@types/three": "0.181.0",
     "esbuild-css-modules-plugin": "3.1.4",
     "jest-environment-jsdom": "29.7.0",
     "jest-junit": "16.0.0",

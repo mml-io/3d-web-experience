@@ -1,69 +1,37 @@
-import { ThreeJSMemoryInspector } from "@mml-io/mml-web-threejs";
 import * as EssentialsPlugin from "@tweakpane/plugin-essentials";
-import { BloomEffect, EffectComposer, EffectPass, ToneMappingEffect } from "postprocessing";
-import { Scene, WebGLRenderer } from "three";
-import { FolderApi, Pane } from "tweakpane";
+import { Pane } from "tweakpane";
 
 import { CameraManager } from "../camera/CameraManager";
 import { LocalController } from "../character/LocalController";
 import { EventHandlerCollection } from "../input/EventHandlerCollection";
-import type { Composer } from "../rendering/composer";
-import { BrightnessContrastSaturation } from "../rendering/post-effects/bright-contrast-sat";
-import { GaussGrainEffect } from "../rendering/post-effects/gauss-grain";
-import { PostProcessingManager } from "../rendering/PostProcessingManager";
-import { TimeManager } from "../time/TimeManager";
 
-import { CameraFolder } from "./blades/cameraFolder";
-import { CharacterControlsFolder } from "./blades/characterControlsFolder";
-import { CharacterFolder } from "./blades/characterFolder";
-// post processing effects ===================================================
-import { CollisionsStatsFolder } from "./blades/collisionsStatsFolder";
-import { BrightnessContrastSaturationFolder } from "./blades/effects/bcsFolder";
-import { BloomAndGrainFolder } from "./blades/effects/bloomAndGrain";
-import { SSAOFolder } from "./blades/effects/ssaoFolder";
-import { ToneMappingFolder } from "./blades/effects/toneMappingFolder";
-// end post processing effects ===============================================
-import { EnvironmentFolder } from "./blades/environmentFolder";
-import { PostProcessingFolder } from "./blades/postProcessingFolder";
-import { RendererFolder, rendererValues } from "./blades/rendererFolder";
-import { RendererStatsFolder } from "./blades/rendererStatsFolder";
+import { CameraFolder, CameraValues } from "./blades/cameraFolder";
+import {
+  CharacterControlsFolder,
+  CharacterControllerValues,
+} from "./blades/characterControlsFolder";
 import { setTweakpaneActive } from "./tweakPaneActivity";
 import { tweakPaneStyle } from "./tweakPaneStyle";
+
+export type TweakPaneConfig = {
+  cameraValues: CameraValues;
+  characterControllerValues: CharacterControllerValues;
+};
 
 export class TweakPane {
   private gui: Pane;
 
-  private renderStatsFolder: RendererStatsFolder;
-  private collisionsStatsFolder: CollisionsStatsFolder;
-  private rendererFolder: RendererFolder;
-  private postProcessingFolder: PostProcessingFolder;
-  private postProcessingSettingsFolder: FolderApi;
-  // post processing effects
-  private toneMappingFolder: ToneMappingFolder;
-  private ssaoFolder: SSAOFolder;
-  private bcsFolder: BrightnessContrastSaturationFolder;
-  private bloomAndGrainFolder: BloomAndGrainFolder;
-  //
-  private character: CharacterFolder;
-  private environment: EnvironmentFolder;
   private camera: CameraFolder;
   private characterControls: CharacterControlsFolder;
 
-  private export: FolderApi;
-  private memoryInspector: FolderApi;
-
   private saveVisibilityInLocalStorage: boolean = true;
-  public guiVisible: boolean = false;
   private tweakPaneWrapper: HTMLDivElement;
   private eventHandlerCollection: EventHandlerCollection;
 
   constructor(
-    private holderElement: HTMLElement,
-    private renderer: WebGLRenderer,
-    private scene: Scene,
-    private composer: Composer,
-    private postProcessingEnabled: boolean | undefined,
-    private toggleCollisionsDebug: (enabled: boolean) => void,
+    holderElement: HTMLElement,
+    config: TweakPaneConfig,
+    public guiVisible: boolean = false,
   ) {
     this.tweakPaneWrapper = document.createElement("div");
     this.tweakPaneWrapper.style.position = "fixed";
@@ -98,42 +66,23 @@ export class TweakPane {
     styleElement.appendChild(document.createTextNode(tweakPaneStyle));
     document.head.appendChild(styleElement);
 
-    this.renderStatsFolder = new RendererStatsFolder(this.gui, true);
-    this.collisionsStatsFolder = new CollisionsStatsFolder(this.gui, false);
-    this.rendererFolder = new RendererFolder(this.gui, false);
-
-    this.environment = new EnvironmentFolder(this.gui, false);
-    this.camera = new CameraFolder(this.gui, false);
-    this.characterControls = new CharacterControlsFolder(this.gui, false);
-
-    this.postProcessingFolder = new PostProcessingFolder(
+    this.camera = new CameraFolder(this.gui, config.cameraValues);
+    this.characterControls = new CharacterControlsFolder(
       this.gui,
-      this.postProcessingEnabled,
+      config.characterControllerValues,
       false,
     );
-    this.postProcessingSettingsFolder = this.gui.addFolder({
-      title: "postProcessingSettings",
-      expanded: false,
+
+    const exportFolder = this.gui.addFolder({ title: "import / export", expanded: false });
+    const exportButton = exportFolder.addButton({ title: "export" });
+    exportButton.on("click", () => {
+      this.downloadSettingsAsJSON(this.gui.exportState());
     });
-    this.toneMappingFolder = new ToneMappingFolder(this.postProcessingSettingsFolder, false);
-    this.ssaoFolder = new SSAOFolder(this.postProcessingSettingsFolder, false);
-    this.bcsFolder = new BrightnessContrastSaturationFolder(
-      this.postProcessingSettingsFolder,
-      false,
-    );
-    this.bloomAndGrainFolder = new BloomAndGrainFolder(this.postProcessingSettingsFolder, false);
-    this.character = new CharacterFolder(this.gui, false);
-
-    this.toneMappingFolder.folder.hidden = rendererValues.toneMapping === 5 ? false : true;
-
-    this.export = this.gui.addFolder({ title: "import / export", expanded: false });
-
-    this.collisionsStatsFolder.setupChangeEvent(this.toggleCollisionsDebug);
-
-    this.memoryInspector = this.gui.addFolder({ title: "memory inspector", expanded: false });
-    const memoryInspectorButton = this.memoryInspector.addButton({ title: "open memory report" });
-    memoryInspectorButton.on("click", () => {
-      ThreeJSMemoryInspector.openMemoryReport(this.scene);
+    const importButton = exportFolder.addButton({ title: "import" });
+    importButton.on("click", () => {
+      this.importSettingsFromJSON((settings) => {
+        this.gui.importState(settings);
+      });
     });
 
     this.eventHandlerCollection = new EventHandlerCollection();
@@ -151,63 +100,14 @@ export class TweakPane {
     this.eventHandlerCollection.add(window, "keydown", (e) => {
       this.processKey(e);
     });
+
+    this.updateVisibility();
   }
 
   private processKey(e: KeyboardEvent): void {
     if (e.key === "p") {
       this.toggleGUI();
     }
-  }
-
-  public setupRenderPane(
-    composer: EffectComposer,
-    n8aopass: any,
-    toneMappingEffect: ToneMappingEffect,
-    toneMappingPass: EffectPass,
-    brightnessContrastSaturation: typeof BrightnessContrastSaturation,
-    bloomEffect: BloomEffect,
-    gaussGrainEffect: typeof GaussGrainEffect,
-    hasLighting: boolean,
-    updateSunValues: () => void,
-    setHDR: () => void,
-    setSkyboxAzimuthalAngle: (azimuthalAngle: number) => void,
-    setSkyboxPolarAngle: (azimuthalAngle: number) => void,
-    setAmbientLight: () => void,
-    setFog: () => void,
-    setSkyShaderValues: () => void,
-  ): void {
-    this.rendererFolder.setupChangeEvent(
-      this.renderer,
-      this.toneMappingFolder.folder,
-      toneMappingPass,
-    );
-
-    this.toneMappingFolder.setupChangeEvent(toneMappingEffect);
-    this.ssaoFolder.setupChangeEvent(composer, n8aopass);
-    this.bcsFolder.setupChangeEvent(brightnessContrastSaturation);
-    this.bloomAndGrainFolder.setupChangeEvent(bloomEffect, gaussGrainEffect);
-    this.environment.setupChangeEvent(
-      this.scene,
-      setHDR,
-      setSkyboxAzimuthalAngle,
-      setSkyboxPolarAngle,
-      setAmbientLight,
-      setFog,
-      setSkyShaderValues,
-      updateSunValues,
-    );
-    this.environment.folder.hidden = hasLighting === false;
-
-    const exportButton = this.export.addButton({ title: "export" });
-    exportButton.on("click", () => {
-      this.downloadSettingsAsJSON(this.gui.exportState());
-    });
-    const importButton = this.export.addButton({ title: "import" });
-    importButton.on("click", () => {
-      this.importSettingsFromJSON((settings) => {
-        this.gui.importState(settings);
-      });
-    });
   }
 
   public dispose() {
@@ -222,27 +122,6 @@ export class TweakPane {
 
   public setupCharacterController(localController: LocalController) {
     this.characterControls.setupChangeEvent(localController);
-    this.character.setupChangeEvent();
-  }
-
-  public setupPostProcessingPane(postProcessingManager: PostProcessingManager): void {
-    this.postProcessingFolder.setupChangeEvent(postProcessingManager);
-  }
-
-  public updateStats(timeManager: TimeManager): void {
-    const postProcessingManager = (this.composer as any).postProcessingManager;
-    if (postProcessingManager?.effectComposer) {
-      this.renderStatsFolder.update(
-        this.renderer,
-        postProcessingManager.effectComposer,
-        timeManager,
-      );
-    }
-
-    // record frame time for benchmark if running
-    if (this.postProcessingFolder.isBenchmarkRunning()) {
-      this.postProcessingFolder.recordFrameTime();
-    }
   }
 
   public updateCameraData(cameraManager: CameraManager) {
@@ -299,6 +178,15 @@ export class TweakPane {
 
   private toggleGUI(): void {
     this.guiVisible = !this.guiVisible;
+    this.updateVisibility();
+  }
+
+  public setVisible(visible: boolean): void {
+    this.guiVisible = visible;
+    this.updateVisibility();
+  }
+
+  private updateVisibility(): void {
     const gui = this.gui as any;
     const paneElement: HTMLElement = gui.containerElem_;
     paneElement.style.right = this.guiVisible ? "0px" : "-450px";

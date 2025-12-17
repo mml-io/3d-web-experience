@@ -1,5 +1,4 @@
 import { PositionAndRotation, radToDeg } from "@mml-io/mml-web";
-import { Euler, Group, Quaternion } from "three";
 
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
@@ -8,15 +7,12 @@ import { VirtualJoystick } from "../input/VirtualJoystick";
 import { EulXYZ } from "../math/EulXYZ";
 import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
-import { Composer } from "../rendering/composer";
-import { TimeManager } from "../time/TimeManager";
+import { CharacterRenderState, CharacterDescription } from "../rendering/IRenderer";
+import { CharacterControllerValues } from "../tweakpane/blades/characterControlsFolder";
 import { TweakPane } from "../tweakpane/TweakPane";
 
-import { Character, CharacterDescription, LoadedAnimations } from "./Character";
-import { colorArrayToColors } from "./CharacterModel";
+import { AnimationMixer } from "./AnimationMixer";
 import { AnimationState, CharacterState } from "./CharacterState";
-import { CharacterInstances } from "./instancing/CharacterInstances";
-import { CharacterModelLoader } from "./loading/CharacterModelLoader";
 import { LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
 import { encodeCharacterAndCamera } from "./url-position";
@@ -59,18 +55,15 @@ export type SpawnConfigurationState = {
 };
 
 export type CharacterManagerConfig = {
-  composer: Composer;
-  characterModelLoader: CharacterModelLoader;
   collisionsManager: CollisionsManager;
   cameraManager: CameraManager;
-  timeManager: TimeManager;
   keyInputManager: KeyInputManager;
   virtualJoystick?: VirtualJoystick;
   remoteUserStates: Map<number, CharacterState>;
   sendUpdate: (update: CharacterState) => void;
   sendLocalCharacterColors: (colors: Array<[number, number, number]>) => void;
-  animationsPromise: Promise<LoadedAnimations>;
   spawnConfiguration: SpawnConfigurationState;
+  characterControllerValues: CharacterControllerValues;
   characterResolve: (clientId: number) => {
     username: string | null;
     characterDescription: CharacterDescription | null;
@@ -79,82 +72,49 @@ export type CharacterManagerConfig = {
   updateURLLocation?: boolean;
 };
 
-type LoadedCharacterState = {
-  character: Character;
-  remoteController: RemoteController;
-  characterLoaded: boolean;
-};
-
 type RemoteCharacterState = {
   id: number;
-  loadedCharacterState: LoadedCharacterState | null;
-  lastPosition: { x: number; y: number; z: number };
-  distanceSquared: number;
-  lastLODChange: number; // timestamp of last promotion/demotion
-  abortController?: AbortController; // For cancelling loading operations
-};
-
-type CharacterReadyForScene = {
-  id: number;
-  character: Character;
-  remoteController: RemoteController;
+  controller: RemoteController;
+  animationMixer: AnimationMixer;
+  lastUsername: string;
+  lastCharacterDescription: CharacterDescription | null;
+  lastColors: Array<[number, number, number]> | null;
+  renderState: CharacterRenderState;
 };
 
 export class CharacterManager {
   public static readonly headTargetOffset = new Vect3(0, 1.75, 0);
 
   private localClientId: number = 0;
-
   public remoteCharacters: Map<number, RemoteCharacterState> = new Map();
+  public localController: LocalController | null = null;
+  private localRenderState: CharacterRenderState | null = null;
+  private localAnimationMixer: AnimationMixer | null = null;
 
-  public localController: LocalController;
-  public localCharacter: Character | null = null;
-  public characterInstances: CharacterInstances | null = null;
-
-  public readonly group: Group;
   private lastUpdateSentTime: number = 0;
-
-  private readonly MAX_REAL_REMOTE_CHARACTERS = 30;
-  private readonly LOD_CHANGE_COOLDOWN_MS = 2000;
-  private readonly MAX_SCENE_ADDITIONS_PER_FRAME = 3;
-
   private tempCameraTarget = new Vect3();
+  private cachedCharacterStates: Map<number, CharacterRenderState> = new Map();
+  private pendingDescriptionUpdates: Set<number> = new Set();
+  private pendingRemovals: Set<number> = new Set();
 
-  private pendingSpawns = new Set<number>();
-  // Track characters that are loading to keep instances visible
-  private loadingCharacters = new Set<number>();
-  // Queue for characters ready to be added to the scene (throttled)
-  private charactersReadyForScene: CharacterReadyForScene[] = [];
+  constructor(private config: CharacterManagerConfig) {}
 
-  constructor(private config: CharacterManagerConfig) {
-    this.group = new Group();
-    this.initializeCharacterInstances();
+  /**
+   * Sets the local client ID early to prevent the local character from being
+   * spawned as a remote character when network updates arrive before spawnLocalCharacter is called.
+   */
+  public setLocalClientId(id: number): void {
+    this.localClientId = id;
   }
 
   public spawnLocalCharacter(
     id: number,
-    username: string,
-    characterDescription: CharacterDescription | null,
     spawnPosition: Vect3 = new Vect3(),
     spawnRotation: EulXYZ = new EulXYZ(),
   ) {
-    const character = new Character({
-      username,
-      characterDescription,
-      animationsPromise: this.config.animationsPromise,
-      characterModelLoader: this.config.characterModelLoader,
-      characterId: id,
-      modelLoadedCallback: () => {
-        this.config.sendLocalCharacterColors(character.getColors());
-      },
-      modelLoadFailedCallback: (error: Error) => {
-        console.error(`CharacterManager: Local character ${id} model failed to load:`, error);
-      },
-      cameraManager: this.config.cameraManager,
-      composer: this.config.composer,
-      isLocal: true,
-    });
-    const quaternion = character.quaternion;
+    const position = new Vect3(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+    const quaternion = new Quat().setFromEulerXYZ(spawnRotation);
+
     this.config.sendUpdate({
       position: {
         x: spawnPosition.x,
@@ -164,309 +124,50 @@ export class CharacterManager {
       rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
       state: AnimationState.idle,
     });
+
     this.localClientId = id;
-    this.localCharacter = character;
     this.localController = new LocalController({
-      character: this.localCharacter,
       id: this.localClientId,
+      position: position,
+      quaternion: quaternion,
       collisionsManager: this.config.collisionsManager,
       keyInputManager: this.config.keyInputManager,
       virtualJoystick: this.config.virtualJoystick,
       cameraManager: this.config.cameraManager,
-      timeManager: this.config.timeManager,
       spawnConfiguration: this.config.spawnConfiguration,
+      characterControllerValues: this.config.characterControllerValues,
     });
-    this.localCharacter.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
-    const spawnQuat = new Quat().setFromEulerXYZ(spawnRotation);
-    this.localCharacter.quaternion.set(spawnQuat.x, spawnQuat.y, spawnQuat.z, spawnQuat.w);
-    this.group.add(character);
-  }
 
-  private calculateDistanceSquared(position: { x: number; y: number; z: number }): number {
-    if (!this.localCharacter) return Number.MAX_VALUE;
-    const localPos = this.localCharacter.position;
-    const dx = position.x - localPos.x;
-    const dy = position.y - localPos.y;
-    const dz = position.z - localPos.z;
-    return dx * dx + dy * dy + dz * dz;
-  }
-
-  private evaluateLOD(): void {
-    for (const [, char] of this.remoteCharacters) {
-      char.distanceSquared = this.calculateDistanceSquared(char.lastPosition);
-    }
-
-    const sortedChars = Array.from(this.remoteCharacters.values());
-    sortedChars.sort((a, b) => a.distanceSquared - b.distanceSquared);
-
-    const now = Date.now();
-    for (let i = 0; i < sortedChars.length; i++) {
-      const char = sortedChars[i];
-      const shouldBe = i < this.MAX_REAL_REMOTE_CHARACTERS;
-
-      const loadedCharacter = char.loadedCharacterState;
-      const isLoading = this.loadingCharacters.has(char.id);
-      const isReal = loadedCharacter !== null || isLoading;
-
-      if (isReal !== shouldBe) {
-        const timeSinceLastChange = now - char.lastLODChange;
-        if (timeSinceLastChange < this.LOD_CHANGE_COOLDOWN_MS) {
-          continue;
-        }
-
-        if (shouldBe) {
-          char.lastLODChange = now;
-          this.promoteToReal(char.id);
-        } else {
-          // Only demote if character is not currently loading
-          char.lastLODChange = now;
-          this.demoteToInstance(char.id);
-        }
-      }
-    }
-  }
-
-  private promoteToReal(id: number): void {
-    const networkState = this.config.remoteUserStates.get(id);
-    if (!networkState) {
-      console.error(`CharacterManager: Cannot promote character ${id}: no network state`);
-      return;
-    }
-
-    // mark character as loading and update active character state
-    this.loadingCharacters.add(id);
-    const remoteChar = this.remoteCharacters.get(id);
-    if (!remoteChar) {
-      throw new Error(
-        `CharacterManager: Cannot promote character ${id}: not found in remoteCharacters`,
-      );
-    }
-
-    // Create AbortController for this loading operation
-    const abortController = new AbortController();
-    remoteChar.abortController = abortController;
-
-    const characterInfo = this.config.characterResolve(id);
-    let position = new Vect3(
-      networkState.position.x,
-      networkState.position.y,
-      networkState.position.z,
-    );
-    const instancePosition = this.characterInstances?.getPositionForInstance(id);
-    if (instancePosition) {
-      position = instancePosition;
-    }
-    const euler = new Euler().setFromQuaternion(
-      new Quaternion(0, networkState.rotation.quaternionY, 0, networkState.rotation.quaternionW),
-    );
-    const rotation = new EulXYZ(euler.x, euler.y, euler.z);
-
-    const character = new Character({
-      username: characterInfo.username ?? `Unknown User ${id}`,
+    // Initialize cached renderState for local character
+    const characterInfo = this.config.characterResolve(this.localClientId);
+    const rotation = new EulXYZ().setFromQuaternion(quaternion);
+    this.localAnimationMixer = new AnimationMixer(AnimationState.idle);
+    this.localRenderState = {
+      id: this.localClientId,
+      position: new Vect3(position.x, position.y, position.z),
+      rotation: rotation,
+      animationState: AnimationState.idle,
+      animationWeights: this.localAnimationMixer.getWeights(),
+      animationTimes: this.localAnimationMixer.getAnimationTimes(),
+      username: characterInfo.username ?? `Unknown User ${this.localClientId}`,
       characterDescription: characterInfo.characterDescription,
-      animationsPromise: this.config.animationsPromise,
-      characterModelLoader: this.config.characterModelLoader,
-      characterId: id,
-      modelLoadedCallback: () => {
-        // Check if operation was canceled during loading
-        if (abortController.signal.aborted) {
-          console.log(`CharacterManager: Character ${id} loading was canceled`);
-          return;
-        }
-
-        const loadedCharacterState = remoteChar.loadedCharacterState;
-        if (!loadedCharacterState) {
-          console.warn("CharacterManager: No loadedCharacterState found for character", id);
-          return;
-        }
-
-        const networkState = this.config.remoteUserStates.get(id);
-        if (networkState) {
-          remoteController.update(
-            networkState,
-            this.config.timeManager.time,
-            this.config.timeManager.deltaTime,
-          );
-        }
-
-        loadedCharacterState.characterLoaded = true;
-
-        // Called when the real character has finished loading
-        // Mark as loaded and clear abort controller
-        this.loadingCharacters.delete(id);
-        remoteChar.abortController = undefined;
-
-        // Add to queue for throttled scene addition
-        this.charactersReadyForScene.push({
-          id,
-          character,
-          remoteController,
-        });
-
-        // Shadow the instance instead of removing it completely
-        if (this.characterInstances) {
-          this.characterInstances.shadowInstance(id);
-        }
-      },
-      modelLoadFailedCallback: (error: Error) => {
-        // Check if operation was canceled during loading
-        if (abortController.signal.aborted) {
-          console.log(`CharacterManager: Character ${id} loading was canceled`);
-          return;
-        }
-
-        console.warn(
-          `CharacterManager: Character ${id} model failed to load, keeping instance visible`,
-        );
-
-        // Clean up the failed character state
-        this.loadingCharacters.delete(id);
-        remoteChar.abortController = undefined;
-
-        // Remove the failed character from the scene if it was added
-        if (remoteChar.loadedCharacterState?.character.parent) {
-          this.group.remove(remoteChar.loadedCharacterState.character);
-        }
-
-        // Dispose of the failed character
-        remoteChar.loadedCharacterState?.character.dispose();
-        remoteChar.loadedCharacterState = null;
-
-        // Instance remains visible and character can be promoted again later
-        // The instance was never shadowed since the modelLoadedCallback was never called
-      },
-      cameraManager: this.config.cameraManager,
-      composer: this.config.composer,
-      isLocal: false,
-      abortController,
-    });
-
-    const spawnQuaternion = new Quat().setFromEulerXYZ(rotation);
-    character.position.set(position.x, position.y, position.z);
-    character.quaternion.set(
-      spawnQuaternion.x,
-      spawnQuaternion.y,
-      spawnQuaternion.z,
-      spawnQuaternion.w,
-    );
-    // Character will be added to scene when processed from queue
-    const remoteController = new RemoteController(character);
-    remoteChar.loadedCharacterState = {
-      character,
-      remoteController,
-      characterLoaded: false,
+      colors: characterInfo.colors,
+      isLocal: true,
     };
-  }
-
-  private demoteToInstance(id: number): void {
-    const networkState = this.config.remoteUserStates.get(id);
-    if (!networkState) return;
-
-    const wasLoading = this.loadingCharacters.has(id);
-    this.loadingCharacters.delete(id);
-
-    const activeChar = this.remoteCharacters.get(id);
-    if (!activeChar) {
-      throw new Error(
-        `CharacterManager: Cannot demote character ${id}: not found in remoteCharacters`,
-      );
-    }
-
-    // Cancel the loading operation if it's still in progress
-    if (activeChar.abortController && wasLoading) {
-      console.log(`CharacterManager: Cancelling loading for character ${id} during demotion`);
-      activeChar.abortController.abort();
-      activeChar.abortController = undefined;
-    }
-
-    // Remove from scene queue if present (character might be queued but not yet added to scene)
-    const queueIndex = this.charactersReadyForScene.findIndex((c) => c.id === id);
-    if (queueIndex !== -1) {
-      this.charactersReadyForScene.splice(queueIndex, 1);
-    }
-
-    const loadedCharacterState = activeChar.loadedCharacterState;
-    if (!loadedCharacterState) {
-      if (wasLoading) {
-        console.log(`CharacterManager: Character ${id} loading was canceled successfully`);
-      } else {
-        console.warn(
-          `CharacterManager: Cannot demote character ${id}: no character instance found`,
-        );
-      }
-      return;
-    }
-    if (!loadedCharacterState.characterLoaded) {
-      console.warn(
-        `CharacterManager: Demoting character ${id} that is not fully loaded (wasLoading: ${wasLoading})`,
-      );
-    }
-
-    // Capture the real character's current position before removing it
-    const realCharacterPosition = new Vect3(
-      loadedCharacterState.character.position.x,
-      loadedCharacterState.character.position.y,
-      loadedCharacterState.character.position.z,
-    );
-    const realCharacterRotation = new EulXYZ().setFromQuaternion(
-      new Quat(
-        loadedCharacterState.character.quaternion.x,
-        loadedCharacterState.character.quaternion.y,
-        loadedCharacterState.character.quaternion.z,
-        loadedCharacterState.character.quaternion.w,
-      ),
-    );
-
-    this.group.remove(loadedCharacterState.character);
-    loadedCharacterState.character.dispose();
-    activeChar.loadedCharacterState = null;
-
-    if (this.characterInstances) {
-      // First try to unshadow an existing instance
-      this.characterInstances.unshadowInstance(id);
-
-      // Use the real character's position to immediately position the unshadowed instance
-      this.characterInstances.setInstancePositionImmediate(
-        id,
-        realCharacterPosition,
-        realCharacterRotation,
-        networkState.state,
-      );
-    }
+    this.cachedCharacterStates.set(this.localClientId, this.localRenderState);
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
-    tweakPane.setupCharacterController(this.localController);
-  }
-
-  private async initializeCharacterInstances() {
-    try {
-      const characterInstances = new CharacterInstances({
-        animationsPromise: this.config.animationsPromise,
-        characterModelLoader: this.config.characterModelLoader,
-        cameraManager: this.config.cameraManager,
-        timeManager: this.config.timeManager,
-        debug: false,
-      });
-
-      const instancedMesh = await characterInstances.initialize();
-      if (instancedMesh) {
-        this.group.add(instancedMesh);
-        characterInstances.setupFrustumCulling();
-        this.characterInstances = characterInstances;
-      } else {
-        console.error("failed to initialize character instances");
-      }
-    } catch (error) {
-      console.error("error initializing instances:", error);
+    if (this.localController) {
+      tweakPane.setupCharacterController(this.localController);
     }
   }
 
   public getLocalCharacterPositionAndRotation(): PositionAndRotation {
-    if (this.localCharacter && this.localCharacter && this.localCharacter) {
-      const rotation = this.localCharacter.rotation;
+    if (this.localController) {
+      const rotation = this.localController.config.quaternion;
       return {
-        position: this.localCharacter.position,
+        position: this.localController.config.position,
         rotation: {
           x: radToDeg(rotation.x),
           y: radToDeg(rotation.y),
@@ -481,123 +182,137 @@ export class CharacterManager {
   }
 
   public clear() {
-    for (const [id, remoteCharacter] of this.remoteCharacters) {
-      // Cancel any ongoing loading operations
-      if (remoteCharacter.abortController) {
-        console.log(`CharacterManager: Cancelling loading for character ${id} during clear`);
-        remoteCharacter.abortController.abort();
-      }
-
-      const loadedCharacterState = remoteCharacter.loadedCharacterState;
-      if (loadedCharacterState) {
-        this.group.remove(loadedCharacterState.character);
-      }
-      this.remoteCharacters.delete(id);
+    // Track all character IDs that need to be removed from the renderer
+    for (const [id] of this.remoteCharacters) {
+      this.pendingRemovals.add(id);
+    }
+    if (this.localClientId !== 0) {
+      this.pendingRemovals.add(this.localClientId);
     }
 
-    if (this.localCharacter) {
-      this.group.remove(this.localCharacter);
-      this.localCharacter = null;
-    }
-    if (this.characterInstances) {
-      this.characterInstances.clear();
-    }
+    this.remoteCharacters.clear();
+    this.cachedCharacterStates.clear();
+    this.localRenderState = null;
 
-    this.pendingSpawns.clear();
-    this.loadingCharacters.clear(); // Clean up loading state
-    this.charactersReadyForScene.length = 0; // Clear the queue
+    if (this.localController) {
+      this.localController = null;
+    }
   }
 
   public dispose() {
     this.clear();
-    if (this.characterInstances) {
-      this.characterInstances.dispose();
-      this.characterInstances = null;
-    }
-    if (this.localCharacter) {
-      this.localCharacter.dispose();
-      this.localCharacter = null;
-    }
-  }
-
-  public addSelfChatBubble(message: string) {
-    if (this.localCharacter) {
-      this.localCharacter.addChatBubble(message);
-    }
-  }
-
-  public addChatBubble(id: number, message: string) {
-    this.remoteCharacters.get(id)?.loadedCharacterState?.character?.addChatBubble(message);
+    this.localController = null;
   }
 
   public networkCharacterInfoUpdated(id: number) {
-    const characterInfo = this.config.characterResolve(id);
-    const colors = colorArrayToColors(characterInfo.colors ?? []);
+    // Handle remote characters
+    const remoteChar = this.remoteCharacters.get(id);
+    if (remoteChar) {
+      const characterInfo = this.config.characterResolve(id);
+      const newUsername = characterInfo.username ?? `Unknown User ${id}`;
 
-    if (this.localCharacter && this.localClientId == id) {
-      const abortController = new AbortController();
-      const localCharacter = this.localCharacter;
-      this.localCharacter.updateCharacter(
-        characterInfo.username ?? `Unknown User ${id}`,
-        characterInfo.characterDescription,
-        abortController,
-        () => {
-          if (abortController.signal.aborted) {
-            return;
-          }
-          this.config.sendLocalCharacterColors(localCharacter.getColors());
-        },
-        (error) => {
-          console.error("local.modelLoadFailedCallback", id, error);
-        },
-      );
+      // Check if description/colors changed BEFORE updating
+      const descriptionChanged =
+        remoteChar.lastUsername !== newUsername ||
+        remoteChar.lastCharacterDescription !== characterInfo.characterDescription ||
+        remoteChar.lastColors !== characterInfo.colors;
+
+      remoteChar.lastUsername = newUsername;
+      remoteChar.lastCharacterDescription = characterInfo.characterDescription;
+      remoteChar.lastColors = characterInfo.colors;
+
+      // Update cached renderState
+      if (remoteChar.renderState) {
+        remoteChar.renderState.username = remoteChar.lastUsername;
+        remoteChar.renderState.characterDescription = remoteChar.lastCharacterDescription;
+        remoteChar.renderState.colors = remoteChar.lastColors;
+      }
+
+      // Mark for description update in next update() call
+      if (descriptionChanged) {
+        this.pendingDescriptionUpdates.add(id);
+      }
     }
 
-    const remoteCharacter = this.remoteCharacters.get(id);
-    if (remoteCharacter) {
-      if (remoteCharacter.loadedCharacterState) {
-        const abortController = new AbortController();
-        remoteCharacter.loadedCharacterState.character.updateCharacter(
-          characterInfo.username ?? `Unknown User ${id}`,
-          characterInfo.characterDescription,
-          abortController,
-          () => {
-            if (abortController.signal.aborted) {
-              return;
-            }
-          },
-          (error) => {
-            console.error("remote.modelLoadFailedCallback", id, error);
-          },
-        );
-        remoteCharacter.abortController = abortController;
-      }
-      if (this.characterInstances) {
-        this.characterInstances.updateInstanceColors(id, colors);
+    // Handle local character - update renderState if needed
+    if (id === this.localClientId && this.localRenderState) {
+      const characterInfo = this.config.characterResolve(id);
+      const newUsername = characterInfo.username ?? `Unknown User ${id}`;
+
+      // Check if description/colors changed BEFORE updating
+      const descriptionChanged =
+        this.localRenderState.username !== newUsername ||
+        this.localRenderState.characterDescription !== characterInfo.characterDescription ||
+        this.localRenderState.colors !== characterInfo.colors;
+
+      // Update cached renderState
+      this.localRenderState.username = newUsername;
+      this.localRenderState.characterDescription = characterInfo.characterDescription;
+      this.localRenderState.colors = characterInfo.colors;
+
+      // Mark for description update in next update() call
+      if (descriptionChanged) {
+        this.pendingDescriptionUpdates.add(id);
       }
     }
   }
 
-  public update() {
-    // Process queue of characters ready to be added to scene (throttled)
-    const charactersToAdd = this.charactersReadyForScene.splice(
-      0,
-      this.MAX_SCENE_ADDITIONS_PER_FRAME,
-    );
-    for (const { character } of charactersToAdd) {
-      this.group.add(character);
+  public update(
+    deltaTime: number,
+    frameCounter: number,
+  ): {
+    updatedCharacterDescriptions: number[];
+    removedUserIds: number[];
+  } {
+    const updatedCharacterDescriptions: number[] = [];
+    const removedUserIds: number[] = [];
+
+    // Process pending removals from clear()
+    for (const id of this.pendingRemovals) {
+      removedUserIds.push(id);
     }
+    this.pendingRemovals.clear();
 
-    if (this.localCharacter) {
-      this.localCharacter.update(this.config.timeManager.time, this.config.timeManager.deltaTime);
+    // Process pending description updates from networkCharacterInfoUpdated
+    for (const id of this.pendingDescriptionUpdates) {
+      updatedCharacterDescriptions.push(id);
+    }
+    this.pendingDescriptionUpdates.clear();
 
-      this.localController.update();
+    // Update local character renderState in-place
+    if (this.localController && this.localRenderState && this.localAnimationMixer) {
+      this.localController.update(deltaTime);
 
-      if (this.characterInstances) {
-        this.characterInstances.update(
-          this.config.timeManager.deltaTime,
-          this.config.timeManager.time,
-        );
+      // Mutate cached renderState in-place
+      this.localRenderState.position.set(
+        this.localController.config.position.x,
+        this.localController.config.position.y,
+        this.localController.config.position.z,
+      );
+      const quat = this.localController.config.quaternion;
+      this.localRenderState.rotation.setFromQuaternion(new Quat(quat.x, quat.y, quat.z, quat.w));
+
+      // Update animation mixer with target state
+      const targetAnimation = this.localController.getTargetAnimation();
+      this.localAnimationMixer.setTargetState(targetAnimation);
+      this.localAnimationMixer.update(deltaTime);
+
+      this.localRenderState.animationState = this.localAnimationMixer.getPrimaryState();
+      this.localRenderState.animationWeights = this.localAnimationMixer.getWeights();
+      this.localRenderState.animationTimes = this.localAnimationMixer.getAnimationTimes();
+
+      // Check if description changed
+      const characterInfo = this.config.characterResolve(this.localClientId);
+      const newUsername = characterInfo.username ?? `Unknown User ${this.localClientId}`;
+      if (
+        this.localRenderState.username !== newUsername ||
+        this.localRenderState.characterDescription !== characterInfo.characterDescription ||
+        this.localRenderState.colors !== characterInfo.colors
+      ) {
+        this.localRenderState.username = newUsername;
+        this.localRenderState.characterDescription = characterInfo.characterDescription;
+        this.localRenderState.colors = characterInfo.colors;
+        updatedCharacterDescriptions.push(this.localClientId);
       }
 
       const currentTime = new Date().getTime();
@@ -610,148 +325,149 @@ export class CharacterManager {
       const targetOffset = this.tempCameraTarget
         .set(0, 0, 0)
         .add(CharacterManager.headTargetOffset)
-        .applyQuat(this.localCharacter.quaternion)
-        .add(this.localCharacter.position);
+        .applyQuat(this.localController.config.quaternion)
+        .add(this.localController.config.position);
       this.config.cameraManager.setTarget(targetOffset);
 
-      if (!this.localCharacter) {
-        console.warn("CharacterManager: Local character not spawned yet, skipping update");
-        return;
+      if (
+        this.config.updateURLLocation &&
+        frameCounter % 60 === 0 &&
+        document.hasFocus() &&
+        !this.config.cameraManager.hasActiveInput()
+      ) {
+        const cameraState = this.config.cameraManager.getCameraState();
+        const cameraRotation = new EulXYZ().setFromQuaternion(cameraState.rotation);
+        const hash = encodeCharacterAndCamera(
+          {
+            position: this.localController.config.position,
+            rotation: new EulXYZ().setFromQuaternion(this.localController.config.quaternion),
+          },
+          {
+            position: cameraState.position,
+            rotation: cameraRotation,
+          },
+        );
+        const url = new URL(window.location.href);
+        url.hash = hash;
+        window.history.replaceState({}, "", url);
+      }
+    }
+
+    // Process remote characters
+    for (const [id, networkUpdate] of this.config.remoteUserStates) {
+      if (id === this.localClientId) {
+        continue;
       }
 
-      const characterInstances = this.characterInstances;
-      if (!characterInstances) {
-        console.warn("CharacterManager: CharacterInstances not initialized, skipping update");
-        return;
-      }
+      let existingCharacter = this.remoteCharacters.get(id);
+      if (!existingCharacter) {
+        // Spawn new remote character with a RemoteController
+        const { position } = networkUpdate;
+        const initialRotation = new EulXYZ().setFromQuaternion(
+          new Quat(0, networkUpdate.rotation.quaternionY, 0, networkUpdate.rotation.quaternionW),
+        );
 
-      for (const [id, update] of this.config.remoteUserStates) {
-        if (id === this.localClientId) {
-          continue;
-        }
+        const characterInfo = this.config.characterResolve(id);
+        const controller = new RemoteController(
+          new Vect3(position.x, position.y, position.z),
+          initialRotation,
+          networkUpdate.state,
+        );
+        const animationMixer = new AnimationMixer(networkUpdate.state);
 
-        const { position } = update;
-        const currentPosition = { x: position.x, y: position.y, z: position.z };
-        let existingCharacter = this.remoteCharacters.get(id);
-        if (!existingCharacter) {
-          existingCharacter = {
-            id,
-            loadedCharacterState: null,
-            lastPosition: { ...currentPosition },
-            distanceSquared: this.calculateDistanceSquared(position),
-            lastLODChange: 0,
-            abortController: undefined,
-          };
-          this.remoteCharacters.set(id, existingCharacter);
+        // Initialize cached renderState
+        const cachedRotation = new EulXYZ();
+        cachedRotation.setFromQuaternion(controller.rotation);
+        const renderState: CharacterRenderState = {
+          id,
+          position: new Vect3(controller.position.x, controller.position.y, controller.position.z),
+          rotation: cachedRotation,
+          animationState: controller.animationState,
+          animationWeights: animationMixer.getWeights(),
+          animationTimes: animationMixer.getAnimationTimes(),
+          username: characterInfo.username ?? `Unknown User ${id}`,
+          characterDescription: characterInfo.characterDescription,
+          colors: characterInfo.colors,
+          isLocal: false,
+        };
 
-          this.pendingSpawns.add(id);
+        existingCharacter = {
+          id,
+          controller,
+          animationMixer,
+          lastUsername: renderState.username,
+          lastCharacterDescription: renderState.characterDescription,
+          lastColors: renderState.colors,
+          renderState,
+        };
+        this.remoteCharacters.set(id, existingCharacter);
+        this.cachedCharacterStates.set(id, renderState);
+      } else {
+        // Update existing character's controller with network state
+        existingCharacter.controller.update(networkUpdate, deltaTime);
 
-          const characterInfo = this.config.characterResolve(id);
+        // Update animation mixer
+        existingCharacter.animationMixer.setTargetState(
+          existingCharacter.controller.animationState,
+        );
+        existingCharacter.animationMixer.update(deltaTime);
 
-          // Convert characterInfo colors to Map<string, Color> format
-          const colorMap = colorArrayToColors(characterInfo.colors ?? []);
+        // Mutate cached renderState in-place
+        existingCharacter.renderState.position.set(
+          existingCharacter.controller.position.x,
+          existingCharacter.controller.position.y,
+          existingCharacter.controller.position.z,
+        );
+        existingCharacter.renderState.rotation.setFromQuaternion(
+          existingCharacter.controller.rotation,
+        );
+        existingCharacter.renderState.animationState =
+          existingCharacter.animationMixer.getPrimaryState();
+        existingCharacter.renderState.animationWeights =
+          existingCharacter.animationMixer.getWeights();
+        existingCharacter.renderState.animationTimes =
+          existingCharacter.animationMixer.getAnimationTimes();
 
-          const euler = new Euler().setFromQuaternion(
-            new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
-          );
-          const rotation = new EulXYZ(euler.x, euler.y, euler.z);
-
-          characterInstances.spawnInstance(
-            id,
-            colorMap,
-            new Vect3(position.x, position.y, position.z),
-            rotation,
-            update.state,
-          );
-        } else {
-          existingCharacter.lastPosition = { ...position };
-          const euler = new Euler().setFromQuaternion(
-            new Quaternion(0, update.rotation.quaternionY, 0, update.rotation.quaternionW),
-          );
-          const loadedCharacterState = existingCharacter.loadedCharacterState;
-          if (loadedCharacterState) {
-            // Update real character
-            const character = loadedCharacterState.character;
-            if (!loadedCharacterState.characterLoaded) {
-              characterInstances.updateInstance(
-                id,
-                new Vect3(position.x, position.y, position.z),
-                new EulXYZ(euler.x, euler.y, euler.z),
-                update.state,
-              );
-            }
-            const characterController = loadedCharacterState.remoteController;
-            characterController.update(
-              update,
-              this.config.timeManager.time,
-              this.config.timeManager.deltaTime,
-            );
-
-            if (character && character.getCurrentAnimation() !== update.state) {
-              character.updateAnimation(update.state);
-            }
-          } else {
-            characterInstances.updateInstance(
-              id,
-              new Vect3(position.x, position.y, position.z),
-              new EulXYZ(euler.x, euler.y, euler.z),
-              update.state,
-            );
-          }
-        }
-      }
-
-      for (const [, activeChar] of this.remoteCharacters) {
-        if (!this.config.remoteUserStates.has(activeChar.id)) {
-          // Cancel any ongoing loading operations for disconnected characters
-          if (activeChar.abortController) {
-            activeChar.abortController.abort();
-          }
-
-          const loadedCharacterState = activeChar.loadedCharacterState;
-          if (loadedCharacterState) {
-            this.group.remove(loadedCharacterState.character);
-          }
-
-          // Clean up both regular instances and shadowed instances
-          characterInstances.despawnInstance(activeChar.id);
-
-          // Clean up loading state to prevent memory leaks
-          this.loadingCharacters.delete(activeChar.id);
-          this.remoteCharacters.delete(activeChar.id);
+        // Check if description changed
+        const characterInfo = this.config.characterResolve(id);
+        const newUsername = characterInfo.username ?? `Unknown User ${id}`;
+        if (
+          existingCharacter.lastUsername !== newUsername ||
+          existingCharacter.lastCharacterDescription !== characterInfo.characterDescription ||
+          existingCharacter.lastColors !== characterInfo.colors
+        ) {
+          existingCharacter.lastUsername = newUsername;
+          existingCharacter.lastCharacterDescription = characterInfo.characterDescription;
+          existingCharacter.lastColors = characterInfo.colors;
+          existingCharacter.renderState.username = newUsername;
+          existingCharacter.renderState.characterDescription = characterInfo.characterDescription;
+          existingCharacter.renderState.colors = characterInfo.colors;
+          updatedCharacterDescriptions.push(id);
         }
       }
     }
 
-    for (const pendingId of [...this.pendingSpawns]) {
-      if (!this.config.remoteUserStates.has(pendingId)) {
-        this.pendingSpawns.delete(pendingId);
-        this.loadingCharacters.delete(pendingId); // Clean up loading state
+    // Find despawned characters
+    for (const [id] of this.remoteCharacters) {
+      if (!this.config.remoteUserStates.has(id)) {
+        removedUserIds.push(id);
+        this.remoteCharacters.delete(id);
+        this.cachedCharacterStates.delete(id);
       }
     }
 
-    // Clean up characters in the ready-for-scene queue if they've disconnected
-    this.charactersReadyForScene = this.charactersReadyForScene.filter(({ id }) => {
-      return this.config.remoteUserStates.has(id);
-    });
+    return {
+      updatedCharacterDescriptions,
+      removedUserIds,
+    };
+  }
 
-    this.evaluateLOD();
+  public getAllCharacterStates(): Map<number, CharacterRenderState> {
+    // Return the cached Map directly - all objects are mutated in-place by update()
+    return this.cachedCharacterStates;
+  }
 
-    if (
-      this.localCharacter &&
-      this.config.updateURLLocation &&
-      this.config.timeManager.frame % 60 === 0 &&
-      document.hasFocus() &&
-      /*
-         Don't update the URL if the camera is being controlled as some browsers (e.g. Chrome) cause a hitch to Pointer
-         events when the url is updated
-        */
-      !this.config.cameraManager.hasActiveInput()
-    ) {
-      const hash = encodeCharacterAndCamera(this.localCharacter, this.config.cameraManager.camera);
-      const url = new URL(window.location.href);
-      url.hash = hash;
-      window.history.replaceState({}, "", url);
-    }
+  public getLocalClientId(): number {
+    return this.localClientId;
   }
 }

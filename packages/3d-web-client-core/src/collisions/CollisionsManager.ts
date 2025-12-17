@@ -1,24 +1,6 @@
 import { MElement, MMLCollisionTrigger } from "@mml-io/mml-web";
-import {
-  BufferGeometry,
-  InstancedMesh,
-  DoubleSide,
-  Matrix4,
-  Group,
-  Scene,
-  Ray as ThreeRay,
-  Vector3,
-  Mesh,
-  MeshBasicMaterial,
-  LineBasicMaterial,
-  Color,
-  Object3D,
-  Box3,
-  Line3,
-} from "three";
-import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper.js";
-import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { MeshBVH, MeshBVHHelper } from "three-mesh-bvh";
+import type { Ray as ThreeRay, Vector3, Box3, Line3 } from "three";
+import type { MeshBVH } from "three-mesh-bvh";
 
 import { Box } from "../math/Box";
 import { EulXYZ } from "../math/EulXYZ";
@@ -26,29 +8,33 @@ import { Line } from "../math/Line";
 import { Matr4 } from "../math/Matr4";
 import { Quat } from "../math/Quat";
 import { Ray } from "../math/Ray";
-import { Vect3 } from "../math/Vect3";
+import { IVect3, Vect3 } from "../math/Vect3";
 
 import { getRelativePositionAndRotationRelativeToObject } from "./getRelativePositionAndRotationRelativeToObject";
 
+type CollisionSourceRef = unknown;
+
 export type CollisionMeshState = {
   matrix: Matr4;
-  source: Group;
+  localScale: IVect3;
+  source: CollisionSourceRef;
   meshBVH: MeshBVH;
-  debugGroup?: Group;
   trackCollisions: boolean;
 };
 
+export type CollisionMesh = {
+  meshBVH: MeshBVH;
+  matrix: Matr4;
+  localScale: IVect3;
+};
+
 export class CollisionsManager {
-  private debug: boolean = false;
-  private scene: Scene;
   private tempVector: Vect3 = new Vect3();
   private tempVector2: Vect3 = new Vect3();
   private tempVect3: Vect3 = new Vect3();
   private tempQuat: Quat = new Quat();
   private tempRay: Ray = new Ray();
   private tempMatrix = new Matr4();
-  private tempMatrixThree = new Matrix4();
-  private tempMatrix2Three = new Matrix4();
   private tempBox = new Box();
   private tempEulXYZ = new EulXYZ();
   private tempSegment = new Line();
@@ -57,48 +43,30 @@ export class CollisionsManager {
   private tempMinimalNormal = new Vect3();
   private tempMinimalPoint = new Vect3();
 
-  public collisionMeshState: Map<Group, CollisionMeshState> = new Map();
-  private collisionTrigger: MMLCollisionTrigger<Group>;
+  public collisionMeshState: Map<CollisionSourceRef, CollisionMeshState> = new Map();
+  private collisionTrigger: MMLCollisionTrigger<CollisionSourceRef>;
   private previouslyCollidingElements: null | Map<
-    Group,
+    CollisionSourceRef,
     { position: { x: number; y: number; z: number } }
   >;
 
-  constructor(scene: Scene) {
-    this.scene = scene;
+  private debugEnabled: boolean = false;
+  public onDebugChange?: (enabled: boolean) => void;
+
+  constructor() {
     this.collisionTrigger = MMLCollisionTrigger.init();
     this.toggleDebug = this.toggleDebug.bind(this);
   }
 
-  public toggleDebug(enabled: boolean) {
-    this.debug = enabled;
+  public isDebugEnabled(): boolean {
+    return this.debugEnabled;
+  }
 
-    this.collisionMeshState.forEach((meshState) => {
-      if (this.debug) {
-        if (!meshState.debugGroup) {
-          meshState.debugGroup = this.createDebugVisuals(meshState);
-          this.scene.add(meshState.debugGroup);
-        }
-      } else {
-        if (meshState.debugGroup) {
-          this.scene.remove(meshState.debugGroup);
-          // Dispose of all resources used by the debug visuals, including materials and geometries.
-          meshState.debugGroup.traverse((object) => {
-            // Because MeshBVH can have its own variable complexity in terms of creating geometries
-            // and materials for its Helper, insteach of checking for instanceof Meshes and disposing
-            // their materials and geometries, we'll check for the existence of a dispose() function.
-            // During tests, this revealed to be safe, and an effective way to toggle the debug
-            // on and off while ending up with the original number of geometries on the scene, with no
-            // leftovers (no memory leak).
-            if (typeof (object as any).dispose === "function") {
-              (object as any).dispose();
-            }
-          });
-          meshState.debugGroup.clear();
-          meshState.debugGroup = undefined;
-        }
-      }
-    });
+  public toggleDebug(enabled: boolean) {
+    this.debugEnabled = enabled;
+    if (this.onDebugChange) {
+      this.onDebugChange(enabled);
+    }
   }
 
   public raycastFirst(
@@ -117,7 +85,7 @@ export class CollisionsManager {
 
       const hit = collisionMeshState.meshBVH.raycastFirst(
         originalRay as unknown as ThreeRay,
-        DoubleSide,
+        2, // DoubleSide
       );
       if (hit) {
         this.tempSegment.start.copy(originalRay.origin);
@@ -144,147 +112,40 @@ export class CollisionsManager {
     return [minimumDistance, minimumNormal, minimumHit, minimumPoint];
   }
 
-  private createDebugVisuals(meshState: CollisionMeshState): Group {
-    const geometry = meshState.meshBVH.geometry;
-
-    // Cast to add the boundsTree property to the geometry so that the MeshBVHHelper can find it
-    (geometry as any).boundsTree = meshState.meshBVH;
-    const wireframeMesh = new Mesh(geometry, new MeshBasicMaterial({ wireframe: true }));
-    wireframeMesh.name = "wireframe mesh";
-    const normalsHelper = new VertexNormalsHelper(wireframeMesh, 0.25, 0x00ff00);
-    normalsHelper.name = "normals helper";
-    const visualizer = new MeshBVHHelper(wireframeMesh, 4);
-    visualizer.name = "meshBVH visualizer";
-    (visualizer.edgeMaterial as LineBasicMaterial).color = new Color("blue");
-
-    const debugGroup = new Group();
-    debugGroup.add(wireframeMesh, normalsHelper, visualizer as unknown as Object3D);
-    meshState.source.matrixWorld.decompose(
-      debugGroup.position,
-      debugGroup.quaternion,
-      debugGroup.scale,
-    );
-    visualizer.update();
-
-    return debugGroup;
-  }
-
-  private createCollisionMeshState(group: Group, trackCollisions: boolean): CollisionMeshState {
-    const geometries: Array<BufferGeometry> = [];
-    group.updateWorldMatrix(true, false);
-    group.traverse((child: Object3D) => {
-      const asMesh = child as Mesh;
-      if (asMesh.isMesh) {
-        const asInstancedMesh = asMesh as InstancedMesh;
-        if (asInstancedMesh.isInstancedMesh) {
-          // Compute the InstancedMesh's transformation relative to the group
-          const instancedMeshRelativeMatrix = new Matrix4();
-          let currentObject: Object3D | null = asInstancedMesh;
-          while (currentObject && currentObject !== group) {
-            currentObject.updateMatrix();
-            instancedMeshRelativeMatrix.premultiply(currentObject.matrix);
-            currentObject = currentObject.parent;
-          }
-
-          for (let i = 0; i < asInstancedMesh.count; i++) {
-            const clonedGeometry = asInstancedMesh.geometry.clone();
-            for (const key in clonedGeometry.attributes) {
-              if (key !== "position") {
-                clonedGeometry.deleteAttribute(key);
-              }
-            }
-            // Apply instance matrix first, then the InstancedMesh's relative transformation
-            clonedGeometry.applyMatrix4(
-              this.tempMatrix2Three.fromArray(asInstancedMesh.instanceMatrix.array, i * 16),
-            );
-            clonedGeometry.applyMatrix4(instancedMeshRelativeMatrix);
-            if (clonedGeometry.index) {
-              geometries.push(clonedGeometry.toNonIndexed());
-            } else {
-              geometries.push(clonedGeometry);
-            }
-          }
-        } else {
-          const clonedGeometry = asMesh.geometry.clone();
-          for (const key in clonedGeometry.attributes) {
-            if (key !== "position") {
-              clonedGeometry.deleteAttribute(key);
-            }
-          }
-
-          // Compute the mesh's transformation relative to the group by accumulating local matrices
-          this.tempMatrix2Three.identity();
-          let currentObject: Object3D | null = asMesh;
-          while (currentObject && currentObject !== group) {
-            currentObject.updateMatrix();
-            this.tempMatrix2Three.premultiply(currentObject.matrix);
-            currentObject = currentObject.parent;
-          }
-
-          clonedGeometry.applyMatrix4(this.tempMatrix2Three);
-          if (clonedGeometry.index) {
-            geometries.push(clonedGeometry.toNonIndexed());
-          } else {
-            geometries.push(clonedGeometry);
-          }
-        }
-      }
-    });
-
-    const newBufferGeometry = BufferGeometryUtils.mergeGeometries(geometries, false);
-    newBufferGeometry.computeVertexNormals();
-    const meshBVH = new MeshBVH(newBufferGeometry);
+  public addMeshesGroup(
+    group: CollisionSourceRef,
+    creationResult: CollisionMesh,
+    mElement?: MElement,
+  ): void {
+    if (mElement) {
+      this.collisionTrigger.addCollider(group, mElement);
+    }
+    const { meshBVH, matrix, localScale } = creationResult;
 
     const meshState: CollisionMeshState = {
       source: group,
       meshBVH,
-      matrix: new Matr4().fromArray(group.matrixWorld.elements),
-      trackCollisions,
-      debugGroup: this.debug
-        ? this.createDebugVisuals({
-            source: group,
-            meshBVH: meshBVH,
-            matrix: new Matr4().fromArray(group.matrixWorld.elements),
-            trackCollisions,
-          })
-        : undefined,
+      matrix,
+      localScale,
+      trackCollisions: mElement !== undefined,
     };
-    return meshState;
-  }
-
-  public addMeshesGroup(group: Group, mElement?: MElement): void {
-    if (mElement) {
-      this.collisionTrigger.addCollider(group, mElement);
-    }
-    const meshState = this.createCollisionMeshState(group, mElement !== undefined);
-    if (meshState.debugGroup) {
-      this.scene.add(meshState.debugGroup);
-    }
     this.collisionMeshState.set(group, meshState);
   }
 
-  public updateMeshesGroup(group: Group): void {
+  public updateMeshesGroup(group: CollisionSourceRef, matrix: Matr4, localScale: IVect3): void {
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      group.updateWorldMatrix(true, false);
-      meshState.matrix.fromArray(group.matrixWorld.elements);
-      if (meshState.debugGroup) {
-        group.matrixWorld.decompose(
-          meshState.debugGroup.position,
-          meshState.debugGroup.quaternion,
-          meshState.debugGroup.scale,
-        );
-      }
+      meshState.matrix.copy(matrix);
+      meshState.localScale.x = localScale.x;
+      meshState.localScale.y = localScale.y;
+      meshState.localScale.z = localScale.z;
     }
   }
 
-  public removeMeshesGroup(group: Group): void {
+  public removeMeshesGroup(group: CollisionSourceRef): void {
     this.collisionTrigger.removeCollider(group);
     const meshState = this.collisionMeshState.get(group);
     if (meshState) {
-      if (meshState.debugGroup) {
-        this.scene.remove(meshState.debugGroup);
-      }
       this.collisionMeshState.delete(group);
     }
   }
@@ -394,7 +255,7 @@ export class CollisionsManager {
 
   public applyColliders(tempSegment: Line, radius: number) {
     const collidedElements = new Map<
-      Group,
+      CollisionSourceRef,
       {
         position: { x: number; y: number; z: number };
       }
@@ -407,7 +268,8 @@ export class CollisionsManager {
             position: collisionPosition,
             rotation: this.tempEulXYZ.set(0, 0, 0),
           },
-          meshState.source,
+          meshState.matrix,
+          meshState.localScale,
         );
         collidedElements.set(meshState.source, {
           position: relativePosition.position,

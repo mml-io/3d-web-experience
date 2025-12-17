@@ -1,5 +1,3 @@
-import { Vector3 } from "three";
-
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsManager";
 import { KeyInputManager } from "../input/KeyInputManager";
@@ -10,10 +8,8 @@ import { Matr4 } from "../math/Matr4";
 import { Quat } from "../math/Quat";
 import { Ray } from "../math/Ray";
 import { IVect3, Vect3 } from "../math/Vect3";
-import { TimeManager } from "../time/TimeManager";
-import { characterControllerValues } from "../tweakpane/blades/characterControlsFolder";
+import { CharacterControllerValues } from "../tweakpane/blades/characterControlsFolder";
 
-import { Character } from "./Character";
 import { SpawnConfigurationState } from "./CharacterManager";
 import { AnimationState, CharacterState } from "./CharacterState";
 import { getSpawnData } from "./Spawning";
@@ -22,13 +18,14 @@ const downVector = new Vect3(0, -1, 0);
 
 export type LocalControllerConfig = {
   id: number;
-  character: Character;
+  position: Vect3;
+  quaternion: Quat;
   collisionsManager: CollisionsManager;
   keyInputManager: KeyInputManager;
   virtualJoystick?: VirtualJoystick;
   cameraManager: CameraManager;
-  timeManager: TimeManager;
   spawnConfiguration: SpawnConfigurationState;
+  characterControllerValues: CharacterControllerValues;
 };
 
 export class LocalController {
@@ -37,23 +34,23 @@ export class LocalController {
     segment: new Line(new Vect3(), new Vect3(0, 1.05, 0)),
   };
 
-  public gravity: number = -characterControllerValues.gravity;
-  public jumpForce: number = characterControllerValues.jumpForce;
-  public doubleJumpForce: number = characterControllerValues.doubleJumpForce;
-  public coyoteTimeThreshold: number = characterControllerValues.coyoteJump;
+  public gravity: number;
+  public jumpForce: number;
+  public doubleJumpForce: number;
+  public coyoteTimeThreshold: number;
   public canJump: boolean = true;
   public canDoubleJump: boolean = true;
   public coyoteJumped = false;
   public doubleJumpUsed: boolean = false;
   public jumpCounter: number = 0;
 
-  public airResistance = characterControllerValues.airResistance;
-  public groundResistance = 0.99999999 + characterControllerValues.groundResistance * 1e-7;
-  public airControlModifier = characterControllerValues.airControlModifier;
-  public groundWalkControl = characterControllerValues.groundWalkControl;
-  public groundRunControl = characterControllerValues.groundRunControl;
-  public baseControl = characterControllerValues.baseControlMultiplier;
-  public minimumSurfaceAngle = characterControllerValues.minimumSurfaceAngle;
+  public airResistance: number;
+  public groundResistance: number;
+  public airControlModifier: number;
+  public groundWalkControl: number;
+  public groundRunControl: number;
+  public baseControl: number;
+  public minimumSurfaceAngle: number;
 
   public latestPosition: Vect3 = new Vect3();
   public characterOnGround: boolean = false;
@@ -80,6 +77,8 @@ export class LocalController {
   private tempVector2: Vect3 = new Vect3();
   private tempVect3: Vect3 = new Vect3();
   private tempRay: Ray = new Ray();
+  private tempCameraPos = new Vect3();
+  private tempPositionCopy = new Vect3();
 
   private surfaceTempQuat = new Quat();
   private surfaceTempQuat2 = new Quat();
@@ -102,6 +101,7 @@ export class LocalController {
   public jumpReleased: boolean = true; // Indicates if the jump button has been released
 
   public networkState: CharacterState;
+  public config: LocalControllerConfig;
   private controlState: { direction: number | null; isSprinting: boolean; jump: boolean } | null =
     null;
 
@@ -112,7 +112,20 @@ export class LocalController {
   private minimumZ: number;
   private maximumZ: number;
 
-  constructor(private config: LocalControllerConfig) {
+  constructor(config: LocalControllerConfig) {
+    this.config = config;
+    this.gravity = -config.characterControllerValues.gravity;
+    this.jumpForce = config.characterControllerValues.jumpForce;
+    this.doubleJumpForce = config.characterControllerValues.doubleJumpForce;
+    this.coyoteTimeThreshold = config.characterControllerValues.coyoteJump;
+    this.airResistance = config.characterControllerValues.airResistance;
+    this.groundResistance = 0.99999999 + config.characterControllerValues.groundResistance * 1e-7;
+    this.airControlModifier = config.characterControllerValues.airControlModifier;
+    this.groundWalkControl = config.characterControllerValues.groundWalkControl;
+    this.groundRunControl = config.characterControllerValues.groundRunControl;
+    this.baseControl = config.characterControllerValues.baseControlMultiplier;
+    this.minimumSurfaceAngle = config.characterControllerValues.minimumSurfaceAngle;
+
     this.networkState = {
       position: { x: 0, y: 0, z: 0 },
       rotation: { quaternionY: 0, quaternionW: 1 },
@@ -175,11 +188,11 @@ export class LocalController {
     this.maximumZ = spawnConfig.respawnTrigger.maxZ;
   }
 
-  public update(): void {
+  public update(deltaTime: number): void {
     this.controlState =
       this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
 
-    this.tempRay.set(this.config.character.position, this.vectorDown);
+    this.tempRay.set(this.config.position, this.vectorDown);
     this.tempRay.origin.y += this.capsuleInfo.radius;
     const firstRaycastHit = this.config.collisionsManager.raycastFirst(this.tempRay);
     if (firstRaycastHit !== null) {
@@ -189,33 +202,22 @@ export class LocalController {
       this.currentHeight = Number.POSITIVE_INFINITY;
     }
 
-    if (this.controlState?.direction !== null || !this.characterOnGround) {
-      const targetAnimation = this.getTargetAnimation();
-      this.config.character.updateAnimation(targetAnimation);
-    } else {
-      this.config.character.updateAnimation(AnimationState.idle);
-    }
-
     if (this.controlState) {
-      this.updateRotation();
+      this.updateRotation(deltaTime);
     }
 
     for (let i = 0; i < this.collisionDetectionSteps; i++) {
-      this.updatePosition(
-        this.config.timeManager.deltaTime,
-        this.config.timeManager.deltaTime / this.collisionDetectionSteps,
-        i,
-      );
+      this.updatePosition(deltaTime, deltaTime / this.collisionDetectionSteps, i);
     }
 
     // bounds check
     const outOfBounds =
-      this.config.character.position.x < this.minimumX || // left
-      this.config.character.position.x > this.maximumX || // right
-      this.config.character.position.z < this.minimumZ || // back
-      this.config.character.position.z > this.maximumZ || // front
-      this.config.character.position.y < this.minimumY || // down
-      this.config.character.position.y > this.maximumY; //   up
+      this.config.position.x < this.minimumX || // left
+      this.config.position.x > this.maximumX || // right
+      this.config.position.z < this.minimumZ || // back
+      this.config.position.z > this.maximumZ || // front
+      this.config.position.y < this.minimumY || // down
+      this.config.position.y > this.maximumY; //   up
 
     if (outOfBounds) {
       this.resetPosition();
@@ -223,9 +225,7 @@ export class LocalController {
     this.updateNetworkState();
   }
 
-  private getTargetAnimation(): AnimationState {
-    if (!this.config.character) return AnimationState.idle;
-
+  public getTargetAnimation(): AnimationState {
     const jumpHeight = this.characterVelocity.y > 0 ? 0.2 : 1.8;
     if (this.currentHeight > jumpHeight && !this.characterOnGround) {
       if (this.doubleJumpUsed) {
@@ -233,7 +233,7 @@ export class LocalController {
       }
       return AnimationState.air;
     }
-    if (!this.controlState) {
+    if (!this.controlState || this.controlState.direction === null) {
       return AnimationState.idle;
     }
 
@@ -251,30 +251,30 @@ export class LocalController {
   }
 
   private updateAzimuthalAngle(): void {
-    const cameraPos = new Vect3().copy(this.config.cameraManager.activeCamera.position);
+    const cameraPos = this.tempCameraPos.copy(this.config.cameraManager.getCameraPosition());
     const camToModelDistance = cameraPos.distanceTo(
-      new Vect3().copy(this.config.character.getPosition()),
+      this.tempPositionCopy.copy(this.config.position),
     );
     const isCameraFirstPerson = camToModelDistance < 2;
     if (isCameraFirstPerson) {
-      const cameraForward = this.tempVector
-        .set(0, 0, 1)
-        .applyQuat(new Quat().copy(this.config.cameraManager.activeCamera.quaternion));
+      const cameraRotation = this.config.cameraManager.getCameraRotation();
+      const cameraForward = this.tempVector.set(0, 0, 1).applyQuat(cameraRotation);
       this.azimuthalAngle = Math.atan2(cameraForward.x, cameraForward.z);
     } else {
+      const cameraPos = this.config.cameraManager.getCameraPosition();
       this.azimuthalAngle = Math.atan2(
-        this.config.cameraManager.activeCamera.position.x - this.config.character.position.x,
-        this.config.cameraManager.activeCamera.position.z - this.config.character.position.z,
+        cameraPos.x - this.config.position.x,
+        cameraPos.z - this.config.position.z,
       );
     }
   }
 
   private computeAngularDifference(rotationQuat: Quat): number {
-    const rotation = new Quat().copy(this.config.character.quaternion);
+    const rotation = new Quat().copy(this.config.quaternion);
     return 2 * Math.acos(Math.abs(rotation.dot(rotationQuat)));
   }
 
-  private updateRotation(): void {
+  private updateRotation(deltaTime: number): void {
     this.updateRotationOffset();
     this.updateAzimuthalAngle();
     const rotationQuat = this.tempQuat.setFromAxisAngle(
@@ -284,10 +284,8 @@ export class LocalController {
     const angularDifference = this.computeAngularDifference(rotationQuat);
     const desiredTime = 0.07;
     const angularSpeed = angularDifference / desiredTime;
-    const frameRotation = angularSpeed * this.config.timeManager.deltaTime;
-    const rot = new Quat().copy(this.config.character.quaternion);
-    rot.rotateTowards(rotationQuat, frameRotation);
-    this.config.character.quaternion.copy(rot);
+    const frameRotation = angularSpeed * deltaTime;
+    this.config.quaternion.rotateTowards(rotationQuat, frameRotation);
   }
 
   private processJump(currentAcceleration: Vect3, deltaTime: number) {
@@ -376,39 +374,32 @@ export class LocalController {
     acceleration.add(controlAcceleration);
     this.characterVelocity.addScaledVector(acceleration, stepDeltaTime);
 
-    this.config.character.position.addScaledVector(
-      this.characterVelocity as unknown as Vector3,
-      stepDeltaTime,
-    );
+    this.config.position.addScaledVector(this.characterVelocity, stepDeltaTime);
   }
 
   private updatePosition(deltaTime: number, stepDeltaTime: number, iter: number): void {
     this.applyControls(stepDeltaTime);
 
     if (iter === 0) {
-      const lastMovement = this.getMovementFromSurfaces(
-        this.config.character.getPosition(),
-        deltaTime,
-      );
+      const lastMovement = this.getMovementFromSurfaces(this.config.position, deltaTime);
       if (lastMovement) {
-        const newPosition = this.tempVector.copy(this.config.character.getPosition());
+        const newPosition = this.tempVector.copy(this.config.position);
         newPosition.add(lastMovement.position);
-        this.config.character.position.set(newPosition.x, newPosition.y, newPosition.z);
-        const asQuat = this.tempQuat.copy(this.config.character.quaternion);
+        this.config.position.set(newPosition.x, newPosition.y, newPosition.z);
+        const asQuat = this.config.quaternion;
         const lastMovementEulXYZ = this.tempEulXYZ.setFromQuaternion(lastMovement.rotation);
         lastMovementEulXYZ.x = 0;
         lastMovementEulXYZ.z = 0;
         lastMovement.rotation.setFromEulerXYZ(lastMovementEulXYZ);
         asQuat.multiply(lastMovement.rotation);
-        this.config.character.quaternion.set(asQuat.x, asQuat.y, asQuat.z, asQuat.w);
       }
     }
 
     const avatarSegment = this.tempSegment;
     avatarSegment.copy(this.capsuleInfo.segment!);
-    avatarSegment.start.add(this.config.character.position);
+    avatarSegment.start.add(this.config.position);
     avatarSegment.start.y += this.capsuleInfo.radius;
-    avatarSegment.end.add(this.config.character.position);
+    avatarSegment.end.add(this.config.position);
     avatarSegment.end.y += this.capsuleInfo.radius;
 
     const positionBeforeCollisions = this.tempVector.copy(avatarSegment.start);
@@ -440,7 +431,7 @@ export class LocalController {
       avatarSegment.start.y += this.capsuleInfo.radius;
     }
 
-    this.config.character.position.set(
+    this.config.position.set(
       avatarSegment.start.x,
       avatarSegment.start.y - this.capsuleInfo.radius,
       avatarSegment.start.z,
@@ -466,7 +457,7 @@ export class LocalController {
       !this.characterOnGround &&
       Date.now() - this.characterAirborneSince < this.coyoteTimeThreshold;
 
-    this.latestPosition.copy(this.config.character.getPosition());
+    this.latestPosition.copy(this.config.position);
     this.characterWasOnGround = this.characterOnGround;
   }
 
@@ -561,10 +552,8 @@ export class LocalController {
   }
 
   private updateNetworkState(): void {
-    const characterPosition = this.config.character.position;
-    const characterRotation = this.config.character.rotation;
-
-    const characterQuat = this.tempQuat.setFromEulerXYZ(characterRotation);
+    const characterPosition = this.config.position;
+    const characterQuat = this.config.quaternion;
 
     this.networkState = {
       position: {
@@ -573,7 +562,7 @@ export class LocalController {
         z: characterPosition.z,
       },
       rotation: { quaternionY: characterQuat.y, quaternionW: characterQuat.w },
-      state: this.config.character.getCurrentAnimation(),
+      state: this.getTargetAnimation(),
     };
   }
 
@@ -589,18 +578,12 @@ export class LocalController {
 
     const spawnData = getSpawnData(this.config.spawnConfiguration, false);
 
-    this.config.character.position.set(
+    this.config.position.set(
       spawnData.spawnPosition.x,
       spawnData.spawnPosition.y,
       spawnData.spawnPosition.z,
     );
 
-    const respawnQuaternion = this.tempQuat.setFromEulerXYZ(spawnData.spawnRotation);
-    this.config.character.quaternion.set(
-      respawnQuaternion.x,
-      respawnQuaternion.y,
-      respawnQuaternion.z,
-      respawnQuaternion.w,
-    );
+    this.config.quaternion.setFromEulerXYZ(spawnData.spawnRotation);
   }
 }

@@ -3,20 +3,35 @@ import { BladeApi, FolderApi, TpChangeEvent } from "tweakpane";
 
 import { CameraManager } from "../../camera/CameraManager";
 
-export const camValues = {
-  initialDistance: 3.3,
-  minDistance: 0.1,
-  maxDistance: 5,
-  initialFOV: 60,
-  maxFOV: 70,
-  minFOV: 60,
-  invertFOVMapping: false,
-  damping: 0.21,
-  zoomScale: 0.04,
-  zoomDamping: 0.04,
+export type CameraValues = {
+  initialDistance: number;
+  minDistance: number;
+  maxDistance: number;
+  initialFOV: number;
+  maxFOV: number;
+  minFOV: number;
+  invertFOVMapping: boolean;
+  damping: number;
+  zoomScale: number;
+  zoomDamping: number;
 };
 
-export const camOptions = {
+export function createDefaultCameraValues(): CameraValues {
+  return {
+    initialDistance: 3.3,
+    minDistance: 0.1,
+    maxDistance: 5,
+    initialFOV: 60,
+    maxFOV: 70,
+    minFOV: 60,
+    invertFOVMapping: false,
+    damping: 0.21,
+    zoomScale: 0.04,
+    zoomDamping: 0.04,
+  };
+}
+
+const camOptions = {
   initialDistance: { min: 1, max: 5, step: 0.1 },
   minDistance: { min: 0.1, max: 2, step: 0.1 },
   maxDistance: { min: 5, max: 20, step: 0.5 },
@@ -41,19 +56,22 @@ export class CameraFolder {
     FoV: "0",
   };
 
-  constructor(parentFolder: FolderApi, expand: boolean = false) {
-    this.folder = parentFolder.addFolder({ title: "camera", expanded: expand });
+  constructor(
+    parentFolder: FolderApi,
+    private cameraValues: CameraValues,
+  ) {
+    this.folder = parentFolder.addFolder({ title: "camera", expanded: false });
     this.folder.addBinding(this.camData, "distance", { readonly: true });
     this.folder.addBinding(this.camData, "FoV", { readonly: true });
-    this.folder.addBinding(camValues, "initialDistance", camOptions.initialDistance);
-    this.folder.addBinding(camValues, "minDistance", camOptions.minDistance);
-    this.folder.addBinding(camValues, "maxDistance", camOptions.maxDistance);
-    this.folder.addBinding(camValues, "minFOV", camOptions.minFOV);
-    this.folder.addBinding(camValues, "maxFOV", camOptions.maxFOV);
-    this.folder.addBinding({ invertFOVMapping: camValues.invertFOVMapping }, "invertFOVMapping");
-    this.folder.addBinding(camValues, "damping", camOptions.damping);
-    this.folder.addBinding(camValues, "zoomScale", camOptions.zoomScale);
-    this.folder.addBinding(camValues, "zoomDamping", camOptions.zoomDamping);
+    this.folder.addBinding(this.cameraValues, "initialDistance", camOptions.initialDistance);
+    this.folder.addBinding(this.cameraValues, "minDistance", camOptions.minDistance);
+    this.folder.addBinding(this.cameraValues, "maxDistance", camOptions.maxDistance);
+    this.folder.addBinding(this.cameraValues, "minFOV", camOptions.minFOV);
+    this.folder.addBinding(this.cameraValues, "maxFOV", camOptions.maxFOV);
+    this.folder.addBinding(this.cameraValues, "invertFOVMapping");
+    this.folder.addBinding(this.cameraValues, "damping", camOptions.damping);
+    this.folder.addBinding(this.cameraValues, "zoomScale", camOptions.zoomScale);
+    this.folder.addBinding(this.cameraValues, "zoomDamping", camOptions.zoomDamping);
   }
 
   public setupChangeEvent(cameraManager: CameraManager): void {
