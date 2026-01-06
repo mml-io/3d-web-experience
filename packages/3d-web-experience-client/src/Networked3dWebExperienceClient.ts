@@ -152,7 +152,6 @@ export class Networked3dWebExperienceClient {
   private frameCounter: number = 0;
   private readonly targetFPS: number = 60;
   private readonly fixedDeltaTime: number = 1 / this.targetFPS;
-  private readonly frameIntervalMs: number = 1000 / this.targetFPS;
   private accumulatedTime: number = 0;
 
   private cachedCameraTransform: CameraTransform = {
