@@ -151,9 +151,9 @@ export class Networked3dWebExperienceClient {
   private lastUpdateTimeMs: number = 0;
   private frameCounter: number = 0;
   private readonly targetFPS: number = 60;
-  private readonly frameInterval: number = 1000 / this.targetFPS;
-  private epochFramesRendered: number = 0;
-  private epochStartTimeMs: number = 0;
+  private readonly fixedDeltaTime: number = 1 / this.targetFPS;
+  private readonly frameIntervalMs: number = 1000 / this.targetFPS;
+  private accumulatedTime: number = 0;
 
   private cachedCameraTransform: CameraTransform = {
     position: new Vect3(),
@@ -606,43 +606,54 @@ export class Networked3dWebExperienceClient {
 
   public update(): void {
     const currentTimeMs = performance.now();
-    const elapsedMs = currentTimeMs - this.lastUpdateTimeMs;
-    let deltaTimeSeconds = elapsedMs / 1000;
-    if (deltaTimeSeconds > 0.1) {
-      deltaTimeSeconds = 0.1;
-    }
 
     this.currentRequestAnimationFrame = requestAnimationFrame(() => {
       this.update();
     });
 
-    if (this.epochStartTimeMs === 0) {
-      this.epochStartTimeMs = currentTimeMs;
-    }
-
-    const timeSinceEpochStartMs = currentTimeMs - this.epochStartTimeMs;
-    const idealFramesRendered = timeSinceEpochStartMs / this.frameInterval;
-    const deltaFrames = this.epochFramesRendered - idealFramesRendered;
-    if (deltaFrames > 0) {
-      return;
-    }
-
-    if (timeSinceEpochStartMs > 1000) {
-      // Reset the epoch every second to avoid accumulating error
-      this.epochStartTimeMs = currentTimeMs;
-      this.epochFramesRendered = 0;
-    }
-    this.epochFramesRendered++;
-
+    // Calculate elapsed time since last frame
+    const elapsedMs = currentTimeMs - this.lastUpdateTimeMs;
     this.lastUpdateTimeMs = currentTimeMs;
 
-    this.frameCounter++;
+    // Clamp elapsed time to prevent spiral of death (e.g., after tab switch)
+    const elapsedSeconds = Math.min(elapsedMs / 1000, 0.1);
 
-    // Update character manager and get state updates (may update camera target)
-    const { updatedCharacterDescriptions, removedUserIds } = this.characterManager.update(
-      deltaTimeSeconds,
-      this.frameCounter,
-    );
+    // Accumulate time for fixed timestep physics
+    this.accumulatedTime += elapsedSeconds;
+
+    // Track if any physics updates occurred this frame
+    let physicsUpdated = false;
+    const updatedCharacterDescriptions: number[] = [];
+    const removedUserIds: number[] = [];
+
+    // Run physics at fixed timestep - this ensures deterministic behavior
+    // regardless of display refresh rate (60Hz, 120Hz, 144Hz, etc.)
+    while (this.accumulatedTime >= this.fixedDeltaTime) {
+      this.frameCounter++;
+
+      // Update character manager with fixed timestep
+      const result = this.characterManager.update(this.fixedDeltaTime, this.frameCounter);
+
+      // Merge results from all physics steps
+      for (const id of result.updatedCharacterDescriptions) {
+        if (!updatedCharacterDescriptions.includes(id)) {
+          updatedCharacterDescriptions.push(id);
+        }
+      }
+      for (const id of result.removedUserIds) {
+        if (!removedUserIds.includes(id)) {
+          removedUserIds.push(id);
+        }
+      }
+
+      this.accumulatedTime -= this.fixedDeltaTime;
+      physicsUpdated = true;
+    }
+
+    // Only render if physics was updated (limits render rate to physics rate)
+    if (!physicsUpdated) {
+      return;
+    }
 
     // Update camera manager (computes camera position/rotation from target, input, etc.)
     // Will be synced to renderer's camera in renderer.render()
@@ -675,7 +686,7 @@ export class Networked3dWebExperienceClient {
       removedUserIds,
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalClientId(),
-      deltaTimeSeconds: deltaTimeSeconds,
+      deltaTimeSeconds: this.fixedDeltaTime,
     };
 
     // Render the actual frame using the associated renderer
