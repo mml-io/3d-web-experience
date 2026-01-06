@@ -30,7 +30,7 @@
     "@tweakpane/core": "2.0.5",
     "draco3d": "^1.5.7",
     "meshoptimizer": "^0.18.1",
-    "postprocessing": "6.38.1",
+    "postprocessing": "6.38.2",
     "three": "0.181.2",
     "three-mesh-bvh": "0.9.0",
     "tweakpane": "4.0.5"
