@@ -97,8 +97,14 @@ export class LocalController {
         },
       ]
     | null = null;
+  private surfaceIsMoving: boolean = false;
 
   public jumpReleased: boolean = true; // Indicates if the jump button has been released
+
+  /** Returns true if the character is currently on a moving surface (e.g., a rotating platform) */
+  public isOnMovingSurface(): boolean {
+    return this.surfaceIsMoving;
+  }
 
   public networkState: CharacterState;
   public config: LocalControllerConfig;
@@ -474,7 +480,9 @@ export class LocalController {
 
       if (lastFrameMatrix.equals(currentFrameMatrix)) {
         // No movement from this mesh - do nothing
+        this.surfaceIsMoving = false;
       } else {
+        this.surfaceIsMoving = true;
         // The mesh has moved since the last frame - calculate the movement
 
         // Get the position of the mesh in the last frame
@@ -547,6 +555,7 @@ export class LocalController {
         );
       }
       this.lastFrameSurfaceState = null;
+      this.surfaceIsMoving = false;
     }
     return lastMovement;
   }
