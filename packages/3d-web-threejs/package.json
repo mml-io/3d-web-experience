@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-threejs",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "publishConfig": {
     "access": "public"
   },
@@ -21,8 +21,8 @@
   "dependencies": {
     "@gltf-transform/core": "^4.0.0",
     "@gltf-transform/extensions": "^4.0.0",
-    "@mml-io/3d-web-avatar": "^0.26.0",
-    "@mml-io/3d-web-client-core": "^0.26.0",
+    "@mml-io/3d-web-avatar": "^0.26.1",
+    "@mml-io/3d-web-client-core": "^0.26.1",
     "@mml-io/mml-web": "0.23.1",
     "@mml-io/mml-web-threejs": "0.23.1",
     "@mml-io/model-loader": "0.23.1",

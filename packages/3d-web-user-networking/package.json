@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-user-networking",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "publishConfig": {
     "access": "public"
   },
@@ -20,9 +20,9 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/delta-net-protocol": "^0.26.0",
-    "@mml-io/delta-net-server": "^0.26.0",
-    "@mml-io/delta-net-web": "^0.26.0"
+    "@mml-io/delta-net-protocol": "^0.26.1",
+    "@mml-io/delta-net-server": "^0.26.1",
+    "@mml-io/delta-net-web": "^0.26.1"
   },
   "devDependencies": {
     "@jest/globals": "29.7.0",
