@@ -333,7 +333,8 @@ export class CharacterManager {
         this.config.updateURLLocation &&
         frameCounter % 60 === 0 &&
         document.hasFocus() &&
-        !this.config.cameraManager.hasActiveInput()
+        !this.config.cameraManager.hasActiveInput() &&
+        !this.localController.isOnMovingSurface()
       ) {
         const cameraState = this.config.cameraManager.getCameraState();
         const cameraRotation = new EulXYZ().setFromQuaternion(cameraState.rotation);
