@@ -61,8 +61,8 @@ export class CollisionsManager {
 
   private exemptFromCulling: CollisionMeshState | null = null;
 
-  public lastCheckedMeshCount: number = 0;
-  public lastCulledMeshCount: number = 0;
+  private lastCheckedMeshCount: number = 0;
+  private lastCulledMeshCount: number = 0;
 
   constructor() {
     this.collisionTrigger = MMLCollisionTrigger.init();
@@ -186,16 +186,18 @@ export class CollisionsManager {
     const maxX = this.tempBoundsBox.max.x;
     const maxY = this.tempBoundsBox.max.y;
     const maxZ = this.tempBoundsBox.max.z;
-    const boundingSphereRadius = Math.max(
-      Math.sqrt(minX * minX + minY * minY + minZ * minZ),
-      Math.sqrt(minX * minX + minY * minY + maxZ * maxZ),
-      Math.sqrt(minX * minX + maxY * maxY + minZ * minZ),
-      Math.sqrt(minX * minX + maxY * maxY + maxZ * maxZ),
-      Math.sqrt(maxX * maxX + minY * minY + minZ * minZ),
-      Math.sqrt(maxX * maxX + minY * minY + maxZ * maxZ),
-      Math.sqrt(maxX * maxX + maxY * maxY + minZ * minZ),
-      Math.sqrt(maxX * maxX + maxY * maxY + maxZ * maxZ),
+    // Compare squared distances, then sqrt once at the end
+    const boundingSphereRadiusSq = Math.max(
+      minX * minX + minY * minY + minZ * minZ,
+      minX * minX + minY * minY + maxZ * maxZ,
+      minX * minX + maxY * maxY + minZ * minZ,
+      minX * minX + maxY * maxY + maxZ * maxZ,
+      maxX * maxX + minY * minY + minZ * minZ,
+      maxX * maxX + minY * minY + maxZ * maxZ,
+      maxX * maxX + maxY * maxY + minZ * minZ,
+      maxX * maxX + maxY * maxY + maxZ * maxZ,
     );
+    const boundingSphereRadius = Math.sqrt(boundingSphereRadiusSq);
 
     const meshState: CollisionMeshState = {
       source: group,
