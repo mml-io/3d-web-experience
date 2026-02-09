@@ -20,6 +20,7 @@ export type CollisionMeshState = {
   source: CollisionSourceRef;
   meshBVH: MeshBVH;
   trackCollisions: boolean;
+  boundingSphereRadius: number; // Cached bounding sphere radius for culling
 };
 
 export type CollisionMesh = {
@@ -42,6 +43,7 @@ export class CollisionsManager {
   private tempCollisionPosition = new Vect3();
   private tempMinimalNormal = new Vect3();
   private tempMinimalPoint = new Vect3();
+  private tempBoundsBox = new Box(); // Pre-allocated for getBoundingBox
 
   public collisionMeshState: Map<CollisionSourceRef, CollisionMeshState> = new Map();
   private collisionTrigger: MMLCollisionTrigger<CollisionSourceRef>;
@@ -52,6 +54,15 @@ export class CollisionsManager {
 
   private debugEnabled: boolean = false;
   public onDebugChange?: (enabled: boolean) => void;
+
+  private cullingEnabled: boolean = true;
+  private cullingRadius: number = 50; // max distance from character to consider meshes
+  private characterPosition: Vect3 = new Vect3();
+
+  private exemptFromCulling: CollisionMeshState | null = null;
+
+  public lastCheckedMeshCount: number = 0;
+  public lastCulledMeshCount: number = 0;
 
   constructor() {
     this.collisionTrigger = MMLCollisionTrigger.init();
@@ -69,6 +80,45 @@ export class CollisionsManager {
     }
   }
 
+  public setCullingEnabled(enabled: boolean): void {
+    this.cullingEnabled = enabled;
+  }
+
+  public setCharacterPosition(position: IVect3): void {
+    this.characterPosition.set(position.x, position.y, position.z);
+    this.lastCheckedMeshCount = 0;
+    this.lastCulledMeshCount = 0;
+  }
+
+  public setExemptFromCulling(meshState: CollisionMeshState | null): void {
+    this.exemptFromCulling = meshState;
+  }
+
+  private isMeshWithinCullingDistance(meshState: CollisionMeshState): boolean {
+    if (!this.cullingEnabled) return true;
+
+    // never cull the mesh the player is standing on
+    if (this.exemptFromCulling !== null && meshState === this.exemptFromCulling) {
+      return true;
+    }
+
+    const matrixData = meshState.matrix.data;
+    const dx = matrixData[12] - this.characterPosition.x;
+    const dy = matrixData[13] - this.characterPosition.y;
+    const dz = matrixData[14] - this.characterPosition.z;
+    const distanceSquared = dx * dx + dy * dy + dz * dz;
+
+    const maxScale = Math.max(
+      meshState.localScale.x,
+      meshState.localScale.y,
+      meshState.localScale.z,
+    );
+    const worldBoundingSphereRadius = meshState.boundingSphereRadius * maxScale;
+
+    const effectiveRadius = this.cullingRadius + worldBoundingSphereRadius;
+    return distanceSquared <= effectiveRadius * effectiveRadius;
+  }
+
   public raycastFirst(
     ray: Ray,
     maximumDistance: number | null = null,
@@ -78,6 +128,12 @@ export class CollisionsManager {
     let minimumNormal: Vect3 = this.tempMinimalNormal;
     let minimumPoint: Vect3 = this.tempMinimalPoint;
     for (const [, collisionMeshState] of this.collisionMeshState) {
+      if (this.cullingEnabled && !this.isMeshWithinCullingDistance(collisionMeshState)) {
+        this.lastCulledMeshCount++;
+        continue;
+      }
+      this.lastCheckedMeshCount++;
+
       const invertedMatrix = this.tempMatrix.copy(collisionMeshState.matrix).invert();
 
       const originalRay = this.tempRay.copy(ray);
@@ -122,12 +178,32 @@ export class CollisionsManager {
     }
     const { meshBVH, matrix, localScale } = creationResult;
 
+    // bounding sphere radius as max distance from local origin to any corner of bounds.
+    meshBVH.getBoundingBox(this.tempBoundsBox as unknown as Box3);
+    const minX = this.tempBoundsBox.min.x;
+    const minY = this.tempBoundsBox.min.y;
+    const minZ = this.tempBoundsBox.min.z;
+    const maxX = this.tempBoundsBox.max.x;
+    const maxY = this.tempBoundsBox.max.y;
+    const maxZ = this.tempBoundsBox.max.z;
+    const boundingSphereRadius = Math.max(
+      Math.sqrt(minX * minX + minY * minY + minZ * minZ),
+      Math.sqrt(minX * minX + minY * minY + maxZ * maxZ),
+      Math.sqrt(minX * minX + maxY * maxY + minZ * minZ),
+      Math.sqrt(minX * minX + maxY * maxY + maxZ * maxZ),
+      Math.sqrt(maxX * maxX + minY * minY + minZ * minZ),
+      Math.sqrt(maxX * maxX + minY * minY + maxZ * maxZ),
+      Math.sqrt(maxX * maxX + maxY * maxY + minZ * minZ),
+      Math.sqrt(maxX * maxX + maxY * maxY + maxZ * maxZ),
+    );
+
     const meshState: CollisionMeshState = {
       source: group,
       meshBVH,
       matrix,
       localScale,
       trackCollisions: mElement !== undefined,
+      boundingSphereRadius,
     };
     this.collisionMeshState.set(group, meshState);
   }
@@ -261,6 +337,13 @@ export class CollisionsManager {
       }
     >();
     for (const meshState of this.collisionMeshState.values()) {
+      // Skip meshes that are too far from the character
+      if (this.cullingEnabled && !this.isMeshWithinCullingDistance(meshState)) {
+        this.lastCulledMeshCount++;
+        continue;
+      }
+      this.lastCheckedMeshCount++;
+
       const collisionPosition = this.applyCollider(tempSegment, radius, meshState);
       if (collisionPosition && meshState.trackCollisions) {
         const relativePosition = getRelativePositionAndRotationRelativeToObject(

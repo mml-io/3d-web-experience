@@ -68,6 +68,12 @@ export class Box {
     return this.max.x < this.min.x || this.max.y < this.min.y || this.max.z < this.min.z;
   }
 
+  union(box: Box): this {
+    this.min.min(box.min);
+    this.max.max(box.max);
+    return this;
+  }
+
   applyMatrix4(matr4: Matr4) {
     if (this.isEmpty()) {
       return this;
