@@ -61,9 +61,6 @@ export class CollisionsManager {
 
   private exemptFromCulling: CollisionMeshState | null = null;
 
-  private lastCheckedMeshCount: number = 0;
-  private lastCulledMeshCount: number = 0;
-
   constructor() {
     this.collisionTrigger = MMLCollisionTrigger.init();
     this.toggleDebug = this.toggleDebug.bind(this);
@@ -86,8 +83,6 @@ export class CollisionsManager {
 
   public setCharacterPosition(position: IVect3): void {
     this.characterPosition.set(position.x, position.y, position.z);
-    this.lastCheckedMeshCount = 0;
-    this.lastCulledMeshCount = 0;
   }
 
   public setExemptFromCulling(meshState: CollisionMeshState | null): void {
@@ -129,10 +124,8 @@ export class CollisionsManager {
     let minimumPoint: Vect3 = this.tempMinimalPoint;
     for (const [, collisionMeshState] of this.collisionMeshState) {
       if (this.cullingEnabled && !this.isMeshWithinCullingDistance(collisionMeshState)) {
-        this.lastCulledMeshCount++;
         continue;
       }
-      this.lastCheckedMeshCount++;
 
       const invertedMatrix = this.tempMatrix.copy(collisionMeshState.matrix).invert();
 
@@ -341,10 +334,8 @@ export class CollisionsManager {
     for (const meshState of this.collisionMeshState.values()) {
       // Skip meshes that are too far from the character
       if (this.cullingEnabled && !this.isMeshWithinCullingDistance(meshState)) {
-        this.lastCulledMeshCount++;
         continue;
       }
-      this.lastCheckedMeshCount++;
 
       const collisionPosition = this.applyCollider(tempSegment, radius, meshState);
       if (collisionPosition && meshState.trackCollisions) {
