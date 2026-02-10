@@ -56,7 +56,8 @@ export class LocalController {
   public characterOnGround: boolean = false;
   public coyoteTime: boolean = false;
 
-  private collisionDetectionSteps = 15;
+  private collisionDetectionSteps = 4;
+  private useCollisionsCulling: boolean = true;
 
   private characterWasOnGround: boolean = false;
   private characterAirborneSince: number = 0;
@@ -182,6 +183,8 @@ export class LocalController {
         "The respawnTrigger Z values are out of the bounds of the spawnPosition + spawnPositionVariance. Please check your respawnTrigger config.",
       );
     }
+
+    this.config.collisionsManager.setCullingEnabled(this.useCollisionsCulling);
   }
 
   public updateSpawnConfig(spawnConfig: SpawnConfigurationState): void {
@@ -211,6 +214,11 @@ export class LocalController {
     if (this.controlState) {
       this.updateRotation(deltaTime);
     }
+
+    this.config.collisionsManager.setCharacterPosition(this.config.position);
+    this.config.collisionsManager.setExemptFromCulling(
+      this.lastFrameSurfaceState ? this.lastFrameSurfaceState[0] : null,
+    );
 
     for (let i = 0; i < this.collisionDetectionSteps; i++) {
       this.updatePosition(deltaTime, deltaTime / this.collisionDetectionSteps, i);
