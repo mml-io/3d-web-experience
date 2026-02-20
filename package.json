@@ -1,10 +1,10 @@
 {
   "name": "3d-web-experience",
   "private": true,
-  "packageManager": "npm@9.6.7",
+  "packageManager": "npm@11.8.0",
   "type": "module",
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "scripts": {
     "start": "npm run start -w @example/multi-user-3d-web-experience-server",

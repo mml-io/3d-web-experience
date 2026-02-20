@@ -3,6 +3,7 @@ name: Main
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -16,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           lfs: true
@@ -31,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           lfs: true
@@ -49,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           lfs: true
@@ -67,7 +68,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           lfs: true
@@ -91,66 +92,88 @@ jobs:
           echo "Type Check: ${{ needs.type-check.result }}"
           echo "Lint: ${{ needs.lint.result }}"
 
+  # Auto-publishes experimental packages on every push to main
   publish-experimental-packages:
     name: Publish Experimental Packages
-    environment: experimental-package-release
+    if: github.event_name == 'push'
+    environment: npm-publish
     needs: summary
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           lfs: true
 
-      - name: "Retrieve Dependencies and Build Artifacts"
-        id: retrieve-deps-and-build
-        uses: ./.github/actions/retrieve-deps-and-build
+      - name: Set up Node.js with OIDC
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Publish
         run: |
-          # Set up git user for lerna to create a local commit with
           git config --global user.email "lerna-ci@mml.io"
           git config --global user.name "lerna-ci-mml"
 
-          # Set up npm auth token from secret for publishing
-          npm config set //registry.npmjs.org/:_authToken=${NPM_TOKEN}
-
-          # Publish the current commit as an "experimental" version
           version="0.0.0-experimental-$(git rev-parse --short HEAD)-$(date +'%Y%m%d')"
           echo "Publishing experimental version $version"
           ./node_modules/.bin/lerna publish $version --no-private --dist-tag experimental --ignore-scripts --ignore-changes --no-push --exact --yes
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
 
+  # Requires approval before publishing release packages
+  release-approval:
+    name: Approve Release
+    needs: summary
+    runs-on: ubuntu-latest
+    environment: release-approval
+    steps:
+      - run: echo "Release approved"
 
   publish-release-packages:
-    name: Publish Packages
-    environment: package-release
-    needs: summary
+    name: Publish Release Packages
+    environment: npm-publish
+    needs: [summary, release-approval]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
           lfs: true
 
-      - name: "Retrieve Dependencies and Build Artifacts"
-        id: retrieve-deps-and-build
-        uses: ./.github/actions/retrieve-deps-and-build
+      - name: Set up Node.js with OIDC
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Publish
         run: |
-          # Set up git user for lerna to create a local commit with
           git config --global user.email "lerna-ci@mml.io"
           git config --global user.name "lerna-ci-mml"
 
-          # Set up npm auth token from secret for publishing
-          npm config set //registry.npmjs.org/:_authToken=${NPM_TOKEN}
-
-          # Attempt to publish at the current version - this will skip if the version already exists
-          echo "Attempting to publishing latest version"
+          echo "Publishing latest version"
           ./node_modules/.bin/lerna publish from-package --no-private --dist-tag latest --ignore-scripts --ignore-changes --no-push --yes
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true

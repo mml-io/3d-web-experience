@@ -4,6 +4,11 @@
   "publishConfig": {
     "access": "public"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mml-io/3d-web-experience.git",
+    "directory": "packages/3d-web-experience-server"
+  },
   "main": "./build/index.js",
   "types": "./build/index.d.ts",
   "type": "module",
