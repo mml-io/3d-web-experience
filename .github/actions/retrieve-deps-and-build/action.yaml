@@ -11,16 +11,11 @@ runs:
         name: build-artifacts
 
     - name: Set up nodejs
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version-file: ".nvmrc"
         cache: npm
 
-    - name: Cache NPM dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          node_modules
-          **/node_modules
-          ~/.cache
-        key: ${{ runner.os }}-npm-v3-${{ hashFiles('package-lock.json') }}
+    - name: Install dependencies
+      shell: bash
+      run: npm ci

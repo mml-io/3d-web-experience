@@ -42,7 +42,7 @@
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.1.0",
     "jju": "^1.4.0",
-    "lerna": "8.1.9",
+    "lerna": "9.0.3",
     "prettier": "^3.4.2",
     "rimraf": "^6.0.1",
     "resolve": "1.22.10",
