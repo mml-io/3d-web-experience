@@ -21,7 +21,7 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/model-loader": "0.23.1",
+    "@mml-io/model-loader": "0.25.0",
     "react": "^19.0.0",
     "three": "0.181.2"
   },
