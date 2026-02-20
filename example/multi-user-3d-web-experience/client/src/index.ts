@@ -46,6 +46,7 @@ const app = new Networked3dWebExperienceClient(holder, {
       },
     ],
   },
+  postProcessingEnabled: true,
   allowOrbitalCamera: true,
   loadingScreen: {
     background: "#424242",

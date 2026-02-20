@@ -3,6 +3,8 @@ import { EffectComposer } from "postprocessing";
 import { Color } from "three";
 import { FolderApi } from "tweakpane";
 
+import { N8SSAOPass } from "../../../post-effects/n8-ssao/N8SSAOPass";
+
 export type N8SSAOValues = {
   enabled: boolean;
   halfRes: boolean;
@@ -115,34 +117,32 @@ export class SSAOFolder {
     this.folder.addBlade({ view: "separator" });
   }
 
-  public setupChangeEvent(composer: EffectComposer | any, n8aopass: any): void {
+  public setupChangeEvent(composer: EffectComposer, n8aopass: N8SSAOPass): void {
     this.folder.on("change", (e: TpChangeEvent<unknown, BladeApi<BladeController<View>>>) => {
       const target = (e.target as any).key;
       if (!target) return;
       switch (target) {
         case "enabled":
           if (e.value === true) {
+            // addPass internally calls pass.setSize with the correct
+            // device-pixel dimensions from renderer.getDrawingBufferSize()
             composer.addPass(n8aopass, this.postProcessingSSAOIndex + 2);
-            composer.passes[this.postProcessingSSAOIndex + 2].setSize(
-              window.innerWidth,
-              window.innerHeight,
-            );
           } else {
             composer.removePass(n8aopass);
           }
-          n8aopass.enabled = e.value;
+          n8aopass.enabled = e.value as boolean;
           break;
         case "halfRes":
-          n8aopass.configuration.halfRes = e.value;
+          n8aopass.configuration.halfRes = e.value as boolean;
           break;
         case "aoRadius":
-          n8aopass.configuration.aoRadius = e.value;
+          n8aopass.configuration.aoRadius = e.value as number;
           break;
         case "distanceFalloff":
-          n8aopass.configuration.distanceFalloff = e.value;
+          n8aopass.configuration.distanceFalloff = e.value as number;
           break;
         case "intensity":
-          n8aopass.configuration.intensity = e.value;
+          n8aopass.configuration.intensity = e.value as number;
           break;
         case "color":
           const value = (e as any).value;

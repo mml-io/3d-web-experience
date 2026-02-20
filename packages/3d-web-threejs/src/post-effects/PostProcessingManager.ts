@@ -335,16 +335,10 @@ export class PostProcessingManager {
       this.height * window.devicePixelRatio,
     );
 
-    // EffectComposer should match renderer size (without devicePixelRatio division)
+    // EffectComposer.setSize uses renderer.getDrawingBufferSize() internally,
+    // which accounts for devicePixelRatio, and propagates the correct
+    // device-pixel dimensions to all passes (including N8SSAOPass).
     this.effectComposer.setSize(this.width, this.height);
-    this.renderPass.setSize(this.width, this.height);
-
-    // only resize currently enabled effects with the same dimensions
-    this.effectStates.forEach((state) => {
-      if (state.enabled && state.instance.setSize) {
-        state.instance.setSize(this.width, this.height);
-      }
-    });
 
     // update grain effect resolution
     if (this.isEffectEnabled("grain")) {
