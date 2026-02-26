@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { DeltaNetV01ServerErrors, DeltaNetV01Tick } from "@mml-io/delta-net-protocol";
+import { DeltaNetServerErrors, DeltaNetTick } from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer, DeltaNetServerError } from "../../src";
 
@@ -44,7 +44,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       doc.tick();
 
       expect(onJoinerMock).toHaveBeenCalledWith({
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         components: [[1, 5n]],
         states: [[2, new Uint8Array([7, 8, 9])]],
         token: "valid-token",
@@ -112,7 +112,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       doc.tick();
 
       expect(onJoinerMock).toHaveBeenCalledWith({
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         components: [[1, 5n]],
         states: [[2, new Uint8Array([7, 8, 9])]],
         token: "async-valid-token",
@@ -130,7 +130,7 @@ describe("DeltaNetServer - Callback Tests", () => {
         .fn<() => Promise<DeltaNetServerError>>()
         .mockRejectedValue(
           new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
+            DeltaNetServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
             "Async validation failed",
             false,
           ),
@@ -200,7 +200,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       });
 
       expect(onComponentsUpdateMock).toHaveBeenCalledWith({
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         internalConnectionId: expect.any(Number),
         components: [
           [1, 10n],
@@ -291,20 +291,22 @@ describe("DeltaNetServer - Callback Tests", () => {
       // Should be called once per state
       expect(onStatesUpdateMock).toHaveBeenCalledTimes(2);
       expect(onStatesUpdateMock).toHaveBeenNthCalledWith(1, {
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         internalConnectionId: expect.any(Number),
         states: [[1, new Uint8Array([2])]],
+        abortSignal: expect.any(AbortSignal),
       });
       expect(onStatesUpdateMock).toHaveBeenNthCalledWith(2, {
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         internalConnectionId: expect.any(Number),
         states: [[2, new Uint8Array([3])]],
+        abortSignal: expect.any(AbortSignal),
       });
 
       doc.tick();
 
       // Both states should be applied since validation passed
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.states).toEqual([
         {
           stateId: 1,
@@ -347,9 +349,10 @@ describe("DeltaNetServer - Callback Tests", () => {
       });
 
       expect(onStatesUpdateMock).toHaveBeenCalledWith({
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         internalConnectionId: expect.any(Number),
         states: [[1, new Uint8Array([2])]],
+        abortSignal: expect.any(AbortSignal),
       });
 
       // Wait for async validation
@@ -357,7 +360,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       doc.tick();
 
       // State should be applied after async validation
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.states).toEqual([
         {
           stateId: 1,
@@ -452,7 +455,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       doc.removeWebSocket(clientWs as unknown as WebSocket);
 
       expect(onLeaveMock).toHaveBeenCalledWith({
-        deltaNetV01Connection: expect.any(Object),
+        connection: expect.any(Object),
         internalConnectionId: expect.any(Number),
         components: [[1, 10]], // Note: numbers not bigints in leave callback
         states: [[1, new Uint8Array([4, 5, 6])]],
@@ -511,7 +514,7 @@ describe("DeltaNetServer - Callback Tests", () => {
       doc.tick();
 
       // Both component and state updates should be applied
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.componentDeltaDeltas).toHaveLength(1);
       expect(tickMessage.states).toHaveLength(2);
     });

@@ -1,7 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
+import type { DecodeServerMessageOptions } from "../../../decodeOptions";
 import { DeflateCompressor } from "../../../DeflateCompressor";
-import { DecodeServerMessageOptions } from "../../decodeServerMessages";
 import { InitialCheckoutMessageType } from "../../messageTypes";
 
 /**
@@ -71,14 +71,6 @@ export function encodeInitialCheckout(
   return writer;
 }
 
-export const lastInitialCheckoutDebugData: {
-  componentsByteLength: number;
-  statesByteLength: number;
-} = {
-  componentsByteLength: 0,
-  statesByteLength: 0,
-};
-
 /**
  * Decodes an initial checkout message from a binary buffer.
  * Assumes that the first byte (message type) has already been read.
@@ -100,12 +92,16 @@ export function decodeInitialCheckout(
   for (let i = 0; i < componentsLength; i++) {
     const componentId = buffer.readUVarint();
     const valuesBytes = buffer.readUVarintPrefixedBytes();
-    const values = DeflateCompressor.varIntDecompress(valuesBytes, indicesLength);
     const deltaBytes = buffer.readUVarintPrefixedBytes();
     componentsByteLength += valuesBytes.length + deltaBytes.length;
     if (opts?.ignoreData) {
-      components.push({ componentId, deltas: new BigInt64Array(indicesLength), values });
+      components.push({
+        componentId,
+        deltas: new BigInt64Array(indicesLength),
+        values: new BigInt64Array(indicesLength),
+      });
     } else {
+      const values = DeflateCompressor.varIntDecompress(valuesBytes, indicesLength);
       const deltas = DeflateCompressor.varIntDecompress(deltaBytes, indicesLength);
       components.push({ componentId, deltas, values });
     }
@@ -117,15 +113,17 @@ export function decodeInitialCheckout(
     const valuesBytes = buffer.readUVarintPrefixedBytes();
     statesByteLength += valuesBytes.length;
     if (opts?.ignoreData) {
-      const emptyValues = new Array<Uint8Array>(indicesLength).fill(new Uint8Array(0));
+      const emptyValues = Array.from({ length: indicesLength }, () => new Uint8Array(0));
       states.push({ stateId, values: emptyValues });
     } else {
       const values = DeflateCompressor.varIntBytesDecompress(valuesBytes, indicesLength);
       states.push({ stateId, values });
     }
   }
-  lastInitialCheckoutDebugData.componentsByteLength = componentsByteLength;
-  lastInitialCheckoutDebugData.statesByteLength = statesByteLength;
+  if (opts?.debugData) {
+    opts.debugData.componentsByteLength += componentsByteLength;
+    opts.debugData.statesByteLength += statesByteLength;
+  }
   return {
     type: "initialCheckout",
     serverTime,

@@ -1,29 +1,30 @@
 import {
   BufferWriter,
-  DeltaNetV01ComponentTick,
-  DeltaNetV01InitialCheckoutComponent,
-  DeltaNetV01InitialCheckoutMessage,
-  DeltaNetV01InitialCheckoutState,
-  DeltaNetV01PingMessage,
-  DeltaNetV01ServerErrorType,
-  DeltaNetV01StateUpdates,
-  DeltaNetV01Tick,
+  DeltaNetComponentTick,
+  DeltaNetInitialCheckoutComponent,
+  DeltaNetInitialCheckoutMessage,
+  DeltaNetInitialCheckoutState,
+  DeltaNetServerErrors,
+  DeltaNetServerErrorType,
+  DeltaNetStateUpdates,
+  DeltaNetTick,
+  deltaNetSupportedSubProtocols,
+  deltaNetProtocolSubProtocol_v0_1,
+  deltaNetProtocolSubProtocol_v0_2,
   encodeInitialCheckout,
-  encodePing,
+  encodeInitialCheckoutV02,
+  encodeServerCustom,
   encodeTick,
-  encodeServerMessage,
+  encodeTickV02,
 } from "@mml-io/delta-net-protocol";
 
 import { ComponentCollection } from "./ComponentCollection";
-import {
-  createDeltaNetServerConnectionForWebsocket,
-  SupportedWebsocketSubProtocolsPreferenceOrder,
-} from "./createDeltaNetServerConnectionForWebsocket";
-import { DeltaNetV01Connection } from "./DeltaNetV01Connection";
+import { createDeltaNetServerConnectionForWebsocket } from "./createDeltaNetServerConnectionForWebsocket";
+import { DeltaNetConnection } from "./DeltaNetConnection";
 import { StateCollection } from "./StateCollection";
 
 export type onJoinerOptions = {
-  deltaNetV01Connection: DeltaNetV01Connection;
+  connection: DeltaNetConnection;
   components: Array<[number, bigint]>;
   states: Array<[number, Uint8Array]>;
   token: string;
@@ -31,26 +32,27 @@ export type onJoinerOptions = {
 };
 
 export type onComponentsUpdateOptions = {
-  deltaNetV01Connection: DeltaNetV01Connection;
+  connection: DeltaNetConnection;
   internalConnectionId: number;
   components: Array<[number, bigint]>;
 };
 
 export type onStatesUpdateOptions = {
-  deltaNetV01Connection: DeltaNetV01Connection;
+  connection: DeltaNetConnection;
   internalConnectionId: number;
   states: Array<[number, Uint8Array]>;
+  abortSignal: AbortSignal;
 };
 
 export type onLeaveOptions = {
-  deltaNetV01Connection: DeltaNetV01Connection;
+  connection: DeltaNetConnection;
   internalConnectionId: number;
   components: Array<[number, number]>;
   states: Array<[number, Uint8Array]>;
 };
 
 export type onCustomMessageOptions = {
-  deltaNetV01Connection: DeltaNetV01Connection;
+  connection: DeltaNetConnection;
   internalConnectionId: number;
   customType: number;
   contents: string;
@@ -58,7 +60,7 @@ export type onCustomMessageOptions = {
 
 export class DeltaNetServerError extends Error {
   constructor(
-    public errorType: DeltaNetV01ServerErrorType,
+    public errorType: DeltaNetServerErrorType,
     message: string,
     public retryable: boolean,
   ) {
@@ -118,7 +120,7 @@ export class DeltaNetServer {
   private preTickData = {
     // This is state that will be flushed to clients in the next tick, but messages handled before the tick could change it
     unoccupyingIndices: new Set<number>(),
-    newJoinerConnections: new Set<DeltaNetV01Connection>(),
+    newJoinerConnections: new Set<DeltaNetConnection>(),
     // Allows for arbitrary processes to be run that can imitate a new joiner connection (currently used for legacy adapter)
     newJoinerCallbacks: new Set<
       (index: number) => { id: number; afterAddCallback?: () => void } | null
@@ -128,18 +130,19 @@ export class DeltaNetServer {
 
   private connectionIdToComponentIndex = new Map<number, number>();
   private componentIndexToConnectionId = new Map<number, number>();
-  private connectionIdToDeltaNetServerConnection = new Map<number, DeltaNetV01Connection>();
+  private connectionIdToConnection = new Map<number, DeltaNetConnection>();
 
-  private allDeltaNetV01Connections = new Set<DeltaNetV01Connection>();
-  private authenticatedDeltaNetV01Connections = new Set<DeltaNetV01Connection>();
-  private observerConnections = new Set<DeltaNetV01Connection>(); // Track observer connections separately
-  private webSocketToDeltaNetServerConnection = new Map<WebSocket, DeltaNetV01Connection>();
+  private allConnections = new Set<DeltaNetConnection>();
+  private authenticatedConnections = new Set<DeltaNetConnection>();
+  private authenticatedV01Connections = new Set<DeltaNetConnection>();
+  private authenticatedV02Connections = new Set<DeltaNetConnection>();
+  private observerConnections = new Set<DeltaNetConnection>(); // Track observer connections separately
+  private webSocketToConnection = new Map<WebSocket, DeltaNetConnection>();
 
   private components = new Map<number, ComponentCollection>();
   private states = new Map<number, StateCollection>();
 
   private documentEffectiveStartTime = Date.now();
-  private pingCounter = 1;
 
   private disposed = false;
 
@@ -159,7 +162,7 @@ export class DeltaNetServer {
   public static handleWebsocketSubprotocol(protocols: Set<string> | Array<string>): string | false {
     const protocolsSet = new Set(protocols);
     // Find highest priority (first in the array) protocol that is supported
-    for (const protocol of SupportedWebsocketSubProtocolsPreferenceOrder) {
+    for (const protocol of deltaNetSupportedSubProtocols) {
       if (protocolsSet.has(protocol)) {
         return protocol;
       }
@@ -167,42 +170,50 @@ export class DeltaNetServer {
     return false;
   }
 
-  public addWebSocket(webSocket: WebSocket) {
+  /**
+   * @param webSocket  The upgraded WebSocket.
+   * @param deltaNetSubProtocol  Optional explicit delta-net sub-protocol
+   *   version. When provided, `webSocket.protocol` is ignored for version
+   *   selection. This allows a higher-level protocol to be negotiated at the
+   *   WebSocket level while the delta-net version is supplied by the caller.
+   */
+  public addWebSocket(webSocket: WebSocket, deltaNetSubProtocol?: string) {
     if (this.disposed) {
       throw new Error("This DeltaNetServer has been disposed");
     }
 
-    const deltaNetV01Connection = createDeltaNetServerConnectionForWebsocket(webSocket, this);
-    if (deltaNetV01Connection === null) {
+    const connection = createDeltaNetServerConnectionForWebsocket(
+      webSocket,
+      this,
+      deltaNetSubProtocol,
+    );
+    if (connection === null) {
       // Error is handled in createDeltaNetServerConnectionForWebsocket
       return;
     }
 
-    this.allDeltaNetV01Connections.add(deltaNetV01Connection);
-    this.webSocketToDeltaNetServerConnection.set(
-      deltaNetV01Connection.webSocket,
-      deltaNetV01Connection,
-    );
+    this.allConnections.add(connection);
+    this.webSocketToConnection.set(connection.webSocket, connection);
   }
 
   public removeWebSocket(webSocket: WebSocket) {
     // Allow removal even when disposed to ensure cleanup
-    const deltaNetV01Connection = this.webSocketToDeltaNetServerConnection.get(webSocket);
-    if (deltaNetV01Connection === undefined) {
+    const connection = this.webSocketToConnection.get(webSocket);
+    if (connection === undefined) {
       // Connection might have already been removed, which is fine
       return;
     }
-    if (!this.allDeltaNetV01Connections.has(deltaNetV01Connection)) {
+    if (!this.allConnections.has(connection)) {
       // Connection might have already been cleaned up, which is fine
       return;
     }
 
     // Dispose the connection (this will cancel any pending validations)
-    deltaNetV01Connection.dispose();
+    connection.dispose();
 
     // Call onLeave callback if provided and connection has an ID (but not if disposed)
     if (!this.disposed && this.opts.onLeave) {
-      const internalConnectionId = deltaNetV01Connection.internalConnectionId;
+      const internalConnectionId = connection.internalConnectionId;
       const index = this.connectionIdToComponentIndex.get(internalConnectionId);
 
       if (index !== undefined) {
@@ -225,7 +236,7 @@ export class DeltaNetServer {
 
         try {
           this.opts.onLeave({
-            deltaNetV01Connection,
+            connection,
             internalConnectionId,
             components,
             states,
@@ -233,14 +244,26 @@ export class DeltaNetServer {
         } catch (error) {
           console.warn("Error in onLeave callback:", error);
         }
+      } else if (connection.isObserver) {
+        // Observers don't have indices but still need onLeave for cleanup
+        try {
+          this.opts.onLeave({
+            connection,
+            internalConnectionId,
+            components: [],
+            states: [],
+          });
+        } catch (error) {
+          console.warn("Error in onLeave callback for observer:", error);
+        }
       }
     }
 
-    const internalConnectionId = deltaNetV01Connection.internalConnectionId;
-    this.connectionIdToDeltaNetServerConnection.delete(internalConnectionId);
-    if (this.preTickData.newJoinerConnections.has(deltaNetV01Connection)) {
+    const internalConnectionId = connection.internalConnectionId;
+    this.connectionIdToConnection.delete(internalConnectionId);
+    if (this.preTickData.newJoinerConnections.has(connection)) {
       // This connection is still pending, so we need to remove it from the pending joiner list
-      this.preTickData.newJoinerConnections.delete(deltaNetV01Connection);
+      this.preTickData.newJoinerConnections.delete(connection);
     } else {
       // This connection is already authenticated (has an index assigned), so we need to clear data for it
       const index = this.connectionIdToComponentIndex.get(internalConnectionId);
@@ -249,14 +272,46 @@ export class DeltaNetServer {
       }
       // If index is undefined, this connection was never fully authenticated and has no data to clear
     }
-    this.authenticatedDeltaNetV01Connections.delete(deltaNetV01Connection);
-    this.observerConnections.delete(deltaNetV01Connection); // Remove from observers if present
-    this.allDeltaNetV01Connections.delete(deltaNetV01Connection);
-    this.webSocketToDeltaNetServerConnection.delete(deltaNetV01Connection.webSocket);
+    this.removeFromAuthenticatedSets(connection);
+    this.observerConnections.delete(connection); // Remove from observers if present
+    this.allConnections.delete(connection);
+    this.webSocketToConnection.delete(connection.webSocket);
   }
 
   public hasWebSocket(webSocket: WebSocket): boolean {
-    return this.webSocketToDeltaNetServerConnection.has(webSocket);
+    return this.webSocketToConnection.has(webSocket);
+  }
+
+  private addToAuthenticatedSets(connection: DeltaNetConnection): void {
+    this.authenticatedConnections.add(connection);
+    switch (connection.protocolVersion) {
+      case deltaNetProtocolSubProtocol_v0_1:
+        this.authenticatedV01Connections.add(connection);
+        break;
+      case deltaNetProtocolSubProtocol_v0_2:
+        this.authenticatedV02Connections.add(connection);
+        break;
+      default: {
+        const _exhaustive: never = connection.protocolVersion;
+        throw new Error(`Unknown protocol version: ${_exhaustive}`);
+      }
+    }
+  }
+
+  private removeFromAuthenticatedSets(connection: DeltaNetConnection): void {
+    this.authenticatedConnections.delete(connection);
+    switch (connection.protocolVersion) {
+      case deltaNetProtocolSubProtocol_v0_1:
+        this.authenticatedV01Connections.delete(connection);
+        break;
+      case deltaNetProtocolSubProtocol_v0_2:
+        this.authenticatedV02Connections.delete(connection);
+        break;
+      default: {
+        const _exhaustive: never = connection.protocolVersion;
+        throw new Error(`Unknown protocol version: ${_exhaustive}`);
+      }
+    }
   }
 
   public dangerouslyGetConnectionsToComponentIndex(): Map<number, number> {
@@ -267,41 +322,6 @@ export class DeltaNetServer {
     callback: (index: number) => { id: number; afterAddCallback?: () => void } | null,
   ): void {
     this.preTickData.newJoinerCallbacks.add(callback);
-  }
-
-  private disconnectWithError(
-    deltaNetV01Connection: DeltaNetV01Connection,
-    error: Error,
-    errorType: DeltaNetV01ServerErrorType,
-    retryable: boolean = true,
-  ): void {
-    try {
-      deltaNetV01Connection.sendMessage({
-        type: "error",
-        errorType,
-        message: error.message,
-        retryable,
-      });
-    } catch (sendError) {
-      // If sending the error message fails, just log it and proceed with disconnection
-      console.warn("Failed to send error message to client:", sendError);
-    }
-
-    try {
-      deltaNetV01Connection.webSocket.close(1008, error.message);
-    } catch (closeError) {
-      // If closing the connection fails, just log it
-      console.warn("Failed to close websocket connection:", closeError);
-    }
-
-    // Immediately clean up internal data structures to prevent memory leaks
-    // This ensures cleanup happens even if the WebSocket close event doesn't fire
-    try {
-      this.removeWebSocket(deltaNetV01Connection.webSocket);
-    } catch (cleanupError) {
-      // If the connection was already removed or doesn't exist, that's fine
-      console.warn("Failed to clean up connection state:", cleanupError);
-    }
   }
 
   public getComponentValue(componentId: number, componentIndex: number): number | null {
@@ -321,13 +341,16 @@ export class DeltaNetServer {
   }
 
   public validateJoiner(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    connection: DeltaNetConnection,
     token: string,
     components: Array<[number, bigint]>,
     states: Array<[number, Uint8Array]>,
   ):
-    | Promise<{ success: true } | { success: false; error: string }>
-    | { success: true }
+    | Promise<
+        | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+        | { success: false; error: string }
+      >
+    | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
     | { success: false; error: string } {
     if (this.disposed) {
       return { success: false, error: "This DeltaNetServer has been disposed" };
@@ -373,17 +396,23 @@ export class DeltaNetServer {
     // Call onJoiner callback if provided (now potentially async)
     if (this.opts.onJoiner) {
       const rawResult = this.opts.onJoiner({
-        deltaNetV01Connection,
+        connection,
         components,
         states,
         token,
-        internalConnectionId: deltaNetV01Connection.internalConnectionId,
+        internalConnectionId: connection.internalConnectionId,
       });
       if (rawResult instanceof Promise) {
         return rawResult
-          .then((resolvedResult): { success: true } | { success: false; error: string } => {
-            return resultToReturn(resolvedResult);
-          })
+          .then(
+            (
+              resolvedResult,
+            ):
+              | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
+              | { success: false; error: string } => {
+              return resultToReturn(resolvedResult);
+            },
+          )
           .catch((error) => {
             console.warn("Error in async onJoiner callback:", error);
             return resultToReturn(error);
@@ -396,31 +425,25 @@ export class DeltaNetServer {
     return { success: true };
   }
 
-  public addAuthenticatedConnection(deltaNetV01Connection: DeltaNetV01Connection): void {
-    if (deltaNetV01Connection.internalConnectionId === null) {
-      throw new Error("Connection ID must be set before adding to authenticated connections");
-    }
+  public addAuthenticatedConnection(connection: DeltaNetConnection): void {
+    this.connectionIdToConnection.set(connection.internalConnectionId, connection);
 
-    this.connectionIdToDeltaNetServerConnection.set(
-      deltaNetV01Connection.internalConnectionId,
-      deltaNetV01Connection,
-    );
-
-    if (deltaNetV01Connection.isObserver) {
+    if (connection.isObserver) {
       // Observers don't get indices but still need to go through the newJoiner flow to receive initialCheckout
-      this.observerConnections.add(deltaNetV01Connection);
-      this.preTickData.newJoinerConnections.add(deltaNetV01Connection);
+      this.observerConnections.add(connection);
+      this.preTickData.newJoinerConnections.add(connection);
     } else {
       // Regular users get added to new joiner queue for index assignment
-      this.preTickData.newJoinerConnections.add(deltaNetV01Connection);
+      this.preTickData.newJoinerConnections.add(connection);
     }
   }
 
   public validateAndApplyStateUpdate(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    connection: DeltaNetConnection,
     internalConnectionId: number,
     stateId: number,
     stateValue: Uint8Array,
+    abortSignal: AbortSignal,
   ):
     | Promise<true | void | Error | DeltaNetServerError>
     | true
@@ -434,16 +457,16 @@ export class DeltaNetServer {
     // Check state value size limit
     if (stateValue.length > this.maxStateValueSize) {
       return new DeltaNetServerError(
-        "USER_NETWORKING_UNKNOWN_ERROR",
+        DeltaNetServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
         `State value for state ${stateId} has size ${stateValue.length} bytes which exceeds maximum allowed size of ${this.maxStateValueSize} bytes`,
         false,
       );
     }
 
     // Observers cannot send state updates
-    if (deltaNetV01Connection.isObserver) {
+    if (connection.isObserver) {
       return new DeltaNetServerError(
-        "OBSERVER_CANNOT_SEND_STATE_UPDATES",
+        DeltaNetServerErrors.OBSERVER_CANNOT_SEND_STATE_UPDATES_ERROR_TYPE,
         "Observers cannot send state updates",
         false,
       );
@@ -453,9 +476,10 @@ export class DeltaNetServer {
     if (this.opts.onStatesUpdate) {
       try {
         const result = this.opts.onStatesUpdate({
-          deltaNetV01Connection,
+          connection,
           internalConnectionId,
           states: [[stateId, stateValue]],
+          abortSignal,
         });
 
         // If it's a Promise, return it for the connection to handle
@@ -463,7 +487,7 @@ export class DeltaNetServer {
           return result
             .then((asyncResult) => {
               // Check if connection still exists before applying state update
-              if (!this.connectionIdToDeltaNetServerConnection.has(internalConnectionId)) {
+              if (!this.connectionIdToConnection.has(internalConnectionId)) {
                 // Connection was removed while validation was pending - ignore the result
                 return;
               }
@@ -472,9 +496,7 @@ export class DeltaNetServer {
               }
 
               if (asyncResult === true || asyncResult === undefined) {
-                this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
-                  [stateId, stateValue],
-                ]);
+                this.applyStateUpdates(connection, internalConnectionId, [[stateId, stateValue]]);
                 return true;
               }
 
@@ -482,7 +504,7 @@ export class DeltaNetServer {
               if (asyncResult.success) {
                 if (asyncResult.stateOverrides) {
                   this.applyStateUpdates(
-                    deltaNetV01Connection,
+                    connection,
                     internalConnectionId,
                     asyncResult.stateOverrides,
                   );
@@ -490,7 +512,7 @@ export class DeltaNetServer {
                 return true;
               } else {
                 return new DeltaNetServerError(
-                  "USER_NETWORKING_UNKNOWN_ERROR",
+                  DeltaNetServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
                   "State validation failed",
                   false,
                 );
@@ -514,25 +536,19 @@ export class DeltaNetServer {
           }
 
           if (result === true || result === undefined) {
-            this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [
-              [stateId, stateValue],
-            ]);
+            this.applyStateUpdates(connection, internalConnectionId, [[stateId, stateValue]]);
             return true;
           }
 
           // If result is an object with success: true, apply the state overrides
           if (result.success) {
             if (result.stateOverrides) {
-              this.applyStateUpdates(
-                deltaNetV01Connection,
-                internalConnectionId,
-                result.stateOverrides,
-              );
+              this.applyStateUpdates(connection, internalConnectionId, result.stateOverrides);
             }
             return true;
           } else {
             return new DeltaNetServerError(
-              "USER_NETWORKING_UNKNOWN_ERROR",
+              DeltaNetServerErrors.USER_NETWORKING_UNKNOWN_ERROR_TYPE,
               "State validation failed",
               false,
             );
@@ -550,7 +566,7 @@ export class DeltaNetServer {
       }
     } else {
       // No validation callback, apply immediately
-      this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, [[stateId, stateValue]]);
+      this.applyStateUpdates(connection, internalConnectionId, [[stateId, stateValue]]);
       return true;
     }
   }
@@ -571,35 +587,20 @@ export class DeltaNetServer {
     this.preTickData.unoccupyingIndices.add(index);
   }
 
-  private sendPings() {
-    const ping = this.pingCounter++;
-    if (this.pingCounter > 1000) {
-      this.pingCounter = 1;
-    }
-    const v01PingMessage: DeltaNetV01PingMessage = {
-      type: "ping",
-      ping,
-    };
-    const writer = new BufferWriter(8);
-    encodePing(v01PingMessage, writer);
-    const v01Encoded = writer.getBuffer();
-    this.allDeltaNetV01Connections.forEach((deltaNetV01Connection) => {
-      deltaNetV01Connection.sendEncodedBytes(v01Encoded);
-    });
-  }
-
   public tick(): {
     removedIds: Set<number>;
     addedIds: Set<number>;
+    addedObserverIds: Set<number>;
   } {
     if (this.disposed) {
-      return { removedIds: new Set(), addedIds: new Set() }; // Silently ignore ticks after disposal
+      return { removedIds: new Set(), addedIds: new Set(), addedObserverIds: new Set() };
     }
 
     this.preTickData.componentsUpdated = 0;
 
     const removedIds: Set<number> = new Set();
     const addedIds: Set<number> = new Set();
+    const addedObserverIds: Set<number> = new Set();
 
     // Determine the indices of the removed connections. Send the original indices to the clients so they can be removed.
     const sortedUnoccupyingIndices = Array.from(this.preTickData.unoccupyingIndices);
@@ -649,15 +650,24 @@ export class DeltaNetServer {
       writeIndex++;
     }
 
+    // Clean up stale entries left behind by the shift
+    for (let i = writeIndex; i < this.nextIndex; i++) {
+      this.componentIndexToConnectionId.delete(i);
+    }
+
     // Now decrement the nextIndex to reflect the removed indices
     this.nextIndex -= sortedUnoccupyingIndices.length;
 
-    // handle new joiners
-    for (const deltaNetV01Connection of this.preTickData.newJoinerConnections) {
-      const internalConnectionId = deltaNetV01Connection.internalConnectionId;
+    // Track connections that fail to send so they can be cleaned up at the end
+    const failedConnections = new Set<DeltaNetConnection>();
 
-      if (deltaNetV01Connection.isObserver) {
+    // handle new joiners
+    for (const connection of this.preTickData.newJoinerConnections) {
+      const internalConnectionId = connection.internalConnectionId;
+
+      if (connection.isObserver) {
         // Observers don't get indices assigned
+        addedObserverIds.add(internalConnectionId);
       } else {
         // Regular participants get indices assigned
         const index = this.nextIndex++;
@@ -667,19 +677,19 @@ export class DeltaNetServer {
         addedIds.add(internalConnectionId);
 
         // Create new collections for any components or states that are not already present
-        for (const [componentId] of deltaNetV01Connection.components) {
+        for (const [componentId] of connection.components) {
           if (!this.components.has(componentId)) {
             this.components.set(componentId, new ComponentCollection());
           }
         }
-        for (const [stateId] of deltaNetV01Connection.states) {
+        for (const [stateId] of connection.states) {
           if (!this.states.has(stateId)) {
             this.states.set(stateId, new StateCollection());
           }
         }
 
         for (const [componentId, collection] of this.components) {
-          const value = deltaNetV01Connection.components.get(componentId);
+          const value = connection.components.get(componentId);
           if (value === undefined) {
             collection.setValue(index, 0n);
           } else {
@@ -688,7 +698,7 @@ export class DeltaNetServer {
         }
 
         for (const [stateId, collection] of this.states) {
-          const value = deltaNetV01Connection.states.get(stateId);
+          const value = connection.states.get(stateId);
           if (
             this.opts.serverConnectionIdStateId !== undefined &&
             stateId === this.opts.serverConnectionIdStateId
@@ -706,10 +716,9 @@ export class DeltaNetServer {
           }
         }
 
-        deltaNetV01Connection.sendMessage({
-          type: "userIndex",
-          index,
-        });
+        if (!connection.sendMessage({ type: "userIndex", index })) {
+          failedConnections.add(connection);
+        }
       }
     }
 
@@ -737,12 +746,12 @@ export class DeltaNetServer {
       }
     }
 
-    const componentDeltas: Array<DeltaNetV01ComponentTick> = [];
+    const componentDeltas: Array<DeltaNetComponentTick> = [];
     for (const [componentId, collection] of this.components) {
       const { deltaDeltas } = collection.tick();
       componentDeltas.push({ componentId, deltaDeltas });
     }
-    const stateDeltas: Array<DeltaNetV01StateUpdates> = [];
+    const stateDeltas: Array<DeltaNetStateUpdates> = [];
     for (const [stateId, collection] of this.states) {
       const updatedStates: Array<[number, Uint8Array]> = collection.tick();
       if (updatedStates.length === 0) {
@@ -754,7 +763,7 @@ export class DeltaNetServer {
       });
     }
 
-    const tickMessage: DeltaNetV01Tick = {
+    const tickMessage: DeltaNetTick = {
       type: "tick",
       serverTime: this.getServerTime(),
       removedIndices: sortedUnoccupyingIndices,
@@ -762,17 +771,35 @@ export class DeltaNetServer {
       componentDeltaDeltas: componentDeltas,
       states: stateDeltas,
     };
-    const writer = new BufferWriter(this.nextIndex * this.components.size + 128); // Try to avoid needing to resize
-    encodeTick(tickMessage, writer);
-    const v01EncodedComponentsChanged = writer.getBuffer();
-    this.authenticatedDeltaNetV01Connections.forEach((deltaNetV01Connection) => {
-      deltaNetV01Connection.sendEncodedBytes(v01EncodedComponentsChanged);
-    });
+
+    // Encode tick for v0.1 connections (only if there are v0.1 connections)
+    if (this.authenticatedV01Connections.size > 0) {
+      const v01Writer = new BufferWriter(this.nextIndex * this.components.size + 128);
+      encodeTick(tickMessage, v01Writer);
+      const v01EncodedTick = v01Writer.getBuffer();
+      this.authenticatedV01Connections.forEach((connection) => {
+        if (!connection.sendEncodedBytes(v01EncodedTick)) {
+          failedConnections.add(connection);
+        }
+      });
+    }
+
+    // Encode tick for v0.2 connections (only if there are v0.2 connections)
+    if (this.authenticatedV02Connections.size > 0) {
+      const v02Writer = new BufferWriter(this.nextIndex * this.components.size + 128);
+      encodeTickV02(tickMessage, v02Writer);
+      const v02EncodedTick = v02Writer.getBuffer();
+      this.authenticatedV02Connections.forEach((connection) => {
+        if (!connection.sendEncodedBytes(v02EncodedTick)) {
+          failedConnections.add(connection);
+        }
+      });
+    }
 
     // Handle the initial checkout for new joiners
 
     if (this.preTickData.newJoinerConnections.size > 0) {
-      const components: Array<DeltaNetV01InitialCheckoutComponent> = [];
+      const components: Array<DeltaNetInitialCheckoutComponent> = [];
       for (const [componentId, collection] of this.components) {
         components.push({
           componentId,
@@ -781,7 +808,7 @@ export class DeltaNetServer {
         });
       }
 
-      const states: Array<DeltaNetV01InitialCheckoutState> = [];
+      const states: Array<DeltaNetInitialCheckoutState> = [];
       for (const [stateId, collection] of this.states) {
         states.push({
           stateId,
@@ -795,29 +822,79 @@ export class DeltaNetServer {
         states,
         indicesCount: this.nextIndex,
         serverTime: this.getServerTime(),
-      } satisfies DeltaNetV01InitialCheckoutMessage;
+      } satisfies DeltaNetInitialCheckoutMessage;
 
-      const writer = new BufferWriter(this.nextIndex * this.components.size + 128); // Try to avoid needing to resize
-      encodeInitialCheckout(initialCheckout, writer);
-      const v01EncodedInitialCheckout = writer.getBuffer();
+      // Separate new joiners by protocol version
+      const v01NewJoiners: Array<DeltaNetConnection> = [];
+      const v02NewJoiners: Array<DeltaNetConnection> = [];
+      for (const connection of this.preTickData.newJoinerConnections) {
+        switch (connection.protocolVersion) {
+          case deltaNetProtocolSubProtocol_v0_1:
+            v01NewJoiners.push(connection);
+            break;
+          case deltaNetProtocolSubProtocol_v0_2:
+            v02NewJoiners.push(connection);
+            break;
+          default: {
+            const _exhaustive: never = connection.protocolVersion;
+            throw new Error(`Unknown protocol version: ${_exhaustive}`);
+          }
+        }
+      }
 
-      for (const deltaNetV01Connection of this.preTickData.newJoinerConnections) {
-        deltaNetV01Connection.sendEncodedBytes(v01EncodedInitialCheckout);
+      if (v01NewJoiners.length > 0) {
+        const v01Writer = new BufferWriter(this.nextIndex * this.components.size + 128);
+        encodeInitialCheckout(initialCheckout, v01Writer);
+        const v01EncodedInitialCheckout = v01Writer.getBuffer();
+        for (const connection of v01NewJoiners) {
+          if (!connection.sendEncodedBytes(v01EncodedInitialCheckout)) {
+            failedConnections.add(connection);
+          }
+        }
+      }
+
+      if (v02NewJoiners.length > 0) {
+        const v02Writer = new BufferWriter(this.nextIndex * this.components.size + 128);
+        encodeInitialCheckoutV02(initialCheckout, v02Writer);
+        const v02EncodedInitialCheckout = v02Writer.getBuffer();
+        for (const connection of v02NewJoiners) {
+          if (!connection.sendEncodedBytes(v02EncodedInitialCheckout)) {
+            failedConnections.add(connection);
+          }
+        }
       }
     }
 
-    for (const deltaNetV01Connection of this.preTickData.newJoinerConnections) {
-      this.authenticatedDeltaNetV01Connections.add(deltaNetV01Connection);
-      deltaNetV01Connection.setAuthenticated();
+    for (const connection of this.preTickData.newJoinerConnections) {
+      if (failedConnections.has(connection)) {
+        continue;
+      }
+      this.addToAuthenticatedSets(connection);
+      connection.setAuthenticated();
     }
 
+    // Clear pre-tick data before failed connection cleanup so that any
+    // unoccupying indices added by removeWebSocket persist to the next tick.
     this.preTickData.unoccupyingIndices.clear();
     this.preTickData.newJoinerConnections.clear();
     this.preTickData.newJoinerCallbacks.clear();
 
+    // Clean up connections that failed to send (tick or initial checkout).
+    // This must happen AFTER clearing unoccupyingIndices above, because
+    // removeWebSocket -> clearInternalConnectionId adds the failed connection's
+    // index to unoccupyingIndices, which needs to be processed on the next tick.
+    for (const connection of failedConnections) {
+      try {
+        this.removeWebSocket(connection.webSocket);
+      } catch (cleanupError) {
+        console.warn("Failed to clean up connection after send failure:", cleanupError);
+      }
+    }
+
     return {
       removedIds,
       addedIds,
+      addedObserverIds,
     };
   }
 
@@ -826,7 +903,7 @@ export class DeltaNetServer {
   }
 
   public setUserComponents(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    connection: DeltaNetConnection,
     internalConnectionId: number,
     components: Array<[number, bigint]>,
   ): { success: true } | { success: false; error: string } {
@@ -836,7 +913,7 @@ export class DeltaNetServer {
     }
 
     // Observers cannot send component updates
-    if (deltaNetV01Connection.isObserver) {
+    if (connection.isObserver) {
       return { success: false, error: "Observers cannot send component updates" };
     }
 
@@ -844,7 +921,7 @@ export class DeltaNetServer {
     if (this.opts.onComponentsUpdate) {
       try {
         const result = this.opts.onComponentsUpdate({
-          deltaNetV01Connection,
+          connection,
           internalConnectionId,
           components,
         });
@@ -868,7 +945,7 @@ export class DeltaNetServer {
     }
 
     // Apply component updates immediately (components don't have async validation)
-    this.applyComponentUpdates(deltaNetV01Connection, internalConnectionId, components);
+    this.applyComponentUpdates(connection, internalConnectionId, components);
 
     return { success: true };
   }
@@ -884,13 +961,13 @@ export class DeltaNetServer {
   }
 
   private applyComponentUpdates(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    connection: DeltaNetConnection,
     internalConnectionId: number,
     components: Array<[number, bigint]>,
   ): void {
-    if (this.preTickData.newJoinerConnections.has(deltaNetV01Connection)) {
+    if (this.preTickData.newJoinerConnections.has(connection)) {
       for (const [componentId, componentValue] of components) {
-        deltaNetV01Connection.components.set(componentId, componentValue);
+        connection.components.set(componentId, componentValue);
       }
       return;
     }
@@ -907,11 +984,11 @@ export class DeltaNetServer {
   }
 
   public overrideUserStates(
-    deltaNetV01Connection: DeltaNetV01Connection | null,
+    connection: DeltaNetConnection | null,
     internalConnectionId: number,
     states: Array<[number, Uint8Array]>,
   ) {
-    this.applyStateUpdates(deltaNetV01Connection, internalConnectionId, states);
+    this.applyStateUpdates(connection, internalConnectionId, states);
   }
 
   public setUserState(index: number, stateId: number, stateValue: Uint8Array) {
@@ -924,16 +1001,13 @@ export class DeltaNetServer {
   }
 
   private applyStateUpdates(
-    deltaNetV01Connection: DeltaNetV01Connection | null,
+    connection: DeltaNetConnection | null,
     internalConnectionId: number,
     states: Array<[number, Uint8Array]>,
   ): void {
-    if (
-      deltaNetV01Connection !== null &&
-      this.preTickData.newJoinerConnections.has(deltaNetV01Connection)
-    ) {
+    if (connection !== null && this.preTickData.newJoinerConnections.has(connection)) {
       for (const [stateId, stateValue] of states) {
-        deltaNetV01Connection.states.set(stateId, stateValue);
+        connection.states.set(stateId, stateValue);
       }
       return;
     }
@@ -951,7 +1025,7 @@ export class DeltaNetServer {
   }
 
   public handleCustomMessage(
-    deltaNetV01Connection: DeltaNetV01Connection,
+    connection: DeltaNetConnection,
     internalConnectionId: number,
     customType: number,
     contents: string,
@@ -964,7 +1038,7 @@ export class DeltaNetServer {
     if (this.opts.onCustomMessage) {
       try {
         this.opts.onCustomMessage({
-          deltaNetV01Connection,
+          connection,
           internalConnectionId,
           customType,
           contents,
@@ -975,38 +1049,50 @@ export class DeltaNetServer {
     }
   }
 
+  public sendCustomMessageToConnection(
+    connectionId: number,
+    customType: number,
+    contents: string,
+  ): void {
+    if (this.disposed) {
+      return;
+    }
+
+    const connection = this.connectionIdToConnection.get(connectionId);
+    if (!connection) {
+      return;
+    }
+
+    const writer = new BufferWriter(contents.length + 16);
+    encodeServerCustom({ type: "serverCustom", customType, contents }, writer);
+    const messageBytes = writer.getBuffer();
+
+    connection.sendEncodedBytes(messageBytes);
+  }
+
   public broadcastCustomMessage(customType: number, contents: string): void {
     if (this.disposed) {
       return;
     }
 
     const writer = new BufferWriter(contents.length + 16);
-    const message = {
-      type: "serverCustom" as const,
-      customType,
-      contents,
-    };
+    // serverCustom encoding is identical across all protocol versions, so we encode once and broadcast.
+    encodeServerCustom({ type: "serverCustom", customType, contents }, writer);
+    const messageBytes = writer.getBuffer();
 
-    const encodedMessage = encodeServerMessage(message, writer);
-    const messageBytes = encodedMessage.getBuffer();
-
-    // Broadcast to all authenticated connections
-    this.authenticatedDeltaNetV01Connections.forEach((connection) => {
-      try {
-        connection.sendEncodedBytes(messageBytes);
-      } catch (error) {
-        console.warn("Failed to send custom message to connection:", error);
-      }
-    });
+    for (const connection of this.authenticatedConnections) {
+      connection.sendEncodedBytes(messageBytes);
+    }
   }
 
   public dispose(): void {
     this.disposed = true;
 
-    // Close all active connections
-    const connectionsToClose = Array.from(this.allDeltaNetV01Connections);
+    // Dispose and close all active connections
+    const connectionsToClose = Array.from(this.allConnections);
     for (const connection of connectionsToClose) {
       try {
+        connection.dispose();
         connection.webSocket.close(1001, "Server shutting down");
       } catch (error) {
         console.warn("Failed to close connection during disposal:", error);
@@ -1014,11 +1100,13 @@ export class DeltaNetServer {
     }
 
     // Clear all internal data structures
-    this.allDeltaNetV01Connections.clear();
-    this.authenticatedDeltaNetV01Connections.clear();
+    this.allConnections.clear();
+    this.authenticatedConnections.clear();
+    this.authenticatedV01Connections.clear();
+    this.authenticatedV02Connections.clear();
     this.observerConnections.clear();
-    this.webSocketToDeltaNetServerConnection.clear();
-    this.connectionIdToDeltaNetServerConnection.clear();
+    this.webSocketToConnection.clear();
+    this.connectionIdToConnection.clear();
     this.connectionIdToComponentIndex.clear();
     this.componentIndexToConnectionId.clear();
     this.components.clear();

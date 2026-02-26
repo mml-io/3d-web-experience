@@ -1,8 +1,8 @@
-import { encodeError, DeltaNetV01ServerErrors } from "@mml-io/delta-net-protocol";
+import { encodeError, DeltaNetServerErrors } from "@mml-io/delta-net-protocol";
 import {
+  DeltaNetConnection,
   DeltaNetServer,
   DeltaNetServerError,
-  DeltaNetV01Connection,
   onComponentsUpdateOptions,
   onCustomMessageOptions,
   onJoinerOptions,
@@ -33,7 +33,7 @@ export type UserNetworkingServerClient = {
   lastPong: number;
   authenticatedUser: UserData | null;
   // May be null for legacy clients
-  deltaNetConnection: DeltaNetV01Connection | null;
+  deltaNetConnection: DeltaNetConnection | null;
 };
 
 export type UserNetworkingServerOptions = {
@@ -153,7 +153,7 @@ export class UserNetworkingServer {
     | Promise<
         DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
       > {
-    const deltaNetConnection = update.deltaNetV01Connection;
+    const deltaNetConnection = update.connection;
     const clientId = deltaNetConnection.internalConnectionId;
     const updatedStates = update.states;
     const updatedStatesMap = new Map<number, Uint8Array>(updatedStates);
@@ -165,7 +165,7 @@ export class UserNetworkingServer {
     const existingClient = this.authenticatedClientsById.get(clientId);
     if (!existingClient) {
       return new DeltaNetServerError(
-        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
         "User not authenticated - no client found",
         false,
       );
@@ -181,7 +181,7 @@ export class UserNetworkingServer {
       return res.then((res) => {
         if (!this.authenticatedClientsById.get(clientId)) {
           return new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "User not authenticated - client disconnected",
             false,
           );
@@ -192,28 +192,28 @@ export class UserNetworkingServer {
         }
         if (res instanceof Error) {
           return new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "User identity update failed",
             false,
           );
         }
         if (res === null) {
           return new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "User identity update failed",
             false,
           );
         }
         if (res === false) {
           return new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "User identity update failed",
             false,
           );
         }
         if (!res || typeof res !== "object") {
           return new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             "User identity update failed",
             false,
           );
@@ -237,28 +237,28 @@ export class UserNetworkingServer {
     }
     if (res instanceof Error) {
       return new DeltaNetServerError(
-        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
         "User identity update failed",
         false,
       );
     }
     if (res === null) {
       return new DeltaNetServerError(
-        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
         "User identity update failed",
         false,
       );
     }
     if (res === false) {
       return new DeltaNetServerError(
-        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
         "User identity update failed",
         false,
       );
     }
     if (!res || typeof res !== "object") {
       return new DeltaNetServerError(
-        DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+        DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
         "User identity update failed",
         false,
       );
@@ -286,7 +286,7 @@ export class UserNetworkingServer {
     | Promise<
         DeltaNetServerError | void | { success: true; stateOverrides?: Array<[number, Uint8Array]> }
       > {
-    const deltaNetConnection = joiner.deltaNetV01Connection as DeltaNetV01Connection;
+    const deltaNetConnection = joiner.connection;
     const webSocket = deltaNetConnection.webSocket as unknown as WebSocket;
     const states = joiner.states as Array<[number, Uint8Array]>;
     const clientId = joiner.internalConnectionId;
@@ -307,7 +307,7 @@ export class UserNetworkingServer {
           // Authentication failed - return error to reject connection
           this.logger.warn(`Authentication failed for client ID: ${clientId}`, authResult.error);
           return new DeltaNetServerError(
-            DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+            DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
             authResult.error?.message || "Authentication failed",
             false,
           );
@@ -322,7 +322,7 @@ export class UserNetworkingServer {
       .catch((error) => {
         this.logger.error(`Authentication error for client ID: ${clientId}:`, error);
         return new DeltaNetServerError(
-          DeltaNetV01ServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
+          DeltaNetServerErrors.USER_AUTHENTICATION_FAILED_ERROR_TYPE,
           "Authentication error",
           false,
         );
@@ -330,7 +330,7 @@ export class UserNetworkingServer {
   }
 
   private handleLeave(leave: onLeaveOptions): void {
-    const deltaNetConnection = leave.deltaNetV01Connection as DeltaNetV01Connection;
+    const deltaNetConnection = leave.connection;
     const clientId = deltaNetConnection.internalConnectionId;
 
     if (clientId !== undefined) {
@@ -343,7 +343,7 @@ export class UserNetworkingServer {
   }
 
   private handleCustomMessage(customMessage: onCustomMessageOptions): void {
-    const deltaNetConnection = customMessage.deltaNetV01Connection;
+    const deltaNetConnection = customMessage.connection;
     const clientId = deltaNetConnection.internalConnectionId;
 
     const client = this.authenticatedClientsById.get(clientId);
@@ -373,7 +373,7 @@ export class UserNetworkingServer {
   private async handleDeltaNetAuthentication(
     clientId: number,
     webSocket: WebSocket,
-    deltaNetConnection: DeltaNetV01Connection,
+    deltaNetConnection: DeltaNetConnection,
     sessionToken: string,
     userIdentity: UserData,
   ): Promise<

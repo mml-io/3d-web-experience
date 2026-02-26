@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
 import {
-  DeltaNetV01InitialCheckoutMessage,
-  DeltaNetV01Tick,
-  DeltaNetV01UserIndexMessage,
+  DeltaNetInitialCheckoutMessage,
+  DeltaNetTick,
+  DeltaNetUserIndexMessage,
 } from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer } from "../../src";
@@ -47,7 +47,7 @@ describe("DeltaNetServer - Core Functionality", () => {
       {
         index: 0,
         type: "userIndex",
-      } satisfies DeltaNetV01UserIndexMessage,
+      } satisfies DeltaNetUserIndexMessage,
       {
         components: [
           {
@@ -65,7 +65,7 @@ describe("DeltaNetServer - Core Functionality", () => {
           },
         ],
         type: "initialCheckout",
-      } satisfies DeltaNetV01InitialCheckoutMessage,
+      } satisfies DeltaNetInitialCheckoutMessage,
     ]);
   });
 
@@ -115,7 +115,7 @@ describe("DeltaNetServer - Core Functionality", () => {
           },
         ],
         type: "tick",
-      } satisfies DeltaNetV01Tick,
+      } satisfies DeltaNetTick,
     ]);
   });
 
@@ -205,7 +205,7 @@ describe("DeltaNetServer - Core Functionality", () => {
     const messages = await client2.waitForTotalMessageCount(3, 2);
     expect(messages).toHaveLength(1);
 
-    const tickMessage = messages[0] as DeltaNetV01Tick;
+    const tickMessage = messages[0] as DeltaNetTick;
     expect(tickMessage.type).toBe("tick");
     expect(tickMessage.componentDeltaDeltas).toHaveLength(1);
 

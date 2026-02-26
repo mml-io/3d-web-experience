@@ -1,14 +1,14 @@
-import { DeltaNetV01ServerMessage, DeltaNetV01Tick } from "@mml-io/delta-net-protocol";
+import { DeltaNetServerMessage, DeltaNetTick } from "@mml-io/delta-net-protocol";
 
 /**
  * Generates test data for DeltaNet protocol benchmarks.
  * Creates realistic tick messages with component deltas and state updates.
  *
  * @param size - Number of messages to generate
- * @returns Array of DeltaNetV01ServerMessage (specifically tick messages)
+ * @returns Array of DeltaNetServerMessage (specifically tick messages)
  */
-export function prepareData(size: number, jsonCompatible = false): Array<DeltaNetV01ServerMessage> {
-  const data: Array<DeltaNetV01Tick> = [];
+export function prepareData(size: number, jsonCompatible = false): Array<DeltaNetServerMessage> {
+  const data: Array<DeltaNetTick> = [];
   for (let i = 0; i < size; i++) {
     data.push({
       type: "tick",
@@ -48,7 +48,7 @@ export function prepareData(size: number, jsonCompatible = false): Array<DeltaNe
           ],
         },
       ],
-    } satisfies DeltaNetV01Tick);
+    } satisfies DeltaNetTick);
   }
   return data;
 }

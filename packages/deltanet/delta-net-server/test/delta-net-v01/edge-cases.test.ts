@@ -1,8 +1,8 @@
 import { jest } from "@jest/globals";
 import {
-  DeltaNetV01ErrorMessage,
-  DeltaNetV01InitialCheckoutMessage,
-  DeltaNetV01Tick,
+  DeltaNetErrorMessage,
+  DeltaNetInitialCheckoutMessage,
+  DeltaNetTick,
 } from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer } from "../../src";
@@ -58,7 +58,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       doc.tick();
 
       // State should be applied (server treats non-Error as success)
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.states).toHaveLength(1);
       expect(tickMessage.states[0].updatedStates[0][1]).toEqual(new Uint8Array([2]));
 
@@ -106,7 +106,7 @@ describe("DeltaNetServer - Edge Cases", () => {
 
       // State should not be applied due to the error in callback
       // Server should send error message to client about the callback failure
-      const errorMessage = clientWs.getMessage(2) as DeltaNetV01ErrorMessage;
+      const errorMessage = clientWs.getMessage(2) as DeltaNetErrorMessage;
       expect(errorMessage.type).toBe("error");
       expect(errorMessage.errorType).toBe("USER_NETWORKING_UNKNOWN_ERROR");
       expect(errorMessage.message).toBe("Unexpected callback crash");
@@ -145,7 +145,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(messages[1].type).toBe("initialCheckout");
 
       // Verify that the server created collections for the unusual IDs and they contain the expected data
-      const initialCheckout = messages[1] as DeltaNetV01InitialCheckoutMessage;
+      const initialCheckout = messages[1] as DeltaNetInitialCheckoutMessage;
       expect(initialCheckout.components).toHaveLength(2); // Should have 2 components (-1 and 0)
       expect(initialCheckout.states).toHaveLength(2); // Should have 2 states (-1 and 0)
 
@@ -210,7 +210,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       // Should receive an error message about the state value being too large
       const errorMessage = (
         await clientWs.waitForTotalMessageCount(3, 2)
-      )[0] as DeltaNetV01ErrorMessage;
+      )[0] as DeltaNetErrorMessage;
       expect(errorMessage.type).toBe("error");
       expect(errorMessage.errorType).toBe("USER_NETWORKING_UNKNOWN_ERROR");
       expect(errorMessage.message).toContain("State value for state 1 has size 600 bytes");
@@ -257,7 +257,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       // Should receive an error message about the message being too large
       const errorMessage = (
         await clientWs.waitForTotalMessageCount(3, 2)
-      )[0] as DeltaNetV01ErrorMessage;
+      )[0] as DeltaNetErrorMessage;
       expect(errorMessage.type).toBe("error");
       expect(errorMessage.errorType).toBe("USER_NETWORKING_UNKNOWN_ERROR");
       expect(errorMessage.message).toContain("Message size");
@@ -300,7 +300,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       doc.tick();
 
       // Verify the complex array is handled correctly
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.states[0].updatedStates[0][1]).toEqual(complexArray);
 
       // Verify the pattern is preserved
@@ -352,8 +352,8 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(client2.getMessage(0)).toEqual({ index: 1, type: "userIndex" });
 
       // Both should receive initial checkout with both client's data
-      const client1Checkout = client1.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
-      const client2Checkout = client2.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
+      const client1Checkout = client1.getMessage(1) as DeltaNetInitialCheckoutMessage;
+      const client2Checkout = client2.getMessage(1) as DeltaNetInitialCheckoutMessage;
 
       expect(client1Checkout.type).toBe("initialCheckout");
       expect(client2Checkout.type).toBe("initialCheckout");
@@ -628,7 +628,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       doc.tick();
 
       // Should apply only the final state (last update wins)
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.componentDeltaDeltas).toHaveLength(1);
       expect(tickMessage.states).toHaveLength(1);
 
@@ -670,7 +670,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(messages[1].type).toBe("initialCheckout");
 
       // Initial checkout should have empty collections
-      const initialCheckout = messages[1] as DeltaNetV01InitialCheckoutMessage;
+      const initialCheckout = messages[1] as DeltaNetInitialCheckoutMessage;
       expect(initialCheckout.components).toEqual([]);
       expect(initialCheckout.states).toEqual([]);
       expect(initialCheckout.indicesCount).toBe(1);
@@ -697,7 +697,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       const messages = await clientWs.waitForTotalMessageCount(2);
       expect(messages[0]).toEqual({ index: 0, type: "userIndex" });
 
-      const initialCheckout = messages[1] as DeltaNetV01InitialCheckoutMessage;
+      const initialCheckout = messages[1] as DeltaNetInitialCheckoutMessage;
       expect(initialCheckout.type).toBe("initialCheckout");
 
       // Should handle zero-length state correctly
@@ -730,7 +730,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       const messages = await clientWs.waitForTotalMessageCount(2);
       expect(messages[0]).toEqual({ index: 0, type: "userIndex" });
 
-      const initialCheckout = messages[1] as DeltaNetV01InitialCheckoutMessage;
+      const initialCheckout = messages[1] as DeltaNetInitialCheckoutMessage;
       expect(initialCheckout.type).toBe("initialCheckout");
 
       // Should create collections for the large ID
@@ -781,7 +781,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(participantMessages[1].type).toBe("initialCheckout");
 
       // Observer should be able to see participant's data in initial checkout
-      const observerCheckout = observerMessages[0] as DeltaNetV01InitialCheckoutMessage;
+      const observerCheckout = observerMessages[0] as DeltaNetInitialCheckoutMessage;
       expect(observerCheckout.components).toHaveLength(1);
       expect(observerCheckout.states).toHaveLength(1);
 
@@ -793,7 +793,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       });
 
       // Should get an error message
-      const errorMessage = observer.getMessage(1) as DeltaNetV01ErrorMessage;
+      const errorMessage = observer.getMessage(1) as DeltaNetErrorMessage;
       expect(errorMessage.type).toBe("error");
       expect(errorMessage.errorType).toBe("USER_NETWORKING_UNKNOWN_ERROR");
 
@@ -897,7 +897,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       await user5.waitForTotalMessageCount(2);
 
       // Verify that user3 received a tick with removals
-      const user3TickMessage = (await user3.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const user3TickMessage = (await user3.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(user3TickMessage.type).toBe("tick");
       expect(user3TickMessage.removedIndices).toEqual([0, 1]); // user1 and user2 removed
       expect(user3TickMessage.indicesCount).toBe(3); // user3 + user4 + user5
@@ -908,8 +908,8 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(user5.getMessage(0)).toEqual({ index: 2, type: "userIndex" });
 
       // Verify that user4 and user5 get the correct initial checkout
-      const user4Checkout = user4.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
-      const user5Checkout = user5.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
+      const user4Checkout = user4.getMessage(1) as DeltaNetInitialCheckoutMessage;
+      const user5Checkout = user5.getMessage(1) as DeltaNetInitialCheckoutMessage;
 
       expect(user4Checkout.type).toBe("initialCheckout");
       expect(user5Checkout.type).toBe("initialCheckout");
@@ -942,9 +942,9 @@ describe("DeltaNetServer - Edge Cases", () => {
       doc.tick();
 
       // All remaining users should receive the update
-      const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetV01Tick;
-      const user4UpdateTick = (await user4.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
-      const user5UpdateTick = (await user5.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetTick;
+      const user4UpdateTick = (await user4.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
+      const user5UpdateTick = (await user5.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
 
       // All should see the update at index 1 (user4's new index)
       expect(user3UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
@@ -1051,7 +1051,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       await newUser2.waitForTotalMessageCount(2);
 
       // Verify that user3 received the tick with correct removal information
-      const user3TickMessage = (await user3.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const user3TickMessage = (await user3.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(user3TickMessage.type).toBe("tick");
       expect(user3TickMessage.removedIndices).toEqual([0, 1]); // user1 and user2 removed
       expect(user3TickMessage.indicesCount).toBe(3); // user3 + newUser1 + newUser2
@@ -1062,7 +1062,7 @@ describe("DeltaNetServer - Edge Cases", () => {
       expect(newUser2.getMessage(0)).toEqual({ index: 2, type: "userIndex" });
 
       // Verify that state/component data is correctly positioned after the reindexing
-      const newUser1Checkout = newUser1.getMessage(1) as DeltaNetV01InitialCheckoutMessage;
+      const newUser1Checkout = newUser1.getMessage(1) as DeltaNetInitialCheckoutMessage;
       expect(newUser1Checkout.type).toBe("initialCheckout");
       expect(newUser1Checkout.indicesCount).toBe(3);
       expect(newUser1Checkout.states[0].values).toHaveLength(3);
@@ -1082,13 +1082,9 @@ describe("DeltaNetServer - Edge Cases", () => {
       doc.tick();
 
       // All users should receive the update at index 1 (newUser1's index)
-      const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetV01Tick;
-      const newUser1UpdateTick = (
-        await newUser1.waitForTotalMessageCount(3, 2)
-      )[0] as DeltaNetV01Tick;
-      const newUser2UpdateTick = (
-        await newUser2.waitForTotalMessageCount(3, 2)
-      )[0] as DeltaNetV01Tick;
+      const user3UpdateTick = (await user3.waitForTotalMessageCount(4, 3))[0] as DeltaNetTick;
+      const newUser1UpdateTick = (await newUser1.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
+      const newUser2UpdateTick = (await newUser2.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
 
       expect(user3UpdateTick.states[0].updatedStates[0][0]).toBe(1); // Index 1
       expect(user3UpdateTick.states[0].updatedStates[0][1]).toEqual(new Uint8Array([11]));

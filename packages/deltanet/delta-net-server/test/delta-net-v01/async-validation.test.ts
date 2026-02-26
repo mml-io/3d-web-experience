@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { DeltaNetV01Tick } from "@mml-io/delta-net-protocol";
+import { DeltaNetTick } from "@mml-io/delta-net-protocol";
 
 import { DeltaNetServer } from "../../src";
 
@@ -85,7 +85,7 @@ describe("DeltaNetServer - Async Validation", () => {
       doc.tick();
 
       // Only the second state update should be applied
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.states).toEqual([
         {
           stateId: 1,
@@ -361,7 +361,7 @@ describe("DeltaNetServer - Async Validation", () => {
       doc.tick();
 
       // Should only have the last state value
-      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetV01Tick;
+      const tickMessage = (await clientWs.waitForTotalMessageCount(3, 2))[0] as DeltaNetTick;
       expect(tickMessage.states[0].updatedStates[0][1]).toEqual(new Uint8Array([49]));
     });
 
@@ -408,7 +408,7 @@ describe("DeltaNetServer - Async Validation", () => {
 
       // Check that if there are any additional messages, they are tick messages without state updates
       if (clientWs.getMessage(2)) {
-        const tickMessage = clientWs.getMessage(2) as DeltaNetV01Tick;
+        const tickMessage = clientWs.getMessage(2) as DeltaNetTick;
         expect(tickMessage.type).toBe("tick");
         expect(tickMessage.states).toEqual([]); // No state updates should be applied
       }

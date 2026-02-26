@@ -25,7 +25,7 @@ onJoiner?: (opts: onJoinerOptions) =>
   | Promise<true | void | Error | DeltaNetServerError>;
 
 type onJoinerOptions = {
-  deltaNetV01Connection: DeltaNetV01Connection;
+  connection: DeltaNetConnection;
   components: Array<[number, bigint]>;
   states: Array<[number, Uint8Array]>;
   token: string;
@@ -87,7 +87,7 @@ const server = new DeltaNetServer({
 ### Connection Lifecycle Logging
 ```typescript
 const server = new DeltaNetServer({
-  onJoiner: async ({ token, internalConnectionId, deltaNetV01Connection }) => {
+  onJoiner: async ({ token, internalConnectionId, connection }) => {
     // Connection already has its ID and is managing its own state
     console.log(`Connection ${internalConnectionId} starting authentication...`);
     
@@ -111,7 +111,7 @@ const server = new DeltaNetServer({
 
 ### Connection Lifecycle
 
-1. **WebSocket Creation**: When a WebSocket connects, a `DeltaNetV01Connection` is created
+1. **WebSocket Creation**: When a WebSocket connects, a `DeltaNetConnection` is created
 2. **Immediate ID Assignment**: The connection immediately gets a unique ID from the server
 3. **Message Handling**: The connection listens for messages and handles them internally
 4. **Authentication**: When `connectUser` message arrives, the connection handles the entire authentication process

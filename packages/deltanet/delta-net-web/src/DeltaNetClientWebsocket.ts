@@ -1,6 +1,12 @@
-import { deltaNetProtocolSubProtocol_v0_1 } from "@mml-io/delta-net-protocol";
+import {
+  decodeServerMessages,
+  decodeServerMessagesV02,
+  deltaNetSupportedSubProtocols,
+  deltaNetProtocolSubProtocol_v0_1,
+  deltaNetProtocolSubProtocol_v0_2,
+} from "@mml-io/delta-net-protocol";
 
-import { DeltaNetClientWebsocketV01Adapter } from "./DeltaNetClientWebsocketV01Adapter";
+import { DeltaNetClientWebsocketAdapterImpl } from "./DeltaNetClientWebsocketAdapter";
 
 const startingBackoffTimeMilliseconds = 100;
 const maximumBackoffTimeMilliseconds = 10000;
@@ -116,7 +122,8 @@ export class DeltaNetClientWebsocket {
   public lastSecondStateBufferSizes: Array<[number, number]> = []; // Timestamp in ms, size in bytes
 
   public static createWebSocket(url: string): WebSocket {
-    return new WebSocket(url, [deltaNetProtocolSubProtocol_v0_1]);
+    // Spread into a mutable array because the WebSocket constructor doesn't accept readonly string[]
+    return new WebSocket(url, [...deltaNetSupportedSubProtocols]);
   }
 
   constructor(
@@ -126,6 +133,7 @@ export class DeltaNetClientWebsocket {
     private options: DeltaNetClientWebsocketOptions,
     private timeCallback?: (time: number) => void,
     private statusUpdateCallback?: (status: DeltaNetClientWebsocketStatus) => void,
+    private resolveProtocol?: (websocketProtocol: string) => string | null,
   ) {
     this.setStatus(DeltaNetClientWebsocketStatus.Connecting);
     this.startWebSocketConnectionAttempt();
@@ -156,51 +164,78 @@ export class DeltaNetClientWebsocket {
         clearTimeout(timeoutId);
 
         this.websocket = websocket;
+
+        const adapterInternalOptions = {
+          receivedBytes: (bytes: number, now: number) => {
+            this.bandwidthPerSecond += updateLastSecondArray(
+              this.lastSecondMessageSizes,
+              bytes,
+              now,
+            );
+          },
+          receivedComponentBytes: (bytes: number, now: number) => {
+            this.componentBytesPerSecond += updateLastSecondArray(
+              this.lastSecondComponentBufferSizes,
+              bytes,
+              now,
+            );
+          },
+          receivedStateBytes: (bytes: number, now: number) => {
+            this.stateBytesPerSecond += updateLastSecondArray(
+              this.lastSecondStateBufferSizes,
+              bytes,
+              now,
+            );
+          },
+          onError: (errorType: string, errorMessage: string, retryable: boolean) => {
+            this.options.onError(errorType, errorMessage, retryable);
+            if (this.websocket === websocket) {
+              this.websocket?.close();
+              this.websocket = null;
+              this.websocketAdapter?.dispose();
+              this.websocketAdapter = null;
+              onWebsocketClose(retryable);
+            }
+          },
+          onWarning: (warning: string) => {
+            this.options.onWarning(warning);
+          },
+        };
+
+        const connectedCallback = () => {
+          this.backoffTime = startingBackoffTimeMilliseconds;
+          this.setStatus(DeltaNetClientWebsocketStatus.Connected);
+        };
+
+        const resolvedProtocol = this.resolveProtocol
+          ? (this.resolveProtocol(websocket.protocol) ?? websocket.protocol)
+          : websocket.protocol;
+        let decoder: typeof decodeServerMessages;
+        if (resolvedProtocol === deltaNetProtocolSubProtocol_v0_2) {
+          decoder = decodeServerMessagesV02;
+        } else if (resolvedProtocol === deltaNetProtocolSubProtocol_v0_1) {
+          decoder = decodeServerMessages;
+        } else if (resolvedProtocol === "") {
+          console.warn(
+            "DeltaNetClientWebsocket: no sub-protocol negotiated, falling back to v0.1 decoding",
+          );
+          decoder = decodeServerMessages;
+        } else {
+          const errorMsg = `DeltaNetClientWebsocket: unrecognized protocol "${resolvedProtocol}"`;
+          console.error(errorMsg);
+          websocket.close(1002, "Unrecognized protocol");
+          reject(new Error(errorMsg));
+          return;
+        }
+
         const websocketAdapter: DeltaNetClientWebsocketAdapter =
-          new DeltaNetClientWebsocketV01Adapter(
+          new DeltaNetClientWebsocketAdapterImpl(
             websocket,
-            () => {
-              this.backoffTime = startingBackoffTimeMilliseconds;
-              this.setStatus(DeltaNetClientWebsocketStatus.Connected);
-            },
+            connectedCallback,
             this.options,
             this.token,
-            {
-              receivedBytes: (bytes: number, now: number) => {
-                this.bandwidthPerSecond += updateLastSecondArray(
-                  this.lastSecondMessageSizes,
-                  bytes,
-                  now,
-                );
-              },
-              receivedComponentBytes: (bytes: number, now: number) => {
-                this.componentBytesPerSecond += updateLastSecondArray(
-                  this.lastSecondComponentBufferSizes,
-                  bytes,
-                  now,
-                );
-              },
-              receivedStateBytes: (bytes: number, now: number) => {
-                this.stateBytesPerSecond += updateLastSecondArray(
-                  this.lastSecondStateBufferSizes,
-                  bytes,
-                  now,
-                );
-              },
-              onError: (errorType: string, errorMessage: string, retryable: boolean) => {
-                this.options.onError(errorType, errorMessage, retryable);
-                if (this.websocket === websocket) {
-                  this.websocket?.close();
-                  this.websocket = null;
-                  this.websocketAdapter?.dispose();
-                  this.websocketAdapter = null;
-                  onWebsocketClose(retryable);
-                }
-              },
-              onWarning: (warning: string) => {
-                this.options.onWarning(warning);
-              },
-            },
+            adapterInternalOptions,
+            decoder,
             this.timeCallback,
           );
 
