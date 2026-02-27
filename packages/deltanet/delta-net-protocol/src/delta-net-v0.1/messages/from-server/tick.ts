@@ -1,7 +1,7 @@
 import { BufferReader } from "../../../BufferReader";
 import { BufferWriter } from "../../../BufferWriter";
+import type { DecodeServerMessageOptions } from "../../../decodeOptions";
 import { DeflateCompressor } from "../../../DeflateCompressor";
-import { DecodeServerMessageOptions } from "../../decodeServerMessages";
 import { TickMessageType } from "../../messageTypes";
 
 /**
@@ -99,14 +99,6 @@ export function encodeTick(
   return writer;
 }
 
-export const lastTickDebugData: {
-  componentsByteLength: number;
-  statesByteLength: number;
-} = {
-  componentsByteLength: 0,
-  statesByteLength: 0,
-};
-
 /**
  * Decodes a tick message from a binary buffer.
  * Assumes that the first byte (message type) has already been read.
@@ -156,7 +148,7 @@ export function decodeTick(
     statesByteLength += compressedIndices.byteLength;
     statesByteLength += compressedValues.byteLength;
 
-    if (stateCount > 0) {
+    if (stateCount > 0 && !opts?.ignoreData) {
       // Read and decompress indices
       const indices = DeflateCompressor.varIntDecompress(compressedIndices, stateCount);
       const values = DeflateCompressor.varIntBytesDecompress(compressedValues, stateCount);
@@ -171,8 +163,10 @@ export function decodeTick(
 
     states.push(state);
   }
-  lastTickDebugData.componentsByteLength = componentsByteLength;
-  lastTickDebugData.statesByteLength = statesByteLength;
+  if (opts?.debugData) {
+    opts.debugData.componentsByteLength += componentsByteLength;
+    opts.debugData.statesByteLength += statesByteLength;
+  }
   return {
     type: "tick",
     serverTime,

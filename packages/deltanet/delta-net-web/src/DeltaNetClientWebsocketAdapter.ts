@@ -1,26 +1,30 @@
 import {
   BufferReader,
   BufferWriter,
-  decodeServerMessages,
-  DeltaNetV01ClientMessage,
-  DeltaNetV01ClientCustomMessage,
-  DeltaNetV01InitialCheckoutMessage,
-  DeltaNetV01PingMessage,
-  DeltaNetV01ServerMessage,
-  DeltaNetV01ServerCustomMessage,
-  DeltaNetV01SetUserComponentsMessage,
-  DeltaNetV01Tick,
-  DeltaNetV01UserIndexMessage,
+  DecodeDebugData,
+  DecodeServerMessageOptions,
+  DeltaNetClientCustomMessage,
+  DeltaNetClientMessage,
+  DeltaNetConnectUserMessage,
+  DeltaNetInitialCheckoutMessage,
+  DeltaNetPingMessage,
+  DeltaNetServerCustomMessage,
+  DeltaNetServerMessage,
+  DeltaNetSetUserComponentsMessage,
+  DeltaNetTick,
+  DeltaNetUserIndexMessage,
   encodeClientMessage,
-  lastInitialCheckoutDebugData,
-  lastTickDebugData,
 } from "@mml-io/delta-net-protocol";
-import { DeltaNetV01ConnectUserMessage } from "@mml-io/delta-net-protocol/src";
 
 import {
   DeltaNetClientWebsocketAdapter,
   DeltaNetClientWebsocketOptions,
 } from "./DeltaNetClientWebsocket";
+
+export type ServerMessageDecoder = (
+  buffer: BufferReader,
+  opts?: DecodeServerMessageOptions,
+) => Array<DeltaNetServerMessage>;
 
 function areUint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false;
@@ -30,7 +34,7 @@ function areUint8ArraysEqual(a: Uint8Array, b: Uint8Array): boolean {
   return true;
 }
 
-export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocketAdapter {
+export class DeltaNetClientWebsocketAdapterImpl implements DeltaNetClientWebsocketAdapter {
   private gotInitialCheckout = false;
   private sentUserConnect = false;
   private receivedUserIndex = false;
@@ -52,6 +56,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       onError: (errorType: string, errorMessage: string, retryable: boolean) => void;
       onWarning: (warning: string) => void;
     },
+    private decodeServerMessages: ServerMessageDecoder,
     private timeCallback?: (time: number) => void,
   ) {
     this.websocket.binaryType = "arraybuffer";
@@ -78,7 +83,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       observer: this.isObserver,
       components: this.isObserver ? [] : components,
       states: this.isObserver ? [] : states,
-    } satisfies DeltaNetV01ConnectUserMessage);
+    } satisfies DeltaNetConnectUserMessage);
   }
 
   public setUserComponents(
@@ -86,7 +91,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     changedStates: Map<number, Uint8Array>,
   ) {
     if (this.disposed) {
-      throw new Error("DeltaNetClientWebsocketV01Adapter is disposed");
+      throw new Error("DeltaNetClientWebsocketAdapter is disposed");
     }
 
     const messageComponents: Array<[number, bigint]> = [];
@@ -117,7 +122,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
 
     if (this.receivedUserIndex) {
       if (messageComponents.length > 0 || messageStates.length > 0) {
-        const setUserComponents: DeltaNetV01SetUserComponentsMessage = {
+        const setUserComponents: DeltaNetSetUserComponentsMessage = {
           type: "setUserComponents",
           components: messageComponents,
           states: messageStates,
@@ -131,7 +136,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     }
   }
 
-  private send(message: DeltaNetV01ClientMessage) {
+  private send(message: DeltaNetClientMessage) {
     const writer = new BufferWriter(256);
     encodeClientMessage(message, writer);
     this.websocket.send(writer.getBuffer());
@@ -142,7 +147,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       return;
     }
 
-    const customMessage: DeltaNetV01ClientCustomMessage = {
+    const customMessage: DeltaNetClientCustomMessage = {
       type: "clientCustom",
       customType,
       contents,
@@ -160,15 +165,23 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     const now = Date.now();
     this.internalOptions.receivedBytes(buffer.byteLength, now);
     const reader = new BufferReader(buffer);
-    const messages = decodeServerMessages(reader, {
+    const debugData: DecodeDebugData = { componentsByteLength: 0, statesByteLength: 0 };
+    const messages = this.decodeServerMessages(reader, {
       ignoreData: this.options.ignoreData,
+      debugData,
     });
     for (const message of messages) {
-      this.applyMessage(message, now);
+      this.applyMessage(message);
+    }
+    if (debugData.componentsByteLength > 0) {
+      this.internalOptions.receivedComponentBytes(debugData.componentsByteLength, now);
+    }
+    if (debugData.statesByteLength > 0) {
+      this.internalOptions.receivedStateBytes(debugData.statesByteLength, now);
     }
   }
 
-  private applyMessage(message: DeltaNetV01ServerMessage, now: number) {
+  private applyMessage(message: DeltaNetServerMessage) {
     switch (message.type) {
       case "error":
         console.error("Error from server", message);
@@ -179,11 +192,11 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
         this.internalOptions.onWarning(message.message);
         break;
       case "initialCheckout":
-        this.handleInitialCheckout(message, now);
+        this.handleInitialCheckout(message);
         this.connectedCallback();
         break;
       case "tick":
-        this.handleTick(message, now);
+        this.handleTick(message);
         break;
       case "userIndex":
         this.handleUserIndex(message);
@@ -200,7 +213,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     }
   }
 
-  private handleUserIndex(message: DeltaNetV01UserIndexMessage) {
+  private handleUserIndex(message: DeltaNetUserIndexMessage) {
     this.receivedUserIndex = true;
 
     this.options.onUserIndex({
@@ -216,7 +229,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       for (const [stateId, value] of this.queuedStateUpdates) {
         queuedStatesArray.push([stateId, value]);
       }
-      const setUserComponents: DeltaNetV01SetUserComponentsMessage = {
+      const setUserComponents: DeltaNetSetUserComponentsMessage = {
         type: "setUserComponents",
         components: Array.from(this.components.entries()),
         states: queuedStatesArray,
@@ -226,14 +239,14 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     }
   }
 
-  private handlePing(message: DeltaNetV01PingMessage) {
+  private handlePing(message: DeltaNetPingMessage) {
     this.send({
       type: "pong",
       pong: message.ping,
     });
   }
 
-  private handleServerCustom(message: DeltaNetV01ServerCustomMessage) {
+  private handleServerCustom(message: DeltaNetServerCustomMessage) {
     this.options.onServerCustom?.(message.customType, message.contents);
   }
 
@@ -241,7 +254,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     return this.gotInitialCheckout;
   }
 
-  private handleInitialCheckout(message: DeltaNetV01InitialCheckoutMessage, now: number) {
+  private handleInitialCheckout(message: DeltaNetInitialCheckoutMessage) {
     this.gotInitialCheckout = true;
 
     if (this.options.ignoreData) {
@@ -258,12 +271,6 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       allStates.set(stateId, values);
     }
 
-    this.internalOptions.receivedComponentBytes(
-      lastInitialCheckoutDebugData.componentsByteLength,
-      now,
-    );
-    this.internalOptions.receivedStateBytes(lastInitialCheckoutDebugData.statesByteLength, now);
-
     this.options.onInitialCheckout({
       indicesCount: message.indicesCount,
       initialComponents: components,
@@ -271,7 +278,7 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
     });
   }
 
-  private handleTick(message: DeltaNetV01Tick, now: number) {
+  private handleTick(message: DeltaNetTick) {
     if (this.options.ignoreData) {
       return;
     }
@@ -289,9 +296,6 @@ export class DeltaNetClientWebsocketV01Adapter implements DeltaNetClientWebsocke
       }
       stateChanges.set(stateChange.stateId, updatedStates);
     }
-
-    this.internalOptions.receivedComponentBytes(lastTickDebugData.componentsByteLength, now);
-    this.internalOptions.receivedStateBytes(lastTickDebugData.statesByteLength, now);
 
     this.options.onTick({
       unoccupying: message.removedIndices,

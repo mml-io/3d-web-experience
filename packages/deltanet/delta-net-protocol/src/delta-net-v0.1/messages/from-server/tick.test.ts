@@ -67,4 +67,53 @@ describe("encode/decode tick", () => {
     const decoded = decodeTick(reader);
     expect(decoded).toEqual(message);
   });
+
+  test("ignoreData returns zero-filled component arrays and empty states", () => {
+    const message: DeltaNetV01Tick = {
+      type: "tick",
+      serverTime: 123,
+      removedIndices: [],
+      indicesCount: 3,
+      componentDeltaDeltas: [
+        { componentId: 1, deltaDeltas: new BigInt64Array([10n, 20n, 30n]) },
+        { componentId: 2, deltaDeltas: new BigInt64Array([40n, 50n, 60n]) },
+      ],
+      states: [
+        {
+          stateId: 1,
+          updatedStates: [
+            [0, new Uint8Array([1, 2, 3])],
+            [2, new Uint8Array([4, 5])],
+          ],
+        },
+      ],
+    };
+
+    const writer = new BufferWriter(16);
+    encodeTick(message, writer);
+    const encoded = writer.getBuffer();
+
+    const reader = new BufferReader(encoded);
+    reader.readUInt8(); // skip message type
+    const decoded = decodeTick(reader, { ignoreData: true });
+
+    // Buffer should be fully consumed
+    expect(reader.isEnd()).toBe(true);
+
+    // Components should have correct structure but zero-filled data
+    expect(decoded.componentDeltaDeltas.length).toBe(2);
+    expect(decoded.componentDeltaDeltas[0].componentId).toBe(1);
+    expect(decoded.componentDeltaDeltas[0].deltaDeltas).toEqual(new BigInt64Array(3));
+    expect(decoded.componentDeltaDeltas[1].componentId).toBe(2);
+    expect(decoded.componentDeltaDeltas[1].deltaDeltas).toEqual(new BigInt64Array(3));
+
+    // States should have empty updatedStates when ignoreData is true
+    expect(decoded.states.length).toBe(1);
+    expect(decoded.states[0].stateId).toBe(1);
+    expect(decoded.states[0].updatedStates).toEqual([]);
+
+    // Metadata should still be correct
+    expect(decoded.serverTime).toBe(123);
+    expect(decoded.indicesCount).toBe(3);
+  });
 });

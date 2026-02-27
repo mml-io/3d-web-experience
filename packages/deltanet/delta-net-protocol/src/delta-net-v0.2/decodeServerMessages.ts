@@ -1,17 +1,12 @@
 import { BufferReader } from "../BufferReader";
 import type { DecodeServerMessageOptions } from "../decodeOptions";
-
+import type { DeltaNetV01ServerMessage as DeltaNetServerMessage } from "../delta-net-v0.1";
 import {
   decodeError,
-  decodeInitialCheckout,
   decodePing,
   decodeServerCustom,
-  decodeTick,
   decodeUserIndex,
   decodeWarning,
-  DeltaNetV01ServerMessage,
-} from "./messages";
-import {
   ErrorMessageType,
   InitialCheckoutMessageType,
   PingMessageType,
@@ -19,24 +14,27 @@ import {
   TickMessageType,
   UserIndexMessageType,
   WarningMessageType,
-} from "./messageTypes";
+} from "../delta-net-v0.1";
 
-export function decodeServerMessages(
+import { decodeInitialCheckoutV02 } from "./messages/from-server/initialCheckout";
+import { decodeTickV02 } from "./messages/from-server/tick";
+
+export function decodeServerMessagesV02(
   buffer: BufferReader,
   opts?: DecodeServerMessageOptions,
-): Array<DeltaNetV01ServerMessage> {
-  const messages: DeltaNetV01ServerMessage[] = [];
+): Array<DeltaNetServerMessage> {
+  const messages: DeltaNetServerMessage[] = [];
   while (!buffer.isEnd()) {
     const messageType = buffer.readUInt8();
     switch (messageType) {
       case InitialCheckoutMessageType:
-        messages.push(decodeInitialCheckout(buffer, opts));
+        messages.push(decodeInitialCheckoutV02(buffer, opts));
         break;
       case UserIndexMessageType:
         messages.push(decodeUserIndex(buffer));
         break;
       case TickMessageType:
-        messages.push(decodeTick(buffer, opts));
+        messages.push(decodeTickV02(buffer, opts));
         break;
       case ServerCustomMessageType:
         messages.push(decodeServerCustom(buffer));

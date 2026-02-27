@@ -1,9 +1,11 @@
 import {
   BufferReader,
   BufferWriter,
-  DeltaNetV01ServerMessage,
+  DeltaNetServerMessage,
   encodeServerMessage,
+  encodeServerMessageV02,
   decodeServerMessages,
+  decodeServerMessagesV02,
 } from "@mml-io/delta-net-protocol";
 import Benchmark from "benchmark";
 
@@ -14,21 +16,37 @@ export function runDecodingBenchmark(): Promise<void> {
     const data = prepareData(1000);
     const jsonData = prepareData(1000, true);
 
-    const encodedData = data.map((message) => {
+    const encodedV01Data = data.map((message) => {
       const writer = new BufferWriter(256);
       encodeServerMessage(message, writer);
+      return writer.getBuffer();
+    });
+    const encodedV02Data = data.map((message) => {
+      const writer = new BufferWriter(256);
+      encodeServerMessageV02(message, writer);
       return writer.getBuffer();
     });
     const encodedJSON = jsonData.map((message) => JSON.stringify(message));
 
     const suite = new Benchmark.Suite();
     suite
-      .add("Binary", function () {
+      .add("Binary v0.1", function () {
         let totalLength = 0;
-        for (const message of encodedData) {
+        for (const message of encodedV01Data) {
           const bufferReader = new BufferReader(message);
           const decoded = decodeServerMessages(bufferReader);
-          totalLength += (decoded[0] as DeltaNetV01ServerMessage).type.length;
+          totalLength += (decoded[0] as DeltaNetServerMessage).type.length;
+        }
+        if (totalLength <= 0) {
+          throw new Error("Invalid total length");
+        }
+      })
+      .add("Binary v0.2", function () {
+        let totalLength = 0;
+        for (const message of encodedV02Data) {
+          const bufferReader = new BufferReader(message);
+          const decoded = decodeServerMessagesV02(bufferReader);
+          totalLength += (decoded[0] as DeltaNetServerMessage).type.length;
         }
         if (totalLength <= 0) {
           throw new Error("Invalid total length");

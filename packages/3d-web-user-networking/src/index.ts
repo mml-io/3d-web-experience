@@ -7,6 +7,7 @@ export * from "./legacy/LegacyUserNetworkingMessages";
 export * from "./DeltaNetComponentMapping";
 export * from "./UserNetworkingLogger";
 export {
-  DeltaNetV01ServerErrors,
+  DeltaNetServerErrors,
+  DeltaNetServerErrors as DeltaNetV01ServerErrors,
   deltaNetProtocolSubProtocol_v0_1,
 } from "@mml-io/delta-net-protocol";
