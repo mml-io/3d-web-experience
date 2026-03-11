@@ -20,12 +20,10 @@
   "dependencies": {
     "@mml-io/3d-web-experience-server": "^0.26.1",
     "@mml-io/3d-web-user-networking": "^0.26.1",
-    "express": "4.21.2",
-    "express-ws": "5.0.2"
+    "express": "4.21.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/express-ws": "^3.0.5",
     "@types/node": "^22.13.1",
     "esbuild": "0.24.2"
   }

@@ -17,10 +17,10 @@
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.26.1",
     "@mml-io/3d-web-threejs": "^0.26.1",
-    "@mml-io/mml-web": "0.25.0",
-    "@mml-io/mml-web-runner": "0.25.0",
-    "@mml-io/mml-web-threejs-standalone": "0.25.0",
-    "@mml-io/networked-dom-document": "0.25.0"
+    "@mml-io/mml-web": "0.26.1",
+    "@mml-io/mml-web-runner": "0.26.1",
+    "@mml-io/mml-web-threejs-standalone": "0.26.1",
+    "@mml-io/networked-dom-document": "0.26.1"
   },
   "devDependencies": {
     "esbuild": "0.24.2",

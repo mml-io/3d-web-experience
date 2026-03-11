@@ -3,6 +3,8 @@
  */
 
 import { parseMMLDescription } from "../src";
+import { createMMLCharacterString } from "../src/helpers/createMMLCharacterString";
+import { MMLCharacterDescription } from "../src/helpers/parseMMLDescription";
 
 import {
   semanticallyInvalidString,
@@ -185,5 +187,99 @@ describe("Check <m-character> with socketed <m-model> objects", () => {
     );
     expect(errors).toHaveLength(0);
     expect(parsedData).toStrictEqual(validMCharacterWithPathRelativeUrlExpectedData);
+  });
+});
+
+describe("createMMLCharacterString round-trip", () => {
+  test("basic round-trip with base and 2 parts", () => {
+    const description: MMLCharacterDescription = {
+      base: { url: "https://example.com/base.glb" },
+      parts: [{ url: "https://example.com/hair.glb" }, { url: "https://example.com/shoes.glb" }],
+    };
+
+    const mmlString = createMMLCharacterString(description);
+    const [parsed, errors] = parseMMLDescription(mmlString, null);
+
+    expect(errors).toHaveLength(0);
+    expect(parsed.base.url).toBe("https://example.com/base.glb");
+    expect(parsed.parts).toHaveLength(2);
+    expect(parsed.parts[0].url).toBe("https://example.com/hair.glb");
+    expect(parsed.parts[1].url).toBe("https://example.com/shoes.glb");
+  });
+
+  test("round-trip with type attribute (type is not preserved by parser)", () => {
+    const description: MMLCharacterDescription = {
+      base: { url: "https://example.com/base.glb" },
+      parts: [{ url: "https://example.com/hat.glb", type: "accessory" }],
+    };
+
+    const mmlString = createMMLCharacterString(description);
+    // Verify the generated string contains the type attribute
+    expect(mmlString).toContain('type="accessory"');
+
+    const [parsed, errors] = parseMMLDescription(mmlString, null);
+
+    expect(errors).toHaveLength(0);
+    expect(parsed.base.url).toBe("https://example.com/base.glb");
+    expect(parsed.parts).toHaveLength(1);
+    expect(parsed.parts[0].url).toBe("https://example.com/hat.glb");
+    // parseMMLDescription does not extract the type attribute, so it is lost
+    expect(parsed.parts[0].type).toBeUndefined();
+  });
+
+  test("generation without parts", () => {
+    const description: MMLCharacterDescription = {
+      base: { url: "https://example.com/character.glb" },
+      parts: [],
+    };
+
+    const mmlString = createMMLCharacterString(description);
+    const [parsed, errors] = parseMMLDescription(mmlString, null);
+
+    expect(errors).toHaveLength(0);
+    expect(parsed.base.url).toBe("https://example.com/character.glb");
+    expect(parsed.parts).toHaveLength(0);
+  });
+
+  test("round-trip with multiple parts", () => {
+    const description: MMLCharacterDescription = {
+      base: { url: "https://example.com/base.glb" },
+      parts: [
+        { url: "https://example.com/hair.glb" },
+        { url: "https://example.com/jacket.glb" },
+        { url: "https://example.com/pants.glb" },
+        { url: "https://example.com/boots.glb" },
+      ],
+    };
+
+    const mmlString = createMMLCharacterString(description);
+    const [parsed, errors] = parseMMLDescription(mmlString, null);
+
+    expect(errors).toHaveLength(0);
+    expect(parsed.base.url).toBe("https://example.com/base.glb");
+    expect(parsed.parts).toHaveLength(4);
+    expect(parsed.parts[0].url).toBe("https://example.com/hair.glb");
+    expect(parsed.parts[1].url).toBe("https://example.com/jacket.glb");
+    expect(parsed.parts[2].url).toBe("https://example.com/pants.glb");
+    expect(parsed.parts[3].url).toBe("https://example.com/boots.glb");
+  });
+
+  test("direct generation produces expected MML markup", () => {
+    const description: MMLCharacterDescription = {
+      base: { url: "https://example.com/base.glb" },
+      parts: [
+        { url: "https://example.com/hair.glb" },
+        { url: "https://example.com/hat.glb", type: "accessory" },
+      ],
+    };
+
+    const mmlString = createMMLCharacterString(description);
+
+    expect(mmlString).toContain('<m-character src="https://example.com/base.glb">');
+    expect(mmlString).toContain('<m-model src="https://example.com/hair.glb"></m-model>');
+    expect(mmlString).toContain(
+      '<m-model src="https://example.com/hat.glb" type="accessory"></m-model>',
+    );
+    expect(mmlString).toContain("</m-character>");
   });
 });

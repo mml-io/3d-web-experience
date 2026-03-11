@@ -17,7 +17,7 @@ const mode = args[0];
 
 const buildOptions: esbuild.BuildOptions = {
   entryPoints: {
-    index: "ui-src/index.tsx",
+    index: "ui-src/index.ts",
   },
   bundle: true,
   write: true,

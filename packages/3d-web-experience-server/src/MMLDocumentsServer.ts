@@ -19,6 +19,7 @@ export class MMLDocumentsServer {
       document: EditableNetworkedDOM;
     }
   >();
+  private disposed = false;
   private watcher: FSWatcher;
   private watchPattern: string;
 
@@ -31,6 +32,7 @@ export class MMLDocumentsServer {
   }
 
   public dispose() {
+    this.disposed = true;
     for (const { document } of this.documents.values()) {
       document.dispose();
     }
@@ -47,7 +49,9 @@ export class MMLDocumentsServer {
 
     document.addWebSocket(ws as any);
     ws.on("close", () => {
-      document.removeWebSocket(ws as any);
+      if (!this.disposed) {
+        document.removeWebSocket(ws as any);
+      }
     });
   }
 

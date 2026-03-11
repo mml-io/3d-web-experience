@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import { deltaNetProtocolSubProtocol_v0_1, BufferWriter } from "@mml-io/delta-net-protocol";
+import { deltaNetSupportedSubProtocols, BufferWriter } from "@mml-io/delta-net-protocol";
 import {
   DeltaNetClientWebsocket,
   DeltaNetClientWebsocketInitialCheckout,
@@ -180,10 +180,12 @@ export class Bot {
       this.client.stop();
     }
 
+    const subProtocols = this.config.subProtocols ?? [...deltaNetSupportedSubProtocols];
+
     this.client = new DeltaNetClientWebsocket(
       this.url,
       (url: string) => {
-        return createWebSocket(url, deltaNetProtocolSubProtocol_v0_1);
+        return createWebSocket(url, subProtocols);
       },
       `bot-token-${this.config.id}-${Date.now()}-${Math.round(Math.random() * 100000)}`, // Placeholder authentication token for bot
       {
@@ -210,6 +212,7 @@ export class Bot {
       },
       undefined,
       this.handleStatusUpdate.bind(this),
+      this.config.resolveProtocol,
     );
   }
 

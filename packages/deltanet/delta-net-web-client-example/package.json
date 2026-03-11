@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@ez-elements/core": "^0.0.6",
+    "@mml-io/3d-web-experience-protocol": "^0.26.1",
     "@mml-io/delta-net-protocol": "^0.26.1",
     "@mml-io/delta-net-server": "^0.26.1",
     "@mml-io/delta-net-web": "^0.26.1",

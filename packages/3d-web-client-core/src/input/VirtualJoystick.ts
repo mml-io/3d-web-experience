@@ -35,12 +35,12 @@ export class VirtualJoystick {
     style.position = "absolute";
     style.width = `100%`;
     style.height = `200px`;
-    style.bottom = "50px";
+    style.bottom = "68px";
     style.zIndex = "10000";
     style.alignItems = "center";
     style.justifyContent = "space-between";
     style.pointerEvents = "none";
-    style.padding = "20px";
+    style.padding = "12px";
     style.boxSizing = "border-box";
     style.userSelect = "none";
     this.holderElement.appendChild(this.element);
@@ -81,9 +81,13 @@ export class VirtualJoystick {
     style.position = "relative";
     style.display = "block";
     style.borderRadius = "50%";
-    style.borderColor = "rgba(200,200,200,0.5)";
-    style.borderWidth = "2px";
+    style.background = "rgba(0, 0, 0, 0.3)";
+    style.borderColor = "rgba(255, 255, 255, 0.2)";
+    style.borderWidth = "1px";
     style.borderStyle = "solid";
+    style.backdropFilter = "blur(10px)";
+    style.setProperty("-webkit-backdrop-filter", "blur(10px)");
+    style.boxShadow = "0 4px 24px rgba(0, 0, 0, 0.4)";
     style.pointerEvents = "auto";
     style.userSelect = "none";
     return base;
@@ -96,10 +100,11 @@ export class VirtualJoystick {
     style.height = `${this.innerRadius * 2}px`;
     style.position = "absolute";
     style.borderRadius = "50%";
-    style.backgroundColor = "rgba(200,200,200,0.3)";
+    style.backgroundColor = "rgba(255, 255, 255, 0.15)";
     style.borderWidth = "1px";
-    style.borderColor = "rgba(200,200,200,0.8)";
+    style.borderColor = "rgba(255, 255, 255, 0.3)";
     style.borderStyle = "solid";
+    style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.3)";
     style.userSelect = "none";
     return center;
   }
@@ -111,17 +116,24 @@ export class VirtualJoystick {
     style.touchAction = "pinch-zoom";
     style.width = `100px`;
     style.height = `100px`;
-    style.borderRadius = "20px";
-    style.color = "white";
-    style.font = "Helvetica, sans-serif";
-    style.fontSize = "16px";
-    style.backgroundColor = "rgba(200,200,200,0.3)";
-    style.color = "rgba(220,220,220,1)";
+    style.borderRadius = "50%";
+    style.color = "rgba(255, 255, 255, 0.9)";
+    style.fontFamily =
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif";
+    style.fontSize = "14px";
+    style.fontWeight = "500";
+    style.letterSpacing = "0.5px";
+    style.background = "linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4))";
     style.borderWidth = "1px";
-    style.borderColor = "rgba(200,200,200,0.8)";
+    style.borderColor = "rgba(255, 255, 255, 0.2)";
     style.borderStyle = "solid";
+    style.backdropFilter = "blur(10px)";
+    style.setProperty("-webkit-backdrop-filter", "blur(10px)");
+    style.boxShadow = "0 4px 24px rgba(0, 0, 0, 0.4)";
     style.pointerEvents = "auto";
     style.userSelect = "none";
+    style.transition = "all 0.2s ease-in-out";
+    style.cursor = "pointer";
     return button;
   }
 
@@ -136,6 +148,18 @@ export class VirtualJoystick {
       this.preventDefaultAndStopPropagation.bind(this),
     );
 
+    this.jumpButton.addEventListener("pointerenter", () => {
+      this.jumpButton.style.background =
+        "linear-gradient(135deg, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.6))";
+      this.jumpButton.style.borderColor = "rgba(255, 255, 255, 0.3)";
+      this.jumpButton.style.transform = "scale(1.05)";
+    });
+    this.jumpButton.addEventListener("pointerleave", () => {
+      this.jumpButton.style.background =
+        "linear-gradient(135deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.4))";
+      this.jumpButton.style.borderColor = "rgba(255, 255, 255, 0.2)";
+      this.jumpButton.style.transform = "";
+    });
     this.jumpButton.addEventListener("pointerdown", this.onJumpPointerDown.bind(this));
     this.jumpButton.addEventListener(
       "contextmenu",

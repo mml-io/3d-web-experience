@@ -3,32 +3,32 @@ import { CharacterState } from "@mml-io/3d-web-client-core";
 export class LocalAvatarServer {
   private callbacks = new Map<
     number,
-    (clientId: number, userNetworkingClientUpdate: null | CharacterState) => void
+    (connectionId: number, userNetworkingClientUpdate: null | CharacterState) => void
   >();
 
-  send(clientId: number, userNetworkingClientUpdate: null | CharacterState) {
-    this.callbacks.forEach((callback, callbackClientId) => {
-      if (callbackClientId !== clientId) {
-        callback(clientId, userNetworkingClientUpdate);
+  send(connectionId: number, userNetworkingClientUpdate: null | CharacterState) {
+    this.callbacks.forEach((callback, callbackConnectionId) => {
+      if (callbackConnectionId !== connectionId) {
+        callback(connectionId, userNetworkingClientUpdate);
       }
     });
   }
 
   addClient(
-    clientId: number,
-    callback: (clientId: number, userNetworkingClientUpdate: null | CharacterState) => void,
+    connectionId: number,
+    callback: (connectionId: number, userNetworkingClientUpdate: null | CharacterState) => void,
   ) {
-    this.callbacks.set(clientId, callback);
+    this.callbacks.set(connectionId, callback);
   }
 
-  removeClient(clientId: number) {
+  removeClient(connectionId: number) {
     // Notify all other clients that this client has been removed
-    this.callbacks.forEach((callback, callbackClientId) => {
-      if (callbackClientId !== clientId) {
-        callback(clientId, null);
+    this.callbacks.forEach((callback, callbackConnectionId) => {
+      if (callbackConnectionId !== connectionId) {
+        callback(connectionId, null);
       }
     });
     // Remove the callback for the removed client
-    this.callbacks.delete(clientId);
+    this.callbacks.delete(connectionId);
   }
 }

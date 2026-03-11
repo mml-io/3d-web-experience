@@ -4,7 +4,6 @@
     "esModuleInterop": true,
     "module": "es2022",
     "target": "es2022",
-    "jsx": "react",
     "lib": ["esnext", "dom"],
     "sourceMap": true,
     "allowJs": true,

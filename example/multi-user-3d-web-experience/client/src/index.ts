@@ -1,6 +1,10 @@
-import { Networked3dWebExperienceClient } from "@mml-io/3d-web-experience-client";
+import {
+  DefaultAvatarSelectionPlugin,
+  DefaultChatPlugin,
+  DefaultHUDPlugin,
+  Networked3dWebExperienceClient,
+} from "@mml-io/3d-web-experience-client";
 
-import hdrJpgUrl from "../../../assets/hdr/puresky_2k.jpg";
 import loadingBackground from "../../../assets/images/loading-bg.jpg";
 import airAnimationFileUrl from "../../../assets/models/anim_air.glb";
 import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.glb";
@@ -12,13 +16,11 @@ const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 const host = window.location.host;
 const userNetworkAddress = `${protocol}//${host}/network`;
 
-const useSkybox = false;
-
 const holder = Networked3dWebExperienceClient.createFullscreenHolder();
 const app = new Networked3dWebExperienceClient(holder, {
   sessionToken: (window as any).SESSION_TOKEN,
   userNetworkAddress,
-  enableChat: true,
+  waitForWorldConfig: true,
   animationConfig: {
     airAnimationFileUrl,
     idleAnimationFileUrl,
@@ -26,28 +28,6 @@ const app = new Networked3dWebExperienceClient(holder, {
     sprintAnimationFileUrl,
     doubleJumpAnimationFileUrl,
   },
-  mmlDocuments: { example: { url: `${protocol}//${host}/mml-documents/example-mml.html` } },
-  environmentConfiguration: {
-    skybox: useSkybox
-      ? {
-          hdrJpgUrl,
-        }
-      : undefined,
-    fog: {
-      fogFar: 0,
-    },
-  },
-  avatarConfiguration: {
-    allowCustomAvatars: true,
-    availableAvatars: [
-      {
-        name: "bot",
-        meshFileUrl: "/assets/models/bot.glb",
-      },
-    ],
-  },
-  postProcessingEnabled: true,
-  allowOrbitalCamera: true,
   loadingScreen: {
     background: "#424242",
     color: "#ffffff",
@@ -56,9 +36,11 @@ const app = new Networked3dWebExperienceClient(holder, {
     title: "3D Web Experience",
     subtitle: "Powered by Metaverse Markup Language",
   },
-  spawnConfiguration: {
-    enableRespawnButton: true,
-  },
+  plugins: [
+    new DefaultChatPlugin(),
+    new DefaultAvatarSelectionPlugin(),
+    new DefaultHUDPlugin({ minimap: true, playerList: true }),
+  ],
 });
 
 app.update();

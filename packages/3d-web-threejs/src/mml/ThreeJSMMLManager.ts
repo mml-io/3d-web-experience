@@ -74,8 +74,13 @@ export class ThreeJSMMLManager {
   private createMMLDocument(mmlDocConfig: MMLDocumentConfiguration): MMLDocumentState {
     const mmlScene = this.mmlCompositionScene.mmlScene;
     const docRef = {};
+    let resolvedUrl = MMLNetworkSource.resolveRelativeUrl(window.location.host, mmlDocConfig.url);
+    // Upgrade ws:// to wss:// when the page is served over HTTPS
+    if (window.location.protocol === "https:" && resolvedUrl.startsWith("ws://")) {
+      resolvedUrl = "wss://" + resolvedUrl.substring("ws://".length);
+    }
     const mmlNetworkSource = MMLNetworkSource.create({
-      url: MMLNetworkSource.resolveRelativeUrl(window.location.host, mmlDocConfig.url),
+      url: resolvedUrl,
       connectionToken: mmlDocConfig.passAuthToken ? this.authToken : null,
       mmlScene,
       statusUpdated: (status: NetworkedDOMWebsocketStatus) => {

@@ -14,7 +14,7 @@ import {
 } from "three";
 import { VertexNormalsHelper } from "three/examples/jsm/helpers/VertexNormalsHelper.js";
 import * as BufferGeometryUtils from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { MeshBVH, MeshBVHHelper } from "three-mesh-bvh";
+import { MeshBVH, MeshBVHHelper } from "three-mesh-bvh/src/index.js";
 
 export class ThreeJSCollisionManager {
   private tempMatrixThree = new Matrix4();

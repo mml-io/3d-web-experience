@@ -19,6 +19,7 @@
     "lint-all": "turbo run lint --concurrency=5 --output-logs=full --continue=always",
     "lint-fix-all": "turbo run lint-fix --concurrency=5 --output-logs=full",
     "test-all": "turbo run test --concurrency=5 --output-logs=full --continue=always",
+    "coverage-report": "bash scripts/coverage-report.sh",
     "type-check-all": "turbo run type-check --concurrency=5 --output-logs=full --continue=always"
   },
   "workspaces": [
@@ -27,32 +28,30 @@
     "example/**"
   ],
   "devDependencies": {
-    "depcheck": "1.4.7",
     "@types/jju": "^1.4.5",
-    "@types/tmp": "^0.2.6",
     "@types/resolve": "1.20.6",
+    "@types/tmp": "^0.2.6",
     "@typescript-eslint/eslint-plugin": "^8.23.0",
     "@typescript-eslint/parser": "^8.23.0",
+    "chokidar": "4.0.3",
     "cross-env": "^7.0.3",
+    "depcheck": "1.4.7",
     "esbuild": "0.24.2",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^10.0.1",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-prettier": "^5.2.3",
-    "eslint-plugin-react": "^7.37.4",
-    "eslint-plugin-react-hooks": "^5.1.0",
+    "express-ws": "5.0.2",
     "jju": "^1.4.0",
     "lerna": "9.0.3",
     "prettier": "^3.4.2",
-    "rimraf": "^6.0.1",
     "resolve": "1.22.10",
+    "rimraf": "^6.0.1",
     "tmp": "^0.2.3",
     "tree-kill": "^1.2.2",
     "tsx": "4.19.2",
     "turbo": "2.5.0",
     "typescript": "^5.7.3",
-    "chokidar": "4.0.3",
-    "express-ws": "5.0.2",
     "ws": "8.18.0"
   }
 }

@@ -14,7 +14,7 @@
     },
     "test": {
       "cache": true,
-      "outputs": ["test-results/**"],
+      "outputs": ["test-results/**", "coverage/**"],
       "dependsOn": ["^build"]
     },
     "lint": {

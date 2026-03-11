@@ -29,7 +29,8 @@ export class RemoteController {
 
     // Reuse cached Vect3 instead of allocating new one
     const targetPos = this.cachedTargetPos.set(position.x, position.y, position.z);
-    const targetRotQuat = tempQuaternion.set(0, rotation.quaternionY, 0, rotation.quaternionW);
+    const halfY = rotation.eulerY / 2;
+    const targetRotQuat = tempQuaternion.set(0, Math.sin(halfY), 0, Math.cos(halfY));
 
     if (!this.hasReceivedInitialUpdate) {
       // First update, snap into position

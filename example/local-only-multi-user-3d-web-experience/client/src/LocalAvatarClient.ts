@@ -26,7 +26,10 @@ import doubleJumpAnimationFileUrl from "../../../assets/models/anim_double_jump.
 import idleAnimationFileUrl from "../../../assets/models/anim_idle.glb";
 import jogAnimationFileUrl from "../../../assets/models/anim_jog.glb";
 import sprintAnimationFileUrl from "../../../assets/models/anim_run.glb";
-import defaultAvatarMeshFileUrl from "../../../assets/models/bot.glb";
+import avatarMesh1 from "../../../assets/models/avatar-1-bodyA-skin01.glb";
+import avatarMesh2 from "../../../assets/models/avatar-2-bodyB-skin03.glb";
+import avatarMesh3 from "../../../assets/models/avatar-3-bodyA-skin05.glb";
+import avatarMesh4 from "../../../assets/models/avatar-4-bodyB-skin07.glb";
 
 import { LocalAvatarServer } from "./LocalAvatarServer";
 
@@ -38,15 +41,22 @@ const animationConfig: AnimationConfig = {
   doubleJumpAnimationFileUrl,
 };
 
-// Specify the avatar to use here:
-const characterDescription: CharacterDescription = {
-  // Option 1 (Default) - Use a GLB file directly
-  meshFileUrl: defaultAvatarMeshFileUrl, // This is just an address of a GLB file
-  // Option 2 - Use an MML Character from a URL
-  // mmlCharacterUrl: "https://...",
-  // Option 3 - Use an MML Character from a string
-  // mmlCharacterString: `<m-character src="https://..."></m-character>`,
-};
+const defaultAvatars: CharacterDescription[] = [
+  { meshFileUrl: avatarMesh1 },
+  { meshFileUrl: avatarMesh2 },
+  { meshFileUrl: avatarMesh3 },
+  { meshFileUrl: avatarMesh4 },
+];
+
+const characterDescriptionsByConnectionId = new Map<number, CharacterDescription>();
+function getCharacterDescription(connectionId: number): CharacterDescription {
+  let desc = characterDescriptionsByConnectionId.get(connectionId);
+  if (!desc) {
+    desc = defaultAvatars[Math.floor(Math.random() * defaultAvatars.length)];
+    characterDescriptionsByConnectionId.set(connectionId, desc);
+  }
+  return desc;
+}
 
 export class LocalAvatarClient {
   public element: HTMLDivElement;
@@ -78,7 +88,7 @@ export class LocalAvatarClient {
 
   constructor(
     private localAvatarServer: LocalAvatarServer,
-    private localClientId: number,
+    private localConnectionId: number,
     spawnConfiguration: SpawnConfigurationState,
     mmlTargetWindow: Window,
     mmlTargetElement: HTMLElement,
@@ -132,12 +142,12 @@ export class LocalAvatarClient {
     this.resizeObserver.observe(this.element);
 
     this.localAvatarServer.addClient(
-      localClientId,
-      (clientId: number, userNetworkingClientUpdate: null | CharacterState) => {
+      localConnectionId,
+      (connectionId: number, userNetworkingClientUpdate: null | CharacterState) => {
         if (userNetworkingClientUpdate === null) {
-          this.remoteUserStates.delete(clientId);
+          this.remoteUserStates.delete(connectionId);
         } else {
-          this.remoteUserStates.set(clientId, userNetworkingClientUpdate);
+          this.remoteUserStates.set(connectionId, userNetworkingClientUpdate);
         }
       },
     );
@@ -171,13 +181,17 @@ export class LocalAvatarClient {
       keyInputManager: this.keyInputManager,
       remoteUserStates: this.remoteUserStates,
       sendUpdate: (characterState: CharacterState) => {
-        localAvatarServer.send(localClientId, characterState);
+        localAvatarServer.send(localConnectionId, characterState);
       },
       sendLocalCharacterColors: () => {
         // no-op
       },
-      characterResolve: () => {
-        return { username: "User", characterDescription, colors: [] };
+      characterResolve: (connectionId: number) => {
+        return {
+          username: "User",
+          characterDescription: getCharacterDescription(connectionId),
+          colors: null,
+        };
       },
       spawnConfiguration: this.spawnConfiguration,
       characterControllerValues: createDefaultCharacterControllerValues(),
@@ -193,7 +207,7 @@ export class LocalAvatarClient {
       this.spawnConfiguration.spawnYRotation! * (Math.PI / 180),
       0,
     );
-    this.characterManager.spawnLocalCharacter(localClientId, spawnPosition, spawnRotation);
+    this.characterManager.spawnLocalCharacter(localConnectionId, spawnPosition, spawnRotation);
 
     let cameraPosition: Vect3 | null = null;
     const offset = new Vect3(0, 0, 3.3);
@@ -217,7 +231,7 @@ export class LocalAvatarClient {
     for (const documentRunnerClient of this.documentRunnerClients) {
       documentRunnerClient.dispose();
     }
-    this.localAvatarServer.removeClient(this.localClientId);
+    this.localAvatarServer.removeClient(this.localConnectionId);
     this.documentRunnerClients.clear();
     this.resizeObserver.disconnect();
     this.characterManager.dispose();
@@ -238,7 +252,7 @@ export class LocalAvatarClient {
     this.frameCounter++;
 
     // Update character manager and get state updates (may update camera target)
-    const { updatedCharacterDescriptions, removedUserIds } = this.characterManager.update(
+    const { updatedCharacterDescriptions, removedConnectionIds } = this.characterManager.update(
       deltaTimeSeconds,
       this.frameCounter,
     );
@@ -266,9 +280,9 @@ export class LocalAvatarClient {
     const renderState: RenderState = {
       characters: allCharacterStates,
       updatedCharacterDescriptions,
-      removedUserIds,
+      removedConnectionIds,
       cameraTransform: this.cachedCameraTransform,
-      localCharacterId: this.characterManager.getLocalClientId(),
+      localCharacterId: this.characterManager.getLocalConnectionId(),
       deltaTimeSeconds: deltaTimeSeconds,
     };
 

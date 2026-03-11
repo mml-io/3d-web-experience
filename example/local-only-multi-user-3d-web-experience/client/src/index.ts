@@ -38,7 +38,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // Track all clients
   const clients: ClientInfo[] = [];
-  let nextClientId = 1;
+  let nextConnectionId = 1;
 
   // Create main layout container
   const mainContainer = document.createElement("div");
@@ -84,9 +84,17 @@ window.addEventListener("DOMContentLoaded", async () => {
   clientsContainer.style.width = "100%";
   clientsContainer.style.height = "50%";
   clientsContainer.style.display = "grid";
-  clientsContainer.style.gridTemplateColumns = "repeat(auto-fit, minmax(400px, 1fr))";
-  clientsContainer.style.gridTemplateRows = "repeat(auto-fit, minmax(300px, 1fr))";
+  clientsContainer.style.overflow = "hidden";
   mainContainer.appendChild(clientsContainer);
+
+  function updateGridLayout() {
+    const count = clients.length;
+    if (count === 0) return;
+    const cols = Math.ceil(Math.sqrt(count));
+    const rows = Math.ceil(count / cols);
+    clientsContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    clientsContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  }
 
   // Create textarea and MML scene in fixed positions
   const textAreaContainer = document.createElement("div");
@@ -138,9 +146,9 @@ window.addEventListener("DOMContentLoaded", async () => {
   // Load the source for the MML document into the NetworkedDOM
   networkedDOMDocument.load(textArea.value);
 
-  function createDefaultSpawnConfig(clientId: number): SpawnConfigurationState {
-    const offsetX = (clientId % 4) * 1.0 - 1.5;
-    const offsetZ = Math.floor(clientId / 4) * 1.0;
+  function createDefaultSpawnConfig(connectionId: number): SpawnConfigurationState {
+    const offsetX = (connectionId % 4) * 1.0 - 1.5;
+    const offsetZ = Math.floor(connectionId / 4) * 1.0;
     return {
       spawnPosition: {
         x: offsetX,
@@ -161,11 +169,11 @@ window.addEventListener("DOMContentLoaded", async () => {
         maxZ: Number.POSITIVE_INFINITY,
       },
       spawnYRotation: 180,
-      enableRespawnButton: clientId === 1,
+      enableRespawnButton: connectionId === 1,
     };
   }
 
-  async function createClient(clientId: number): Promise<ClientInfo> {
+  async function createClient(connectionId: number): Promise<ClientInfo> {
     const container = document.createElement("div");
     container.style.position = "relative";
     container.style.width = "100%";
@@ -173,6 +181,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     container.style.border = "2px solid #333";
     container.style.boxSizing = "border-box";
     container.style.backgroundColor = "#1a1a1a";
+    container.style.overflow = "hidden";
+    container.style.minHeight = "0";
 
     const closeButton = document.createElement("button");
     closeButton.textContent = "×";
@@ -200,14 +210,14 @@ window.addEventListener("DOMContentLoaded", async () => {
       closeButton.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
     });
     closeButton.addEventListener("click", () => {
-      removeClient(clientId);
+      removeClient(connectionId);
     });
     container.appendChild(closeButton);
 
-    const spawnConfig = createDefaultSpawnConfig(clientId);
+    const spawnConfig = createDefaultSpawnConfig(connectionId);
     const client = new LocalAvatarClient(
       localAvatarServer,
-      clientId,
+      connectionId,
       spawnConfig,
       iframeWindow,
       iframeBody,
@@ -216,24 +226,26 @@ window.addEventListener("DOMContentLoaded", async () => {
     container.appendChild(client.element);
     client.update();
 
-    return { id: clientId, client, container };
+    return { id: connectionId, client, container };
   }
 
   async function addClient() {
-    const clientId = nextClientId++;
-    const clientInfo = await createClient(clientId);
+    const connectionId = nextConnectionId++;
+    const clientInfo = await createClient(connectionId);
     clients.push(clientInfo);
     clientsContainer.appendChild(clientInfo.container);
+    updateGridLayout();
   }
 
-  function removeClient(clientId: number) {
-    const index = clients.findIndex((c) => c.id === clientId);
+  function removeClient(connectionId: number) {
+    const index = clients.findIndex((c) => c.id === connectionId);
     if (index === -1) return;
 
     const clientInfo = clients[index];
     clients.splice(index, 1);
     clientInfo.client.dispose();
     clientInfo.container.remove();
+    updateGridLayout();
   }
 
   addClientButton.addEventListener("click", addClient);

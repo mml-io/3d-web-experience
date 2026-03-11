@@ -8,6 +8,9 @@ const jestConfig: JestConfigWithTsJest = {
     "^ws$": "<rootDir>/../../node_modules/ws/index.js",
   },
   verbose: true,
+  collectCoverage: true,
+  coverageDirectory: "coverage",
+  coverageReporters: ["text-summary", "lcov"],
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest",

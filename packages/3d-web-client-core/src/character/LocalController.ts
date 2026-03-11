@@ -1,7 +1,4 @@
-import { CameraManager } from "../camera/CameraManager";
 import { CollisionMeshState, CollisionsManager } from "../collisions/CollisionsManager";
-import { KeyInputManager } from "../input/KeyInputManager";
-import { VirtualJoystick } from "../input/VirtualJoystick";
 import { EulXYZ } from "../math/EulXYZ";
 import { Line } from "../math/Line";
 import { Matr4 } from "../math/Matr4";
@@ -16,14 +13,25 @@ import { getSpawnData } from "./Spawning";
 
 const downVector = new Vect3(0, -1, 0);
 
+export type InputOutput = { direction: number | null; isSprinting: boolean; jump: boolean };
+
+export type InputProvider = {
+  getOutput(): InputOutput | null;
+};
+
+export type CameraProvider = {
+  getCameraPosition(): Vect3;
+  getCameraRotation(): Quat;
+};
+
 export type LocalControllerConfig = {
   id: number;
   position: Vect3;
   quaternion: Quat;
   collisionsManager: CollisionsManager;
-  keyInputManager: KeyInputManager;
-  virtualJoystick?: VirtualJoystick;
-  cameraManager: CameraManager;
+  keyInputManager: InputProvider;
+  additionalInputProvider?: InputProvider;
+  cameraManager: CameraProvider;
   spawnConfiguration: SpawnConfigurationState;
   characterControllerValues: CharacterControllerValues;
 };
@@ -135,7 +143,7 @@ export class LocalController {
 
     this.networkState = {
       position: { x: 0, y: 0, z: 0 },
-      rotation: { quaternionY: 0, quaternionW: 1 },
+      rotation: { eulerY: 0 },
       state: AnimationState.idle,
     };
     this.minimumX = this.config.spawnConfiguration.respawnTrigger.minX;
@@ -199,7 +207,9 @@ export class LocalController {
 
   public update(deltaTime: number): void {
     this.controlState =
-      this.config.keyInputManager.getOutput() || this.config.virtualJoystick?.getOutput() || null;
+      this.config.keyInputManager.getOutput() ||
+      this.config.additionalInputProvider?.getOutput() ||
+      null;
 
     this.tempRay.set(this.config.position, this.vectorDown);
     this.tempRay.origin.y += this.capsuleInfo.radius;
@@ -578,20 +588,62 @@ export class LocalController {
         y: characterPosition.y,
         z: characterPosition.z,
       },
-      rotation: { quaternionY: characterQuat.y, quaternionW: characterQuat.w },
+      rotation: { eulerY: 2 * Math.atan2(characterQuat.y, characterQuat.w) },
       state: this.getTargetAnimation(),
     };
   }
 
-  public resetPosition(): void {
-    this.characterVelocity.x = 0;
-    this.characterVelocity.y = 0;
-    this.characterVelocity.z = 0;
+  /**
+   * Programmatic jump with optional custom force. Supports double jump.
+   * Returns true if the jump was initiated.
+   */
+  public jump(force?: number): boolean {
+    if (this.characterOnGround && this.jumpCounter === 0) {
+      this.characterVelocity.y = force ?? this.jumpForce;
+      this.characterOnGround = false;
+      this.jumpReleased = false;
+      this.jumpCounter++;
+      return true;
+    }
+    if (!this.characterOnGround && this.jumpCounter === 1 && !this.doubleJumpUsed) {
+      this.characterVelocity.y += force ?? this.doubleJumpForce;
+      this.doubleJumpUsed = true;
+      this.jumpReleased = false;
+      this.jumpCounter++;
+      return true;
+    }
+    return false;
+  }
 
+  /**
+   * Set horizontal velocity directly, bypassing the input-based acceleration.
+   * Useful for programmatic movement (e.g., agent bridge waypoint following).
+   * Vertical velocity is not affected (gravity and jump still apply normally).
+   */
+  public setHorizontalVelocity(vx: number, vz: number): void {
+    this.characterVelocity.x = vx;
+    this.characterVelocity.z = vz;
+  }
+
+  /** Current vertical velocity (positive = upward). */
+  public get verticalVelocity(): number {
+    return this.characterVelocity.y;
+  }
+
+  /**
+   * Reset velocity and jump state (e.g., on teleport).
+   */
+  public resetVelocity(): void {
+    this.characterVelocity.set(0, 0, 0);
     this.characterOnGround = false;
     this.doubleJumpUsed = false;
     this.jumpReleased = true;
     this.jumpCounter = 0;
+    this.lastFrameSurfaceState = null;
+  }
+
+  public resetPosition(): void {
+    this.resetVelocity();
 
     const spawnData = getSpawnData(this.config.spawnConfiguration, false);
 

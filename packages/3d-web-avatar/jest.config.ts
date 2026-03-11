@@ -6,6 +6,9 @@ const jestConfig: JestConfigWithTsJest = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   verbose: true,
+  collectCoverage: true,
+  coverageDirectory: "coverage",
+  coverageReporters: ["text-summary", "lcov"],
   transform: {
     "^.+\\.tsx?$": [
       "ts-jest",

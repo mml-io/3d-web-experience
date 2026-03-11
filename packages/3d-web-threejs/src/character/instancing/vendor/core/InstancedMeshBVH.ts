@@ -1,5 +1,5 @@
 import { Box3, Matrix4, Raycaster, Sphere, Vector3 } from "three";
-import { MeshBVH } from "three-mesh-bvh";
+import { MeshBVH } from "three-mesh-bvh/src/index.js";
 
 import { LODLevel } from "./feature/LOD";
 import { InstancedMesh2 } from "./InstancedMesh2";
