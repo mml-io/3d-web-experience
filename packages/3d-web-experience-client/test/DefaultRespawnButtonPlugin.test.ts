@@ -5,9 +5,8 @@ import { jest } from "@jest/globals";
 
 import { DefaultRespawnButtonPlugin } from "../src/DefaultRespawnButtonPlugin";
 
-function createMockClient(enableRespawnButton = false) {
+function createMockClient() {
   return {
-    getSpawnConfiguration: jest.fn().mockReturnValue({ enableRespawnButton }),
     respawn: jest.fn(),
   } as any;
 }
@@ -31,53 +30,60 @@ describe("DefaultRespawnButtonPlugin", () => {
     container.remove();
   });
 
-  it("does not create button when enableRespawnButton is false", () => {
-    const client = createMockClient(false);
+  it("starts hidden after mount", () => {
+    const client = createMockClient();
     plugin.mount(container, client);
     expect(findButton(container)).toBeNull();
   });
 
-  it("creates button when enableRespawnButton is true", () => {
-    const client = createMockClient(true);
+  it("onConfigChanged shows button via hud.respawnButton: true", () => {
+    const client = createMockClient();
     plugin.mount(container, client);
+    expect(findButton(container)).toBeNull();
 
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
     const button = findButton(container);
     expect(button).not.toBeNull();
     expect(button!.textContent).toBe("RESPAWN");
   });
 
-  it("calls client.respawn() on click", () => {
-    const client = createMockClient(true);
+  it("onConfigChanged hides button via hud.respawnButton: false", () => {
+    const client = createMockClient();
     plugin.mount(container, client);
 
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
+    expect(findButton(container)).not.toBeNull();
+
+    plugin.onConfigChanged({ hud: { respawnButton: false } });
+    expect(findButton(container)).toBeNull();
+  });
+
+  it("onConfigChanged hides button when hud is false", () => {
+    const client = createMockClient();
+    plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
+    expect(findButton(container)).not.toBeNull();
+
+    plugin.onConfigChanged({ hud: false });
+    expect(findButton(container)).toBeNull();
+  });
+
+  it("calls client.respawn() on click", () => {
+    const client = createMockClient();
+    plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
     const button = findButton(container)!;
     button.click();
     expect(client.respawn).toHaveBeenCalledTimes(1);
   });
 
-  it("onConfigChanged shows button when enableRespawnButton becomes true", () => {
-    const client = createMockClient(false);
+  it("onConfigChanged ignores updates without hud", () => {
+    const client = createMockClient();
     plugin.mount(container, client);
-    expect(findButton(container)).toBeNull();
 
-    plugin.onConfigChanged({ spawnConfiguration: { enableRespawnButton: true } as any });
-    const button = findButton(container);
-    expect(button).not.toBeNull();
-    expect(button!.textContent).toBe("RESPAWN");
-  });
-
-  it("onConfigChanged hides button when enableRespawnButton becomes false", () => {
-    const client = createMockClient(true);
-    plugin.mount(container, client);
-    expect(findButton(container)).not.toBeNull();
-
-    plugin.onConfigChanged({ spawnConfiguration: { enableRespawnButton: false } as any });
-    expect(findButton(container)).toBeNull();
-  });
-
-  it("onConfigChanged ignores updates without spawnConfiguration", () => {
-    const client = createMockClient(true);
-    plugin.mount(container, client);
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
     expect(findButton(container)).not.toBeNull();
 
     plugin.onConfigChanged({ environmentConfiguration: {} as any });
@@ -85,19 +91,21 @@ describe("DefaultRespawnButtonPlugin", () => {
   });
 
   it("onConfigChanged does not duplicate button on repeated true", () => {
-    const client = createMockClient(true);
+    const client = createMockClient();
     plugin.mount(container, client);
 
-    plugin.onConfigChanged({ spawnConfiguration: { enableRespawnButton: true } as any });
-    plugin.onConfigChanged({ spawnConfiguration: { enableRespawnButton: true } as any });
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
 
     const buttons = container.querySelectorAll("div");
     expect(buttons.length).toBe(1);
   });
 
   it("dispose removes the button and clears references", () => {
-    const client = createMockClient(true);
+    const client = createMockClient();
     plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
     expect(findButton(container)).not.toBeNull();
 
     plugin.dispose();
@@ -105,8 +113,10 @@ describe("DefaultRespawnButtonPlugin", () => {
   });
 
   it("dispose is safe to call multiple times", () => {
-    const client = createMockClient(true);
+    const client = createMockClient();
     plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
 
     expect(() => {
       plugin.dispose();
@@ -114,12 +124,13 @@ describe("DefaultRespawnButtonPlugin", () => {
     }).not.toThrow();
   });
 
-  // --- Phase 4: Style Event Tests ---
+  // --- Style Event Tests ---
 
   it("hover changes styles", () => {
-    const client = createMockClient(true);
+    const client = createMockClient();
     plugin.mount(container, client);
 
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
     const button = findButton(container)!;
 
     button.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
@@ -130,9 +141,10 @@ describe("DefaultRespawnButtonPlugin", () => {
   });
 
   it("pointer press changes styles", () => {
-    const client = createMockClient(true);
+    const client = createMockClient();
     plugin.mount(container, client);
 
+    plugin.onConfigChanged({ hud: { respawnButton: true } });
     const button = findButton(container)!;
 
     // mouseenter first to set hover state

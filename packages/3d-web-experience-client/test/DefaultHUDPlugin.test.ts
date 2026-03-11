@@ -87,6 +87,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     expect(container.children.length).toBe(1);
     const overlay = container.children[0] as HTMLElement;
@@ -102,6 +103,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     const overlay = container.children[0] as HTMLElement;
     expect(overlay.textContent).toContain("Players (1)");
@@ -109,10 +111,12 @@ describe("DefaultHUDPlugin", () => {
     plugin.dispose();
   });
 
-  it("minimap: false disables minimap", () => {
+  it("onConfigChanged with minimap: false disables minimap", () => {
     const client = createMockClient();
-    const plugin = new DefaultHUDPlugin({ minimap: false });
+    const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: { minimap: false } });
 
     const overlay = container.children[0] as HTMLElement;
     const canvas = overlay.querySelector("canvas");
@@ -121,10 +125,12 @@ describe("DefaultHUDPlugin", () => {
     plugin.dispose();
   });
 
-  it("playerList: false disables player list", () => {
+  it("onConfigChanged with playerList: false disables player list", () => {
     const client = createMockClient();
-    const plugin = new DefaultHUDPlugin({ playerList: false });
+    const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: { playerList: false } });
 
     const overlay = container.children[0] as HTMLElement;
     expect(overlay.textContent).not.toContain("Players");
@@ -132,11 +138,40 @@ describe("DefaultHUDPlugin", () => {
     plugin.dispose();
   });
 
-  it("both disabled still creates the HUD container", () => {
+  it("onConfigChanged with both disabled still creates the HUD container", () => {
     const client = createMockClient();
-    const plugin = new DefaultHUDPlugin({ minimap: false, playerList: false });
+    const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
 
+    plugin.onConfigChanged({ hud: { minimap: false, playerList: false } });
+
+    expect(container.children.length).toBe(1);
+
+    plugin.dispose();
+  });
+
+  it("onConfigChanged with hud: false removes the HUD", () => {
+    const client = createMockClient();
+    const plugin = new DefaultHUDPlugin();
+    plugin.mount(container, client);
+    plugin.onConfigChanged({});
+    expect(container.children.length).toBe(1);
+
+    plugin.onConfigChanged({ hud: false });
+    expect(container.children.length).toBe(0);
+
+    plugin.dispose();
+  });
+
+  it("onConfigChanged with hud: false then hud object re-creates HUD", () => {
+    const client = createMockClient();
+    const plugin = new DefaultHUDPlugin();
+    plugin.mount(container, client);
+
+    plugin.onConfigChanged({ hud: false });
+    expect(container.children.length).toBe(0);
+
+    plugin.onConfigChanged({ hud: { minimap: true, playerList: true } });
     expect(container.children.length).toBe(1);
 
     plugin.dispose();
@@ -146,6 +181,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
     expect(container.children.length).toBe(1);
 
     plugin.dispose();
@@ -156,6 +192,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     expect(globalThis.requestAnimationFrame).toHaveBeenCalled();
 
@@ -202,6 +239,7 @@ describe("DefaultHUDPlugin", () => {
 
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     const overlay = container.children[0] as HTMLElement;
     expect(overlay.textContent).toContain("Players (2)");
@@ -215,6 +253,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     const overlay = container.children[0] as HTMLElement;
     const headers = Array.from(overlay.querySelectorAll("div[style*='cursor: pointer']"));
@@ -242,6 +281,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     const overlay = container.children[0] as HTMLElement;
     const orientToggle = overlay.querySelector(
@@ -267,6 +307,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     plugin.dispose();
 
@@ -301,6 +342,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient(states);
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     const overlay = container.children[0] as HTMLElement;
 
@@ -333,6 +375,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     const overlay = container.children[0] as HTMLElement;
 
@@ -382,6 +425,7 @@ describe("DefaultHUDPlugin", () => {
     const client = createMockClient(states);
     const plugin = new DefaultHUDPlugin();
     plugin.mount(container, client);
+    plugin.onConfigChanged({});
 
     // Trigger one RAF callback to force a minimap render
     for (const [, cb] of rafCallbacks) {

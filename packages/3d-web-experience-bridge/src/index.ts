@@ -7,6 +7,7 @@ import {
 import { WorldConnection } from "@mml-io/3d-web-experience-client";
 import {
   experienceClientSubProtocols,
+  type SessionConfigPayload,
   type WorldConfigPayload,
 } from "@mml-io/3d-web-experience-protocol";
 import type { CharacterDescription } from "@mml-io/3d-web-user-networking";
@@ -55,8 +56,6 @@ export type BridgeConfig = {
   authUrl?: string;
   /** Body to POST to the auth endpoint */
   authBody?: Record<string, any>;
-  /** Auth token for authenticated MML document loading */
-  authToken?: string | null;
   /** Character description for the avatar */
   characterDescription?: CharacterDescription | null;
   /** Webhook configuration (optional) */
@@ -72,6 +71,8 @@ export type BridgeConfig = {
   spawnConfiguration?: SpawnConfiguration;
   /** Called when the server pushes a world config update */
   onWorldConfig?: (config: WorldConfigPayload) => void;
+  /** Called when the server sends a session config (e.g., auth token for MML documents) */
+  onSessionConfig?: (config: SessionConfigPayload) => void;
   /** Called when the server sends a broadcast message */
   onServerBroadcast?: (broadcastType: string, payload: any) => void;
   /**
@@ -632,7 +633,9 @@ export async function createBridgeCore(config: BridgeConfig): Promise<BridgeCore
 
   // Listen for subsequent world config pushes
   const worldEventListener = (event: { type: string; [key: string]: any }) => {
-    if (event.type === "world_config") {
+    if (event.type === "session_config") {
+      config.onSessionConfig?.(event.config);
+    } else if (event.type === "world_config") {
       if (!event.config || typeof event.config !== "object") {
         console.warn("[bridge] Received world_config event with invalid config, skipping");
         return;

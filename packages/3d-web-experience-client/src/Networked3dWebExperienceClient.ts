@@ -50,7 +50,6 @@ import { WorldConnection, type WorldEvent } from "./WorldConnection";
 export type Networked3dWebExperienceClientConfig = {
   userNetworkAddress: string;
   sessionToken: string;
-  authToken?: string | null;
   animationConfig: AnimationConfig;
   voiceChatAddress?: string;
   updateURLLocation?: boolean;
@@ -88,6 +87,14 @@ export type UpdatableConfig = {
   enableTweakPane?: boolean;
   allowOrbitalCamera?: boolean;
   postProcessingEnabled?: boolean;
+  hud?:
+    | false
+    | {
+        minimap?: boolean;
+        playerList?: boolean;
+        respawnButton?: boolean;
+        [key: string]: boolean | undefined;
+      };
 };
 
 export type CreateRendererOptions = {
@@ -132,16 +139,25 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
   private characterControllerValues = createDefaultCharacterControllerValues();
 
   private initialLoadCompleted = false;
+  private pendingChatMessages: {
+    username: string;
+    message: string;
+    fromConnectionId: number;
+    userId: string;
+    isLocal: boolean;
+  }[] = [];
   private latestConfig: Partial<UpdatableConfig> = {};
   private loadingProgressManager = new LoadingProgressManager();
   private loadingScreen: LoadingScreen;
   private errorScreen?: ErrorScreen;
 
+  private mmlAuthToken: string | null = null;
   private rendererInitialized = false;
   private worldConfigReceived = false;
   private worldConfigTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
   private static readonly WORLD_CONFIG_TIMEOUT_MS = 10_000;
+  private static readonly MAX_PENDING_CHAT_MESSAGES = 100;
 
   // Frame timing
   private currentRequestAnimationFrame: number | null = null;
@@ -220,6 +236,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           this.characterManager.clear();
           this.remoteUserStates.clear();
           this.connectionId = null;
+          this.pendingChatMessages = [];
           break;
 
         case "identity_assigned":
@@ -237,6 +254,15 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
 
         case "server_error":
           this.disposeWithError(event.message);
+          break;
+
+        case "session_config":
+          if (event.config.authToken !== undefined) {
+            this.mmlAuthToken = event.config.authToken;
+            if (this.rendererInitialized && this.config.mmlDocuments) {
+              this.renderer.setMMLConfiguration(this.config.mmlDocuments, this.mmlAuthToken);
+            }
+          }
           break;
 
         case "world_config": {
@@ -276,6 +302,9 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           }
           if (parsedConfig.postProcessingEnabled !== undefined) {
             updatable.postProcessingEnabled = parsedConfig.postProcessingEnabled;
+          }
+          if (parsedConfig.hud !== undefined) {
+            updatable.hud = parsedConfig.hud;
           }
           this.updateConfig(updatable);
           // Mark config as received regardless of parse success so the
@@ -347,17 +376,21 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           plugin.mount(this.element, this);
         }
 
-        // Deliver the latest config so plugins can pick up the initial
-        // avatar configuration, spawn settings, etc.
-        if (Object.keys(this.latestConfig).length > 0) {
-          this.emit("configChanged", this.latestConfig);
-          for (const plugin of this.getAllPlugins()) {
-            plugin.onConfigChanged?.(this.latestConfig);
-          }
+        // Deliver config to plugins after mount. If no world config has been
+        // received yet, this delivers {} which lets plugins create with defaults.
+        this.emit("configChanged", this.latestConfig);
+        for (const plugin of this.getAllPlugins()) {
+          plugin.onConfigChanged?.(this.latestConfig);
         }
 
         this.spawnCharacter(getSpawnData(this.spawnConfiguration, true));
         this.emit("ready");
+
+        // Replay chat messages that arrived before plugins were mounted
+        for (const chatEvent of this.pendingChatMessages) {
+          this.emit("chat", chatEvent);
+        }
+        this.pendingChatMessages = [];
       }
     });
 
@@ -385,7 +418,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
         mmlTargetElement: document.body,
         loadingProgressManager: this.loadingProgressManager,
         mmlDocuments: mmlDocumentsForRenderer,
-        mmlAuthToken: this.config.authToken ?? null,
+        mmlAuthToken: this.mmlAuthToken,
         onInitialized: () => {
           this.rendererInitialized = true;
           if (this.config.waitForWorldConfig) {
@@ -407,7 +440,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
         mmlTargetElement: document.body,
         loadingProgressManager: this.loadingProgressManager,
         mmlDocuments: mmlDocumentsForRenderer,
-        mmlAuthToken: this.config.authToken ?? null,
+        mmlAuthToken: this.mmlAuthToken,
       });
       this.rendererInitialized = true;
       if (this.config.waitForWorldConfig) {
@@ -425,6 +458,15 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       this.renderer.fitContainer();
     });
     this.resizeObserver.observe(this.element);
+
+    // Populate initial latestConfig from constructor values so plugins
+    // receive config even before any server world_config arrives.
+    if (this.config.hud !== undefined) {
+      this.latestConfig.hud = this.config.hud;
+    }
+    if (this.config.enableChat !== undefined) {
+      this.latestConfig.enableChat = this.config.enableChat;
+    }
   }
 
   public updateConfig(config: Partial<UpdatableConfig>) {
@@ -477,7 +519,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     }
 
     if (config.mmlDocuments !== undefined) {
-      this.renderer.setMMLConfiguration(config.mmlDocuments, this.config.authToken ?? null);
+      this.renderer.setMMLConfiguration(config.mmlDocuments, this.mmlAuthToken);
     }
 
     this.latestConfig = { ...this.latestConfig, ...config };
@@ -602,7 +644,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     displayName: string,
     characterDescription: CharacterDescription,
   ) {
-    if (!this.connectionId) {
+    if (this.connectionId === null) {
       throw new Error("Connection ID not set");
     }
 
@@ -623,7 +665,17 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       this.renderer.addChatBubble(fromConnectionId, message);
     }
 
-    this.emit("chat", { username, message, fromConnectionId, userId, isLocal });
+    const chatEvent = { username, message, fromConnectionId, userId, isLocal };
+    if (!this.initialLoadCompleted) {
+      this.pendingChatMessages.push(chatEvent);
+      if (
+        this.pendingChatMessages.length > Networked3dWebExperienceClient.MAX_PENDING_CHAT_MESSAGES
+      ) {
+        this.pendingChatMessages.shift();
+      }
+      return;
+    }
+    this.emit("chat", chatEvent);
   }
 
   public update(): void {

@@ -109,16 +109,6 @@ export class DeltaNetComponentMapping {
   }
 
   /**
-   * Encode userId to binary state
-   */
-  static toUserIdState(userId: string): Map<number, Uint8Array> {
-    const states = new Map<number, Uint8Array>();
-    const textEncoder = new TextEncoder();
-    states.set(STATE_USER_ID, textEncoder.encode(userId));
-    return states;
-  }
-
-  /**
    * Decode persistent userId from binary state
    */
   static persistentUserIdFromBytes(bytes: Uint8Array): string | null {

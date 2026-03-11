@@ -24,3 +24,12 @@ export const FROM_SERVER_CHAT_MESSAGE_TYPE = 3 as const;
  * live config updates. The JSON payload corresponds to `WorldConfigPayload`.
  */
 export const FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE = 4 as const;
+
+/**
+ * Server-to-client session configuration message.
+ *
+ * Sent per-client after authentication with data specific to that user's
+ * session (e.g. an auth token for MML document connections). The JSON payload
+ * corresponds to `SessionConfigPayload`.
+ */
+export const FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE = 5 as const;

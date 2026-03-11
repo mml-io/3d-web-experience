@@ -7,6 +7,7 @@ import {
   FROM_SERVER_BROADCAST_MESSAGE_TYPE,
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
+  FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE,
 } from "./3d-web-experience-v0.1";
 
 import {
@@ -22,6 +23,7 @@ describe("message type constants", () => {
       FROM_CLIENT_CHAT_MESSAGE_TYPE,
       FROM_SERVER_CHAT_MESSAGE_TYPE,
       FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
+      FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE,
     ];
     const uniqueTypes = new Set(types);
     expect(uniqueTypes.size).toBe(types.length);
@@ -32,6 +34,7 @@ describe("message type constants", () => {
     expect(FROM_CLIENT_CHAT_MESSAGE_TYPE).toBe(2);
     expect(FROM_SERVER_CHAT_MESSAGE_TYPE).toBe(3);
     expect(FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE).toBe(4);
+    expect(FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE).toBe(5);
   });
 });
 

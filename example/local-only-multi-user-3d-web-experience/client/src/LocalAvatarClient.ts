@@ -172,7 +172,6 @@ export class LocalAvatarClient {
         minZ: spawnConfiguration?.respawnTrigger?.minZ,
         maxZ: spawnConfiguration?.respawnTrigger?.maxZ,
       },
-      enableRespawnButton: spawnConfiguration?.enableRespawnButton ?? false,
     };
 
     this.characterManager = new CharacterManager({

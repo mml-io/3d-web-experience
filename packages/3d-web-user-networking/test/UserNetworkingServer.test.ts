@@ -16,7 +16,7 @@ import {
 import express from "express";
 import enableWs from "express-ws";
 
-import { UserData, UserNetworkingClientUpdate } from "../src";
+import { UserData, UserIdentityUpdate, UserNetworkingClientUpdate } from "../src";
 import { WebsocketStatus } from "../src/types";
 import { NetworkUpdate, UserNetworkingClient } from "../src/UserNetworkingClient";
 import { UserNetworkingServerError } from "../src/UserNetworkingMessages";
@@ -49,10 +49,16 @@ function createTestSetup(optionOverrides?: Partial<UserNetworkingServerOptions>)
     .fn<
       (
         connectionId: number,
-        userIdentity: UserData,
-      ) => UserData | null | true | false | Error | Promise<UserData | null | false | true | Error>
+        userIdentity: UserIdentityUpdate,
+      ) =>
+        | UserIdentityUpdate
+        | null
+        | true
+        | false
+        | Error
+        | Promise<UserIdentityUpdate | null | false | true | Error>
     >()
-    .mockImplementation((_connectionId, userData) => userData);
+    .mockImplementation((_connectionId, identity) => identity);
 
   const onClientDisconnect = jest.fn<(connectionId: number) => void>();
   const onClientAuthenticated = jest.fn<(connectionId: number) => void>();
@@ -413,7 +419,6 @@ describe("UserNetworkingServer", () => {
     );
 
     server!.updateUserStates(connectionId, {
-      userId: "user-1",
       username: "Combo",
       characterDescription: { meshFileUrl: "http://example.com/combo.glb" },
       colors: [[0, 0, 1]],
@@ -432,7 +437,6 @@ describe("UserNetworkingServer", () => {
     server = new UserNetworkingServer(options);
 
     server.updateUserStates(999, {
-      userId: "user-unknown",
       username: "Nobody",
       characterDescription: null,
       colors: null,
@@ -460,7 +464,6 @@ describe("UserNetworkingServer", () => {
 
     // All undefined — no updates
     server!.updateUserStates(connectionId, {
-      userId: "user-1",
       username: undefined as unknown as string,
       characterDescription: undefined as unknown as null,
       colors: undefined as unknown as null,
@@ -492,7 +495,6 @@ describe("UserNetworkingServer", () => {
 
     // Null fields should clear them
     server!.updateUserStates(connectionId, {
-      userId: "user-1",
       username: null as unknown as string,
       characterDescription: null,
       colors: null,

@@ -5,7 +5,7 @@ import {
   FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
   type WorldConfigPayload,
 } from "@mml-io/3d-web-experience-protocol";
-import type { UserData } from "@mml-io/3d-web-user-networking";
+import type { UserData, UserIdentityUpdate } from "@mml-io/3d-web-user-networking";
 
 import type { UserAuthenticator } from "../src/Networked3dWebExperienceServer";
 
@@ -33,7 +33,7 @@ function createMockAuthenticator(): UserAuthenticator {
     } as UserData),
     onClientUserIdentityUpdate: jest
       .fn<any>()
-      .mockImplementation((_connectionId: number, identity: UserData) => identity),
+      .mockImplementation((_connectionId: number, identity: UserIdentityUpdate) => identity),
     onClientDisconnect: jest.fn(),
     dispose: jest.fn(),
   };
@@ -103,8 +103,7 @@ describe("Networked3dWebExperienceServer", () => {
   });
 
   it("delegates onClientUserIdentityUpdate to authenticator", () => {
-    const identity: UserData = {
-      userId: "user-1",
+    const identity: UserIdentityUpdate = {
       username: "Updated",
       characterDescription: null,
       colors: null,

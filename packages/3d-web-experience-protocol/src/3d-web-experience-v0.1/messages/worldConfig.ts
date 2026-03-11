@@ -57,7 +57,6 @@ export type WorldConfigSpawn = {
     minZ?: number;
     maxZ?: number;
   };
-  enableRespawnButton?: boolean;
 };
 
 /**
@@ -121,6 +120,15 @@ export type WorldConfigPayload = {
   allowOrbitalCamera?: boolean;
   /** Enable post-processing effects */
   postProcessingEnabled?: boolean;
+  /** HUD visibility. `false` disables all HUD elements; an object toggles individual elements. */
+  hud?:
+    | false
+    | {
+        minimap?: boolean;
+        playerList?: boolean;
+        respawnButton?: boolean;
+        [key: string]: boolean | undefined;
+      };
 };
 
 function isXYZ(value: unknown): value is { x: number; y: number; z: number } {
@@ -291,9 +299,6 @@ function validateSpawnConfiguration(value: unknown): asserts value is WorldConfi
       }
     }
   }
-  if ("enableRespawnButton" in value && !isOptionalBoolean(value.enableRespawnButton)) {
-    throw new Error("spawnConfiguration.enableRespawnButton must be a boolean");
-  }
 }
 
 function validateAvatarType(value: unknown, index: number): asserts value is WorldConfigAvatarType {
@@ -339,11 +344,13 @@ function validateAvatarConfiguration(value: unknown): asserts value is WorldConf
   if (!isRecord(value)) {
     throw new Error("avatarConfiguration must be an object");
   }
-  if (!("availableAvatars" in value) || !Array.isArray(value.availableAvatars)) {
-    throw new Error("avatarConfiguration.availableAvatars must be an array");
-  }
-  for (let i = 0; i < value.availableAvatars.length; i++) {
-    validateAvatarType(value.availableAvatars[i], i);
+  if ("availableAvatars" in value) {
+    if (!Array.isArray(value.availableAvatars)) {
+      throw new Error("avatarConfiguration.availableAvatars must be an array");
+    }
+    for (let i = 0; i < value.availableAvatars.length; i++) {
+      validateAvatarType(value.availableAvatars[i], i);
+    }
   }
   if ("allowCustomAvatars" in value && !isOptionalBoolean(value.allowCustomAvatars)) {
     throw new Error("avatarConfiguration.allowCustomAvatars must be a boolean");
@@ -421,6 +428,28 @@ export function parseWorldConfigPayload(contents: string): WorldConfigPayload | 
       throw new Error("postProcessingEnabled must be a boolean");
     }
 
+    if ("hud" in parsed) {
+      if (parsed.hud !== false) {
+        if (!isRecord(parsed.hud)) {
+          throw new Error("hud must be false or an object");
+        }
+        if ("minimap" in parsed.hud && typeof parsed.hud.minimap !== "boolean") {
+          throw new Error("hud.minimap must be a boolean");
+        }
+        if ("playerList" in parsed.hud && typeof parsed.hud.playerList !== "boolean") {
+          throw new Error("hud.playerList must be a boolean");
+        }
+        if ("respawnButton" in parsed.hud && typeof parsed.hud.respawnButton !== "boolean") {
+          throw new Error("hud.respawnButton must be a boolean");
+        }
+        for (const [key, value] of Object.entries(parsed.hud as Record<string, unknown>)) {
+          if (typeof value !== "boolean") {
+            throw new Error(`hud.${key} must be a boolean`);
+          }
+        }
+      }
+    }
+
     // All fields have been validated above including nested structures.
     // Cast `parsed` once to avoid repeated `as` casts on each field access.
     const validated = parsed as Record<string, any>;
@@ -444,14 +473,20 @@ export function parseWorldConfigPayload(contents: string): WorldConfigPayload | 
     if ("environmentConfiguration" in validated)
       result.environmentConfiguration = validated.environmentConfiguration;
     if ("spawnConfiguration" in validated) result.spawnConfiguration = validated.spawnConfiguration;
-    if ("avatarConfiguration" in validated)
-      result.avatarConfiguration = validated.avatarConfiguration;
+    if ("avatarConfiguration" in validated) {
+      const avatarConfig = validated.avatarConfiguration as WorldConfigAvatar;
+      result.avatarConfiguration = {
+        ...avatarConfig,
+        availableAvatars: avatarConfig.availableAvatars ?? [],
+      };
+    }
     if ("allowCustomDisplayName" in validated)
       result.allowCustomDisplayName = validated.allowCustomDisplayName;
     if ("enableTweakPane" in validated) result.enableTweakPane = validated.enableTweakPane;
     if ("allowOrbitalCamera" in validated) result.allowOrbitalCamera = validated.allowOrbitalCamera;
     if ("postProcessingEnabled" in validated)
       result.postProcessingEnabled = validated.postProcessingEnabled;
+    if ("hud" in validated) result.hud = validated.hud;
     return result;
   } catch (error) {
     return error instanceof Error ? error : new Error(`Invalid world config: ${error}`);

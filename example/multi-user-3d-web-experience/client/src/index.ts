@@ -36,11 +36,7 @@ const app = new Networked3dWebExperienceClient(holder, {
     title: "3D Web Experience",
     subtitle: "Powered by Metaverse Markup Language",
   },
-  plugins: [
-    new DefaultChatPlugin(),
-    new DefaultAvatarSelectionPlugin(),
-    new DefaultHUDPlugin({ minimap: true, playerList: true }),
-  ],
+  plugins: [new DefaultChatPlugin(), new DefaultAvatarSelectionPlugin(), new DefaultHUDPlugin()],
 });
 
 app.update();

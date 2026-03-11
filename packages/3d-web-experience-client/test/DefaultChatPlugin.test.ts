@@ -37,15 +37,14 @@ function createMockClient(characterStates?: Map<number, any>) {
   } as any;
 }
 
-// --- Helpers to reduce fragile DOM selectors ---
+// --- Helpers using data-testid attributes ---
 
 function findToggleButton(overlay: HTMLElement): HTMLElement {
-  // The toggle button is the first child of the overlay (the 💬 circle)
-  return overlay.children[0] as HTMLElement;
+  return overlay.querySelector("[data-testid='chat-toggle']") as HTMLElement;
 }
 
 function findPanel(overlay: HTMLElement): HTMLElement {
-  return overlay.querySelector("div[style*='max-height']") as HTMLElement;
+  return overlay.querySelector("[data-testid='chat-panel']") as HTMLElement;
 }
 
 function findMessageArea(overlay: HTMLElement): HTMLElement {
@@ -53,16 +52,15 @@ function findMessageArea(overlay: HTMLElement): HTMLElement {
 }
 
 function findInput(overlay: HTMLElement): HTMLInputElement {
-  return overlay.querySelector("input[type='text']") as HTMLInputElement;
+  return overlay.querySelector("[data-testid='chat-input']") as HTMLInputElement;
 }
 
 function findPassiveArea(overlay: HTMLElement): HTMLElement {
-  // The passive area is positioned at bottom:64px, left:12px
-  return overlay.querySelector("div[style*='bottom: 64px']") as HTMLElement;
+  return overlay.querySelector("[data-testid='chat-passive-area']") as HTMLElement;
 }
 
 function findSendButton(overlay: HTMLElement): HTMLButtonElement {
-  return overlay.querySelector("button") as HTMLButtonElement;
+  return overlay.querySelector("[data-testid='chat-send']") as HTMLButtonElement;
 }
 
 describe("DefaultChatPlugin", () => {
@@ -427,6 +425,43 @@ describe("DefaultChatPlugin", () => {
 
     const messageArea = findMessageArea(overlay);
     expect(messageArea.children.length).toBeLessThanOrEqual(200);
+  });
+
+  it("onConfigChanged hides chat when enableChat is false", () => {
+    const client = createMockClient();
+    plugin.mount(container, client);
+
+    const overlay = container.children[0] as HTMLElement;
+    expect(overlay.style.display).toBe("");
+
+    plugin.onConfigChanged({ enableChat: false });
+    expect(overlay.style.display).toBe("none");
+  });
+
+  it("onConfigChanged shows chat when enableChat is true", () => {
+    const client = createMockClient();
+    plugin.mount(container, client);
+
+    plugin.onConfigChanged({ enableChat: false });
+    const overlay = container.children[0] as HTMLElement;
+    expect(overlay.style.display).toBe("none");
+
+    plugin.onConfigChanged({ enableChat: true });
+    expect(overlay.style.display).toBe("");
+  });
+
+  it("Enter key does not open panel when chat is disabled", () => {
+    const client = createMockClient();
+    plugin.mount(container, client);
+
+    plugin.onConfigChanged({ enableChat: false });
+
+    const overlay = container.children[0] as HTMLElement;
+    const panel = findPanel(overlay);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(panel.style.display).toBe("none");
   });
 
   it("Enter key opens panel when no input is focused", () => {
