@@ -3,7 +3,6 @@ import { PositionAndRotation, radToDeg } from "@mml-io/mml-web";
 import { CameraManager } from "../camera/CameraManager";
 import { CollisionsManager } from "../collisions/CollisionsManager";
 import { KeyInputManager } from "../input/KeyInputManager";
-import { VirtualJoystick } from "../input/VirtualJoystick";
 import { EulXYZ } from "../math/EulXYZ";
 import { Quat } from "../math/Quat";
 import { Vect3 } from "../math/Vect3";
@@ -13,7 +12,7 @@ import { TweakPane } from "../tweakpane/TweakPane";
 
 import { AnimationMixer } from "./AnimationMixer";
 import { AnimationState, CharacterState } from "./CharacterState";
-import { LocalController } from "./LocalController";
+import { InputProvider, LocalController } from "./LocalController";
 import { RemoteController } from "./RemoteController";
 import { encodeCharacterAndCamera } from "./url-position";
 
@@ -54,17 +53,44 @@ export type SpawnConfigurationState = {
   enableRespawnButton: boolean;
 };
 
+export function normalizeSpawnConfiguration(
+  spawnConfig?: SpawnConfiguration,
+): SpawnConfigurationState {
+  return {
+    spawnPosition: {
+      x: spawnConfig?.spawnPosition?.x ?? 0,
+      y: spawnConfig?.spawnPosition?.y ?? 0,
+      z: spawnConfig?.spawnPosition?.z ?? 0,
+    },
+    spawnPositionVariance: {
+      x: spawnConfig?.spawnPositionVariance?.x ?? 0,
+      y: spawnConfig?.spawnPositionVariance?.y ?? 0,
+      z: spawnConfig?.spawnPositionVariance?.z ?? 0,
+    },
+    spawnYRotation: spawnConfig?.spawnYRotation ?? 0,
+    respawnTrigger: {
+      minX: spawnConfig?.respawnTrigger?.minX ?? Number.NEGATIVE_INFINITY,
+      maxX: spawnConfig?.respawnTrigger?.maxX ?? Number.POSITIVE_INFINITY,
+      minY: spawnConfig?.respawnTrigger?.minY ?? -100,
+      maxY: spawnConfig?.respawnTrigger?.maxY ?? Number.POSITIVE_INFINITY,
+      minZ: spawnConfig?.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
+      maxZ: spawnConfig?.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
+    },
+    enableRespawnButton: spawnConfig?.enableRespawnButton ?? false,
+  };
+}
+
 export type CharacterManagerConfig = {
   collisionsManager: CollisionsManager;
   cameraManager: CameraManager;
   keyInputManager: KeyInputManager;
-  virtualJoystick?: VirtualJoystick;
+  additionalInputProvider?: InputProvider;
   remoteUserStates: Map<number, CharacterState>;
   sendUpdate: (update: CharacterState) => void;
   sendLocalCharacterColors: (colors: Array<[number, number, number]>) => void;
   spawnConfiguration: SpawnConfigurationState;
   characterControllerValues: CharacterControllerValues;
-  characterResolve: (clientId: number) => {
+  characterResolve: (connectionId: number) => {
     username: string | null;
     characterDescription: CharacterDescription | null;
     colors: Array<[number, number, number]> | null;
@@ -85,7 +111,7 @@ type RemoteCharacterState = {
 export class CharacterManager {
   public static readonly headTargetOffset = new Vect3(0, 1.75, 0);
 
-  private localClientId: number = 0;
+  private localConnectionId: number = 0;
   public remoteCharacters: Map<number, RemoteCharacterState> = new Map();
   public localController: LocalController | null = null;
   private localRenderState: CharacterRenderState | null = null;
@@ -99,12 +125,19 @@ export class CharacterManager {
 
   constructor(private config: CharacterManagerConfig) {}
 
+  public setAdditionalInputProvider(inputProvider: InputProvider | undefined): void {
+    this.config.additionalInputProvider = inputProvider;
+    if (this.localController) {
+      this.localController.config.additionalInputProvider = inputProvider;
+    }
+  }
+
   /**
-   * Sets the local client ID early to prevent the local character from being
+   * Sets the local connection ID early to prevent the local character from being
    * spawned as a remote character when network updates arrive before spawnLocalCharacter is called.
    */
-  public setLocalClientId(id: number): void {
-    this.localClientId = id;
+  public setLocalConnectionId(id: number): void {
+    this.localConnectionId = id;
   }
 
   public spawnLocalCharacter(
@@ -121,40 +154,40 @@ export class CharacterManager {
         y: spawnPosition.y,
         z: spawnPosition.z,
       },
-      rotation: { quaternionY: quaternion.y, quaternionW: quaternion.w },
+      rotation: { eulerY: 2 * Math.atan2(quaternion.y, quaternion.w) },
       state: AnimationState.idle,
     });
 
-    this.localClientId = id;
+    this.localConnectionId = id;
     this.localController = new LocalController({
-      id: this.localClientId,
+      id: this.localConnectionId,
       position: position,
       quaternion: quaternion,
       collisionsManager: this.config.collisionsManager,
       keyInputManager: this.config.keyInputManager,
-      virtualJoystick: this.config.virtualJoystick,
+      additionalInputProvider: this.config.additionalInputProvider,
       cameraManager: this.config.cameraManager,
       spawnConfiguration: this.config.spawnConfiguration,
       characterControllerValues: this.config.characterControllerValues,
     });
 
     // Initialize cached renderState for local character
-    const characterInfo = this.config.characterResolve(this.localClientId);
+    const characterInfo = this.config.characterResolve(this.localConnectionId);
     const rotation = new EulXYZ().setFromQuaternion(quaternion);
     this.localAnimationMixer = new AnimationMixer(AnimationState.idle);
     this.localRenderState = {
-      id: this.localClientId,
+      id: this.localConnectionId,
       position: new Vect3(position.x, position.y, position.z),
       rotation: rotation,
       animationState: AnimationState.idle,
       animationWeights: this.localAnimationMixer.getWeights(),
       animationTimes: this.localAnimationMixer.getAnimationTimes(),
-      username: characterInfo.username ?? `Unknown User ${this.localClientId}`,
+      username: characterInfo.username ?? `Unknown User ${this.localConnectionId}`,
       characterDescription: characterInfo.characterDescription,
       colors: characterInfo.colors,
       isLocal: true,
     };
-    this.cachedCharacterStates.set(this.localClientId, this.localRenderState);
+    this.cachedCharacterStates.set(this.localConnectionId, this.localRenderState);
   }
 
   public setupTweakPane(tweakPane: TweakPane) {
@@ -186,8 +219,8 @@ export class CharacterManager {
     for (const [id] of this.remoteCharacters) {
       this.pendingRemovals.add(id);
     }
-    if (this.localClientId !== 0) {
-      this.pendingRemovals.add(this.localClientId);
+    if (this.localConnectionId !== 0) {
+      this.pendingRemovals.add(this.localConnectionId);
     }
 
     this.remoteCharacters.clear();
@@ -235,7 +268,7 @@ export class CharacterManager {
     }
 
     // Handle local character - update renderState if needed
-    if (id === this.localClientId && this.localRenderState) {
+    if (id === this.localConnectionId && this.localRenderState) {
       const characterInfo = this.config.characterResolve(id);
       const newUsername = characterInfo.username ?? `Unknown User ${id}`;
 
@@ -262,14 +295,14 @@ export class CharacterManager {
     frameCounter: number,
   ): {
     updatedCharacterDescriptions: number[];
-    removedUserIds: number[];
+    removedConnectionIds: number[];
   } {
     const updatedCharacterDescriptions: number[] = [];
-    const removedUserIds: number[] = [];
+    const removedConnectionIds: number[] = [];
 
     // Process pending removals from clear()
     for (const id of this.pendingRemovals) {
-      removedUserIds.push(id);
+      removedConnectionIds.push(id);
     }
     this.pendingRemovals.clear();
 
@@ -302,8 +335,8 @@ export class CharacterManager {
       this.localRenderState.animationTimes = this.localAnimationMixer.getAnimationTimes();
 
       // Check if description changed
-      const characterInfo = this.config.characterResolve(this.localClientId);
-      const newUsername = characterInfo.username ?? `Unknown User ${this.localClientId}`;
+      const characterInfo = this.config.characterResolve(this.localConnectionId);
+      const newUsername = characterInfo.username ?? `Unknown User ${this.localConnectionId}`;
       if (
         this.localRenderState.username !== newUsername ||
         this.localRenderState.characterDescription !== characterInfo.characterDescription ||
@@ -312,7 +345,7 @@ export class CharacterManager {
         this.localRenderState.username = newUsername;
         this.localRenderState.characterDescription = characterInfo.characterDescription;
         this.localRenderState.colors = characterInfo.colors;
-        updatedCharacterDescriptions.push(this.localClientId);
+        updatedCharacterDescriptions.push(this.localConnectionId);
       }
 
       const currentTime = new Date().getTime();
@@ -356,7 +389,7 @@ export class CharacterManager {
 
     // Process remote characters
     for (const [id, networkUpdate] of this.config.remoteUserStates) {
-      if (id === this.localClientId) {
+      if (id === this.localConnectionId) {
         continue;
       }
 
@@ -364,8 +397,9 @@ export class CharacterManager {
       if (!existingCharacter) {
         // Spawn new remote character with a RemoteController
         const { position } = networkUpdate;
+        const halfY = networkUpdate.rotation.eulerY / 2;
         const initialRotation = new EulXYZ().setFromQuaternion(
-          new Quat(0, networkUpdate.rotation.quaternionY, 0, networkUpdate.rotation.quaternionW),
+          new Quat(0, Math.sin(halfY), 0, Math.cos(halfY)),
         );
 
         const characterInfo = this.config.characterResolve(id);
@@ -451,7 +485,7 @@ export class CharacterManager {
     // Find despawned characters
     for (const [id] of this.remoteCharacters) {
       if (!this.config.remoteUserStates.has(id)) {
-        removedUserIds.push(id);
+        removedConnectionIds.push(id);
         this.remoteCharacters.delete(id);
         this.cachedCharacterStates.delete(id);
       }
@@ -459,7 +493,7 @@ export class CharacterManager {
 
     return {
       updatedCharacterDescriptions,
-      removedUserIds,
+      removedConnectionIds,
     };
   }
 
@@ -468,7 +502,7 @@ export class CharacterManager {
     return this.cachedCharacterStates;
   }
 
-  public getLocalClientId(): number {
-    return this.localClientId;
+  public getLocalConnectionId(): number {
+    return this.localConnectionId;
   }
 }

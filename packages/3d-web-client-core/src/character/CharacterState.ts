@@ -15,8 +15,7 @@ export type CharacterState = {
     z: number;
   };
   rotation: {
-    quaternionY: number;
-    quaternionW: number;
+    eulerY: number;
   };
   state: AnimationState;
 };

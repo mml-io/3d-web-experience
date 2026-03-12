@@ -10,10 +10,7 @@
     "plugin:prettier/recommended",
     "plugin:import/errors",
     "plugin:import/warnings",
-    "plugin:import/typescript",
-    "plugin:react/recommended",
-    "plugin:react/jsx-runtime",
-    "plugin:react-hooks/recommended"
+    "plugin:import/typescript"
   ],
   "plugins": ["@typescript-eslint", "prettier"],
   "rules": {
@@ -44,9 +41,5 @@
       }
     }
   ],
-  "settings": {
-    "react": {
-      "version": "detect"
-    }
-  }
+  "settings": {}
 }

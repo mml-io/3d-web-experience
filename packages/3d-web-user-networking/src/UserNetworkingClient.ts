@@ -12,6 +12,7 @@ import {
   STATE_CHARACTER_DESCRIPTION,
   STATE_COLORS,
   STATE_INTERNAL_CONNECTION_ID,
+  STATE_USER_ID,
   STATE_USERNAME,
 } from "./DeltaNetComponentMapping";
 import { UserNetworkingClientUpdate, WebsocketFactory, WebsocketStatus } from "./types";
@@ -24,10 +25,18 @@ export type UserNetworkingClientConfig = {
   sessionToken: string;
   websocketFactory: WebsocketFactory;
   statusUpdateCallback: (status: WebsocketStatus) => void;
-  assignedIdentity: (clientId: number) => void;
+  assignedIdentity: (connectionId: number) => void;
   onServerError: (error: { message: string; errorType: string }) => void;
   onCustomMessage?: (customType: number, contents: string) => void;
   onUpdate(update: NetworkUpdate): void;
+  /**
+   * Maps a WebSocket sub-protocol (negotiated at the HTTP upgrade) to the
+   * corresponding delta-net sub-protocol string used on the wire.
+   *
+   * If not provided the WebSocket protocol string is passed through to
+   * delta-net as-is.
+   */
+  resolveProtocol?: (websocketProtocol: string) => string | null;
 };
 
 export type AddedUser = {
@@ -41,8 +50,8 @@ export type UpdatedUser = {
 };
 
 export type NetworkUpdate = {
-  removedUserIds: Set<number>;
-  addedUserIds: Map<number, AddedUser>;
+  removedConnectionIds: Set<number>;
+  addedConnectionIds: Map<number, AddedUser>;
   updatedUsers: Map<number, UpdatedUser>;
 };
 
@@ -50,15 +59,16 @@ export class UserNetworkingClient {
   private deltaNetClient: DeltaNetClientWebsocket;
   private deltaNetState: DeltaNetClientState;
 
-  private userId: number | null = null;
+  private connectionId: number | null = null;
   private userIndex: number | null = null;
   private userState: UserData = {
+    userId: "",
     username: null,
     characterDescription: null,
     colors: null,
   };
 
-  private stableIdToUserId: Map<number, number> = new Map();
+  private stableIdToConnectionId: Map<number, number> = new Map();
   private userProfiles: Map<number, UserData> = new Map();
   private isAuthenticated = false;
   private pendingUpdate: UserNetworkingClientUpdate;
@@ -71,10 +81,11 @@ export class UserNetworkingClient {
   ) {
     this.pendingUpdate = initialUpdate ?? {
       position: { x: 0, y: 0, z: 0 },
-      rotation: { quaternionY: 0, quaternionW: 1 },
+      rotation: { eulerY: 0 },
       state: 0,
     };
     this.userState = initialUserState ?? {
+      userId: "",
       username: null,
       characterDescription: null,
       colors: null,
@@ -98,21 +109,21 @@ export class UserNetworkingClient {
           const networkUpdate = this.processNetworkUpdate([], addedStableIds, []);
           this.config.onUpdate(networkUpdate);
 
-          // Now that we have the user IDs, resolve our stable user ID from the userIndex
+          // Now that we have the connection IDs, resolve our stable ID from the userIndex
           if (this.userIndex !== null) {
-            const userIds = this.deltaNetState.getStableIds();
-            if (this.userIndex < userIds.length) {
-              const stableId = userIds[this.userIndex];
-              const userId = this.stableIdToUserId.get(stableId);
-              if (!userId) {
-                throw new Error(`No userId found for stableId ${stableId}`);
+            const stableIds = this.deltaNetState.getStableIds();
+            if (this.userIndex < stableIds.length) {
+              const stableId = stableIds[this.userIndex];
+              const connId = this.stableIdToConnectionId.get(stableId);
+              if (!connId) {
+                throw new Error(`No connectionId found for stableId ${stableId}`);
               }
-              this.userId = userId;
+              this.connectionId = connId;
               this.isAuthenticated = true;
-              this.config.assignedIdentity(this.userId);
+              this.config.assignedIdentity(this.connectionId);
             } else {
               this.logger.error(
-                `Invalid userIndex ${this.userIndex}, userIds length: ${userIds.length}`,
+                `Invalid userIndex ${this.userIndex}, stableIds length: ${stableIds.length}`,
               );
             }
           }
@@ -155,7 +166,7 @@ export class UserNetworkingClient {
           this.config.onCustomMessage?.(customType, contents);
         },
       },
-      undefined, // timeCallback is optional
+      undefined, // timeCallback
       (status: DeltaNetClientWebsocketStatus) => {
         // Map deltanet status to websocket status
         let mappedStatus: WebsocketStatus;
@@ -181,15 +192,16 @@ export class UserNetworkingClient {
         }
         this.config.statusUpdateCallback(mappedStatus);
       },
+      config.resolveProtocol,
     );
   }
 
   private reset(): void {
     this.deltaNetState.reset();
     this.userProfiles.clear();
-    this.stableIdToUserId.clear();
+    this.stableIdToConnectionId.clear();
     this.isAuthenticated = false;
-    this.userId = null;
+    this.connectionId = null;
     this.userIndex = null;
   }
 
@@ -209,21 +221,21 @@ export class UserNetworkingClient {
     addedStableIdsArray: number[],
     stateUpdates: Array<{ stableId: number; stateId: number; state: Uint8Array }>,
   ): NetworkUpdate {
-    const addedUserIds = new Map<number, AddedUser>();
-    const removedUserIds = new Set<number>();
+    const addedConnectionIds = new Map<number, AddedUser>();
+    const removedConnectionIds = new Set<number>();
 
     for (const stableId of removedStableIds) {
-      const userId = this.stableIdToUserId.get(stableId);
-      if (userId) {
-        removedUserIds.add(userId);
+      const connId = this.stableIdToConnectionId.get(stableId);
+      if (connId) {
+        removedConnectionIds.add(connId);
 
         // Remove from user profiles
-        this.userProfiles.delete(userId);
+        this.userProfiles.delete(connId);
 
-        // Remove from stableIdToUserId
-        this.stableIdToUserId.delete(stableId);
+        // Remove from stableIdToConnectionId
+        this.stableIdToConnectionId.delete(stableId);
       } else {
-        throw new Error(`No userId found for stableId ${stableId}`);
+        throw new Error(`No connectionId found for stableId ${stableId}`);
       }
     }
 
@@ -232,19 +244,19 @@ export class UserNetworkingClient {
       if (!stableUserData) {
         throw new Error(`No stableUserData found for stableId ${stableId}`);
       }
-      const userIdState = stableUserData.states.get(STATE_INTERNAL_CONNECTION_ID);
-      if (!userIdState) {
-        throw new Error(`No userIdState found for stableId ${stableId}`);
+      const connectionIdState = stableUserData.states.get(STATE_INTERNAL_CONNECTION_ID);
+      if (!connectionIdState) {
+        throw new Error(`No connectionIdState found for stableId ${stableId}`);
       }
-      const userId = DeltaNetComponentMapping.userIdFromBytes(userIdState);
-      if (!userId) {
-        throw new Error(`Failed to extract userId from bytes for stableId ${stableId}`);
+      const connId = DeltaNetComponentMapping.userIdFromBytes(connectionIdState);
+      if (!connId) {
+        throw new Error(`Failed to extract connectionId from bytes for stableId ${stableId}`);
       }
-      this.stableIdToUserId.set(stableId, userId);
+      this.stableIdToConnectionId.set(stableId, connId);
       const newProfile = DeltaNetComponentMapping.fromStates(stableUserData.states, this.logger);
-      this.userProfiles.set(userId, newProfile);
+      this.userProfiles.set(connId, newProfile);
       const clientUpdate = DeltaNetComponentMapping.fromComponents(stableUserData.components);
-      addedUserIds.set(userId, {
+      addedConnectionIds.set(connId, {
         userState: newProfile,
         components: clientUpdate,
       });
@@ -253,14 +265,14 @@ export class UserNetworkingClient {
     const updatedUsers = new Map<number, UpdatedUser>();
 
     for (const [stableUserId, userInfo] of this.deltaNetState.byStableId) {
-      const userId = this.stableIdToUserId.get(stableUserId);
-      if (!userId) {
-        throw new Error(`No userId found for stableUserId ${stableUserId}`);
+      const connId = this.stableIdToConnectionId.get(stableUserId);
+      if (!connId) {
+        throw new Error(`No connectionId found for stableUserId ${stableUserId}`);
       }
-      if (!addedUserIds.has(userId)) {
+      if (!addedConnectionIds.has(connId)) {
         if (userInfo.components.size > 0) {
           const clientUpdate = DeltaNetComponentMapping.fromComponents(userInfo.components);
-          updatedUsers.set(userId, {
+          updatedUsers.set(connId, {
             components: clientUpdate,
           });
         }
@@ -271,21 +283,29 @@ export class UserNetworkingClient {
       // update.stableId is actually a stable user ID maintained by deltanet, not an index
       const stableUserId = update.stableId;
 
-      const userId = this.stableIdToUserId.get(stableUserId);
-      if (!userId) {
-        throw new Error(`No userId found for stableUserId ${stableUserId}`);
+      const connId = this.stableIdToConnectionId.get(stableUserId);
+      if (!connId) {
+        throw new Error(`No connectionId found for stableUserId ${stableUserId}`);
       }
 
-      if (addedUserIds.has(userId)) {
+      if (addedConnectionIds.has(connId)) {
         continue;
       }
 
-      const profile = this.userProfiles.get(userId);
+      const profile = this.userProfiles.get(connId);
       if (!profile) {
-        this.logger.warn(`No profile found for user ${userId}, skipping update`);
+        this.logger.warn(`No profile found for connection ${connId}, skipping update`);
         continue;
       }
-      const existingUpdate = updatedUsers.get(userId)!;
+      let existingUpdate = updatedUsers.get(connId);
+      if (!existingUpdate) {
+        const stableUserData = this.deltaNetState.byStableId.get(stableUserId);
+        const components = stableUserData
+          ? DeltaNetComponentMapping.fromComponents(stableUserData.components)
+          : { position: { x: 0, y: 0, z: 0 }, rotation: { eulerY: 0 }, state: 0 };
+        existingUpdate = { components };
+        updatedUsers.set(connId, existingUpdate);
+      }
       let existingUserStateUpdate: Partial<UserData> | undefined = existingUpdate.userState;
       if (!existingUserStateUpdate) {
         existingUserStateUpdate = {};
@@ -298,39 +318,50 @@ export class UserNetworkingClient {
             "STATE_INTERNAL_CONNECTION_ID is not expected to change in state updates",
           );
           break;
-        case STATE_USERNAME:
+        case STATE_USER_ID: {
+          const persistentUserId = DeltaNetComponentMapping.persistentUserIdFromBytes(update.state);
+          if (persistentUserId) {
+            profile.userId = persistentUserId;
+            existingUserStateUpdate.userId = persistentUserId;
+          }
+          break;
+        }
+        case STATE_USERNAME: {
           const username = DeltaNetComponentMapping.usernameFromBytes(update.state);
           if (username) {
             profile.username = username;
             existingUserStateUpdate.username = username;
           }
           break;
-        case STATE_CHARACTER_DESCRIPTION:
+        }
+        case STATE_CHARACTER_DESCRIPTION: {
           const characterDescription = DeltaNetComponentMapping.characterDescriptionFromBytes(
             update.state,
           );
           profile.characterDescription = characterDescription;
           existingUserStateUpdate.characterDescription = characterDescription;
           break;
-        case STATE_COLORS:
+        }
+        case STATE_COLORS: {
           const colors = DeltaNetComponentMapping.decodeColors(update.state, this.logger);
           profile.colors = colors;
           existingUserStateUpdate.colors = colors;
           break;
+        }
         default:
           this.logger.warn(`Unknown state ID: ${update.stateId}`);
       }
     }
 
     return {
-      removedUserIds,
-      addedUserIds,
+      removedConnectionIds,
+      addedConnectionIds,
       updatedUsers,
     };
   }
 
   public sendUpdate(update: UserNetworkingClientUpdate): void {
-    if (!this.isAuthenticated || this.userId === null) {
+    if (!this.isAuthenticated || this.connectionId === null) {
       // Store the update to send after authentication
       this.pendingUpdate = update;
       return;
@@ -342,7 +373,7 @@ export class UserNetworkingClient {
   }
 
   public sendCustomMessage(customType: number, contents: string): void {
-    if (!this.isAuthenticated || this.userId === null) {
+    if (!this.isAuthenticated || this.connectionId === null) {
       this.logger.warn("Cannot send custom message before authentication");
       return;
     }
@@ -351,7 +382,7 @@ export class UserNetworkingClient {
   }
 
   public updateUsername(username: string): void {
-    if (!this.isAuthenticated || this.userId === null) {
+    if (!this.isAuthenticated || this.connectionId === null) {
       return;
     }
 
@@ -364,7 +395,7 @@ export class UserNetworkingClient {
   }
 
   public updateCharacterDescription(characterDescription: CharacterDescription): void {
-    if (!this.isAuthenticated || this.userId === null) {
+    if (!this.isAuthenticated || this.connectionId === null) {
       return;
     }
 
@@ -377,7 +408,7 @@ export class UserNetworkingClient {
   }
 
   public updateColors(colors: Array<[number, number, number]>): void {
-    if (!this.isAuthenticated || this.userId === null) {
+    if (!this.isAuthenticated || this.connectionId === null) {
       return;
     }
 

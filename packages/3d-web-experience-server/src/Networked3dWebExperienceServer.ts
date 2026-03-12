@@ -1,8 +1,22 @@
+import http from "http";
+
+import {
+  experienceProtocolToDeltaNetSubProtocol,
+  FROM_CLIENT_CHAT_MESSAGE_TYPE,
+  FROM_SERVER_CHAT_MESSAGE_TYPE,
+  handleExperienceWebsocketSubprotocol,
+  MAX_CHAT_MESSAGE_LENGTH,
+  parseClientChatMessage,
+  FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
+  type ServerChatMessage,
+  type WorldConfigPayload,
+} from "@mml-io/3d-web-experience-protocol";
 import {
   UserData,
   UserNetworkingServer,
   UserNetworkingServerError,
 } from "@mml-io/3d-web-user-networking";
+import { NetworkedDOM } from "@mml-io/networked-dom-server";
 import cors from "cors";
 import express from "express";
 import enableWs from "express-ws";
@@ -11,25 +25,29 @@ import ws from "ws";
 import { MMLDocumentsServer } from "./MMLDocumentsServer";
 import { websocketDirectoryChangeListener } from "./websocketDirectoryChangeListener";
 
-type UserAuthenticator = {
-  generateAuthorizedSessionToken(req: express.Request): Promise<string | null>;
+export type UserAuthenticator = {
+  generateAuthorizedSessionToken(
+    req: express.Request,
+  ): Promise<string | { redirect: string } | null>;
   getClientIdForSessionToken: (sessionToken: string) => {
     id: number;
   } | null;
+  getSessionAuthToken?(sessionToken: string): string | null | Promise<string | null>;
   onClientConnect(
-    clientId: number,
+    connectionId: number,
     sessionToken: string,
     userIdentityPresentedOnConnection?: UserData,
   ): Promise<UserData | true | Error> | UserData | true | Error;
-  onClientUserIdentityUpdate(clientId: number, userIdentity: UserData): UserData | true | Error;
-  onClientDisconnect(clientId: number): void;
+  onClientUserIdentityUpdate(connectionId: number, userIdentity: UserData): UserData | true | Error;
+  onClientDisconnect(connectionId: number): void;
+  dispose?(): void;
 };
 
 export const defaultSessionTokenPlaceholder = "SESSION.TOKEN.PLACEHOLDER";
 
 export type Networked3dWebExperienceServerConfig = {
   networkPath: string;
-  webClientServing: {
+  webClientServing?: {
     indexUrl: string;
     indexContent: string;
     sessionTokenPlaceholder?: string;
@@ -38,7 +56,6 @@ export type Networked3dWebExperienceServerConfig = {
     clientUrl: string;
     clientWatchWebsocketPath?: string;
   };
-  enableChat?: boolean;
   assetServing?: {
     assetsDir: string;
     assetsUrl: string;
@@ -49,12 +66,39 @@ export type Networked3dWebExperienceServerConfig = {
     documentsUrl: string;
   };
   userAuthenticator: UserAuthenticator;
+  /**
+   * Whether to relay chat messages between clients. Defaults to true.
+   */
+  enableChat?: boolean;
+  /**
+   * Initial world config sent to each client after authentication.
+   * See `UpdatableConfig` from `@mml-io/3d-web-experience-client` for the
+   * full typed version consumed by the client.
+   */
+  worldConfig?: WorldConfigPayload;
 };
+
+/**
+ * Escape a string for safe injection into a JavaScript string literal
+ * inside a `<script>` block. HTML entity escaping (`&amp;` etc.) does NOT
+ * work inside `<script>` — browsers treat script content as raw text.
+ */
+function escapeForJsString(str: string): string {
+  return str
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r")
+    .replace(/<\/(script)/gi, "<\\/$1");
+}
 
 export class Networked3dWebExperienceServer {
   public userNetworkingServer: UserNetworkingServer;
 
   public mmlDocumentsServer?: MMLDocumentsServer;
+
+  private worldConfig: WorldConfigPayload | undefined;
 
   constructor(private config: Networked3dWebExperienceServerConfig) {
     if (this.config.mmlServing) {
@@ -62,35 +106,99 @@ export class Networked3dWebExperienceServer {
       this.mmlDocumentsServer = new MMLDocumentsServer(documentsDirectoryRoot, documentsWatchPath);
     }
 
+    this.worldConfig = this.config.worldConfig;
+
     this.userNetworkingServer = new UserNetworkingServer({
-      legacyAdapterEnabled: true,
       onClientConnect: (
-        clientId: number,
+        connectionId: number,
         sessionToken: string,
         userIdentityPresentedOnConnection?: UserData,
       ): Promise<UserData | true | Error> | UserData | true | Error => {
         return this.config.userAuthenticator.onClientConnect(
-          clientId,
+          connectionId,
           sessionToken,
           userIdentityPresentedOnConnection,
         );
       },
       onClientUserIdentityUpdate: (
-        clientId: number,
+        connectionId: number,
         userIdentity: UserData,
       ): UserData | true | Error => {
         // Called whenever a user connects or updates their character/identity
-        return this.config.userAuthenticator.onClientUserIdentityUpdate(clientId, userIdentity);
+        return this.config.userAuthenticator.onClientUserIdentityUpdate(connectionId, userIdentity);
       },
-      onClientDisconnect: (clientId: number): void => {
-        this.config.userAuthenticator.onClientDisconnect(clientId);
+      onClientDisconnect: (connectionId: number): void => {
+        this.config.userAuthenticator.onClientDisconnect(connectionId);
       },
+      onClientAuthenticated: (connectionId: number): void => {
+        if (this.worldConfig) {
+          this.userNetworkingServer.sendCustomMessageToClient(
+            connectionId,
+            FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
+            JSON.stringify(this.worldConfig),
+          );
+        }
+      },
+      onCustomMessage: (connectionId: number, customType: number, contents: string): void => {
+        if (customType === FROM_CLIENT_CHAT_MESSAGE_TYPE) {
+          // When enableChat is explicitly set use that, otherwise fall back to
+          // the value from worldConfig so that server relay and client UI agree.
+          const chatEnabled = this.config.enableChat ?? this.worldConfig?.enableChat ?? true;
+          if (!chatEnabled) {
+            return;
+          }
+          const chatMessage = parseClientChatMessage(contents);
+          if (chatMessage instanceof Error) {
+            console.error(`Invalid chat message from connection ${connectionId}:`, chatMessage);
+            // Notify the client that their message was rejected
+            const errorPayload: ServerChatMessage = {
+              fromConnectionId: 0,
+              userId: "",
+              message: "[Server] Your message could not be delivered (invalid format).",
+            };
+            this.userNetworkingServer.sendCustomMessageToClient(
+              connectionId,
+              FROM_SERVER_CHAT_MESSAGE_TYPE,
+              JSON.stringify(errorPayload),
+            );
+          } else {
+            const senderUser = this.userNetworkingServer.getAuthenticatedUser(connectionId);
+            const serverChatMessage: ServerChatMessage = {
+              fromConnectionId: connectionId,
+              userId: senderUser?.userId ?? "",
+              message: chatMessage.message.substring(0, MAX_CHAT_MESSAGE_LENGTH),
+            };
+            this.userNetworkingServer.broadcastMessage(
+              FROM_SERVER_CHAT_MESSAGE_TYPE,
+              JSON.stringify(serverChatMessage),
+            );
+          }
+        }
+      },
+      resolveProtocol: experienceProtocolToDeltaNetSubProtocol,
     });
   }
 
-  public updateUserCharacter(clientId: number, userData: UserData) {
-    console.log(`Initiate server-side update of client ${clientId}`);
-    this.userNetworkingServer.updateUserCharacter(clientId, userData);
+  /**
+   * Update the world config and optionally broadcast it to all connected clients.
+   * Newly connecting clients will receive the updated config after authentication.
+   *
+   * By default the update is broadcast to all clients. Pass `{ broadcast: false }`
+   * to update the stored config without notifying existing clients.
+   */
+  public setWorldConfig(config: WorldConfigPayload, options?: { broadcast?: boolean }) {
+    this.worldConfig = config;
+    if (options?.broadcast !== false) {
+      this.userNetworkingServer.broadcastMessage(
+        FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
+        JSON.stringify(this.worldConfig),
+      );
+    }
+  }
+
+  public updateUserCharacter(connectionId: number, userData: UserData) {
+    console.log(`Initiate server-side update of connection ${connectionId}`);
+    this.userNetworkingServer.updateUserCharacter(connectionId, userData);
   }
 
   public dispose(error?: UserNetworkingServerError) {
@@ -98,9 +206,39 @@ export class Networked3dWebExperienceServer {
     if (this.mmlDocumentsServer) {
       this.mmlDocumentsServer.dispose();
     }
+    this.config.userAuthenticator.dispose?.();
   }
 
-  registerExpressRoutes(app: enableWs.Application) {
+  /**
+   * Register all HTTP and WebSocket routes on the given Express application.
+   *
+   * Accepts either a plain `express.Application` or one that already has
+   * `express-ws` applied. If WebSocket support has not been applied yet, this
+   * method calls `enableWs()` internally with the required sub-protocol
+   * handling. If the application already has a `.ws()` method (i.e. the caller
+   * applied `express-ws` themselves), the existing setup is reused.
+   */
+  registerExpressRoutes(expressApp: express.Application | enableWs.Application) {
+    const mmlDocumentsUrl = this.config.mmlServing?.documentsUrl;
+
+    // If the caller already applied express-ws, reuse it; otherwise apply it
+    // ourselves with the required handleProtocols configuration.
+    let app: enableWs.Application;
+    if (typeof (expressApp as enableWs.Application).ws === "function") {
+      app = expressApp as enableWs.Application;
+    } else {
+      ({ app } = enableWs(expressApp, undefined, {
+        wsOptions: {
+          handleProtocols: (protocols: Set<string>, request: http.IncomingMessage) => {
+            if (mmlDocumentsUrl && request.url?.startsWith(mmlDocumentsUrl)) {
+              return NetworkedDOM.handleWebsocketSubprotocol(protocols);
+            }
+            return handleExperienceWebsocketSubprotocol(protocols);
+          },
+        },
+      }));
+    }
+
     app.ws(this.config.networkPath, (ws) => {
       this.userNetworkingServer.connectClient(ws as unknown as WebSocket);
     });
@@ -108,14 +246,30 @@ export class Networked3dWebExperienceServer {
     const webClientServing = this.config.webClientServing;
     if (webClientServing) {
       app.get(webClientServing.indexUrl, async (req: express.Request, res: express.Response) => {
-        const token = await this.config.userAuthenticator.generateAuthorizedSessionToken(req);
-        if (!token) {
+        const result = await this.config.userAuthenticator.generateAuthorizedSessionToken(req);
+        if (result === null) {
           res.send("Error: Could not generate token");
+          return;
+        }
+        if (typeof result === "object" && "redirect" in result) {
+          try {
+            const redirectUrl = new URL(result.redirect);
+            if (redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:") {
+              console.error("Redirect URL has disallowed scheme:", result.redirect);
+              res.send("Error: Invalid redirect URL");
+              return;
+            }
+          } catch {
+            console.error("Invalid redirect URL from authenticator:", result.redirect);
+            res.send("Error: Invalid redirect URL");
+            return;
+          }
+          res.redirect(result.redirect);
           return;
         }
         const authorizedDemoIndexContent = webClientServing.indexContent.replace(
           webClientServing.sessionTokenPlaceholder || defaultSessionTokenPlaceholder,
-          token,
+          escapeForJsString(result),
         );
         res.send(authorizedDemoIndexContent);
       });

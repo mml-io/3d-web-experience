@@ -386,6 +386,14 @@ export class CameraManager {
     this.setTarget(target);
   }
 
+  /** Set the horizontal orbit angle (theta). The camera will smoothly rotate to this angle via the shortest path. */
+  public setOrbitAngle(theta: number): void {
+    // Normalize so the camera takes the shortest rotation path
+    let delta = theta - this.theta;
+    delta = delta - Math.round(delta / (2 * Math.PI)) * 2 * Math.PI;
+    this.targetTheta = this.theta + delta;
+  }
+
   public reverseUpdateFromPositions(position: Vect3, rotation: Quat): void {
     const dx = position.x - this.target.x;
     const dy = position.y - this.target.y;

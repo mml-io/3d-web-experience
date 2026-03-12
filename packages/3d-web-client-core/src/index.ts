@@ -3,6 +3,7 @@ export {
   CharacterManager,
   SpawnConfiguration,
   SpawnConfigurationState,
+  normalizeSpawnConfiguration,
 } from "./character/CharacterManager";
 export * from "./character/Spawning";
 export * from "./character/url-position";
@@ -10,6 +11,13 @@ export * from "./character/types";
 export * from "./helpers/math-helpers";
 export * from "./rendering/IRenderer";
 export { CharacterState, AnimationState } from "./character/CharacterState";
+export {
+  InputOutput,
+  InputProvider,
+  CameraProvider,
+  LocalControllerConfig,
+  LocalController,
+} from "./character/LocalController";
 export { AnimationMixer, AnimationWeights, AnimationTimes } from "./character/AnimationMixer";
 export { Key, KeyInputManager } from "./input/KeyInputManager";
 export { VirtualJoystick } from "./input/VirtualJoystick";

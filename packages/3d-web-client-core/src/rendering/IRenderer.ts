@@ -46,7 +46,7 @@ export type CharacterRenderState = {
 export type RenderState = {
   characters: Map<number, CharacterRenderState>;
   updatedCharacterDescriptions: number[];
-  removedUserIds: number[];
+  removedConnectionIds: number[];
   cameraTransform: CameraTransform;
   localCharacterId: number | null;
   deltaTimeSeconds: number;

@@ -1,3 +1,8 @@
+import {
+  experienceClientSubProtocols,
+  experienceProtocolToDeltaNetSubProtocol,
+} from "@mml-io/3d-web-experience-protocol";
+
 import { Bot } from "./Bot";
 import { BotRunner, BotRunnerConfig } from "./BotRunner";
 
@@ -19,6 +24,8 @@ const webWorldConfig: BotRunnerConfig = {
   usernameStateId: 2,
   characterDescriptionStateId: 1,
   avatarColorStateId: 3,
+  subProtocols: [...experienceClientSubProtocols],
+  resolveProtocol: experienceProtocolToDeltaNetSubProtocol,
   restartConfig: {
     minInterval: 10000,
     maxInterval: 20000,

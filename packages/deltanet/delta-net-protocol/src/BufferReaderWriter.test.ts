@@ -1,5 +1,5 @@
 import { BufferReader } from "./BufferReader";
-import { BufferWriter } from "./BufferWriter";
+import { BufferWriter, zigzagEncode } from "./BufferWriter";
 
 describe("BufferReader and BufferWriter", () => {
   describe("basic operations", () => {
@@ -574,6 +574,224 @@ describe("BufferReader and BufferWriter", () => {
       expect(() => {
         reader.readUVarint();
       }).toThrow("invalid varint encoding");
+    });
+  });
+
+  describe("negative varint values", () => {
+    // Test negative values specifically to exercise zigzag decode branches
+    it("should handle negative varints near boundaries", () => {
+      const values = [-1, -63, -64, -65, -127, -128, -129, -8191, -8192, -8193];
+      const writer = new BufferWriter(100);
+      for (const value of values) {
+        writer.writeVarint(value);
+      }
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      for (const expected of values) {
+        expect(reader.readVarint()).toBe(expected);
+      }
+    });
+
+    it("should handle large negative varints", () => {
+      const values = [-1048575, -1048576, -1048577, -(2 ** 31 - 1), -(2 ** 31), -(2 ** 32)];
+      const writer = new BufferWriter(100);
+      for (const value of values) {
+        writer.writeVarint(value);
+      }
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      for (const expected of values) {
+        expect(reader.readVarint()).toBe(expected);
+      }
+    });
+
+    it("should handle negative bigint varints near boundaries", () => {
+      const values = [
+        -1n,
+        -63n,
+        -64n,
+        -65n,
+        -127n,
+        -128n,
+        -8191n,
+        -8192n,
+        -(2n ** 31n),
+        -(2n ** 32n),
+        -(2n ** 63n),
+      ];
+      const writer = new BufferWriter(200);
+      for (const value of values) {
+        writer.writeBigIntVarint(value);
+      }
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      for (const expected of values) {
+        expect(reader.readBigIntVarint()).toBe(expected);
+      }
+    });
+  });
+
+  describe("boolean array packing edge cases", () => {
+    it("should handle all boolean array sizes from 1 to 33", () => {
+      for (let size = 1; size <= 33; size++) {
+        // Create array with alternating pattern
+        const boolArray = Array.from({ length: size }, (_, i) => i % 2 === 0);
+        const writer = new BufferWriter(50);
+        writer.writeLengthPrefixedBoolArray(boolArray);
+        const buffer = writer.getBuffer();
+        const reader = new BufferReader(buffer);
+        const result = reader.readLengthPrefixedBoolArray();
+        expect(result).toEqual(boolArray);
+      }
+    });
+
+    it("should handle all-true and all-false boolean arrays of various sizes", () => {
+      for (const size of [1, 7, 8, 9, 15, 16, 17, 31, 32, 33]) {
+        const allTrue = Array(size).fill(true);
+        const allFalse = Array(size).fill(false);
+
+        for (const arr of [allTrue, allFalse]) {
+          const writer = new BufferWriter(50);
+          writer.writeLengthPrefixedBoolArray(arr);
+          const buffer = writer.getBuffer();
+          const reader = new BufferReader(buffer);
+          expect(reader.readLengthPrefixedBoolArray()).toEqual(arr);
+        }
+      }
+    });
+
+    it("should handle single-bit boolean arrays", () => {
+      for (const val of [true, false]) {
+        const writer = new BufferWriter(10);
+        writer.writeLengthPrefixedBoolArray([val]);
+        const buffer = writer.getBuffer();
+        const reader = new BufferReader(buffer);
+        expect(reader.readLengthPrefixedBoolArray()).toEqual([val]);
+      }
+    });
+  });
+
+  describe("writer buffer growth", () => {
+    it("should grow buffer when writing more data than initial capacity", () => {
+      // Start with very small buffer
+      const writer = new BufferWriter(2);
+      // Write more than 2 bytes
+      writer.writeUVarint(0);
+      writer.writeUVarint(1);
+      writer.writeUVarint(128); // 2 bytes
+      writer.writeUVarint(16384); // 3 bytes
+      writer.writeUVarint(2097152); // 4 bytes
+
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      expect(reader.readUVarint()).toBe(0);
+      expect(reader.readUVarint()).toBe(1);
+      expect(reader.readUVarint()).toBe(128);
+      expect(reader.readUVarint()).toBe(16384);
+      expect(reader.readUVarint()).toBe(2097152);
+      expect(reader.isEnd()).toBe(true);
+    });
+
+    it("should handle writing large strings that exceed initial capacity", () => {
+      const writer = new BufferWriter(4);
+      const longString = "x".repeat(500);
+      writer.writeLengthPrefixedString(longString);
+
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      expect(reader.readUVarintPrefixedString()).toBe(longString);
+    });
+  });
+
+  describe("BufferWriter edge cases", () => {
+    it("should report written length via getWrittenLength()", () => {
+      const writer = new BufferWriter(16);
+      expect(writer.getWrittenLength()).toBe(0);
+      writer.writeUint8(42);
+      expect(writer.getWrittenLength()).toBe(1);
+      writer.writeUVarint(128);
+      expect(writer.getWrittenLength()).toBe(3); // 1 + 2 bytes for varint 128
+    });
+
+    it("should throw when writeUVarintLengthPrefixedBytes receives non-Uint8Array", () => {
+      const writer = new BufferWriter(16);
+      expect(() => {
+        writer.writeUVarintLengthPrefixedBytes("not a uint8array" as any);
+      }).toThrow("bytes must be a Uint8Array");
+    });
+
+    it("should handle non-ASCII strings with varint length encoding", () => {
+      const writer = new BufferWriter(16);
+      writer.writeLengthPrefixedString("日本語テスト", true);
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      const [result, negative] = reader.readVarintPrefixedString();
+      expect(result).toBe("日本語テスト");
+      expect(negative).toBe(false);
+    });
+
+    it("should handle non-ASCII strings with negative varint length encoding", () => {
+      const writer = new BufferWriter(16);
+      writer.writeLengthPrefixedString("café", true, true);
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      const [result, negative] = reader.readVarintPrefixedString();
+      expect(result).toBe("café");
+      expect(negative).toBe(true);
+    });
+
+    it("should handle non-ASCII strings that require buffer expansion", () => {
+      const writer = new BufferWriter(4); // very small initial buffer
+      const longNonAscii = "日本語".repeat(50);
+      writer.writeLengthPrefixedString(longNonAscii);
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+      expect(reader.readUVarintPrefixedString()).toBe(longNonAscii);
+    });
+  });
+
+  describe("zigzagEncode export", () => {
+    it("should encode positive values as 2*n", () => {
+      expect(zigzagEncode(0)).toBe(0);
+      expect(zigzagEncode(1)).toBe(2);
+      expect(zigzagEncode(100)).toBe(200);
+    });
+
+    it("should encode negative values as 2*|n|-1", () => {
+      expect(zigzagEncode(-1)).toBe(1);
+      expect(zigzagEncode(-2)).toBe(3);
+      expect(zigzagEncode(-100)).toBe(199);
+    });
+  });
+
+  describe("non-advancing reads", () => {
+    it("readUVarint with signed=true should decode as signed (zigzag)", () => {
+      const writer = new BufferWriter(10);
+      writer.writeVarint(-42);
+      writer.writeVarint(99);
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+
+      // Read using readUVarint(true) which is equivalent to readVarint()
+      const val1 = reader.readUVarint(true);
+      expect(val1).toBe(-42);
+      // Next read should get 99
+      const val2 = reader.readUVarint(true);
+      expect(val2).toBe(99);
+    });
+
+    it("readUVarint with signed=false should decode as unsigned", () => {
+      const writer = new BufferWriter(10);
+      writer.writeUVarint(42);
+      writer.writeUVarint(99);
+      const buffer = writer.getBuffer();
+      const reader = new BufferReader(buffer);
+
+      // Read without signed flag (default)
+      const val1 = reader.readUVarint(false);
+      expect(val1).toBe(42);
+      const val2 = reader.readUVarint();
+      expect(val2).toBe(99);
     });
   });
 });

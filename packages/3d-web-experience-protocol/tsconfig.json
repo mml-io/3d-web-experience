@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "module": "es2022",
+    "target": "es2022",
+    "lib": ["es2022"],
+    "sourceMap": true,
+    "allowJs": true,
+    "types": ["node"],
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "outDir": "./build",
+    "incremental": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*", "./build.ts"],
+  "exclude": ["**/build/*"]
+}

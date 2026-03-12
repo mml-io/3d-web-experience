@@ -65,6 +65,70 @@ describe("DeflateCompressor", () => {
     expect(compressionRatio).toBeLessThan(0.3);
   });
 
+  it("should compress and decompress with NONE mode (no compression)", () => {
+    const testData = new BigInt64Array([1n, 2n, 3n, -4n, 5n]);
+    const [uncompressed, compressed] = DeflateCompressor.varIntCompress(
+      testData,
+      testData.length,
+      CompressionLibraryChoice.NONE,
+    );
+    // NONE mode: compressed should equal uncompressed (just a copy)
+    expect(toNumberArray(compressed)).toEqual(toNumberArray(uncompressed));
+    const decompressed = DeflateCompressor.varIntDecompress(
+      compressed,
+      testData.length,
+      CompressionLibraryChoice.NONE,
+    );
+    expect(decompressed).toEqual(testData);
+  });
+
+  it("should compress and decompress byte arrays with NONE mode", () => {
+    const testData = [new Uint8Array([1, 2]), new Uint8Array([3, 4, 5]), null];
+    const [uncompressed, compressed] = DeflateCompressor.varIntBytesCompress(
+      testData,
+      testData.length,
+      CompressionLibraryChoice.NONE,
+    );
+    expect(toNumberArray(compressed)).toEqual(toNumberArray(uncompressed));
+    const decompressed = DeflateCompressor.varIntBytesDecompress(
+      compressed,
+      testData.length,
+      CompressionLibraryChoice.NONE,
+    );
+    expect(toNumberArray(decompressed[0])).toEqual([1, 2]);
+    expect(toNumberArray(decompressed[1])).toEqual([3, 4, 5]);
+    expect(toNumberArray(decompressed[2])).toEqual([]);
+  });
+
+  it("should throw when varIntCompress length exceeds data length", () => {
+    const testData = new BigInt64Array([1n, 2n]);
+    expect(() => {
+      DeflateCompressor.varIntCompress(testData, 10);
+    }).toThrow("length is greater than the data length");
+  });
+
+  it("should throw when varIntBytesCompress length exceeds data length", () => {
+    const testData = [new Uint8Array([1])];
+    expect(() => {
+      DeflateCompressor.varIntBytesCompress(testData, 5);
+    }).toThrow("length is greater than the data length");
+  });
+
+  it("should compress and decompress with PAKO explicitly", () => {
+    const data = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const compressed = DeflateCompressor.compress(data, CompressionLibraryChoice.PAKO);
+    const decompressed = DeflateCompressor.decompress(compressed, CompressionLibraryChoice.PAKO);
+    expect(toNumberArray(decompressed)).toEqual(toNumberArray(data));
+  });
+
+  it("should compress and decompress raw data with NONE mode", () => {
+    const data = new Uint8Array([10, 20, 30]);
+    const compressed = DeflateCompressor.compress(data, CompressionLibraryChoice.NONE);
+    expect(toNumberArray(compressed)).toEqual([10, 20, 30]);
+    const decompressed = DeflateCompressor.decompress(compressed, CompressionLibraryChoice.NONE);
+    expect(toNumberArray(decompressed)).toEqual([10, 20, 30]);
+  });
+
   describe("Compression Library Compatibility", () => {
     const testData = new BigInt64Array([
       0n,

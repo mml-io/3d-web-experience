@@ -196,10 +196,10 @@ export class ThreeJSWorldRenderer implements IRenderer {
     // Update local character ID from render state
     this.localCharacterId = state.localCharacterId;
 
-    const { removedUserIds, deltaTimeSeconds } = state;
+    const { removedConnectionIds, deltaTimeSeconds } = state;
 
     // Handle removed characters
-    for (const characterId of removedUserIds) {
+    for (const characterId of removedConnectionIds) {
       this.characterManager.despawnCharacter(characterId);
     }
 

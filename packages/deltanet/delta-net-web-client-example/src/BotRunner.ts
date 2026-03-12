@@ -16,6 +16,8 @@ export type BotRunnerConfig = {
   usernameStateId?: number;
   characterDescriptionStateId?: number;
   yValue: number;
+  subProtocols?: string[];
+  resolveProtocol?: (websocketProtocol: string) => string | null;
 };
 
 export interface BotConfig {
@@ -28,6 +30,8 @@ export interface BotConfig {
   characterDescriptionStateId?: number;
   colorStateId?: number;
   avatarColorStateId?: number;
+  subProtocols?: string[];
+  resolveProtocol?: (websocketProtocol: string) => string | null;
 }
 
 export class BotRunner {
@@ -130,6 +134,8 @@ export class BotRunner {
         usernameStateId: this.config.usernameStateId,
         characterDescriptionStateId: this.config.characterDescriptionStateId,
         avatarColorStateId: this.config.avatarColorStateId,
+        subProtocols: this.config.subProtocols,
+        resolveProtocol: this.config.resolveProtocol,
       };
 
       const bot = this.addBot(config);

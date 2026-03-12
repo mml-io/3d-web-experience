@@ -21,11 +21,13 @@
     "iterate": "tsx ./build.ts --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
-    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
+    "@mml-io/3d-web-experience-protocol": "^0.26.1",
     "@mml-io/3d-web-user-networking": "^0.26.1",
-    "@mml-io/networked-dom-server": "0.25.0",
+    "@mml-io/networked-dom-server": "0.26.1",
     "chokidar": "4.0.3",
     "cors": "^2.8.5",
     "express": "^4.21.2",
@@ -34,11 +36,16 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@jest/globals": "29.7.0",
     "@types/cors": "2.8.17",
     "@types/express": "^5.0.0",
     "@types/express-ws": "^3.0.5",
     "@types/jest": "^29.5.12",
     "@types/micromatch": "^4.0.9",
-    "@types/node": "^22.13.1"
+    "@types/node": "^22.13.1",
+    "cross-env": "^7.0.3",
+    "jest": "^29.7.0",
+    "jest-junit": "16.0.0",
+    "ts-jest": "^29.1.2"
   }
 }

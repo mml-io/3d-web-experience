@@ -15,6 +15,8 @@ if (args.length !== 1) {
 
 const mode = args[0];
 
+const isWatch = mode === watchMode;
+
 const buildOptions: esbuild.BuildOptions = {
   entryPoints: {
     index: "src/index.ts",
@@ -23,7 +25,10 @@ const buildOptions: esbuild.BuildOptions = {
   write: true,
   metafile: true,
   sourcemap: "linked",
-  minify: false,
+  minify: !isWatch,
+  define: {
+    "process.env.NODE_ENV": isWatch ? '"development"' : '"production"',
+  },
   outdir: "./build/",
   assetNames: "[dir]/[name]-[hash]",
   preserveSymlinks: true,

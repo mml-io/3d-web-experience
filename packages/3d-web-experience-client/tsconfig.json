@@ -3,7 +3,6 @@
     "noImplicitAny": true,
     "module": "es2022",
     "target": "es2022",
-    "jsx": "react-jsx",
     "lib": ["es2022", "dom"],
     "esModuleInterop": true,
     "sourceMap": true,

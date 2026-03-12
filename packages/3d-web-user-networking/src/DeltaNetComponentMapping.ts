@@ -10,16 +10,16 @@ export const COMPONENT_POSITION_X = 1;
 export const COMPONENT_POSITION_Y = 2;
 export const COMPONENT_POSITION_Z = 3;
 export const COMPONENT_ROTATION_Y = 4;
-export const COMPONENT_ROTATION_W = 5;
-export const COMPONENT_STATE = 6;
+export const COMPONENT_STATE = 5;
 
 // State IDs for binary data
 export const STATE_INTERNAL_CONNECTION_ID = 0;
 export const STATE_CHARACTER_DESCRIPTION = 1;
 export const STATE_USERNAME = 2;
 export const STATE_COLORS = 3;
+export const STATE_USER_ID = 4;
 
-export const rotationMultiplier = 360;
+export const rotationMultiplier = 10000;
 export const positionMultiplier = 100;
 const textDecoder = new TextDecoder();
 
@@ -44,15 +44,10 @@ export class DeltaNetComponentMapping {
       BigInt(Math.round(update.position.z * positionMultiplier)),
     );
 
-    // Convert quaternion values to fixed-point representation
-    // Using 32767 scale to match original codec precision
+    // Convert Euler Y rotation (radians) to fixed-point representation
     components.set(
       COMPONENT_ROTATION_Y,
-      BigInt(Math.round(update.rotation.quaternionY * rotationMultiplier)),
-    );
-    components.set(
-      COMPONENT_ROTATION_W,
-      BigInt(Math.round(update.rotation.quaternionW * rotationMultiplier)),
+      BigInt(Math.round(update.rotation.eulerY * rotationMultiplier)),
     );
 
     // State is already an integer
@@ -71,16 +66,13 @@ export class DeltaNetComponentMapping {
       Number(components.get(COMPONENT_POSITION_Y) || BigInt(0)) / positionMultiplier;
     const positionZ =
       Number(components.get(COMPONENT_POSITION_Z) || BigInt(0)) / positionMultiplier;
-    const rotationY =
-      Number(components.get(COMPONENT_ROTATION_Y) || BigInt(0)) / rotationMultiplier;
-    const rotationW =
-      Number(components.get(COMPONENT_ROTATION_W) || BigInt(0)) / rotationMultiplier;
+    const eulerY = Number(components.get(COMPONENT_ROTATION_Y) || BigInt(0)) / rotationMultiplier;
 
     const state = Number(components.get(COMPONENT_STATE) || BigInt(0));
 
     return {
       position: { x: positionX, y: positionY, z: positionZ },
-      rotation: { quaternionY: rotationY, quaternionW: rotationW },
+      rotation: { eulerY },
       state,
     };
   }
@@ -91,6 +83,10 @@ export class DeltaNetComponentMapping {
   static toStates(userIdentity: UserData): Map<number, Uint8Array> {
     const states = new Map<number, Uint8Array>();
     const textEncoder = new TextEncoder();
+
+    if (userIdentity.userId !== undefined && userIdentity.userId !== null) {
+      states.set(STATE_USER_ID, textEncoder.encode(userIdentity.userId));
+    }
 
     if (userIdentity.username) {
       // Encode username
@@ -110,6 +106,26 @@ export class DeltaNetComponentMapping {
     }
 
     return states;
+  }
+
+  /**
+   * Encode userId to binary state
+   */
+  static toUserIdState(userId: string): Map<number, Uint8Array> {
+    const states = new Map<number, Uint8Array>();
+    const textEncoder = new TextEncoder();
+    states.set(STATE_USER_ID, textEncoder.encode(userId));
+    return states;
+  }
+
+  /**
+   * Decode persistent userId from binary state
+   */
+  static persistentUserIdFromBytes(bytes: Uint8Array): string | null {
+    if (bytes.length === 0) {
+      return null;
+    }
+    return textDecoder.decode(bytes);
   }
 
   /**
@@ -169,6 +185,11 @@ export class DeltaNetComponentMapping {
           states.set(stateId, DeltaNetComponentMapping.encodeColors(value));
         }
         break;
+      case STATE_USER_ID:
+        if (typeof value === "string") {
+          states.set(stateId, textEncoder.encode(value));
+        }
+        break;
     }
 
     return states;
@@ -211,6 +232,11 @@ export class DeltaNetComponentMapping {
   }
 
   static fromUserStates(states: Map<number, Uint8Array>, logger: UserNetworkingLogger): UserData {
+    const userIdBytes = states.get(STATE_USER_ID);
+    const userId = userIdBytes
+      ? (DeltaNetComponentMapping.persistentUserIdFromBytes(userIdBytes) ?? "")
+      : "";
+
     const usernameBytes = states.get(STATE_USERNAME);
     const username = usernameBytes
       ? DeltaNetComponentMapping.usernameFromBytes(usernameBytes)
@@ -224,9 +250,9 @@ export class DeltaNetComponentMapping {
     const colorsBytes = states.get(STATE_COLORS);
     const colorsArray = colorsBytes
       ? DeltaNetComponentMapping.decodeColors(colorsBytes, logger)
-      : [];
+      : null;
 
-    return { username, characterDescription, colors: colorsArray };
+    return { userId, username, characterDescription, colors: colorsArray };
   }
 
   static userIdFromBytes(bytes: Uint8Array): number | null {
@@ -247,7 +273,11 @@ export class DeltaNetComponentMapping {
     if (bytes.length === 0) {
       return null;
     }
-    return JSON.parse(textDecoder.decode(bytes));
+    try {
+      return JSON.parse(textDecoder.decode(bytes));
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -257,17 +287,17 @@ export class DeltaNetComponentMapping {
     states: Map<number, Uint8Array>,
     logger: UserNetworkingLogger,
   ): {
-    userId: number | null;
+    connectionId: number | null;
   } & UserData {
-    const userIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
-    let userId: number | null = null;
-    if (userIdBytes) {
-      const reader = new BufferReader(userIdBytes);
-      userId = reader.readUVarint(false);
+    const connectionIdBytes = states.get(STATE_INTERNAL_CONNECTION_ID);
+    let connectionId: number | null = null;
+    if (connectionIdBytes) {
+      const reader = new BufferReader(connectionIdBytes);
+      connectionId = reader.readUVarint(false);
     }
 
     const userStates = DeltaNetComponentMapping.fromUserStates(states, logger);
 
-    return { userId, ...userStates };
+    return { connectionId, ...userStates };
   }
 }

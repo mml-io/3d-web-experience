@@ -1,3 +1,4 @@
 ignores: [
-  "base64:draco3d"
+  "base64:draco3d",
+  "jest-environment-jsdom"
 ]
