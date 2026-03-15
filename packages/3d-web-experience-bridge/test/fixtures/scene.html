@@ -1,0 +1,55 @@
+<m-group>
+  <!-- Clickable cube near origin — has an onclick so it registers as clickable -->
+  <m-cube
+    id="button-cube"
+    x="3"
+    y="0.5"
+    z="3"
+    color="red"
+    onclick="this.setAttribute('color', 'green')"
+  ></m-cube>
+
+  <!--
+    Wall blocking the direct path from origin to (20, 0, 0).
+    Centred at x=10, extends z from -6 to +6.
+    sy=16 makes the wall tall enough (top at y=8) that the
+    navmesh cannot create jump links over it (MAX_JUMP_HEIGHT=7).
+    collide="true" ensures it becomes a physics collider and
+    appears in the navmesh, forcing pathfinding to route around it.
+  -->
+  <m-cube
+    id="wall"
+    x="10"
+    y="8"
+    z="0"
+    sx="1"
+    sy="16"
+    sz="12"
+    color="gray"
+    collide="true"
+  ></m-cube>
+
+  <!-- Target cube beyond the wall -->
+  <m-cube id="target-cube" x="20" y="0.5" z="0" color="blue"></m-cube>
+
+  <!-- Readable label sign -->
+  <m-label
+    id="sign"
+    x="3"
+    y="2"
+    z="3"
+    content="Test Sign"
+    width="2"
+    height="0.5"
+  ></m-label>
+
+  <!-- Proximity interaction -->
+  <m-interaction
+    id="test-interact"
+    x="3"
+    y="1"
+    z="3"
+    prompt="Press me"
+    range="5"
+  ></m-interaction>
+</m-group>
