@@ -1,0 +1,64 @@
+{
+  "name": "@mml-io/3d-web-experience-bridge",
+  "version": "0.26.1",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mml-io/3d-web-experience.git",
+    "directory": "packages/3d-web-experience-bridge"
+  },
+  "main": "./build/index.js",
+  "types": "./build/index.d.ts",
+  "type": "module",
+  "bin": {
+    "3d-web-bridge": "./build/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./build/index.d.ts",
+      "default": "./build/index.js"
+    },
+    "./node-polyfills": {
+      "types": "./build/node-polyfills.d.ts",
+      "default": "./build/node-polyfills.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "/build"
+  ],
+  "scripts": {
+    "depcheck": "depcheck --quiet",
+    "build": "tsx ./build.ts --build",
+    "iterate": "tsx ./build.ts --watch",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "vitest run && tsx --test test/model-loading.test.ts"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "0.1.52",
+    "@mml-io/3d-web-client-core": "0.26.1",
+    "@mml-io/3d-web-experience-client": "0.26.1",
+    "@mml-io/3d-web-experience-protocol": "0.26.1",
+    "@mml-io/3d-web-user-networking": "0.26.1",
+    "@mml-io/mml-web": "0.26.1",
+    "@mml-io/mml-web-threejs": "0.26.1",
+    "@modelcontextprotocol/sdk": "1.12.0",
+    "@recast-navigation/core": "0.35.0",
+    "@recast-navigation/generators": "0.35.0",
+    "express": "4.21.2",
+    "three": "0.182.0",
+    "three-mesh-bvh": "0.9.0",
+    "ws": "8.18.0",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@mml-io/3d-web-experience-server": "0.26.1",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.13.1",
+    "@types/three": "0.181.0",
+    "@types/ws": "^8.5.10",
+    "vitest": "4.0.17"
+  }
+}

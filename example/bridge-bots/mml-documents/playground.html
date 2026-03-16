@@ -1,0 +1,27 @@
+<m-label id="title" x="10" y="8" z="0" width="3" height="0.5" font-size="40" alignment="center" color="white" content="Playground"></m-label>
+
+<!-- Clickable cubes near each waypoint corner -->
+<m-cube id="cube-a" x="2" y="0.5" z="6" width="1" height="1" depth="1" color="green"></m-cube>
+<m-cube id="cube-b" x="18" y="0.5" z="6" width="1" height="1" depth="1" color="green"></m-cube>
+<m-cube id="cube-c" x="18" y="0.5" z="-6" width="1" height="1" depth="1" color="green"></m-cube>
+<m-cube id="cube-d" x="2" y="0.5" z="-6" width="1" height="1" depth="1" color="green"></m-cube>
+
+<!-- Central building: forces diagonal paths to route around it.
+     Tall enough (6m) that the navmesh won't generate jump links over it. -->
+<m-cube id="building" x="10" y="3" z="0" width="8" height="6" depth="6" color="#8B4513"></m-cube>
+
+<!-- Side walls to make navigation more interesting -->
+<m-cube id="wall-nw" x="5" y="3" z="4" width="2" height="6" depth="2" color="#4A6FA5"></m-cube>
+<m-cube id="wall-se" x="15" y="3" z="-4" width="2" height="6" depth="2" color="#4A6FA5"></m-cube>
+
+<script>
+  const colors = ["red", "orange", "yellow", "green", "blue", "purple"];
+  const cubes = document.querySelectorAll("#cube-a, #cube-b, #cube-c, #cube-d");
+  cubes.forEach((cube) => {
+    let colorIndex = 0;
+    cube.addEventListener("click", () => {
+      colorIndex = (colorIndex + 1) % colors.length;
+      cube.setAttribute("color", colors[colorIndex]);
+    });
+  });
+</script>
