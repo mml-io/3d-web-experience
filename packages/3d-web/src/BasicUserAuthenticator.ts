@@ -73,15 +73,24 @@ export class BasicUserAuthenticator implements UserAuthenticator {
     fallback: CharacterDescription | null,
   ): CharacterDescription | null {
     if (!desc) return fallback;
-    const urlFields = [desc.meshFileUrl, desc.mmlCharacterUrl, desc.mmlCharacterString].filter(
-      Boolean,
-    );
-    const totalLength = urlFields.reduce((sum, f) => sum + (f?.length ?? 0), 0);
+
+    // Whitelist-copy only fields that are actually strings to prevent non-string
+    // values from bypassing the size check or propagating invalid data
+    const sanitized: Record<string, string> = {};
+    if (typeof desc.meshFileUrl === "string") sanitized.meshFileUrl = desc.meshFileUrl;
+    if (typeof desc.mmlCharacterUrl === "string") sanitized.mmlCharacterUrl = desc.mmlCharacterUrl;
+    if (typeof desc.mmlCharacterString === "string")
+      sanitized.mmlCharacterString = desc.mmlCharacterString;
+
+    const fields = Object.values(sanitized);
+    if (fields.length === 0) return fallback;
+
+    const totalLength = fields.reduce((sum, f) => sum + f.length, 0);
     if (totalLength > 8192) {
       console.warn("[auth] characterDescription fields exceed 8KB limit, using default");
       return fallback;
     }
-    return desc;
+    return sanitized as unknown as CharacterDescription;
   }
 
   private sanitizeColors(

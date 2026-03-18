@@ -163,6 +163,26 @@ describe("DefaultHUDPlugin", () => {
     plugin.dispose();
   });
 
+  it("unrelated config update after hud: false does not recreate HUD", () => {
+    const client = createMockClient();
+    const plugin = new DefaultHUDPlugin();
+    plugin.mount(container, client);
+
+    // Default creation via empty config
+    plugin.onConfigChanged({});
+    expect(container.children.length).toBe(1);
+
+    // Explicitly disable
+    plugin.onConfigChanged({ hud: false });
+    expect(container.children.length).toBe(0);
+
+    // Unrelated config update — hud key is absent (undefined)
+    plugin.onConfigChanged({});
+    expect(container.children.length).toBe(0);
+
+    plugin.dispose();
+  });
+
   it("onConfigChanged with hud: false then hud object re-creates HUD", () => {
     const client = createMockClient();
     const plugin = new DefaultHUDPlugin();

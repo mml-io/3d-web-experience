@@ -94,6 +94,8 @@ export type Networked3dWebExperienceServerConfig = {
  * Escape a string for safe injection into a JavaScript string literal
  * inside a `<script>` block. All `<` characters are escaped to prevent
  * `</script>` and `<!--` sequences from interfering with HTML parsing.
+ * U+2028 and U+2029 are escaped because they are valid in JSON but act
+ * as line terminators in JavaScript string literals.
  */
 function escapeForJsString(str: string): string {
   return str
@@ -102,7 +104,9 @@ function escapeForJsString(str: string): string {
     .replace(/'/g, "\\'")
     .replace(/\n/g, "\\n")
     .replace(/\r/g, "\\r")
-    .replace(/</g, "\\u003c");
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 export class Networked3dWebExperienceServer {

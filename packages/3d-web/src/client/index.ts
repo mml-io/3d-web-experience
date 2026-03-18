@@ -113,6 +113,8 @@ function createExperienceApi(app: Networked3dWebExperienceClient): ExperienceApi
       } else if (event === "chat") {
         app.on("chat", handler as any);
       } else if (event === "player-join") {
+        // Skip if this handler is already registered to prevent listener leaks
+        if (playerJoinWrappers.has(handler)) return;
         const wrapper = (data: {
           connectionId: number;
           userId: string;
@@ -127,6 +129,8 @@ function createExperienceApi(app: Networked3dWebExperienceClient): ExperienceApi
         playerJoinWrappers.set(handler, wrapper);
         app.on("userJoined", wrapper);
       } else if (event === "player-leave") {
+        // Skip if this handler is already registered to prevent listener leaks
+        if (playerLeaveWrappers.has(handler)) return;
         const wrapper = (data: {
           connectionId: number;
           userId: string;

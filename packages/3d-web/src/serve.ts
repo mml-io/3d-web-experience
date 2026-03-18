@@ -26,10 +26,14 @@ const CONFIG_PLACEHOLDER = "CONFIG_PLACEHOLDER";
 /**
  * Escape a JSON string for safe embedding in a `<script>` block.
  * Replaces all `<` with `\u003c` to prevent `</script>` and `<!--` sequences
- * from interfering with HTML parsing.
+ * from interfering with HTML parsing, and escapes U+2028/U+2029 which are
+ * valid in JSON but act as line terminators in JavaScript string literals.
  */
 export function escapeJsonForScript(json: string): string {
-  return json.replace(/</g, "\\u003c");
+  return json
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 const BOT_AUTH_RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute

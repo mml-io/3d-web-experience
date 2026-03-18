@@ -646,6 +646,9 @@ export class DefaultHUDPlugin implements UIPlugin {
   private client: Networked3dWebExperienceClient | null = null;
   private currentMinimap = true;
   private currentPlayerList = true;
+  // Tracks whether the HUD has been explicitly configured or default-created,
+  // so that later partial config updates without a `hud` key are no-ops.
+  private hudInitialized = false;
 
   mount(container: HTMLElement, client: Networked3dWebExperienceClient): void {
     this.container = container;
@@ -654,8 +657,9 @@ export class DefaultHUDPlugin implements UIPlugin {
 
   onConfigChanged(config: Partial<UpdatableConfig>): void {
     if (config.hud === undefined) {
-      // No HUD config specified — create with defaults if not yet created
-      if (!this.hud && this.container && this.client) {
+      // No HUD config specified — only create with defaults on first config pass
+      if (!this.hudInitialized && !this.hud && this.container && this.client) {
+        this.hudInitialized = true;
         this.hud = createHUD(this.container, this.client, {
           minimap: this.currentMinimap,
           playerList: this.currentPlayerList,
@@ -663,6 +667,8 @@ export class DefaultHUDPlugin implements UIPlugin {
       }
       return;
     }
+
+    this.hudInitialized = true;
 
     if (config.hud === false) {
       this.hud?.dispose();
