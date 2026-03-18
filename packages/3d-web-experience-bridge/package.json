@@ -1,7 +1,9 @@
 {
   "name": "@mml-io/3d-web-experience-bridge",
   "version": "0.26.1",
-  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/mml-io/3d-web-experience.git",

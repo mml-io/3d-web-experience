@@ -7,6 +7,6 @@
     "iterate": "node --watch-path=../../packages/3d-web/build --watch-preserve-output ../../packages/3d-web/build/index.js serve world.json --port 8085"
   },
   "dependencies": {
-    "3d-web-experience": "^0.26.1"
+    "@mml-io/3d-web-experience": "^0.26.1"
   }
 }
