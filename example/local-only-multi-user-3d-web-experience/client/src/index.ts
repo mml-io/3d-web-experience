@@ -169,7 +169,6 @@ window.addEventListener("DOMContentLoaded", async () => {
         maxZ: Number.POSITIVE_INFINITY,
       },
       spawnYRotation: 180,
-      enableRespawnButton: connectionId === 1,
     };
   }
 

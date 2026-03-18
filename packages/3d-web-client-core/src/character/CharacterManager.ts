@@ -42,7 +42,6 @@ export type SpawnConfiguration = {
   spawnPositionVariance?: Partial<SpawnPositionVariance>;
   spawnYRotation?: number;
   respawnTrigger?: Partial<RespawnTrigger>;
-  enableRespawnButton?: boolean;
 };
 
 export type SpawnConfigurationState = {
@@ -50,7 +49,6 @@ export type SpawnConfigurationState = {
   spawnPositionVariance: SpawnPositionVariance;
   spawnYRotation: number;
   respawnTrigger: RespawnTrigger;
-  enableRespawnButton: boolean;
 };
 
 export function normalizeSpawnConfiguration(
@@ -76,7 +74,6 @@ export function normalizeSpawnConfiguration(
       minZ: spawnConfig?.respawnTrigger?.minZ ?? Number.NEGATIVE_INFINITY,
       maxZ: spawnConfig?.respawnTrigger?.maxZ ?? Number.POSITIVE_INFINITY,
     },
-    enableRespawnButton: spawnConfig?.enableRespawnButton ?? false,
   };
 }
 

@@ -10,7 +10,7 @@ import {
 import express from "express";
 import enableWs from "express-ws";
 
-import { UserData, UserNetworkingClientUpdate } from "../src";
+import { UserData, UserIdentityUpdate, UserNetworkingClientUpdate } from "../src";
 import {
   DeltaNetComponentMapping,
   STATE_CHARACTER_DESCRIPTION,
@@ -91,8 +91,8 @@ describe("UserNetworking", () => {
       },
       onClientUserIdentityUpdate: (
         connectionId: number,
-        userIdentity: UserData,
-      ): UserData | null => {
+        userIdentity: UserIdentityUpdate,
+      ): UserIdentityUpdate | null => {
         return null;
       },
       onClientDisconnect: (connectionId: number): void => {},
@@ -390,9 +390,11 @@ describe("UserNetworking", () => {
     const sessionTokenForOne = "session-token-one";
     const sessionTokenForTwo = "session-token-two";
 
-    const onServerClientUserUpdate = jest.fn((connectionId: number, userIdentity: UserData) => {
-      return userIdentity;
-    });
+    const onServerClientUserUpdate = jest.fn(
+      (connectionId: number, userIdentity: UserIdentityUpdate) => {
+        return userIdentity;
+      },
+    );
 
     const options = {
       onClientConnect: (
@@ -419,8 +421,8 @@ describe("UserNetworking", () => {
       },
       onClientUserIdentityUpdate: (
         connectionId: number,
-        userIdentity: UserData,
-      ): UserData | null | false | true | Error => {
+        userIdentity: UserIdentityUpdate,
+      ): UserIdentityUpdate | null | false | true | Error => {
         return onServerClientUserUpdate(connectionId, userIdentity);
       },
       onClientDisconnect: (connectionId: number): void => {},
@@ -672,8 +674,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return userIdentity;
         },
         onClientDisconnect: (connectionId: number): void => {},
@@ -787,8 +789,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return userIdentity;
         },
         onClientDisconnect: (connectionId: number): void => {},
@@ -903,8 +905,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return userIdentity;
         },
         onClientDisconnect: (connectionId: number): void => {},
@@ -1020,8 +1022,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return userIdentity;
         },
         onClientDisconnect: (connectionId: number): void => {},
@@ -1102,8 +1104,7 @@ describe("UserNetworking", () => {
       );
       await waitUntil(() => userProfiles.has(1), "wait for client to see own profile");
 
-      const updatedData: UserData = {
-        userId: "user-1",
+      const updatedData: UserIdentityUpdate = {
         username: "bulk-updated-name",
         characterDescription: { meshFileUrl: "http://example.com/bulk.glb" },
         colors: [
@@ -1152,8 +1153,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return userIdentity;
         },
         onClientDisconnect: (connectionId: number): void => {},
@@ -1246,8 +1247,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return userIdentity;
         },
         onClientDisconnect: (connectionId: number): void => {},
@@ -1356,8 +1357,8 @@ describe("UserNetworking", () => {
         },
         onClientUserIdentityUpdate: (
           connectionId: number,
-          userIdentity: UserData,
-        ): UserData | null => {
+          userIdentity: UserIdentityUpdate,
+        ): UserIdentityUpdate | null => {
           return null;
         },
         onClientDisconnect: (connectionId: number): void => {},

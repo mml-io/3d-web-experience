@@ -23,7 +23,6 @@ describe("normalizeSpawnConfiguration", () => {
     expect(result.respawnTrigger.minY).toBe(-100);
     expect(result.respawnTrigger.maxY).toBe(Number.POSITIVE_INFINITY);
     expect(result.respawnTrigger.minX).toBe(Number.NEGATIVE_INFINITY);
-    expect(result.enableRespawnButton).toBe(false);
   });
 
   test("returns full defaults when called with empty object", () => {
@@ -35,12 +34,10 @@ describe("normalizeSpawnConfiguration", () => {
     const config: SpawnConfiguration = {
       spawnPosition: { x: 10, y: 5, z: -3 },
       spawnYRotation: 90,
-      enableRespawnButton: true,
     };
     const result = normalizeSpawnConfiguration(config);
     expect(result.spawnPosition).toEqual({ x: 10, y: 5, z: -3 });
     expect(result.spawnYRotation).toBe(90);
-    expect(result.enableRespawnButton).toBe(true);
   });
 
   test("fills in partial spawnPosition", () => {

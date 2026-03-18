@@ -60,14 +60,13 @@ describe("AnonymousAuthenticator", () => {
   });
 
   it("onClientUserIdentityUpdate passes through identity", () => {
-    const userData = {
-      userId: "user-1",
+    const identity = {
       username: "Test",
       characterDescription: null,
       colors: null,
     };
-    const result = auth.onClientUserIdentityUpdate(1, userData);
-    expect(result).toBe(userData);
+    const result = auth.onClientUserIdentityUpdate(1, identity);
+    expect(result).toBe(identity);
   });
 
   it("onClientDisconnect cleans up token", async () => {

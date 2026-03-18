@@ -3,10 +3,13 @@ import {
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
   FROM_SERVER_CHAT_MESSAGE_TYPE,
   FROM_SERVER_BROADCAST_MESSAGE_TYPE,
+  FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE,
   FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
   parseServerBroadcastMessage,
   parseServerChatMessage,
+  parseSessionConfigPayload,
   parseWorldConfigPayload,
+  type SessionConfigPayload,
   type WorldConfigPayload,
 } from "@mml-io/3d-web-experience-protocol";
 import {
@@ -19,7 +22,7 @@ import {
   DeltaNetServerErrors,
 } from "@mml-io/3d-web-user-networking";
 
-export type { WorldConfigPayload } from "@mml-io/3d-web-experience-protocol";
+export type { SessionConfigPayload, WorldConfigPayload } from "@mml-io/3d-web-experience-protocol";
 
 export type OtherUser = {
   userId: string;
@@ -52,6 +55,7 @@ export type WorldEvent =
       position: { x: number; y: number; z: number };
     }
   | { type: "user_left"; connectionId: number; userId: string; username: string | null }
+  | { type: "session_config"; config: SessionConfigPayload }
   | { type: "world_config"; config: WorldConfigPayload }
   | { type: "server_broadcast"; broadcastType: string; payload: Record<string, unknown> }
   | { type: "network_update"; update: NetworkUpdate };
@@ -211,6 +215,14 @@ export class WorldConnection {
             console.log(`[chat] ${username}: ${parsed.message}`);
 
             this.emitEvent({ type: "chat", message: chatMsg });
+          } else if (customType === FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE) {
+            const parsedConfig = parseSessionConfigPayload(contents);
+            if (parsedConfig instanceof Error) {
+              console.error("[world] Invalid session config message:", parsedConfig.message);
+            } else {
+              console.log("[world] Received session config from server");
+              this.emitEvent({ type: "session_config", config: parsedConfig });
+            }
           } else if (customType === FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE) {
             const parsedConfig = parseWorldConfigPayload(contents);
             if (parsedConfig instanceof Error) {

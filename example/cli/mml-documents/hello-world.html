@@ -1,0 +1,12 @@
+<m-cube y="1.5" color="red" id="my-cube"></m-cube>
+
+<m-label y="3.5" ry="180" width="3" font-size="50" alignment="center" content="Hello World"></m-label>
+
+<script>
+  const cube = document.getElementById("my-cube");
+  cube.addEventListener("click", () => {
+    const colors = ["red", "green", "blue", "yellow", "purple", "orange"];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    cube.setAttribute("color", randomColor);
+  });
+</script>

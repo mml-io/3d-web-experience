@@ -102,7 +102,6 @@ export type PlacementSpot = {
 
 // Placement spot computation constants
 const PLACEMENT_GRID_CELL = 2.0;
-const PLACEMENT_DOC_BUFFER = 3.0;
 const PLACEMENT_MIN_SEPARATION = 4.0;
 const PLACEMENT_MAX_HEIGHT = 20.0;
 const PLACEMENT_FLATNESS_THRESHOLD = 0.3;
@@ -1004,8 +1003,6 @@ export class NavMeshManager extends EventEmitter {
   }
 
   computePlacementSpots(
-    scene: THREE.Scene,
-    existingDocPositions: Position[],
     agentPos: Position,
     options?: {
       minWidth?: number;
@@ -1033,7 +1030,6 @@ export class NavMeshManager extends EventEmitter {
       centerZ: number;
       surfaceY: number;
       walkable: boolean;
-      occupied: boolean;
       yRange: number;
       avgNormalY: number;
     };
@@ -1061,7 +1057,6 @@ export class NavMeshManager extends EventEmitter {
               centerZ: cz,
               surfaceY: nearest.y,
               walkable: true,
-              occupied: false,
               yRange: 0,
               avgNormalY: 1.0,
             });
@@ -1077,20 +1072,7 @@ export class NavMeshManager extends EventEmitter {
       return [];
     }
 
-    // --- Step 2: Occupancy mapping ---
-    for (const docPos of existingDocPositions) {
-      const bufferCells = Math.ceil(PLACEMENT_DOC_BUFFER / cellSize);
-      const docGx = Math.floor(docPos.x / cellSize);
-      const docGz = Math.floor(docPos.z / cellSize);
-      for (let dx = -bufferCells; dx <= bufferCells; dx++) {
-        for (let dz = -bufferCells; dz <= bufferCells; dz++) {
-          const cell = gridCells.get(`${docGx + dx},${docGz + dz}`);
-          if (cell) cell.occupied = true;
-        }
-      }
-    }
-
-    // --- Step 3: Flatness per cell ---
+    // --- Step 2: Flatness per cell ---
     const dbgPositions = this.debugPositions;
     const dbgIndices = this.debugIndices;
 
@@ -1164,10 +1146,7 @@ export class NavMeshManager extends EventEmitter {
     const candidates: Candidate[] = [];
 
     const sortedCells = Array.from(gridCells.values())
-      .filter(
-        (c) =>
-          c.walkable && !c.occupied && c.avgNormalY > 0.7 && c.yRange < PLACEMENT_SLOPE_THRESHOLD,
-      )
+      .filter((c) => c.walkable && c.avgNormalY > 0.7 && c.yRange < PLACEMENT_SLOPE_THRESHOLD)
       .sort((a, b) => {
         const da = (a.centerX - agentPos.x) ** 2 + (a.centerZ - agentPos.z) ** 2;
         const db = (b.centerX - agentPos.x) ** 2 + (b.centerZ - agentPos.z) ** 2;
@@ -1196,7 +1175,6 @@ export class NavMeshManager extends EventEmitter {
             if (
               !cell ||
               !cell.walkable ||
-              cell.occupied ||
               cell.avgNormalY <= 0.7 ||
               cell.yRange >= PLACEMENT_SLOPE_THRESHOLD
             ) {
@@ -1285,15 +1263,6 @@ export class NavMeshManager extends EventEmitter {
     const scored: ScoredCandidate[] = deduplicated.map((cand) => {
       const area = cand.width * cand.depth;
       let score = area;
-
-      for (const docPos of existingDocPositions) {
-        const dx = cand.centerX - docPos.x;
-        const dz = cand.centerZ - docPos.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < 10) {
-          score *= 0.5 + (dist / 10) * 0.5;
-        }
-      }
 
       if (cand.yRange > PLACEMENT_GENTLE_SLOPE_THRESHOLD) {
         score *= 0.6;

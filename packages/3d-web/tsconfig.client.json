@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "noImplicitAny": true,
+    "module": "es2022",
+    "target": "es2022",
+    "lib": ["es2022", "dom"],
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "allowJs": true,
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "downlevelIteration": true,
+    "outDir": "./build/client",
+    "incremental": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/client/**/*", "src/config.ts"],
+  "exclude": ["**/build/*"]
+}

@@ -29,7 +29,6 @@ describe("WorldConfigPayload type", () => {
       spawnConfiguration: {
         spawnPosition: { x: 0, y: 0, z: 0 },
         spawnYRotation: 0,
-        enableRespawnButton: false,
       },
       avatarConfiguration: {
         availableAvatars: [{ meshFileUrl: "https://example.com/avatar.glb", name: "Bot" }],
@@ -39,10 +38,17 @@ describe("WorldConfigPayload type", () => {
       enableTweakPane: true,
       allowOrbitalCamera: true,
       postProcessingEnabled: false,
+      hud: { minimap: true, playerList: false, respawnButton: true },
     };
     expect(config.enableChat).toBe(true);
     expect(config.mmlDocuments?.doc1.url).toBe("ws:///doc1");
     expect(config.allowCustomDisplayName).toBe(false);
+    expect(config.hud).toEqual({ minimap: true, playerList: false, respawnButton: true });
+  });
+
+  it("accepts hud: false", () => {
+    const config: WorldConfigPayload = { hud: false };
+    expect(config.hud).toBe(false);
   });
 
   it("accepts partial mmlDocuments with only url", () => {
@@ -83,7 +89,6 @@ describe("parseWorldConfigPayload", () => {
       spawnConfiguration: {
         spawnPosition: { x: 0, y: 0, z: 0 },
         spawnYRotation: 0,
-        enableRespawnButton: false,
       },
       avatarConfiguration: {
         availableAvatars: [{ meshFileUrl: "https://example.com/avatar.glb", name: "Bot" }],
@@ -93,6 +98,7 @@ describe("parseWorldConfigPayload", () => {
       enableTweakPane: true,
       allowOrbitalCamera: true,
       postProcessingEnabled: false,
+      hud: { minimap: true, playerList: false, respawnButton: true },
     };
     const result = parseWorldConfigPayload(JSON.stringify(input));
     expect(result).not.toBeInstanceOf(Error);
@@ -266,11 +272,12 @@ describe("parseWorldConfigPayload - validation edge cases", () => {
       expect(result).toBeInstanceOf(Error);
     });
 
-    it("returns an Error when avatarConfiguration is missing availableAvatars", () => {
+    it("defaults availableAvatars to empty array when avatarConfiguration omits it", () => {
       const result = parseWorldConfigPayload(
         JSON.stringify({ avatarConfiguration: { allowCustomAvatars: true } }),
       );
-      expect(result).toBeInstanceOf(Error);
+      expect(result).not.toBeInstanceOf(Error);
+      expect((result as any).avatarConfiguration.availableAvatars).toEqual([]);
     });
 
     it("returns an Error when availableAvatars is not an array", () => {
@@ -368,11 +375,30 @@ describe("parseWorldConfigPayload - validation edge cases", () => {
       expect(result).toBeInstanceOf(Error);
     });
 
-    it("returns an Error when spawnConfiguration.enableRespawnButton is not a boolean", () => {
+    it("returns an Error when environmentConfiguration.fog.fogColor has non-number fields", () => {
       const result = parseWorldConfigPayload(
-        JSON.stringify({ spawnConfiguration: { enableRespawnButton: 1 } }),
+        JSON.stringify({
+          environmentConfiguration: { fog: { fogColor: { r: "bad", g: 0, b: 0 } } },
+        }),
       );
       expect(result).toBeInstanceOf(Error);
+    });
+
+    it("accepts environmentConfiguration.fog.fogColor with valid r/g/b", () => {
+      const result = parseWorldConfigPayload(
+        JSON.stringify({
+          environmentConfiguration: { fog: { fogColor: { r: 0.5, g: 0.5, b: 0.5 } } },
+        }),
+      );
+      expect(result).not.toBeInstanceOf(Error);
+    });
+
+    it("accepts avatarConfiguration without availableAvatars (defaults to empty array)", () => {
+      const result = parseWorldConfigPayload(
+        JSON.stringify({ avatarConfiguration: { allowCustomAvatars: true } }),
+      );
+      expect(result).not.toBeInstanceOf(Error);
+      expect((result as any).avatarConfiguration.availableAvatars).toEqual([]);
     });
 
     it("returns an Error when environmentConfiguration.skybox has both hdrJpgUrl and hdrUrl", () => {
@@ -426,6 +452,58 @@ describe("parseWorldConfigPayload - validation edge cases", () => {
         JSON.stringify({ mmlDocuments: { doc: { url: "ws:///a", passAuthToken: "yes" } } }),
       );
       expect(result).toBeInstanceOf(Error);
+    });
+  });
+
+  describe("hud validation", () => {
+    it("accepts hud: false", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: false }));
+      expect(result).not.toBeInstanceOf(Error);
+      expect((result as any).hud).toBe(false);
+    });
+
+    it("accepts hud as an object with minimap and playerList", () => {
+      const result = parseWorldConfigPayload(
+        JSON.stringify({ hud: { minimap: true, playerList: false } }),
+      );
+      expect(result).not.toBeInstanceOf(Error);
+      expect((result as any).hud).toEqual({ minimap: true, playerList: false });
+    });
+
+    it("accepts hud as an empty object", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: {} }));
+      expect(result).not.toBeInstanceOf(Error);
+    });
+
+    it("returns an Error when hud is true", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: true }));
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it("returns an Error when hud is a string", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: "on" }));
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it("returns an Error when hud.minimap is not a boolean", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: { minimap: "yes" } }));
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it("returns an Error when hud.playerList is not a boolean", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: { playerList: 1 } }));
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it("returns an Error when hud.respawnButton is not a boolean", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: { respawnButton: "yes" } }));
+      expect(result).toBeInstanceOf(Error);
+    });
+
+    it("accepts hud with respawnButton", () => {
+      const result = parseWorldConfigPayload(JSON.stringify({ hud: { respawnButton: true } }));
+      expect(result).not.toBeInstanceOf(Error);
+      expect((result as any).hud).toEqual({ respawnButton: true });
     });
   });
 });

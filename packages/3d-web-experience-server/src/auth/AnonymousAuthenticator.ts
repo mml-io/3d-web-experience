@@ -1,6 +1,10 @@
 import crypto from "crypto";
 
-import type { CharacterDescription, UserData } from "@mml-io/3d-web-user-networking";
+import type {
+  CharacterDescription,
+  UserData,
+  UserIdentityUpdate,
+} from "@mml-io/3d-web-user-networking";
 
 import type { UserAuthenticator } from "../Networked3dWebExperienceServer";
 
@@ -89,8 +93,8 @@ export class AnonymousAuthenticator implements UserAuthenticator {
 
   onClientUserIdentityUpdate(
     _connectionId: number,
-    userIdentity: UserData,
-  ): UserData | true | Error {
+    userIdentity: UserIdentityUpdate,
+  ): UserIdentityUpdate | true | Error {
     return userIdentity;
   }
 

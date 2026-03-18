@@ -1,4 +1,7 @@
-import type { Networked3dWebExperienceClient } from "./Networked3dWebExperienceClient";
+import type {
+  Networked3dWebExperienceClient,
+  UpdatableConfig,
+} from "./Networked3dWebExperienceClient";
 import type { UIPlugin } from "./plugins";
 
 type ChatMessage = {
@@ -47,6 +50,7 @@ export class DefaultChatPlugin implements UIPlugin {
   private container: HTMLDivElement | null = null;
   private scrollStyle: HTMLStyleElement | null = null;
   private client: Networked3dWebExperienceClient | null = null;
+  private enabled = true;
 
   private messages: ChatMessage[] = [];
   private nextId = 0;
@@ -98,6 +102,15 @@ export class DefaultChatPlugin implements UIPlugin {
     client.on("chat", this.chatHandler);
   }
 
+  onConfigChanged(config: Partial<UpdatableConfig>): void {
+    if (config.enableChat === undefined || !this.container) return;
+    this.enabled = config.enableChat;
+    this.container.style.display = this.enabled ? "" : "none";
+    if (!this.enabled && this.panelOpen) {
+      this.setPanelOpen(false);
+    }
+  }
+
   dispose(): void {
     if (this.globalKeydownHandler) {
       document.removeEventListener("keydown", this.globalKeydownHandler);
@@ -115,6 +128,7 @@ export class DefaultChatPlugin implements UIPlugin {
 
   private buildToggleButton(): void {
     this.toggleBtn = document.createElement("div");
+    this.toggleBtn.dataset.testid = "chat-toggle";
     Object.assign(this.toggleBtn.style, {
       position: "absolute",
       bottom: "12px",
@@ -165,6 +179,7 @@ export class DefaultChatPlugin implements UIPlugin {
 
   private buildPassiveArea(): void {
     this.passiveArea = document.createElement("div");
+    this.passiveArea.dataset.testid = "chat-passive-area";
     Object.assign(this.passiveArea.style, {
       position: "absolute",
       bottom: "64px",
@@ -180,6 +195,7 @@ export class DefaultChatPlugin implements UIPlugin {
 
   private buildPanel(): void {
     this.panel = document.createElement("div");
+    this.panel.dataset.testid = "chat-panel";
     Object.assign(this.panel.style, {
       position: "absolute",
       bottom: "12px",
@@ -309,6 +325,7 @@ export class DefaultChatPlugin implements UIPlugin {
     this.panel.appendChild(inputArea);
 
     this.input = document.createElement("input");
+    this.input.dataset.testid = "chat-input";
     this.input.type = "text";
     this.input.placeholder = "Type a message...";
     this.input.maxLength = 500;
@@ -326,6 +343,7 @@ export class DefaultChatPlugin implements UIPlugin {
     inputArea.appendChild(this.input);
 
     const sendBtn = document.createElement("button");
+    sendBtn.dataset.testid = "chat-send";
     sendBtn.textContent = "\u27A4";
     Object.assign(sendBtn.style, {
       background: ACCENT,
@@ -389,6 +407,7 @@ export class DefaultChatPlugin implements UIPlugin {
     });
 
     this.globalKeydownHandler = (e: KeyboardEvent) => {
+      if (!this.enabled) return;
       // Only capture Enter when no other input/textarea is focused, to avoid
       // interfering with other plugins (e.g. avatar name input).
       const active = document.activeElement;

@@ -1,6 +1,6 @@
 import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals";
 import type { WorldConfigPayload } from "@mml-io/3d-web-experience-protocol";
-import type { UserData } from "@mml-io/3d-web-user-networking";
+import type { UserData, UserIdentityUpdate } from "@mml-io/3d-web-user-networking";
 
 import type { UserAuthenticator } from "../src/Networked3dWebExperienceServer";
 
@@ -68,7 +68,7 @@ function createMockAuthenticator(): UserAuthenticator {
     } as UserData),
     onClientUserIdentityUpdate: jest
       .fn<any>()
-      .mockImplementation((_connectionId: number, identity: UserData) => identity),
+      .mockImplementation((_connectionId: number, identity: UserIdentityUpdate) => identity),
     onClientDisconnect: jest.fn(),
     dispose: jest.fn(),
   };
@@ -190,11 +190,12 @@ describe("registerExpressRoutes", () => {
       server.registerExpressRoutes({} as any);
 
       const handler = mockGetRoutes.get("/")!;
-      const mockRes = { send: jest.fn(), redirect: jest.fn() };
+      const mockRes = { status: jest.fn().mockReturnThis(), send: jest.fn(), redirect: jest.fn() };
 
       await handler({}, mockRes);
 
-      expect(mockRes.send).toHaveBeenCalledWith("Error: Could not generate token");
+      expect(mockRes.status).toHaveBeenCalledWith(403);
+      expect(mockRes.send).toHaveBeenCalledWith("Access denied: authentication required");
     });
 
     it("index route redirects when token is redirect object", async () => {

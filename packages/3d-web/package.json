@@ -1,0 +1,50 @@
+{
+  "name": "3d-web-experience",
+  "version": "0.26.1",
+  "bin": {
+    "3d-web-experience": "./build/index.js"
+  },
+  "type": "module",
+  "files": [
+    "/build/index.js",
+    "/build/index.js.map",
+    "/build/client/",
+    "!/build/client/tsconfig.client.tsbuildinfo",
+    "/assets/models/avatar-*.glb"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "depcheck": "depcheck --quiet",
+    "build": "tsx ./build.ts --build",
+    "iterate": "tsx ./build.ts --watch",
+    "type-check": "tsc --noEmit -p tsconfig.server.json && tsc --noEmit -p tsconfig.client.json",
+    "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
+    "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
+  },
+  "dependencies": {
+    "@mml-io/3d-web-client-core": "^0.26.1",
+    "@mml-io/3d-web-experience-client": "^0.26.1",
+    "@mml-io/3d-web-experience-protocol": "^0.26.1",
+    "@mml-io/3d-web-experience-server": "^0.26.1",
+    "@mml-io/3d-web-user-networking": "^0.26.1",
+    "ajv": "^8.17.1",
+    "chokidar": "4.0.3",
+    "commander": "^13.1.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@jest/globals": "29.7.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.1",
+    "cross-env": "^7.0.3",
+    "esbuild": "^0.24.2",
+    "esbuild-plugin-copy": "^2.1.1",
+    "jest": "^29.7.0",
+    "jest-junit": "16.0.0",
+    "ts-jest": "^29.1.2",
+    "tsx": "^4.19.2"
+  }
+}

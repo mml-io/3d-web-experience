@@ -4,15 +4,18 @@ import {
   experienceProtocolToDeltaNetSubProtocol,
   FROM_CLIENT_CHAT_MESSAGE_TYPE,
   FROM_SERVER_CHAT_MESSAGE_TYPE,
+  FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE,
   handleExperienceWebsocketSubprotocol,
   MAX_CHAT_MESSAGE_LENGTH,
   parseClientChatMessage,
   FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
   type ServerChatMessage,
+  type SessionConfigPayload,
   type WorldConfigPayload,
 } from "@mml-io/3d-web-experience-protocol";
 import {
   UserData,
+  UserIdentityUpdate,
   UserNetworkingServer,
   UserNetworkingServerError,
 } from "@mml-io/3d-web-user-networking";
@@ -38,7 +41,16 @@ export type UserAuthenticator = {
     sessionToken: string,
     userIdentityPresentedOnConnection?: UserData,
   ): Promise<UserData | true | Error> | UserData | true | Error;
-  onClientUserIdentityUpdate(connectionId: number, userIdentity: UserData): UserData | true | Error;
+  onClientUserIdentityUpdate(
+    connectionId: number,
+    userIdentity: UserIdentityUpdate,
+  ):
+    | Promise<UserIdentityUpdate | null | false | true | Error>
+    | UserIdentityUpdate
+    | null
+    | false
+    | true
+    | Error;
   onClientDisconnect(connectionId: number): void;
   dispose?(): void;
 };
@@ -80,8 +92,10 @@ export type Networked3dWebExperienceServerConfig = {
 
 /**
  * Escape a string for safe injection into a JavaScript string literal
- * inside a `<script>` block. HTML entity escaping (`&amp;` etc.) does NOT
- * work inside `<script>` — browsers treat script content as raw text.
+ * inside a `<script>` block. All `<` characters are escaped to prevent
+ * `</script>` and `<!--` sequences from interfering with HTML parsing.
+ * U+2028 and U+2029 are escaped because they are valid in JSON but act
+ * as line terminators in JavaScript string literals.
  */
 function escapeForJsString(str: string): string {
   return str
@@ -90,7 +104,9 @@ function escapeForJsString(str: string): string {
     .replace(/'/g, "\\'")
     .replace(/\n/g, "\\n")
     .replace(/\r/g, "\\r")
-    .replace(/<\/(script)/gi, "<\\/$1");
+    .replace(/</g, "\\u003c")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
 }
 
 export class Networked3dWebExperienceServer {
@@ -99,6 +115,7 @@ export class Networked3dWebExperienceServer {
   public mmlDocumentsServer?: MMLDocumentsServer;
 
   private worldConfig: WorldConfigPayload | undefined;
+  private connectionSessionTokens = new Map<number, string>();
 
   constructor(private config: Networked3dWebExperienceServerConfig) {
     if (this.config.mmlServing) {
@@ -114,29 +131,76 @@ export class Networked3dWebExperienceServer {
         sessionToken: string,
         userIdentityPresentedOnConnection?: UserData,
       ): Promise<UserData | true | Error> | UserData | true | Error => {
-        return this.config.userAuthenticator.onClientConnect(
+        const result = this.config.userAuthenticator.onClientConnect(
           connectionId,
           sessionToken,
           userIdentityPresentedOnConnection,
         );
+        if (result !== null && typeof result === "object" && "then" in result) {
+          return (result as Promise<UserData | true | Error>).then((resolved) => {
+            if (!(resolved instanceof Error)) {
+              this.connectionSessionTokens.set(connectionId, sessionToken);
+            }
+            return resolved;
+          });
+        }
+        if (!(result instanceof Error)) {
+          this.connectionSessionTokens.set(connectionId, sessionToken);
+        }
+        return result;
       },
-      onClientUserIdentityUpdate: (
-        connectionId: number,
-        userIdentity: UserData,
-      ): UserData | true | Error => {
-        // Called whenever a user connects or updates their character/identity
+      onClientUserIdentityUpdate: (connectionId: number, userIdentity: UserIdentityUpdate) => {
         return this.config.userAuthenticator.onClientUserIdentityUpdate(connectionId, userIdentity);
       },
       onClientDisconnect: (connectionId: number): void => {
+        this.connectionSessionTokens.delete(connectionId);
         this.config.userAuthenticator.onClientDisconnect(connectionId);
       },
       onClientAuthenticated: (connectionId: number): void => {
+        // Send world config immediately — it does not depend on the session auth token
         if (this.worldConfig) {
           this.userNetworkingServer.sendCustomMessageToClient(
             connectionId,
             FROM_SERVER_WORLD_CONFIG_MESSAGE_TYPE,
             JSON.stringify(this.worldConfig),
           );
+        }
+
+        // Send session config when the auth token resolves
+        const sessionToken = this.connectionSessionTokens.get(connectionId);
+        if (sessionToken && this.config.userAuthenticator.getSessionAuthToken) {
+          const result = this.config.userAuthenticator.getSessionAuthToken(sessionToken);
+          if (result !== null && typeof result === "object" && "then" in result) {
+            const expectedToken = sessionToken;
+            (result as Promise<string | null>).then(
+              (token) => {
+                if (
+                  token !== null &&
+                  this.connectionSessionTokens.get(connectionId) === expectedToken
+                ) {
+                  const sessionConfig: SessionConfigPayload = { authToken: token };
+                  this.userNetworkingServer.sendCustomMessageToClient(
+                    connectionId,
+                    FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE,
+                    JSON.stringify(sessionConfig),
+                  );
+                }
+              },
+              () => {
+                // Auth token fetch failed — session config is optional
+              },
+            );
+          } else {
+            const token = result as string | null;
+            if (token !== null) {
+              const sessionConfig: SessionConfigPayload = { authToken: token };
+              this.userNetworkingServer.sendCustomMessageToClient(
+                connectionId,
+                FROM_SERVER_SESSION_CONFIG_MESSAGE_TYPE,
+                JSON.stringify(sessionConfig),
+              );
+            }
+          }
         }
       },
       onCustomMessage: (connectionId: number, customType: number, contents: string): void => {
@@ -180,6 +244,22 @@ export class Networked3dWebExperienceServer {
   }
 
   /**
+   * Replace the index HTML content served to new web clients.
+   */
+  public setIndexContent(indexContent: string) {
+    if (this.config.webClientServing) {
+      this.config.webClientServing.indexContent = indexContent;
+    }
+  }
+
+  /**
+   * Update whether chat is enabled at runtime.
+   */
+  public setEnableChat(enabled: boolean) {
+    this.config.enableChat = enabled;
+  }
+
+  /**
    * Update the world config and optionally broadcast it to all connected clients.
    * Newly connecting clients will receive the updated config after authentication.
    *
@@ -206,6 +286,7 @@ export class Networked3dWebExperienceServer {
     if (this.mmlDocumentsServer) {
       this.mmlDocumentsServer.dispose();
     }
+    this.connectionSessionTokens.clear();
     this.config.userAuthenticator.dispose?.();
   }
 
@@ -248,7 +329,7 @@ export class Networked3dWebExperienceServer {
       app.get(webClientServing.indexUrl, async (req: express.Request, res: express.Response) => {
         const result = await this.config.userAuthenticator.generateAuthorizedSessionToken(req);
         if (result === null) {
-          res.send("Error: Could not generate token");
+          res.status(403).send("Access denied: authentication required");
           return;
         }
         if (typeof result === "object" && "redirect" in result) {

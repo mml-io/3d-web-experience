@@ -16,7 +16,7 @@ const expressModule = await import("express");
 const express = expressModule.default;
 
 const dirname = url.fileURLToPath(new URL(".", import.meta.url));
-const PORT = 9080;
+const PORT = 8082;
 const DEBUG = !!process.env.DEBUG;
 
 // ---------------------------------------------------------------------------
@@ -174,20 +174,20 @@ async function main() {
   // Start bridges in-process
   const serverUrl = `http://localhost:${PORT}`;
 
-  if (DEBUG) console.log("[orchestrator] Starting bridge for Alpha on port 9101...");
+  if (DEBUG) console.log("[orchestrator] Starting bridge for Alpha on port 8083...");
   const alpha = await startBridge({
     serverUrl,
-    bridgePort: 9101,
+    bridgePort: 8083,
     botName: "Alpha",
     authUrl: `${serverUrl}/api/v1/bot-auth`,
   });
   bridges.push(alpha);
   if (DEBUG) console.log("[orchestrator] Alpha bridge started");
 
-  if (DEBUG) console.log("[orchestrator] Starting bridge for Beta on port 9102...");
+  if (DEBUG) console.log("[orchestrator] Starting bridge for Beta on port 8084...");
   const beta = await startBridge({
     serverUrl,
-    bridgePort: 9102,
+    bridgePort: 8084,
     botName: "Beta",
     authUrl: `${serverUrl}/api/v1/bot-auth`,
   });
@@ -196,14 +196,14 @@ async function main() {
 
   // Wait for both bots to be healthy
   if (DEBUG) console.log("[orchestrator] Waiting for bots to connect...");
-  await waitForHealthy(9101, 60_000);
+  await waitForHealthy(8083, 60_000);
   if (DEBUG) console.log("[orchestrator] Alpha is connected");
-  await waitForHealthy(9102, 60_000);
+  await waitForHealthy(8084, 60_000);
   if (DEBUG) console.log("[orchestrator] Beta is connected");
 
   // Collect bot client IDs so we can resolve their server-assigned usernames
-  const alphaHealth = await fetchJson(9101, "/health");
-  const betaHealth = await fetchJson(9102, "/health");
+  const alphaHealth = await fetchJson(8083, "/health");
+  const betaHealth = await fetchJson(8084, "/health");
   const botConnectionIds = new Set<number>([alphaHealth.connectionId, betaHealth.connectionId]);
   if (DEBUG) console.log(`[orchestrator] Bot connection IDs: ${[...botConnectionIds].join(", ")}`);
 
@@ -214,8 +214,8 @@ async function main() {
   // Run both bot loops concurrently
   if (DEBUG) console.log("[orchestrator] Starting bot patrol loops...");
   Promise.all([
-    runBotLoop("Alpha", 9101, ALPHA_WAYPOINTS, botConnectionIds),
-    runBotLoop("Beta", 9102, BETA_WAYPOINTS, botConnectionIds),
+    runBotLoop("Alpha", 8083, ALPHA_WAYPOINTS, botConnectionIds),
+    runBotLoop("Beta", 8084, BETA_WAYPOINTS, botConnectionIds),
   ]).catch((err) => {
     console.error("[orchestrator] Bot loop error:", err);
     shutdown();

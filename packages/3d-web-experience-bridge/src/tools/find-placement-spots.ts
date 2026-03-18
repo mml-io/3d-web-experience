@@ -91,56 +91,11 @@ const findPlacementSpots: ToolDefinition = {
     }
 
     // --- Ground mode ---
-    // Try to fetch existing document positions from the server
-    const existingDocPositions: Array<{ x: number; y: number; z: number }> = [];
-    try {
-      const res = await fetch(`${ctx.serverUrl}/api/v1/documents-config`);
-      if (res.ok) {
-        const config = (await res.json()) as Record<
-          string,
-          { position?: { x: number; y: number; z: number } }
-        >;
-        for (const [, doc] of Object.entries(config)) {
-          if (doc.position) {
-            existingDocPositions.push(doc.position);
-          }
-        }
-      }
-    } catch {
-      // Non-critical — proceed without existing doc positions
-    }
-
-    // Fall back to world-config if documents-config doesn't exist
-    if (existingDocPositions.length === 0) {
-      try {
-        const res = await fetch(`${ctx.serverUrl}/api/v1/world-config`);
-        if (res.ok) {
-          const data = (await res.json()) as {
-            documents?: Record<string, { position?: { x: number; y: number; z: number } }>;
-          };
-          if (data.documents) {
-            for (const [, doc] of Object.entries(data.documents)) {
-              if (doc.position) {
-                existingDocPositions.push(doc.position);
-              }
-            }
-          }
-        }
-      } catch {
-        // Non-critical
-      }
-    }
-
-    const spots = ctx.navMeshManager.computePlacementSpots(
-      ctx.headlessScene.scene,
-      existingDocPositions,
-      agentPos,
-      {
-        minWidth: params.min_width,
-        minDepth: params.min_depth,
-        maxResults: params.max_results ?? 5,
-      },
-    );
+    const spots = ctx.navMeshManager.computePlacementSpots(agentPos, {
+      minWidth: params.min_width,
+      minDepth: params.min_depth,
+      maxResults: params.max_results ?? 5,
+    });
 
     return textResult({
       searchMode: "ground",
@@ -149,7 +104,6 @@ const findPlacementSpots: ToolDefinition = {
         y: Math.round(agentPos.y * 100) / 100,
         z: Math.round(agentPos.z * 100) / 100,
       },
-      existingDocuments: existingDocPositions.length,
       spotsFound: spots.length,
       spots,
     });

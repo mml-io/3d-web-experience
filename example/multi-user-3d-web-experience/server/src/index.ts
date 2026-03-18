@@ -74,8 +74,8 @@ const networked3dWebExperienceServer = new Networked3dWebExperienceServer({
         meshFileUrl: desc.meshFileUrl!,
       })),
     },
-    spawnConfiguration: {
-      enableRespawnButton: true,
+    hud: {
+      respawnButton: true,
     },
     allowOrbitalCamera: true,
     enableChat: true,

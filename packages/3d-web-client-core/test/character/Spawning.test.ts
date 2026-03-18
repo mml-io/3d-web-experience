@@ -18,7 +18,6 @@ describe("Spawning", () => {
       minZ: -1000,
       maxZ: 1000,
     },
-    enableRespawnButton: false,
   };
 
   it("getSpawnData with zero variance returns exact position", () => {

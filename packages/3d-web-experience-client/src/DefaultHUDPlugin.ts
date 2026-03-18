@@ -1,4 +1,7 @@
-import type { Networked3dWebExperienceClient } from "./Networked3dWebExperienceClient";
+import type {
+  Networked3dWebExperienceClient,
+  UpdatableConfig,
+} from "./Networked3dWebExperienceClient";
 import type { UIPlugin } from "./plugins";
 
 type CharacterState = {
@@ -639,15 +642,64 @@ function createHUD(
 
 export class DefaultHUDPlugin implements UIPlugin {
   private hud: { dispose: () => void } | null = null;
+  private container: HTMLElement | null = null;
+  private client: Networked3dWebExperienceClient | null = null;
+  private currentMinimap = true;
+  private currentPlayerList = true;
+  // Tracks whether the HUD has been explicitly configured or default-created,
+  // so that later partial config updates without a `hud` key are no-ops.
+  private hudInitialized = false;
 
-  constructor(private options: DefaultHUDPluginOptions = {}) {}
+  mount(container: HTMLElement, client: Networked3dWebExperienceClient): void {
+    this.container = container;
+    this.client = client;
+  }
 
-  mount(_container: HTMLElement, client: Networked3dWebExperienceClient): void {
-    this.hud = createHUD(_container, client, this.options);
+  onConfigChanged(config: Partial<UpdatableConfig>): void {
+    if (config.hud === undefined) {
+      // No HUD config specified — only create with defaults on first config pass
+      if (!this.hudInitialized && !this.hud && this.container && this.client) {
+        this.hudInitialized = true;
+        this.hud = createHUD(this.container, this.client, {
+          minimap: this.currentMinimap,
+          playerList: this.currentPlayerList,
+        });
+      }
+      return;
+    }
+
+    this.hudInitialized = true;
+
+    if (config.hud === false) {
+      this.hud?.dispose();
+      this.hud = null;
+      return;
+    }
+
+    const newMinimap = config.hud.minimap !== false;
+    const newPlayerList = config.hud.playerList !== false;
+
+    if (
+      newMinimap !== this.currentMinimap ||
+      newPlayerList !== this.currentPlayerList ||
+      !this.hud
+    ) {
+      this.hud?.dispose();
+      this.currentMinimap = newMinimap;
+      this.currentPlayerList = newPlayerList;
+      if (this.container && this.client) {
+        this.hud = createHUD(this.container, this.client, {
+          minimap: this.currentMinimap,
+          playerList: this.currentPlayerList,
+        });
+      }
+    }
   }
 
   dispose(): void {
     this.hud?.dispose();
     this.hud = null;
+    this.container = null;
+    this.client = null;
   }
 }

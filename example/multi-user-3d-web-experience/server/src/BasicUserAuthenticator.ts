@@ -1,6 +1,10 @@
 import crypto from "crypto";
 
-import type { CharacterDescription, UserData } from "@mml-io/3d-web-user-networking";
+import type {
+  CharacterDescription,
+  UserData,
+  UserIdentityUpdate,
+} from "@mml-io/3d-web-user-networking";
 import express from "express";
 
 export type AuthUser = {
@@ -106,7 +110,10 @@ export class BasicUserAuthenticator {
     return { id: user.connectionId };
   }
 
-  public onClientUserIdentityUpdate(connectionId: number, msg: UserData): UserData | true | Error {
+  public onClientUserIdentityUpdate(
+    connectionId: number,
+    msg: UserIdentityUpdate,
+  ): UserIdentityUpdate | true | Error {
     const user = this.usersByConnectionId.get(connectionId);
 
     if (!user) {
@@ -121,15 +128,20 @@ export class BasicUserAuthenticator {
       );
     }
 
-    const newUserData: UserData = {
-      userId: user.userData.userId,
+    const update: UserIdentityUpdate = {
       username: msg.username ?? user.userData.username,
       characterDescription: msg.characterDescription ?? user.userData.characterDescription,
       colors: msg.colors ?? user.userData.colors,
     };
 
-    this.usersByConnectionId.set(connectionId, { ...user, userData: newUserData });
-    return newUserData;
+    user.userData = {
+      userId: user.userData.userId,
+      username: update.username,
+      characterDescription: update.characterDescription,
+      colors: update.colors,
+    };
+
+    return update;
   }
 
   public getSessionAuthToken(_sessionToken: string): string | null {

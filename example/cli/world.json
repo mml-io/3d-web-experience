@@ -1,0 +1,23 @@
+{
+  "chat": true,
+  "auth": {
+    "allowAnonymous": true
+  },
+  "loadingScreen": {
+    "title": "3D Web Experience",
+    "subtitle": "Powered by MML",
+    "background": "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+    "color": "#ffffff"
+  },
+  "hud": false,
+  "mmlDocuments": {
+    "hello-world.html": {
+      "url": "ws:///mml-documents/hello-world.html",
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 10
+      }
+    }
+  }
+}

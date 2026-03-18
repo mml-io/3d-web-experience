@@ -12,14 +12,11 @@ export class DefaultRespawnButtonPlugin implements UIPlugin {
   mount(container: HTMLElement, client: Networked3dWebExperienceClient): void {
     this.client = client;
     this.container = container;
-    if (client.getSpawnConfiguration().enableRespawnButton) {
-      this.show();
-    }
   }
 
   onConfigChanged(config: Partial<UpdatableConfig>): void {
-    if (config.spawnConfiguration === undefined) return;
-    const enabled = config.spawnConfiguration.enableRespawnButton ?? false;
+    if (config.hud === undefined) return;
+    const enabled = config.hud !== false && config.hud.respawnButton === true;
     if (enabled && !this.button) {
       this.show();
     } else if (!enabled && this.button) {
