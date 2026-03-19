@@ -298,7 +298,7 @@ describe("serve", () => {
 
     const { headers } = await fetchWithHeaders(port, "/avatars/avatar-1-bodyA-skin01.glb");
     expect(headers["x-content-type-options"]).toBe("nosniff");
-    expect(headers["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(headers["x-frame-options"]).toBeUndefined();
     expect(headers["referrer-policy"]).toBe("strict-origin-when-cross-origin");
   }, 10000);
 

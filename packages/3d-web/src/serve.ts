@@ -277,7 +277,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
 
   app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     next();
   });
