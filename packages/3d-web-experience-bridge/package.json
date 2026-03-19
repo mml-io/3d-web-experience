@@ -36,7 +36,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --max-warnings 0",
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix",
-    "test": "vitest run && tsx --test test/model-loading.test.ts"
+    "test": "vitest run && tsx --test test/model-loading.test.ts && tsx --test test/collision-detection.test.ts"
   },
   "dependencies": {
     "@mml-io/3d-web-client-core": "^0.27.0",
