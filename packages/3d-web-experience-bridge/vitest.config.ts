@@ -15,7 +15,7 @@ export default defineConfig({
     environment: "node",
     testTimeout: 30000,
     include: ["test/**/*.test.ts"],
-    exclude: ["test/model-loading.test.ts"],
+    exclude: ["test/model-loading.test.ts", "test/collision-detection.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],

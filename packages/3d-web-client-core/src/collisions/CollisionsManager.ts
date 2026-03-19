@@ -103,15 +103,23 @@ export class CollisionsManager {
     const dz = matrixData[14] - this.characterPosition.z;
     const distanceSquared = dx * dx + dy * dy + dz * dz;
 
-    const maxScale = Math.max(
-      meshState.localScale.x,
-      meshState.localScale.y,
-      meshState.localScale.z,
-    );
-    const worldBoundingSphereRadius = meshState.boundingSphereRadius * maxScale;
+    // Derive world scale from the matrix rather than localScale, because localScale
+    // only reflects the group's own scale and misses any parent transforms (e.g. an
+    // m-model nested under a scaled parent will have localScale=(1,1,1) while the
+    // matrix correctly includes the parent's scale).
+    const m = matrixData;
+    const sxSq = m[0] * m[0] + m[1] * m[1] + m[2] * m[2];
+    const sySq = m[4] * m[4] + m[5] * m[5] + m[6] * m[6];
+    const szSq = m[8] * m[8] + m[9] * m[9] + m[10] * m[10];
+    const maxScaleSq = Math.max(sxSq, sySq, szSq);
 
-    const effectiveRadius = this.cullingRadius + worldBoundingSphereRadius;
-    return distanceSquared <= effectiveRadius * effectiveRadius;
+    // Check: distSq <= (R + bsr * maxScale)^2, rearranged to avoid sqrt entirely.
+    // Let L = distSq - R² - bsr²·maxScaleSq. If L <= 0, within range. Otherwise
+    // square both sides of L <= 2·R·bsr·maxScale to get L² <= 4·R²·bsr²·maxScaleSq.
+    const R = this.cullingRadius;
+    const bsr = meshState.boundingSphereRadius;
+    const L = distanceSquared - R * R - bsr * bsr * maxScaleSq;
+    return L <= 0 || L * L <= 4 * R * R * bsr * bsr * maxScaleSq;
   }
 
   public raycastFirst(
