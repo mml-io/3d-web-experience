@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-experience-client",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "publishConfig": {
     "access": "public"
   },
@@ -31,10 +31,10 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/3d-web-client-core": "^0.27.0",
-    "@mml-io/3d-web-experience-protocol": "^0.27.0",
-    "@mml-io/3d-web-threejs": "^0.27.0",
-    "@mml-io/3d-web-user-networking": "^0.27.0",
+    "@mml-io/3d-web-client-core": "^0.27.1",
+    "@mml-io/3d-web-experience-protocol": "^0.27.1",
+    "@mml-io/3d-web-threejs": "^0.27.1",
+    "@mml-io/3d-web-user-networking": "^0.27.1",
     "@mml-io/mml-web": "0.26.1"
   },
   "devDependencies": {

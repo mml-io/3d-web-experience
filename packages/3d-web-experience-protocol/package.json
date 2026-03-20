@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-experience-protocol",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "publishConfig": {
     "access": "public"
   },

@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-experience-server",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "publishConfig": {
     "access": "public"
   },
@@ -25,8 +25,8 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-protocol": "^0.27.0",
-    "@mml-io/3d-web-user-networking": "^0.27.0",
+    "@mml-io/3d-web-experience-protocol": "^0.27.1",
+    "@mml-io/3d-web-user-networking": "^0.27.1",
     "@mml-io/networked-dom-server": "0.26.1",
     "chokidar": "4.0.3",
     "cors": "^2.8.5",

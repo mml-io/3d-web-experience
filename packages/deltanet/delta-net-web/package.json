@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/delta-net-web",
-  "version": "0.27.0",
+  "version": "0.27.1",
   "publishConfig": {
     "access": "public"
   },
@@ -25,7 +25,7 @@
     "test-iterate": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@mml-io/delta-net-protocol": "^0.27.0"
+    "@mml-io/delta-net-protocol": "^0.27.1"
   },
   "devDependencies": {
     "jest-canvas-mock": "2.5.2",
