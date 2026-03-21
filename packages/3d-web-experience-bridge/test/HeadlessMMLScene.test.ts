@@ -656,6 +656,38 @@ describe("HeadlessMMLScene", () => {
       const initialCount = scene.colliderCount;
       scene.registerGroundPlaneCollider();
       expect(scene.colliderCount).toBe(initialCount + 1);
+      expect(scene.hasGroundPlaneCollider).toBe(true);
+    });
+
+    test("is idempotent — second call does not double-register", () => {
+      scene.registerGroundPlaneCollider();
+      const countAfterFirst = scene.colliderCount;
+      scene.registerGroundPlaneCollider();
+      expect(scene.colliderCount).toBe(countAfterFirst);
+    });
+  });
+
+  describe("unregisterGroundPlaneCollider", () => {
+    test("removes the ground plane collider", () => {
+      scene.registerGroundPlaneCollider();
+      const countWithGround = scene.colliderCount;
+      scene.unregisterGroundPlaneCollider();
+      expect(scene.colliderCount).toBe(countWithGround - 1);
+      expect(scene.hasGroundPlaneCollider).toBe(false);
+    });
+
+    test("is safe to call when no ground plane is registered", () => {
+      expect(scene.hasGroundPlaneCollider).toBe(false);
+      scene.unregisterGroundPlaneCollider();
+      expect(scene.hasGroundPlaneCollider).toBe(false);
+    });
+
+    test("can re-register after unregister", () => {
+      scene.registerGroundPlaneCollider();
+      scene.unregisterGroundPlaneCollider();
+      expect(scene.hasGroundPlaneCollider).toBe(false);
+      scene.registerGroundPlaneCollider();
+      expect(scene.hasGroundPlaneCollider).toBe(true);
     });
   });
 

@@ -1014,10 +1014,13 @@ export class HeadlessMMLScene {
     };
   }
 
+  private groundColliderGroup: THREE.Group | null = null;
+
   /**
    * Register the ground plane mesh as a physics collider.
    */
   registerGroundPlaneCollider(): void {
+    if (this.groundColliderGroup) return;
     const group = new THREE.Group();
     group.add(this.groundMesh.clone());
     group.name = "ground-collider";
@@ -1026,11 +1029,29 @@ export class HeadlessMMLScene {
     try {
       const collisionMesh = createCollisionMesh(group);
       this.collisionsManager.addMeshesGroup(group, collisionMesh);
+      this.groundColliderGroup = group;
       this.colliderCount_++;
       debug("[headless-scene] Ground plane collider registered");
     } catch (err: any) {
+      this.scene.remove(group);
       console.warn("[headless-scene] Failed to register ground plane collider:", err.message);
     }
+  }
+
+  /**
+   * Remove the ground plane physics collider.
+   */
+  unregisterGroundPlaneCollider(): void {
+    if (!this.groundColliderGroup) return;
+    this.collisionsManager.removeMeshesGroup(this.groundColliderGroup);
+    this.scene.remove(this.groundColliderGroup);
+    this.groundColliderGroup = null;
+    this.colliderCount_--;
+    debug("[headless-scene] Ground plane collider removed");
+  }
+
+  get hasGroundPlaneCollider(): boolean {
+    return this.groundColliderGroup !== null;
   }
 
   countMeshes(): number {
