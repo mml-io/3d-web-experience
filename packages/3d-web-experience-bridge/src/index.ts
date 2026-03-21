@@ -608,8 +608,15 @@ export async function createBridgeCore(config: BridgeConfig): Promise<BridgeCore
     return { position: pos, rotation: { x: 0, y: 0, z: 0 } };
   }, collisionsManager);
 
-  headlessScene.registerGroundPlaneCollider();
-  debug("[bridge] Ground plane collider registered");
+  const initialGroundPlane =
+    (worldConfig?.environmentConfiguration as { groundPlane?: boolean } | undefined)?.groundPlane ??
+    true;
+  if (initialGroundPlane) {
+    headlessScene.registerGroundPlaneCollider();
+    debug("[bridge] Ground plane collider registered");
+  } else {
+    debug("[bridge] Ground plane disabled by world config");
+  }
 
   const navMeshManager = new NavMeshManager();
   avatarController.setNavMeshManager(navMeshManager);
@@ -631,6 +638,20 @@ export async function createBridgeCore(config: BridgeConfig): Promise<BridgeCore
   }
   headlessScene.startTicking();
 
+  const applyGroundPlaneConfig = (envConfig: Record<string, unknown> | undefined) => {
+    if (!envConfig || typeof envConfig !== "object") return;
+    if ("groundPlane" in envConfig) {
+      const enabled = envConfig.groundPlane ?? true;
+      if (enabled && !headlessScene.hasGroundPlaneCollider) {
+        headlessScene.registerGroundPlaneCollider();
+        debug("[bridge] Ground plane collider enabled by config update");
+      } else if (!enabled && headlessScene.hasGroundPlaneCollider) {
+        headlessScene.unregisterGroundPlaneCollider();
+        debug("[bridge] Ground plane collider disabled by config update");
+      }
+    }
+  };
+
   // Listen for subsequent world config pushes
   const worldEventListener = (event: { type: string; [key: string]: any }) => {
     if (event.type === "session_config") {
@@ -650,6 +671,7 @@ export async function createBridgeCore(config: BridgeConfig): Promise<BridgeCore
           `[bridge] Updated MML documents from server push: ${Object.keys(event.config.mmlDocuments).join(", ") || "(none)"}`,
         );
       }
+      applyGroundPlaneConfig(event.config.environmentConfiguration);
       toolCtx.worldConfig = event.config as Record<string, unknown>;
       config.onWorldConfig?.(event.config);
     } else if (event.type === "server_broadcast") {
@@ -670,6 +692,7 @@ export async function createBridgeCore(config: BridgeConfig): Promise<BridgeCore
               `[bridge] Updated MML documents from world-config-update broadcast: ${Object.keys(payload.mmlDocuments).join(", ") || "(none)"}`,
             );
           }
+          applyGroundPlaneConfig(payload.environmentConfiguration);
           toolCtx.worldConfig = payload as Record<string, unknown>;
           config.onWorldConfig?.(payload);
         }
