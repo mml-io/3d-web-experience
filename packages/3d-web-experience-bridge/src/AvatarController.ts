@@ -455,6 +455,17 @@ export class AvatarController extends EventEmitter {
     return { ...this.currentRotation };
   }
 
+  /**
+   * Set the avatar's facing direction directly (Y-axis rotation in radians).
+   * Only takes effect while the avatar is not moving — movement will override
+   * the rotation with the travel heading.
+   */
+  setRotation(eulerY: number): void {
+    const quat = this.localController.config.quaternion;
+    quat.set(0, Math.sin(eulerY / 2), 0, Math.cos(eulerY / 2));
+    this.currentRotation = { eulerY };
+  }
+
   isMoving(): boolean {
     return this.targetPosition !== null || this.waypoints.length > 0;
   }

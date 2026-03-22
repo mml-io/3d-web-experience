@@ -7,6 +7,7 @@ import type { NavMeshManager } from "../NavMeshManager";
 
 import click from "./click";
 import type { EventBuffer } from "./EventBuffer";
+import faceUser from "./face-user";
 import findPlacementSpots from "./find-placement-spots";
 import followUser from "./follow-user";
 import getChatHistory from "./get-chat-history";
@@ -21,6 +22,7 @@ import searchNearby from "./search-nearby";
 import sendChat from "./send-chat";
 import setAnimation from "./set-animation";
 import setCharacterDescription from "./set-character-description";
+import setRotation from "./set-rotation";
 import stopFollowing from "./stop-following";
 import stopMoving from "./stop-moving";
 import teleport from "./teleport";
@@ -70,7 +72,9 @@ export function loadTools(): Map<string, ToolDefinition> {
     observe,
     searchNearby,
     setAnimation,
+    setRotation,
     setCharacterDescription,
+    faceUser,
     sendChat,
     getChatHistory,
     jump,
