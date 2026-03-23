@@ -17,6 +17,13 @@ const jestConfig: JestConfigWithTsJest = {
         useESM: true,
       },
     ],
+    // Workspace packages ship ESM .js — transform them for jest's CJS runtime
+    "packages/.+\\.js$": [
+      "ts-jest",
+      {
+        useESM: true,
+      },
+    ],
   },
   transformIgnorePatterns: ["node_modules/(?!@mml-io/.*)"],
   testEnvironment: "node",

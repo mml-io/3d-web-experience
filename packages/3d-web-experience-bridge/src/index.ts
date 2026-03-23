@@ -50,12 +50,12 @@ export type BridgeConfig = {
   bridgePort: number;
   /** Display name for the bot */
   botName: string;
-  /** Pre-obtained session token for WebSocket authentication */
-  token?: string;
-  /** Auth endpoint URL to obtain a token (used when token is not provided) */
-  authUrl?: string;
-  /** Body to POST to the auth endpoint */
-  authBody?: Record<string, any>;
+  /**
+   * Token to present to the experience server for authentication.
+   * The bridge GETs the server URL with `?token=<token>` and `Accept: application/json`,
+   * receiving the session token as JSON.
+   */
+  token: string;
   /** Character description for the avatar */
   characterDescription?: CharacterDescription | null;
   /** Webhook configuration (optional) */
@@ -94,39 +94,48 @@ export type BridgeHandle = {
 };
 
 async function obtainAuthToken(config: BridgeConfig): Promise<string> {
-  if (config.token) {
-    debug("[bridge] Using provided auth token");
-    return config.token;
+  // GET the index URL with ?token=<token> and Accept: application/json.
+  const pageUrl = `${config.serverUrl}/?token=${encodeURIComponent(config.token)}`;
+  debug(`[bridge] Authenticating: ${config.serverUrl}/?token=...`);
+  const authAbort = new AbortController();
+  const authTimeout = setTimeout(() => authAbort.abort(), 15_000);
+  let authRes: Response;
+  try {
+    authRes = await fetch(pageUrl, {
+      headers: { Accept: "application/json" },
+      redirect: "manual",
+      signal: authAbort.signal,
+    });
+  } finally {
+    clearTimeout(authTimeout);
   }
-  if (config.authUrl) {
-    debug(`[bridge] Authenticating with ${config.authUrl}...`);
-    const authAbort = new AbortController();
-    const authTimeout = setTimeout(() => authAbort.abort(), 15_000);
-    let authRes: Response;
-    try {
-      authRes = await fetch(config.authUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config.authBody ?? { name: config.botName }),
-        signal: authAbort.signal,
-      });
-    } finally {
-      clearTimeout(authTimeout);
-    }
-    const bodyText = await authRes.text();
-    if (!authRes.ok) {
-      throw new Error(`Auth failed: ${authRes.status} ${bodyText}`);
-    }
-    const result = JSON.parse(bodyText);
-    if (typeof result !== "object" || result === null || typeof result.token !== "string") {
-      throw new Error(
-        `Auth response missing "token" field. Got: ${JSON.stringify(result).substring(0, 200)}`,
-      );
-    }
-    debug("[bridge] Got auth token");
-    return result.token;
+  if (authRes.status >= 300 && authRes.status < 400) {
+    const location = authRes.headers.get("location") ?? "(unknown)";
+    throw new Error(
+      `Auth requires interactive login (redirect to ${location}). ` +
+        `Check that the token is valid and the auth server is configured correctly.`,
+    );
   }
-  throw new Error("Either token or authUrl must be provided in BridgeConfig");
+  if (!authRes.ok) {
+    throw new Error(`Token auth failed: ${authRes.status}`);
+  }
+  let body: unknown;
+  try {
+    body = await authRes.json();
+  } catch {
+    throw new Error("Token auth returned non-JSON response");
+  }
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    typeof (body as Record<string, unknown>).sessionToken !== "string"
+  ) {
+    throw new Error(
+      `Auth response missing "sessionToken" field. Got: ${JSON.stringify(body).substring(0, 200)}`,
+    );
+  }
+  debug("[bridge] Got session token");
+  return (body as Record<string, string>).sessionToken;
 }
 
 async function connectToWorld(

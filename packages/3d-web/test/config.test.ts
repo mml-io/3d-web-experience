@@ -128,10 +128,6 @@ describe("parseWorldConfig", () => {
     expect(() => parseWorldConfig({ clientScripts: [""] })).toThrow(/Invalid world config/);
   });
 
-  it("rejects empty string for auth.botApiKey", () => {
-    expect(() => parseWorldConfig({ auth: { botApiKey: "" } })).toThrow(/Invalid world config/);
-  });
-
   describe("fog distance validation", () => {
     it("rejects fogNear >= fogFar (equal values)", () => {
       expect(() =>

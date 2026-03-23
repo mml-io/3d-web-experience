@@ -1,4 +1,4 @@
-import { jest, describe, expect, it, beforeEach, afterEach } from "@jest/globals";
+import { jest, describe, expect, it, beforeAll, beforeEach, afterEach } from "@jest/globals";
 import type { WorldConfigPayload } from "@mml-io/3d-web-experience-protocol";
 import type { UserData, UserIdentityUpdate } from "@mml-io/3d-web-user-networking";
 
@@ -54,7 +54,13 @@ jest.unstable_mockModule("chokidar", () => ({
   }),
 }));
 
-const { Networked3dWebExperienceServer } = await import("../src/Networked3dWebExperienceServer");
+let Networked3dWebExperienceServer: Awaited<
+  typeof import("../src/Networked3dWebExperienceServer")
+>["Networked3dWebExperienceServer"];
+
+beforeAll(async () => {
+  ({ Networked3dWebExperienceServer } = await import("../src/Networked3dWebExperienceServer"));
+});
 
 function createMockAuthenticator(): UserAuthenticator {
   return {
@@ -71,6 +77,14 @@ function createMockAuthenticator(): UserAuthenticator {
       .mockImplementation((_connectionId: number, identity: UserIdentityUpdate) => identity),
     onClientDisconnect: jest.fn(),
     dispose: jest.fn(),
+  };
+}
+
+// Browser-like request: accepts both html and json (html preferred)
+function browserReq(overrides: Record<string, any> = {}) {
+  return {
+    accepts: (type: string) => (type === "html" ? "html" : type === "json" ? "json" : false),
+    ...overrides,
   };
 }
 
@@ -135,10 +149,9 @@ describe("registerExpressRoutes", () => {
       server.registerExpressRoutes({} as any);
 
       const handler = mockGetRoutes.get("/")!;
-      const mockReq = {};
       const mockRes = { send: jest.fn(), redirect: jest.fn() };
 
-      await handler(mockReq, mockRes);
+      await handler(browserReq(), mockRes);
 
       expect(mockRes.send).toHaveBeenCalledWith('<script>token="test-token"</script>');
     });
@@ -164,7 +177,7 @@ describe("registerExpressRoutes", () => {
       const handler = mockGetRoutes.get("/")!;
       const mockRes = { send: jest.fn(), redirect: jest.fn() };
 
-      await handler({}, mockRes);
+      await handler(browserReq(), mockRes);
 
       const sent = mockRes.send.mock.calls[0][0] as string;
       // </script> should be escaped to prevent breaking out of script blocks
@@ -192,7 +205,7 @@ describe("registerExpressRoutes", () => {
       const handler = mockGetRoutes.get("/")!;
       const mockRes = { status: jest.fn().mockReturnThis(), send: jest.fn(), redirect: jest.fn() };
 
-      await handler({}, mockRes);
+      await handler(browserReq(), mockRes);
 
       expect(mockRes.status).toHaveBeenCalledWith(403);
       expect(mockRes.send).toHaveBeenCalledWith("Access denied: authentication required");
@@ -219,7 +232,7 @@ describe("registerExpressRoutes", () => {
       const handler = mockGetRoutes.get("/")!;
       const mockRes = { send: jest.fn(), redirect: jest.fn() };
 
-      await handler({}, mockRes);
+      await handler(browserReq(), mockRes);
 
       expect(mockRes.redirect).toHaveBeenCalledWith("https://example.com/login");
     });
@@ -247,7 +260,7 @@ describe("registerExpressRoutes", () => {
       const handler = mockGetRoutes.get("/")!;
       const mockRes = { send: jest.fn(), redirect: jest.fn() };
 
-      await handler({}, mockRes);
+      await handler(browserReq(), mockRes);
 
       expect(mockRes.send).toHaveBeenCalledWith("Error: Invalid redirect URL");
       expect(mockRes.redirect).not.toHaveBeenCalled();
@@ -277,7 +290,7 @@ describe("registerExpressRoutes", () => {
       const handler = mockGetRoutes.get("/")!;
       const mockRes = { send: jest.fn(), redirect: jest.fn() };
 
-      await handler({}, mockRes);
+      await handler(browserReq(), mockRes);
 
       expect(mockRes.send).toHaveBeenCalledWith("Error: Invalid redirect URL");
       errorSpy.mockRestore();
@@ -319,9 +332,61 @@ describe("registerExpressRoutes", () => {
       const handler = mockGetRoutes.get("/")!;
       const mockRes = { send: jest.fn(), redirect: jest.fn() };
 
-      await handler({}, mockRes);
+      await handler(browserReq(), mockRes);
 
       expect(mockRes.send).toHaveBeenCalledWith("test-token");
+    });
+
+    it("returns JSON when Accept: application/json is set", async () => {
+      server = new Networked3dWebExperienceServer({
+        networkPath: "/ws",
+        userAuthenticator: mockAuth,
+        webClientServing: {
+          indexUrl: "/",
+          indexContent: 'window.SESSION_TOKEN = "SESSION.TOKEN.PLACEHOLDER";',
+          clientBuildDir: "/build",
+          clientUrl: "/client/",
+        },
+      });
+
+      server.registerExpressRoutes({} as any);
+
+      const handler = mockGetRoutes.get("/")!;
+      const mockRes = { send: jest.fn(), redirect: jest.fn(), json: jest.fn() };
+      const mockReq = {
+        accepts: (type: string) => (type === "json" ? "json" : false),
+      };
+
+      await handler(mockReq, mockRes);
+
+      expect(mockRes.json).toHaveBeenCalledWith({ sessionToken: "test-token" });
+      expect(mockRes.send).not.toHaveBeenCalled();
+    });
+
+    it("returns HTML when Accept includes both json and html", async () => {
+      server = new Networked3dWebExperienceServer({
+        networkPath: "/ws",
+        userAuthenticator: mockAuth,
+        webClientServing: {
+          indexUrl: "/",
+          indexContent: 'window.SESSION_TOKEN = "SESSION.TOKEN.PLACEHOLDER";',
+          clientBuildDir: "/build",
+          clientUrl: "/client/",
+        },
+      });
+
+      server.registerExpressRoutes({} as any);
+
+      const handler = mockGetRoutes.get("/")!;
+      const mockRes = { send: jest.fn(), redirect: jest.fn(), json: jest.fn() };
+
+      await handler(browserReq(), mockRes);
+
+      expect(mockRes.send).toHaveBeenCalled();
+      expect(mockRes.json).not.toHaveBeenCalled();
+      // Verify the placeholder was replaced with the token
+      expect(mockRes.send.mock.calls[0][0]).toContain("test-token");
+      expect(mockRes.send.mock.calls[0][0]).not.toContain("SESSION.TOKEN.PLACEHOLDER");
     });
   });
 

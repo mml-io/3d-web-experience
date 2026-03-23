@@ -190,7 +190,7 @@ export function printStartHelp(): void {
     "  --server-url <url>     Experience server URL (default: http://localhost:8080)",
     `  --port <port>          Bridge server port (default: ${DEFAULT_PORT})`,
     "  --bot-name <name>      Bot display name (default: Agent)",
-    "  --bot-auth-token <tok>  Pre-obtained session token",
+    "  --token <value>          Auth token (required, env: BOT_TOKEN)",
     "  --bot-avatar-url <url>  Avatar model URL",
     "  --api-key <key>        API key for bridge endpoints",
     "  --mml-document <name>  Single MML document to load",

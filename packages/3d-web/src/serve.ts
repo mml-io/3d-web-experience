@@ -1,4 +1,3 @@
-import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import url from "url";
@@ -35,10 +34,6 @@ export function escapeJsonForScript(json: string): string {
     .replace(/\u2028/g, "\\u2028")
     .replace(/\u2029/g, "\\u2029");
 }
-
-const BOT_AUTH_RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
-const BOT_AUTH_RATE_LIMIT_MAX = 10; // 10 bot auth requests per window per IP
-const BOT_AUTH_RATE_LIMIT_MAX_ENTRIES = 10_000; // max tracked IPs to prevent unbounded growth
 
 function normalizeUrlPath(urlPath: string): string {
   let normalized = urlPath;
@@ -79,9 +74,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
       console.log(`Auto-detected MML documents directory: ${mmlDocsDir}`);
     }
   }
-
-  // Per-serve instance rate limiting for bot auth requests
-  const botAuthAttempts = new Map<string, { count: number; resetAt: number }>();
 
   const authConfig = worldConfig.auth ?? {};
   const allowAnonymous = authConfig.allowAnonymous ?? false;
@@ -136,15 +128,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
     console.warn(
       "WARNING: Both auth.webhookUrl and auth.serverUrl are set. " +
         "auth.serverUrl takes precedence — auth.webhookUrl will be ignored.",
-    );
-  }
-
-  // Resolve botApiKey: prefer BOT_API_KEY env var, fall back to config
-  const botApiKey = process.env.BOT_API_KEY || authConfig.botApiKey;
-  if (authConfig.botApiKey && !process.env.BOT_API_KEY) {
-    console.warn(
-      "WARNING: auth.botApiKey is set in the config file. " +
-        "Consider using the BOT_API_KEY environment variable instead to avoid committing secrets.",
     );
   }
 
@@ -316,125 +299,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
     });
   }
 
-  // Bot auth endpoint — allows bridge/bot connections when auth.allowBots is enabled.
-  // When auth.botApiKey is set, the Authorization header must match.
-  // Periodic cleanup of stale rate-limit entries (every 5 minutes)
-  const botAuthCleanupInterval = setInterval(
-    () => {
-      const now = Date.now();
-      for (const [key, entry] of botAuthAttempts) {
-        if (now >= entry.resetAt) {
-          botAuthAttempts.delete(key);
-        }
-      }
-    },
-    5 * 60 * 1000,
-  );
-  botAuthCleanupInterval.unref(); // Don't prevent process exit
-
-  if (authConfig.allowBots) {
-    if (!botApiKey && !allowAnonymous) {
-      console.warn(
-        "WARNING: auth.allowBots is enabled without a bot API key while anonymous access is disabled. " +
-          "The bot auth endpoint will not be registered to prevent unauthenticated access. " +
-          "Set auth.botApiKey in your world config or the BOT_API_KEY environment variable.",
-      );
-    } else {
-      if (!botApiKey) {
-        console.warn(
-          "WARNING: auth.allowBots is enabled without a bot API key — " +
-            "the bot auth endpoint has no authentication. " +
-            "Set auth.botApiKey in your world config or the BOT_API_KEY environment variable.",
-        );
-      }
-      app.post(
-        "/api/v1/bot-auth",
-        express.json(),
-        async (req: express.Request, res: express.Response) => {
-          // Rate limiting (before auth check to throttle brute-force attempts)
-          const ip = req.ip;
-          if (!ip) {
-            res.status(400).json({ error: "Unable to determine client IP" });
-            return;
-          }
-          const now = Date.now();
-
-          // Clean up stale entries and enforce max size
-          for (const [key, entry] of botAuthAttempts) {
-            if (now >= entry.resetAt) {
-              botAuthAttempts.delete(key);
-            }
-          }
-          if (botAuthAttempts.size >= BOT_AUTH_RATE_LIMIT_MAX_ENTRIES) {
-            // Reject instead of evicting valid entries to prevent attackers
-            // from flooding with many IPs to clear legitimate rate limit state.
-            res
-              .status(429)
-              .json({ error: "Rate limit capacity exceeded. Please try again later." });
-            return;
-          }
-
-          const attempt = botAuthAttempts.get(ip);
-          if (attempt && now < attempt.resetAt) {
-            if (attempt.count >= BOT_AUTH_RATE_LIMIT_MAX) {
-              res
-                .status(429)
-                .json({ error: "Too many bot auth requests. Please try again later." });
-              return;
-            }
-          }
-
-          // Validate API key if configured
-          if (botApiKey) {
-            const authHeader = req.headers.authorization;
-            const expected = `Bearer ${botApiKey}`;
-            if (
-              !authHeader ||
-              authHeader.length !== expected.length ||
-              !crypto.timingSafeEqual(Buffer.from(authHeader), Buffer.from(expected))
-            ) {
-              // Increment rate limit counter only on failed attempts
-              const existingAttempt = botAuthAttempts.get(ip);
-              if (existingAttempt && now < existingAttempt.resetAt) {
-                existingAttempt.count++;
-              } else {
-                botAuthAttempts.set(ip, {
-                  count: 1,
-                  resetAt: now + BOT_AUTH_RATE_LIMIT_WINDOW_MS,
-                });
-              }
-              res.status(401).json({ error: "Invalid or missing bot API key" });
-              return;
-            }
-          }
-
-          // Bots are authenticated via the API key above. Create a session
-          // directly rather than going through generateAuthorizedSessionToken, which
-          // expects a page-level request with a ?token= query param for webhook auth.
-          // This ensures bots get a session even when allowAnonymous is false.
-          const token =
-            "generateBotSessionToken" in userAuthenticator
-              ? userAuthenticator.generateBotSessionToken()
-              : null;
-          if (!token) {
-            // Fall back to the standard path for authenticators that don't
-            // implement generateBotSessionToken (e.g. RemoteUserAuthenticator).
-            // Strip the bot API key so it isn't forwarded to the remote auth server.
-            delete req.headers.authorization;
-            const fallbackToken = await userAuthenticator.generateAuthorizedSessionToken(req);
-            if (!fallbackToken || typeof fallbackToken !== "string") {
-              res.status(500).json({ error: "Failed to generate bot token" });
-              return;
-            }
-            res.json({ token: fallbackToken });
-            return;
-          }
-          res.json({ token });
-        },
-      );
-    }
-  }
-
   const server = new Networked3dWebExperienceServer(serverConfig);
   server.registerExpressRoutes(app);
 
@@ -445,7 +309,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
     // reload correctly detects drift from what is actually running.
     const lastAppliedClientScripts = JSON.stringify(worldConfig.clientScripts);
     const lastAppliedAuthServerUrl = worldConfig.auth?.serverUrl;
-    const lastAppliedAllowBots = worldConfig.auth?.allowBots;
     const lastAppliedWebhookUrl = worldConfig.auth?.webhookUrl;
     const lastAppliedMaxConnections = worldConfig.auth?.maxConnections;
 
@@ -474,11 +337,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
               field: "auth.serverUrl",
               oldValue: lastAppliedAuthServerUrl,
               newValue: updatedWorldConfig.auth?.serverUrl,
-            },
-            {
-              field: "auth.allowBots",
-              oldValue: lastAppliedAllowBots,
-              newValue: updatedWorldConfig.auth?.allowBots,
             },
             {
               field: "auth.webhookUrl",
@@ -547,9 +405,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
       if (!authConfig.serverUrl && allowAnonymous) {
         console.log("Auth: anonymous access enabled");
       }
-      if (authConfig.allowBots) {
-        console.log("Auth: bot connections enabled");
-      }
       if (authConfig.maxConnections) {
         console.log(`Auth: max connections = ${authConfig.maxConnections}`);
       }
@@ -584,8 +439,6 @@ export async function serve(worldConfig: WorldConfig, options: ServeOptions): Pr
     process.removeListener("SIGINT", shutdown);
     process.removeListener("SIGTERM", shutdown);
     configWatcher?.close();
-    clearInterval(botAuthCleanupInterval);
-    botAuthAttempts.clear();
     userAuthenticator.dispose();
     server.dispose();
     httpServer.close();

@@ -91,10 +91,6 @@ export type WorldConfig = {
   };
   auth?: {
     allowAnonymous?: boolean;
-    allowBots?: boolean;
-    /** Shared secret required to call the bot auth endpoint. When set, the
-     *  `Authorization: Bearer <key>` header must match this value. */
-    botApiKey?: string;
     webhookUrl?: string;
     serverUrl?: string;
     maxConnections?: number;

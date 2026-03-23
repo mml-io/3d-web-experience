@@ -85,7 +85,6 @@ All paths are resolved relative to the current working directory.
 | Variable | Description |
 |----------|-------------|
 | `TRUST_PROXY` | Set to `"1"` or `"true"` to enable Express `trust proxy` mode. Required when running behind a reverse proxy or load balancer so that rate limiting uses the real client IP instead of the proxy's IP. |
-| `BOT_API_KEY` | Shared secret for the bot auth endpoint. Overrides `auth.botApiKey` from the config file. Preferred over the config file to avoid committing secrets. |
 
 If `--mml-documents` is not provided, the server auto-detects an `mml-documents/` directory adjacent to the config file and serves it automatically.
 
@@ -419,8 +418,6 @@ Authentication configuration.
 {
   "auth": {
     "allowAnonymous": true,
-    "allowBots": true,
-    "botApiKey": "my-secret-key",
     "maxConnections": 50
   }
 }
@@ -429,8 +426,6 @@ Authentication configuration.
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `allowAnonymous` | `boolean` | `false` | Allow users to connect without authentication. |
-| `allowBots` | `boolean` | — | Enable the bot authentication endpoint (`/api/v1/bot-auth`). |
-| `botApiKey` | `string` | — | Shared secret for the bot auth endpoint. When set, bots must send `Authorization: Bearer <key>`. Can also be set via the `BOT_API_KEY` environment variable. |
 | `webhookUrl` | `string` | — | URL for webhook-based authentication. Must be an absolute URL (pattern: `^https?://`). |
 | `serverUrl` | `string` | — | URL for remote auth server. Must be an absolute URL (pattern: `^https?://`). |
 | `maxConnections` | `integer` | — | Maximum number of simultaneous connections (minimum `1`). |

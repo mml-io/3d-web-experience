@@ -31,10 +31,15 @@ import type { BridgeConfig } from "./index";
 function buildBridgeConfig(flags: Record<string, string>, bridgePort: number): BridgeConfig {
   const serverUrl = flags["server-url"] ?? process.env.SERVER_URL ?? "http://localhost:8080";
   const botName = flags["bot-name"] ?? process.env.BOT_NAME ?? "Agent";
-  const botAuthToken = flags["bot-auth-token"] ?? process.env.BOT_AUTH_TOKEN;
+  const token = flags["token"] ?? process.env.BOT_TOKEN;
   const botAvatarUrl = flags["bot-avatar-url"] ?? process.env.BOT_AVATAR_URL;
   const apiKey = flags["api-key"] ?? process.env.BRIDGE_API_KEY;
   const mmlDocument = flags["mml-document"] ?? process.env.MML_DOCUMENT;
+
+  if (!token) {
+    console.error("Error: --token <value> (or BOT_TOKEN env) is required");
+    process.exit(1);
+  }
 
   const webhookUrl = flags["webhook-url"] ?? process.env.WEBHOOK_URL;
   const webhookToken = flags["webhook-token"] ?? process.env.WEBHOOK_TOKEN;
@@ -48,11 +53,9 @@ function buildBridgeConfig(flags: Record<string, string>, bridgePort: number): B
     serverUrl,
     bridgePort,
     botName,
+    token,
     characterDescription: botAvatarUrl ? { mmlCharacterUrl: botAvatarUrl } : null,
     mmlDocument,
-    ...(botAuthToken
-      ? { token: botAuthToken }
-      : { authUrl: `${serverUrl}/api/v1/bot-auth`, authBody: { name: botName } }),
     ...(webhookUrl
       ? {
           webhook: {

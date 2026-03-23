@@ -1,6 +1,5 @@
 /**
  * Extended tests for index.ts — covers paths not hit by the basic tests:
- * - obtainAuthToken via authUrl (HTTP POST flow)
  * - createBridgeCore with mmlDocument config
  * - createBridgeCore with webhook config
  * - createBridgeCore with spawnConfiguration override
@@ -230,104 +229,34 @@ beforeAll(async () => {
   indexModule = await import("../src/index");
 });
 
+// Mock the token → session token exchange; pass through other requests
+const originalFetch = globalThis.fetch;
+const tokenFetchMock = vi
+  .fn<typeof fetch>()
+  .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes("?token=")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ sessionToken: "test-session-token" }),
+        headers: new Headers(),
+      } as Response;
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 describe("index.ts extended", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    globalThis.fetch = tokenFetchMock;
     mockWorldConnectionInstance.waitForConnection.mockResolvedValue(undefined);
     mockWorldConnectionInstance.waitForWorldConfig.mockResolvedValue(null);
-  });
-
-  describe("createBridgeCore with authUrl", () => {
-    test("uses authUrl to obtain token via POST", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ token: "fetched-token" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-
-      const core = await indexModule.createBridgeCore({
-        serverUrl: "http://localhost:8080",
-        bridgePort: 3101,
-        botName: "TestBot",
-        authUrl: "http://localhost:8080/api/v1/bot-auth",
-        authBody: { name: "TestBot" },
-      });
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "http://localhost:8080/api/v1/bot-auth",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ name: "TestBot" }),
-        }),
-      );
-
-      await core.cleanup();
-      fetchSpy.mockRestore();
-    });
-
-    test("uses default authBody when not provided", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ token: "fetched-token" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-
-      const core = await indexModule.createBridgeCore({
-        serverUrl: "http://localhost:8080",
-        bridgePort: 3101,
-        botName: "TestBot",
-        authUrl: "http://localhost:8080/api/v1/bot-auth",
-      });
-
-      expect(fetchSpy).toHaveBeenCalledWith(
-        "http://localhost:8080/api/v1/bot-auth",
-        expect.objectContaining({
-          body: JSON.stringify({ name: "TestBot" }),
-        }),
-      );
-
-      await core.cleanup();
-      fetchSpy.mockRestore();
-    });
-
-    test("throws when auth endpoint returns non-OK status", async () => {
-      const fetchSpy = vi
-        .spyOn(globalThis, "fetch")
-        .mockResolvedValueOnce(new Response("Unauthorized", { status: 401 }));
-
-      await expect(
-        indexModule.createBridgeCore({
-          serverUrl: "http://localhost:8080",
-          bridgePort: 3101,
-          botName: "TestBot",
-          authUrl: "http://localhost:8080/api/v1/bot-auth",
-        }),
-      ).rejects.toThrow(/Auth failed: 401/);
-
-      fetchSpy.mockRestore();
-    });
-
-    test("throws when auth endpoint returns no token field", async () => {
-      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
-        new Response(JSON.stringify({ session: "abc" }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
-
-      await expect(
-        indexModule.createBridgeCore({
-          serverUrl: "http://localhost:8080",
-          bridgePort: 3101,
-          botName: "TestBot",
-          authUrl: "http://localhost:8080/api/v1/bot-auth",
-        }),
-      ).rejects.toThrow(/Auth response missing "token" field/);
-
-      fetchSpy.mockRestore();
-    });
   });
 
   describe("createBridgeCore with mmlDocument", () => {

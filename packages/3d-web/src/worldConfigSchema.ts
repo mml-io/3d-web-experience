@@ -194,8 +194,6 @@ export const worldConfigSchema = {
       additionalProperties: false,
       properties: {
         allowAnonymous: { type: "boolean" },
-        allowBots: { type: "boolean" },
-        botApiKey: { type: "string", minLength: 1 },
         webhookUrl: { type: "string", pattern: "^https?://" },
         serverUrl: { type: "string", pattern: "^https?://" },
         maxConnections: { type: "integer", minimum: 1 },

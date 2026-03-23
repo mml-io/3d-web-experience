@@ -237,12 +237,35 @@ function driveInteractive(
   });
 }
 
+// Mock token → session token exchange; pass through other requests
+const originalFetch = globalThis.fetch;
+const tokenFetchMock = vi
+  .fn<typeof fetch>()
+  .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes("?token=")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ sessionToken: "test-session-token" }),
+        headers: new Headers(),
+      } as Response;
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 describe("interactive module", () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    globalThis.fetch = tokenFetchMock;
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
