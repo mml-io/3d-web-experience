@@ -129,7 +129,11 @@ async function obtainAuthToken(config: BridgeConfig): Promise<string> {
   } catch {
     throw new Error("Identity token auth returned non-JSON response");
   }
-  if (typeof body !== "object" || body === null || typeof (body as Record<string, unknown>).sessionToken !== "string") {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    typeof (body as Record<string, unknown>).sessionToken !== "string"
+  ) {
     throw new Error(
       `Auth response missing "sessionToken" field. Got: ${JSON.stringify(body).substring(0, 200)}`,
     );

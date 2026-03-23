@@ -232,9 +232,11 @@ beforeAll(async () => {
 
 // Mock the identity token → session token exchange; pass through other requests
 const originalFetch = globalThis.fetch;
-const identityTokenFetchMock = vi.fn<typeof fetch>().mockImplementation(
-  async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+const identityTokenFetchMock = vi
+  .fn<typeof fetch>()
+  .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     if (url.includes("?token=")) {
       return {
         ok: true,
@@ -244,8 +246,7 @@ const identityTokenFetchMock = vi.fn<typeof fetch>().mockImplementation(
       } as Response;
     }
     return originalFetch(input, init);
-  },
-) as typeof fetch;
+  }) as typeof fetch;
 
 afterEach(() => {
   globalThis.fetch = originalFetch;

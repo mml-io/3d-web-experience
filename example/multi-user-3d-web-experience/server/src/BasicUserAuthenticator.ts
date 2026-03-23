@@ -84,9 +84,7 @@ export class BasicUserAuthenticator {
     user.userData = {
       userId: crypto.randomUUID(),
       username: userIdentityPresentedOnConnection?.username
-        ? userIdentityPresentedOnConnection.username
-            .replace(/[\x00-\x1f\x7f]/g, "")
-            .slice(0, 256)
+        ? userIdentityPresentedOnConnection.username.replace(/[\x00-\x1f\x7f]/g, "").slice(0, 256)
         : `User ${connectionId}`,
       characterDescription:
         userIdentityPresentedOnConnection?.characterDescription ??

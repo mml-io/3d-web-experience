@@ -247,9 +247,11 @@ let indexModule: typeof import("../src/index");
 // Only intercepts requests with ?token= in the URL (identity token exchange);
 // passes all other requests through to the real fetch (e.g. test HTTP calls to the bridge).
 const originalFetch = globalThis.fetch;
-const identityTokenFetchMock = vi.fn<typeof fetch>().mockImplementation(
-  async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+const identityTokenFetchMock = vi
+  .fn<typeof fetch>()
+  .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url =
+      typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     if (url.includes("?token=")) {
       return {
         ok: true,
@@ -259,8 +261,7 @@ const identityTokenFetchMock = vi.fn<typeof fetch>().mockImplementation(
       } as Response;
     }
     return originalFetch(input, init);
-  },
-) as typeof fetch;
+  }) as typeof fetch;
 
 beforeAll(async () => {
   indexModule = await import("../src/index");
