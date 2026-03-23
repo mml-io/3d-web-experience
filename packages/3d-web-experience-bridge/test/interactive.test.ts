@@ -237,9 +237,9 @@ function driveInteractive(
   });
 }
 
-// Mock identity token → session token exchange; pass through other requests
+// Mock token → session token exchange; pass through other requests
 const originalFetch = globalThis.fetch;
-const identityTokenFetchMock = vi
+const tokenFetchMock = vi
   .fn<typeof fetch>()
   .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url =
@@ -265,7 +265,7 @@ describe("interactive module", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.fetch = identityTokenFetchMock;
+    globalThis.fetch = tokenFetchMock;
     consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -289,7 +289,7 @@ describe("interactive module", () => {
         serverUrl: "http://localhost:9999",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "fake-token",
+        token: "fake-token",
       };
 
       try {

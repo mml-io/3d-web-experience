@@ -51,14 +51,11 @@ export type BridgeConfig = {
   /** Display name for the bot */
   botName: string;
   /**
-   * Identity token (JWT) to present to the experience server.
-   * The bridge authenticates via the same URL path as a browser: it GETs
-   * the server URL with `?token=<identityToken>` and `Accept: application/json`,
-   * receiving the session token as JSON. This works with any authenticator
-   * (webhook, remote auth server, etc.) without the bridge needing to know
-   * which one is configured.
+   * Token to present to the experience server for authentication.
+   * The bridge GETs the server URL with `?token=<token>` and `Accept: application/json`,
+   * receiving the session token as JSON.
    */
-  identityToken: string;
+  token: string;
   /** Character description for the avatar */
   characterDescription?: CharacterDescription | null;
   /** Webhook configuration (optional) */
@@ -97,10 +94,9 @@ export type BridgeHandle = {
 };
 
 async function obtainAuthToken(config: BridgeConfig): Promise<string> {
-  // Authenticate via the same URL path as a browser: GET the index URL with ?token=<identityToken>.
-  // The Accept header tells the server to return JSON instead of HTML.
-  const pageUrl = `${config.serverUrl}/?token=${encodeURIComponent(config.identityToken)}`;
-  debug(`[bridge] Authenticating via identity token: ${config.serverUrl}/?token=...`);
+  // GET the index URL with ?token=<token> and Accept: application/json.
+  const pageUrl = `${config.serverUrl}/?token=${encodeURIComponent(config.token)}`;
+  debug(`[bridge] Authenticating: ${config.serverUrl}/?token=...`);
   const authAbort = new AbortController();
   const authTimeout = setTimeout(() => authAbort.abort(), 15_000);
   let authRes: Response;
@@ -116,18 +112,18 @@ async function obtainAuthToken(config: BridgeConfig): Promise<string> {
   if (authRes.status >= 300 && authRes.status < 400) {
     const location = authRes.headers.get("location") ?? "(unknown)";
     throw new Error(
-      `Identity token auth requires interactive login (redirect to ${location}). ` +
-        `Check that the identity token is valid and the auth server is configured correctly.`,
+      `Auth requires interactive login (redirect to ${location}). ` +
+        `Check that the token is valid and the auth server is configured correctly.`,
     );
   }
   if (!authRes.ok) {
-    throw new Error(`Identity token auth failed: ${authRes.status}`);
+    throw new Error(`Token auth failed: ${authRes.status}`);
   }
   let body: unknown;
   try {
     body = await authRes.json();
   } catch {
-    throw new Error("Identity token auth returned non-JSON response");
+    throw new Error("Token auth returned non-JSON response");
   }
   if (
     typeof body !== "object" ||
@@ -138,7 +134,7 @@ async function obtainAuthToken(config: BridgeConfig): Promise<string> {
       `Auth response missing "sessionToken" field. Got: ${JSON.stringify(body).substring(0, 200)}`,
     );
   }
-  debug("[bridge] Got session token via identity token");
+  debug("[bridge] Got session token");
   return (body as Record<string, string>).sessionToken;
 }
 

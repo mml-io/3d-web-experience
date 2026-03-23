@@ -1,6 +1,6 @@
 /**
  * Tests for index.ts — focuses on the testable units:
- * - obtainAuthToken / identityToken auth flow (via createBridgeCore)
+ * - obtainAuthToken / token auth flow (via createBridgeCore)
  * - setupHttpServer (via startBridge with mocked deps)
  * - autoStartFromEnv (env parsing and validation)
  *
@@ -243,11 +243,11 @@ vi.mock("../src/WebhookEmitter", () => ({
 
 let indexModule: typeof import("../src/index");
 
-// Mock the identity token → session token exchange that obtainAuthToken performs.
-// Only intercepts requests with ?token= in the URL (identity token exchange);
+// Mock the token → session token exchange that obtainAuthToken performs.
+// Only intercepts requests with ?token= in the URL (token exchange);
 // passes all other requests through to the real fetch (e.g. test HTTP calls to the bridge).
 const originalFetch = globalThis.fetch;
-const identityTokenFetchMock = vi
+const tokenFetchMock = vi
   .fn<typeof fetch>()
   .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url =
@@ -268,12 +268,12 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  globalThis.fetch = identityTokenFetchMock;
+  globalThis.fetch = tokenFetchMock;
 });
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  (identityTokenFetchMock as ReturnType<typeof vi.fn>).mockClear();
+  (tokenFetchMock as ReturnType<typeof vi.fn>).mockClear();
 });
 
 describe("index.ts", () => {
@@ -385,7 +385,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(core.worldConnection).toBeDefined();
@@ -405,7 +405,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       await core.cleanup();
@@ -426,7 +426,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: port,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
       baseUrl = `http://localhost:${port}`;
     });
@@ -531,7 +531,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: port,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         apiKey: "test-api-key",
       });
       baseUrl = `http://localhost:${port}`;
@@ -603,15 +603,15 @@ describe("index.ts", () => {
   });
 
   describe("obtainAuthToken (tested via createBridgeCore)", () => {
-    test("exchanges identity token for session token via fetch", async () => {
+    test("exchanges token for session token via fetch", async () => {
       const core = await indexModule.createBridgeCore({
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "my-jwt-token",
+        token: "my-jwt-token",
       });
       expect(core.worldConnection).toBeDefined();
-      expect(identityTokenFetchMock).toHaveBeenCalledWith(
+      expect(tokenFetchMock).toHaveBeenCalledWith(
         expect.stringContaining("?token=my-jwt-token"),
         expect.objectContaining({
           headers: { Accept: "application/json" },
@@ -634,7 +634,7 @@ describe("index.ts", () => {
           serverUrl: "http://localhost:8080",
           bridgePort: 3101,
           botName: "TestBot",
-          identityToken: "expired-jwt",
+          token: "expired-jwt",
         }),
       ).rejects.toThrow(/interactive login/);
     });
@@ -654,7 +654,7 @@ describe("index.ts", () => {
           serverUrl: "http://localhost:8080",
           bridgePort: 3101,
           botName: "TestBot",
-          identityToken: "my-jwt",
+          token: "my-jwt",
         }),
       ).rejects.toThrow(/non-JSON response/);
     });
@@ -672,7 +672,7 @@ describe("index.ts", () => {
           serverUrl: "http://localhost:8080",
           bridgePort: 3101,
           botName: "TestBot",
-          identityToken: "bad-jwt",
+          token: "bad-jwt",
         }),
       ).rejects.toThrow(/auth failed: 403/i);
     });
@@ -690,7 +690,7 @@ describe("index.ts", () => {
           serverUrl: "http://localhost:8080",
           bridgePort: 3101,
           botName: "TestBot",
-          identityToken: "my-jwt",
+          token: "my-jwt",
         }),
       ).rejects.toThrow(/missing "sessionToken"/);
     });
@@ -702,7 +702,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         mmlDocument: "my-document",
       });
 
@@ -727,7 +727,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(core.headlessScene.setMMLDocuments).toHaveBeenCalledWith(
@@ -749,7 +749,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         mmlDocument: "single-doc",
       });
 
@@ -771,7 +771,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         spawnConfiguration: spawnConfig as any,
       });
 
@@ -784,7 +784,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         characterDescription: { mmlCharacterUrl: "https://example.com/avatar.glb" },
       });
 
@@ -800,7 +800,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         webhook: {
           url: "https://hooks.example.com/events",
           token: "webhook-secret",
@@ -828,7 +828,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(core.avatarController).toBeDefined();
@@ -842,7 +842,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       // Should still work, just no MML documents loaded
@@ -858,7 +858,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       // Broadcast to all registered event listeners
@@ -885,7 +885,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         onWorldConfig,
       });
 
@@ -905,7 +905,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         mmlDocument: "single-doc",
       });
 
@@ -934,7 +934,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         onServerBroadcast,
       });
 
@@ -957,7 +957,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       const spawnConfig = {
@@ -982,7 +982,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       await core.cleanup();
@@ -1001,7 +1001,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: port,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
       baseUrl = `http://localhost:${port}`;
     });
@@ -1058,7 +1058,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
       expect(core.worldConnection).toBeDefined();
       await core.cleanup();
@@ -1072,7 +1072,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
       expect(core.worldConnection).toBeDefined();
       await core.cleanup();
@@ -1083,7 +1083,7 @@ describe("index.ts", () => {
         serverUrl: "https://example.com:9090",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
       // WorldConnection should have been constructed with wss:// URL
       expect(core.worldConnection).toBeDefined();
@@ -1091,7 +1091,7 @@ describe("index.ts", () => {
     });
   });
 
-  // obtainAuthToken — identityToken path tests are in the
+  // obtainAuthToken — token path tests are in the
   // "obtainAuthToken (tested via createBridgeCore)" describe block above.
 
   describe("setupNavmeshWatcher (tested via createBridgeCore)", () => {
@@ -1100,7 +1100,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       // setupNavmeshWatcher runs async setup internally; wait for it to complete
@@ -1117,7 +1117,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       await core.cleanup();
@@ -1133,7 +1133,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(core.toolCtx.worldConnection).toBeDefined();
@@ -1150,7 +1150,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(core.tools.size).toBeGreaterThan(0);
@@ -1171,7 +1171,7 @@ describe("index.ts", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: port,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
       baseUrl = `http://localhost:${port}`;
     });

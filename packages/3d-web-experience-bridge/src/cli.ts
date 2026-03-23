@@ -31,13 +31,13 @@ import type { BridgeConfig } from "./index";
 function buildBridgeConfig(flags: Record<string, string>, bridgePort: number): BridgeConfig {
   const serverUrl = flags["server-url"] ?? process.env.SERVER_URL ?? "http://localhost:8080";
   const botName = flags["bot-name"] ?? process.env.BOT_NAME ?? "Agent";
-  const identityToken = flags["identity-token"] ?? process.env.BOT_IDENTITY_TOKEN;
+  const token = flags["token"] ?? process.env.BOT_TOKEN;
   const botAvatarUrl = flags["bot-avatar-url"] ?? process.env.BOT_AVATAR_URL;
   const apiKey = flags["api-key"] ?? process.env.BRIDGE_API_KEY;
   const mmlDocument = flags["mml-document"] ?? process.env.MML_DOCUMENT;
 
-  if (!identityToken) {
-    console.error("Error: --identity-token <jwt> (or BOT_IDENTITY_TOKEN env) is required");
+  if (!token) {
+    console.error("Error: --token <value> (or BOT_TOKEN env) is required");
     process.exit(1);
   }
 
@@ -53,7 +53,7 @@ function buildBridgeConfig(flags: Record<string, string>, bridgePort: number): B
     serverUrl,
     bridgePort,
     botName,
-    identityToken,
+    token,
     characterDescription: botAvatarUrl ? { mmlCharacterUrl: botAvatarUrl } : null,
     mmlDocument,
     ...(webhookUrl

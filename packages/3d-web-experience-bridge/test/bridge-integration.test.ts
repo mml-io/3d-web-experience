@@ -171,7 +171,7 @@ async function spawnBridge(
       String(bridgePort),
       "--bot-name",
       "TestBot",
-      "--identity-token",
+      "--token",
       token,
     ],
     {

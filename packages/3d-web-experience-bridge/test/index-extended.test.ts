@@ -230,9 +230,9 @@ beforeAll(async () => {
   indexModule = await import("../src/index");
 });
 
-// Mock the identity token → session token exchange; pass through other requests
+// Mock the token → session token exchange; pass through other requests
 const originalFetch = globalThis.fetch;
-const identityTokenFetchMock = vi
+const tokenFetchMock = vi
   .fn<typeof fetch>()
   .mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url =
@@ -255,12 +255,12 @@ afterEach(() => {
 describe("index.ts extended", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    globalThis.fetch = identityTokenFetchMock;
+    globalThis.fetch = tokenFetchMock;
     mockWorldConnectionInstance.waitForConnection.mockResolvedValue(undefined);
     mockWorldConnectionInstance.waitForWorldConfig.mockResolvedValue(null);
   });
 
-  // authUrl tests removed — bridge now uses identityToken exclusively.
+  // authUrl tests removed — bridge now uses token exclusively.
 
   describe("createBridgeCore with mmlDocument", () => {
     test("loads single MML document", async () => {
@@ -268,7 +268,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         mmlDocument: "test-doc",
       });
 
@@ -293,7 +293,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(mockHeadlessSceneInstance.setMMLDocuments).toHaveBeenCalledWith(
@@ -313,7 +313,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         webhook: {
           url: "https://hooks.example.com/events",
           token: "webhook-secret",
@@ -345,7 +345,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         spawnConfiguration: {
           spawnPosition: { x: 10, y: 5, z: 20 },
         },
@@ -364,7 +364,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         characterDescription: { mmlCharacterUrl: "https://example.com/avatar.html" },
       });
 
@@ -395,7 +395,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         onWorldConfig,
       });
 
@@ -427,7 +427,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
         onServerBroadcast,
       });
 
@@ -454,7 +454,7 @@ describe("index.ts extended", () => {
         serverUrl: "http://localhost:8080",
         bridgePort: port,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
     });
 
@@ -482,7 +482,7 @@ describe("index.ts extended", () => {
         serverUrl: "https://example.com:8443",
         bridgePort: 3101,
         botName: "TestBot",
-        identityToken: "test-token",
+        token: "test-token",
       });
 
       expect(core.toolCtx.serverUrl).toBe("https://example.com:8443");
