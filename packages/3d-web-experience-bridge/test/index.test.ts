@@ -272,7 +272,7 @@ beforeEach(() => {
 
 afterEach(() => {
   globalThis.fetch = originalFetch;
-  identityTokenFetchMock.mockClear();
+  (identityTokenFetchMock as ReturnType<typeof vi.fn>).mockClear();
 });
 
 describe("index.ts", () => {
@@ -646,7 +646,7 @@ describe("index.ts", () => {
         json: async () => {
           throw new SyntaxError("Unexpected token <");
         },
-      } as Response) as typeof fetch;
+      } as unknown as Response) as typeof fetch;
 
       await expect(
         indexModule.createBridgeCore({

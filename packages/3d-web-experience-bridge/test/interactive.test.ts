@@ -288,7 +288,7 @@ describe("interactive module", () => {
         serverUrl: "http://localhost:9999",
         bridgePort: 3101,
         botName: "TestBot",
-        token: "fake-token",
+        identityToken: "fake-token",
       };
 
       try {
