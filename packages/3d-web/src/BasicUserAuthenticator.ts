@@ -183,19 +183,6 @@ export class BasicUserAuthenticator implements UserAuthenticator {
     return null;
   }
 
-  /**
-   * Create a session for a bot that has already been authenticated via an API
-   * key. Bypasses the webhook flow and anonymous-access check.
-   */
-  public generateBotSessionToken(): string | null {
-    const session = this.createSession();
-    if (session instanceof Error) {
-      console.error(`Bot session creation failed: ${session.message}`);
-      return null;
-    }
-    return session.sessionToken;
-  }
-
   public getSessionAuthToken(sessionToken: string): string | null {
     const user = this.userBySessionToken.get(sessionToken);
     if (!user) return null;
@@ -235,10 +222,15 @@ export class BasicUserAuthenticator implements UserAuthenticator {
     user.connectionId = connectionId;
 
     if (!user.userData) {
-      // Anonymous session — assign default identity
+      // Anonymous or bot session — use the username presented on connection if available
+      const presentedUsername = userIdentityPresentedOnConnection?.username
+        ? userIdentityPresentedOnConnection.username
+            .replace(/[\x00-\x1f\x7f]/g, "")
+            .slice(0, MAX_USERNAME_LENGTH)
+        : null;
       user.userData = {
         userId: crypto.randomUUID(),
-        username: `User ${connectionId}`,
+        username: presentedUsername || `User ${connectionId}`,
         characterDescription: this.sanitizeCharacterDescription(
           userIdentityPresentedOnConnection?.characterDescription,
           this.randomCharacterDescription(),

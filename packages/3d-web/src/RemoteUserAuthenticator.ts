@@ -282,9 +282,12 @@ export class RemoteUserAuthenticator implements UserAuthenticator {
         colors: this.sanitizeColors(ud.colors as Array<[number, number, number]> | null) ?? [],
       };
     } else {
+      const presentedUsername = userIdentityPresentedOnConnection?.username
+        ? this.sanitizeUsername(userIdentityPresentedOnConnection.username)
+        : null;
       resultUserData = {
         userId: crypto.randomUUID(),
-        username: `User ${connectionId}`,
+        username: presentedUsername || `User ${connectionId}`,
         characterDescription:
           this.sanitizeCharacterDescription(
             userIdentityPresentedOnConnection?.characterDescription,

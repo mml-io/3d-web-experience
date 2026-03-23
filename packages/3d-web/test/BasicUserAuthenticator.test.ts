@@ -401,7 +401,7 @@ describe("BasicUserAuthenticator", () => {
     });
   });
 
-  describe("generateBotSessionToken", () => {
+  describe("anonymous session flow (used by bots)", () => {
     let auth: BasicUserAuthenticator;
 
     afterEach(() => {
@@ -411,9 +411,9 @@ describe("BasicUserAuthenticator", () => {
     it("creates a valid session token that works with onClientConnect", async () => {
       auth = new BasicUserAuthenticator({
         defaultCharacterDescriptions,
-        allowAnonymous: false,
+        allowAnonymous: true,
       });
-      const token = auth.generateBotSessionToken();
+      const token = await auth.generateAuthorizedSessionToken(mockRequest());
       expect(token).toBeTruthy();
       expect(typeof token).toBe("string");
 
@@ -423,38 +423,50 @@ describe("BasicUserAuthenticator", () => {
       expect(userData.username).toBe("User 1");
     });
 
-    it("returns null when session limit is reached", () => {
+    it("uses presented username on connect", async () => {
       auth = new BasicUserAuthenticator({
         defaultCharacterDescriptions,
         allowAnonymous: true,
       });
-      // Fill up to MAX_SESSIONS (10_000 — private constant)
+      const token = (await auth.generateAuthorizedSessionToken(mockRequest()))!;
+
+      const result = await auth.onClientConnect(1, token, {
+        userId: "",
+        username: "Starship Guide",
+        characterDescription: defaultCharacterDescriptions[0],
+        colors: [],
+      });
+      expect(result).not.toBeInstanceOf(Error);
+      const userData = result as import("@mml-io/3d-web-user-networking").UserData;
+      expect(userData.username).toBe("Starship Guide");
+    });
+
+    it("returns null when session limit is reached", async () => {
+      auth = new BasicUserAuthenticator({
+        defaultCharacterDescriptions,
+        allowAnonymous: true,
+      });
+      // Fill up to MAX_SESSIONS (10_000)
       for (let i = 0; i < 10_000; i++) {
-        const t = auth.generateBotSessionToken();
+        const t = await auth.generateAuthorizedSessionToken(mockRequest());
         expect(t).not.toBeNull();
       }
 
       // At capacity — next creation fails
-      const token = auth.generateBotSessionToken();
+      const token = await auth.generateAuthorizedSessionToken(mockRequest());
       expect(token).toBeNull();
     });
 
-    it("returns null when session limit is reached and all sessions are connected", async () => {
+    it("rejects connection when at maxConnections even if sessions are available", async () => {
       auth = new BasicUserAuthenticator({
         defaultCharacterDescriptions,
         allowAnonymous: true,
-        // Use a small maxConnections to keep the test fast while still hitting
-        // MAX_SESSIONS capacity. We fill 50 sessions and connect them all so
-        // there are no disconnected sessions to evict. Eviction only removes
-        // disconnected sessions, so a 51st session creation succeeds (evicting
-        // from the 50 in the session map), but connecting the 51st fails due
-        // to maxConnections.
         maxConnections: 50,
       });
 
       // Create and connect sessions up to maxConnections
       for (let i = 0; i < 50; i++) {
-        const t = auth.generateBotSessionToken()!;
+        const t = (await auth.generateAuthorizedSessionToken(mockRequest()))!;
         expect(t).not.toBeNull();
         const result = await auth.onClientConnect(i, t);
         expect(result).not.toBeInstanceOf(Error);
@@ -462,7 +474,7 @@ describe("BasicUserAuthenticator", () => {
 
       // All 50 connection slots are full. A new token can be created (session
       // map is well below MAX_SESSIONS), but connecting it is rejected.
-      const extraToken = auth.generateBotSessionToken()!;
+      const extraToken = (await auth.generateAuthorizedSessionToken(mockRequest()))!;
       expect(extraToken).not.toBeNull();
       const connectResult = await auth.onClientConnect(50, extraToken);
       expect(connectResult).toBeInstanceOf(Error);

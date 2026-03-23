@@ -83,15 +83,16 @@ export class BasicUserAuthenticator {
     user.connectionId = connectionId;
     user.userData = {
       userId: crypto.randomUUID(),
-      username: `User ${connectionId}`,
+      username: userIdentityPresentedOnConnection?.username
+        ? userIdentityPresentedOnConnection.username
+            .replace(/[\x00-\x1f\x7f]/g, "")
+            .slice(0, 256)
+        : `User ${connectionId}`,
       characterDescription:
         userIdentityPresentedOnConnection?.characterDescription ??
         this.randomCharacterDescription(),
       colors: userIdentityPresentedOnConnection?.colors ?? null,
     };
-    if (userIdentityPresentedOnConnection) {
-      console.warn("Ignoring user-identity on initial connect");
-    }
     console.log(`Connection ID: ${connectionId} connected with user data`, user.userData);
     this.usersByConnectionId.set(connectionId, user);
     return user.userData;
@@ -129,7 +130,9 @@ export class BasicUserAuthenticator {
     }
 
     const update: UserIdentityUpdate = {
-      username: msg.username ?? user.userData.username,
+      username: msg.username
+        ? msg.username.replace(/[\x00-\x1f\x7f]/g, "").slice(0, 256)
+        : user.userData.username,
       characterDescription: msg.characterDescription ?? user.userData.characterDescription,
       colors: msg.colors ?? user.userData.colors,
     };

@@ -339,6 +339,58 @@ describe("RemoteUserAuthenticator", () => {
       auth.dispose();
     });
 
+    it("uses presented username when auth server omits userData", async () => {
+      const { server, url } = await createMockAuthServer((req) => {
+        if (req.url === "/session/connect" && req.method === "POST") {
+          return { status: 200, body: {} };
+        }
+        return { status: 200, body: { sessionToken: "tok-1" } };
+      });
+      mockServer = server;
+
+      const auth = new RemoteUserAuthenticator({
+        serverUrl: url,
+        defaultCharacterDescription,
+      });
+
+      const result = await auth.onClientConnect(1, "tok-1", {
+        userId: "",
+        username: "BridgeBot",
+        characterDescription: null,
+        colors: [],
+      });
+      expect(result).not.toBeInstanceOf(Error);
+      const userData = result as import("@mml-io/3d-web-user-networking").UserData;
+      expect(userData.username).toBe("BridgeBot");
+      auth.dispose();
+    });
+
+    it("sanitizes presented username when auth server omits userData", async () => {
+      const { server, url } = await createMockAuthServer((req) => {
+        if (req.url === "/session/connect" && req.method === "POST") {
+          return { status: 200, body: {} };
+        }
+        return { status: 200, body: { sessionToken: "tok-1" } };
+      });
+      mockServer = server;
+
+      const auth = new RemoteUserAuthenticator({
+        serverUrl: url,
+        defaultCharacterDescription,
+      });
+
+      const result = await auth.onClientConnect(1, "tok-1", {
+        userId: "",
+        username: "Bot\x00Name\x1f\x7f",
+        characterDescription: null,
+        colors: [],
+      });
+      expect(result).not.toBeInstanceOf(Error);
+      const userData = result as import("@mml-io/3d-web-user-networking").UserData;
+      expect(userData.username).toBe("BotName");
+      auth.dispose();
+    });
+
     it("returns Error when auth server rejects connection", async () => {
       const { server, url } = await createMockAuthServer((req) => {
         if (req.url === "/session/connect") {
@@ -609,9 +661,8 @@ describe("RemoteUserAuthenticator", () => {
       const result = await auth.onClientConnect(1, "tok-1", clientIdentity);
       expect(result).not.toBeInstanceOf(Error);
       const userData = result as import("@mml-io/3d-web-user-networking").UserData;
-      // Username is auto-generated (not taken from client identity)
-      expect(userData.username).toBe("User 1");
-      // Character description and colors come from userIdentityPresentedOnConnection
+      // Username, character description, and colors come from userIdentityPresentedOnConnection
+      expect(userData.username).toBe("ClientUser");
       expect(userData.characterDescription).toEqual({ meshFileUrl: "/client-avatar.glb" });
       expect(userData.colors).toEqual([[1, 0, 0]]);
       auth.dispose();

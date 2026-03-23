@@ -348,6 +348,12 @@ export class Networked3dWebExperienceServer {
           res.redirect(result.redirect);
           return;
         }
+        // Content negotiation: return JSON for programmatic clients (bridges, bots),
+        // HTML for browsers. Same auth path either way.
+        if (req.accepts("json") && !req.accepts("html")) {
+          res.json({ sessionToken: result });
+          return;
+        }
         const authorizedDemoIndexContent = webClientServing.indexContent.replace(
           webClientServing.sessionTokenPlaceholder || defaultSessionTokenPlaceholder,
           escapeForJsString(result),
