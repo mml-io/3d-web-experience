@@ -1,6 +1,5 @@
 /**
  * Extended tests for index.ts — covers paths not hit by the basic tests:
- * - obtainAuthToken via authUrl (HTTP POST flow)
  * - createBridgeCore with mmlDocument config
  * - createBridgeCore with webhook config
  * - createBridgeCore with spawnConfiguration override
@@ -259,8 +258,6 @@ describe("index.ts extended", () => {
     mockWorldConnectionInstance.waitForConnection.mockResolvedValue(undefined);
     mockWorldConnectionInstance.waitForWorldConfig.mockResolvedValue(null);
   });
-
-  // authUrl tests removed — bridge now uses token exclusively.
 
   describe("createBridgeCore with mmlDocument", () => {
     test("loads single MML document", async () => {

@@ -115,12 +115,6 @@ const indexContent = fs.readFileSync(path.join(webClientBuildDir, "index.html"),
 const app = express();
 app.enable("trust proxy");
 
-// Bot-auth endpoint (the bridge POSTs here to get a session token)
-app.post("/api/v1/bot-auth", async (_req, res) => {
-  const token = await authenticator.generateAuthorizedSessionToken();
-  res.json({ token });
-});
-
 const experienceServer = new Networked3dWebExperienceServer({
   networkPath: "/network",
   userAuthenticator: authenticator,
@@ -179,7 +173,7 @@ async function main() {
     serverUrl,
     bridgePort: 8083,
     botName: "Alpha",
-    authUrl: `${serverUrl}/api/v1/bot-auth`,
+    token: "anonymous",
   });
   bridges.push(alpha);
   if (DEBUG) console.log("[orchestrator] Alpha bridge started");
@@ -189,7 +183,7 @@ async function main() {
     serverUrl,
     bridgePort: 8084,
     botName: "Beta",
-    authUrl: `${serverUrl}/api/v1/bot-auth`,
+    token: "anonymous",
   });
   bridges.push(beta);
   if (DEBUG) console.log("[orchestrator] Beta bridge started");
