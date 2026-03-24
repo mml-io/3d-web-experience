@@ -18,8 +18,8 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-server": "^0.27.1",
-    "@mml-io/3d-web-user-networking": "^0.27.1",
+    "@mml-io/3d-web-experience-server": "*",
+    "@mml-io/3d-web-user-networking": "*",
     "express": "4.21.2"
   },
   "devDependencies": {

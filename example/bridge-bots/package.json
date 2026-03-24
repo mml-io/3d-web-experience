@@ -7,8 +7,8 @@
     "iterate": "node --import tsx src/index.ts"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-bridge": "^0.27.1",
-    "@mml-io/3d-web-experience-server": "^0.27.1",
+    "@mml-io/3d-web-experience-bridge": "*",
+    "@mml-io/3d-web-experience-server": "*",
     "express": "4.21.2",
     "tsx": "^4.19.4"
   }
