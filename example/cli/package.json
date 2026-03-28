@@ -1,12 +1,12 @@
 {
   "name": "@example/cli",
   "private": true,
-  "version": "0.27.1",
+  "version": "0.28.0",
   "scripts": {
     "start": "3d-web-experience serve world.json --port 8085",
     "iterate": "node --watch-path=../../packages/3d-web/build --watch-preserve-output ../../packages/3d-web/build/index.js serve world.json --port 8085"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience": "*"
+    "@mml-io/3d-web-experience": "^0.28.0"
   }
 }

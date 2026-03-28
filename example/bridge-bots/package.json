@@ -1,14 +1,14 @@
 {
   "name": "@example/bridge-bots",
   "private": true,
-  "version": "0.27.1",
+  "version": "0.28.0",
   "type": "module",
   "scripts": {
     "iterate": "node --import tsx src/index.ts"
   },
   "dependencies": {
-    "@mml-io/3d-web-experience-bridge": "*",
-    "@mml-io/3d-web-experience-server": "*",
+    "@mml-io/3d-web-experience-bridge": "^0.28.0",
+    "@mml-io/3d-web-experience-server": "^0.28.0",
     "express": "4.21.2",
     "tsx": "^4.19.4"
   }

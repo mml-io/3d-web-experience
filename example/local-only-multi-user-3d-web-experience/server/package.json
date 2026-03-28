@@ -1,7 +1,7 @@
 {
   "name": "@example/local-only-multi-user-3d-web-experience-server",
   "private": true,
-  "version": "0.27.1",
+  "version": "0.28.0",
   "engines": {
     "node": "24.x"
   },

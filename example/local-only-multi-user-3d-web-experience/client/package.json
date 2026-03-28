@@ -1,7 +1,7 @@
 {
   "name": "@example/local-only-multi-user-3d-web-experience-client",
   "private": true,
-  "version": "0.27.1",
+  "version": "0.28.0",
   "files": [
     "/build"
   ],
@@ -15,8 +15,8 @@
     "lint-fix": "eslint \"./{src,test}/**/*.{js,jsx,ts,tsx}\" --fix"
   },
   "dependencies": {
-    "@mml-io/3d-web-client-core": "*",
-    "@mml-io/3d-web-threejs": "*",
+    "@mml-io/3d-web-client-core": "^0.28.0",
+    "@mml-io/3d-web-threejs": "^0.28.0",
     "@mml-io/mml-web": "0.26.1",
     "@mml-io/mml-web-runner": "0.26.1",
     "@mml-io/mml-web-threejs-standalone": "0.26.1",

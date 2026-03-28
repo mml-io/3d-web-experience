@@ -1,6 +1,6 @@
 {
   "name": "@mml-io/3d-web-experience",
-  "version": "0.27.1",
+  "version": "0.28.0",
   "publishConfig": {
     "access": "public"
   },
@@ -33,11 +33,11 @@
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
   },
   "dependencies": {
-    "@mml-io/3d-web-client-core": "^0.27.1",
-    "@mml-io/3d-web-experience-client": "^0.27.1",
-    "@mml-io/3d-web-experience-protocol": "^0.27.1",
-    "@mml-io/3d-web-experience-server": "^0.27.1",
-    "@mml-io/3d-web-user-networking": "^0.27.1",
+    "@mml-io/3d-web-client-core": "^0.28.0",
+    "@mml-io/3d-web-experience-client": "^0.28.0",
+    "@mml-io/3d-web-experience-protocol": "^0.28.0",
+    "@mml-io/3d-web-experience-server": "^0.28.0",
+    "@mml-io/3d-web-user-networking": "^0.28.0",
     "ajv": "^8.17.1",
     "chokidar": "4.0.3",
     "commander": "^13.1.0",
