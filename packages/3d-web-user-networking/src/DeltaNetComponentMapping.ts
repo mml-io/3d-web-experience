@@ -57,24 +57,43 @@ export class DeltaNetComponentMapping {
   }
 
   /**
-   * Convert deltanet components back to UserNetworkingClientUpdate
+   * Convert deltanet components back to UserNetworkingClientUpdate.
+   * Allocates a fresh result object — prefer `fromComponentsInto` on hot
+   * paths (per-tick update loop in `UserNetworkingClient`) to mutate a
+   * pre-allocated scratch instead.
    */
   static fromComponents(components: Map<number, bigint>): UserNetworkingClientUpdate {
-    const positionX =
-      Number(components.get(COMPONENT_POSITION_X) || BigInt(0)) / positionMultiplier;
-    const positionY =
-      Number(components.get(COMPONENT_POSITION_Y) || BigInt(0)) / positionMultiplier;
-    const positionZ =
-      Number(components.get(COMPONENT_POSITION_Z) || BigInt(0)) / positionMultiplier;
-    const eulerY = Number(components.get(COMPONENT_ROTATION_Y) || BigInt(0)) / rotationMultiplier;
+    return DeltaNetComponentMapping.fromComponentsInto(components, {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { eulerY: 0 },
+      state: 0,
+    });
+  }
 
-    const state = Number(components.get(COMPONENT_STATE) || BigInt(0));
-
-    return {
-      position: { x: positionX, y: positionY, z: positionZ },
-      rotation: { eulerY },
-      state,
-    };
+  /**
+   * Same conversion as `fromComponents` but writes into a caller-provided
+   * `dest` object (mutating its `position`, `rotation`, and `state`
+   * fields in place). Returns `dest` for chaining.
+   *
+   * Used by the per-tick update loop, which keeps a pool of these
+   * objects keyed by connection id so the hot path stays
+   * allocation-free at 2000 users × 30 Hz.
+   */
+  static fromComponentsInto(
+    components: Map<number, bigint>,
+    dest: UserNetworkingClientUpdate,
+  ): UserNetworkingClientUpdate {
+    const px = components.get(COMPONENT_POSITION_X);
+    const py = components.get(COMPONENT_POSITION_Y);
+    const pz = components.get(COMPONENT_POSITION_Z);
+    const ry = components.get(COMPONENT_ROTATION_Y);
+    const st = components.get(COMPONENT_STATE);
+    dest.position.x = px !== undefined ? Number(px) / positionMultiplier : 0;
+    dest.position.y = py !== undefined ? Number(py) / positionMultiplier : 0;
+    dest.position.z = pz !== undefined ? Number(pz) / positionMultiplier : 0;
+    dest.rotation.eulerY = ry !== undefined ? Number(ry) / rotationMultiplier : 0;
+    dest.state = st !== undefined ? Number(st) : 0;
+    return dest;
   }
 
   /**

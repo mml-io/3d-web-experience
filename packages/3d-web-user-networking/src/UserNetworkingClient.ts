@@ -71,6 +71,22 @@ export class UserNetworkingClient {
   private stableIdToConnectionId: Map<number, number> = new Map();
   private userProfiles: Map<number, UserData> = new Map();
   private isAuthenticated = false;
+
+  // Reused across calls to `processNetworkUpdate` (~30 Hz). Cleared at the
+  // start of each call and repopulated. Consumers (notably
+  // `Networked3dWebExperienceClient.onNetworkUpdate`) read these maps
+  // synchronously and don't retain references — safe to reuse.
+  private readonly _addedConnectionIdsScratch = new Map<number, AddedUser>();
+  private readonly _removedConnectionIdsScratch = new Set<number>();
+  private readonly _updatedUsersScratch = new Map<number, UpdatedUser>();
+  // Per-connId pools — one persistent UserNetworkingClientUpdate +
+  // UpdatedUser wrapper per active connection. The pooled
+  // UserNetworkingClientUpdate is also the value `Networked3dWebExperienceClient`
+  // stores into its `remoteUserStates` map, so mutating in place each tick
+  // makes the new values visible without re-allocating the wrapper.
+  // Entries removed from the pool when the connection is removed.
+  private readonly _componentsPool = new Map<number, UserNetworkingClientUpdate>();
+  private readonly _updatedUserPool = new Map<number, UpdatedUser>();
   private pendingUpdate: UserNetworkingClientUpdate;
 
   constructor(
@@ -221,8 +237,14 @@ export class UserNetworkingClient {
     addedStableIdsArray: number[],
     stateUpdates: Array<{ stableId: number; stateId: number; state: Uint8Array }>,
   ): NetworkUpdate {
-    const addedConnectionIds = new Map<number, AddedUser>();
-    const removedConnectionIds = new Set<number>();
+    // Reuse class-owned scratch maps across calls. Consumers must not
+    // retain references past a single tick.
+    const addedConnectionIds = this._addedConnectionIdsScratch;
+    const removedConnectionIds = this._removedConnectionIdsScratch;
+    const updatedUsers = this._updatedUsersScratch;
+    addedConnectionIds.clear();
+    removedConnectionIds.clear();
+    updatedUsers.clear();
 
     for (const stableId of removedStableIds) {
       const connId = this.stableIdToConnectionId.get(stableId);
@@ -234,6 +256,11 @@ export class UserNetworkingClient {
 
         // Remove from stableIdToConnectionId
         this.stableIdToConnectionId.delete(stableId);
+
+        // Drop pooled per-connId scratch — they're tied to a connection's
+        // lifetime, so a new connection on the same id starts fresh.
+        this._componentsPool.delete(connId);
+        this._updatedUserPool.delete(connId);
       } else {
         throw new Error(`No connectionId found for stableId ${stableId}`);
       }
@@ -255,14 +282,20 @@ export class UserNetworkingClient {
       this.stableIdToConnectionId.set(stableId, connId);
       const newProfile = DeltaNetComponentMapping.fromStates(stableUserData.states, this.logger);
       this.userProfiles.set(connId, newProfile);
-      const clientUpdate = DeltaNetComponentMapping.fromComponents(stableUserData.components);
+      // Allocate a per-connId components scratch and seed it from the
+      // component map. Re-used in subsequent update ticks via mutation.
+      const clientUpdate: UserNetworkingClientUpdate = {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { eulerY: 0 },
+        state: 0,
+      };
+      DeltaNetComponentMapping.fromComponentsInto(stableUserData.components, clientUpdate);
+      this._componentsPool.set(connId, clientUpdate);
       addedConnectionIds.set(connId, {
         userState: newProfile,
         components: clientUpdate,
       });
     }
-
-    const updatedUsers = new Map<number, UpdatedUser>();
 
     for (const [stableUserId, userInfo] of this.deltaNetState.byStableId) {
       const connId = this.stableIdToConnectionId.get(stableUserId);
@@ -271,10 +304,36 @@ export class UserNetworkingClient {
       }
       if (!addedConnectionIds.has(connId)) {
         if (userInfo.components.size > 0) {
-          const clientUpdate = DeltaNetComponentMapping.fromComponents(userInfo.components);
-          updatedUsers.set(connId, {
-            components: clientUpdate,
-          });
+          // Mutate the per-connId pooled components in place. The same
+          // reference also lives downstream in
+          // `Networked3dWebExperienceClient.remoteUserStates` (set on the
+          // initial ADD), so the new values are visible to readers
+          // without us reseating the entry.
+          let pooledComponents = this._componentsPool.get(connId);
+          if (!pooledComponents) {
+            // Defensive: shouldn't happen — every active connId is
+            // seeded on add. Fall back to a fresh allocation.
+            pooledComponents = {
+              position: { x: 0, y: 0, z: 0 },
+              rotation: { eulerY: 0 },
+              state: 0,
+            };
+            this._componentsPool.set(connId, pooledComponents);
+          }
+          DeltaNetComponentMapping.fromComponentsInto(userInfo.components, pooledComponents);
+
+          // Reuse the per-connId UpdatedUser wrapper.
+          let pooledUpdated = this._updatedUserPool.get(connId);
+          if (!pooledUpdated) {
+            pooledUpdated = { components: pooledComponents };
+            this._updatedUserPool.set(connId, pooledUpdated);
+          } else {
+            pooledUpdated.components = pooledComponents;
+            // Clear any sticky userState left from a prior state-update
+            // tick on this connId.
+            pooledUpdated.userState = undefined;
+          }
+          updatedUsers.set(connId, pooledUpdated);
         }
       }
     }
