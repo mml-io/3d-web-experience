@@ -737,6 +737,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
 
     // Track if any physics updates occurred this frame
     let physicsUpdated = false;
+    let physicsStepsThisFrame = 0;
     const updatedCharacterDescriptions: number[] = [];
     const removedConnectionIds: number[] = [];
 
@@ -762,6 +763,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
 
       this.accumulatedTime -= this.fixedDeltaTime;
       physicsUpdated = true;
+      physicsStepsThisFrame++;
     }
 
     // Only render if physics was updated (limits render rate to physics rate)
@@ -800,15 +802,19 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       removedConnectionIds,
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalConnectionId(),
-      // Real elapsed wall-clock time since the last render — clamped above
-      // to 0.1 s. Use this rather than `fixedDeltaTime`: when the physics
-      // loop above runs multiple steps per render (display rate < target
-      // physics rate), passing `fixedDeltaTime` would under-count the real
-      // time consumed and slow down per-frame animations / smoothing
-      // visibly. Renderers that need a fixed step (deterministic physics)
-      // can re-derive it; renderers that drive animations want the real
-      // elapsed time.
-      deltaTimeSeconds: elapsedSeconds,
+      // Time advanced by physics since the last render: N steps × the
+      // fixed step. This is the right value for renderers that drive
+      // animations / smoothing from `deltaTimeSeconds`, in both regimes:
+      //   - display rate ≥ physics rate (common case): exactly one step
+      //     ran, dt == fixedDeltaTime == real interval between renders.
+      //   - display rate < physics rate (GPU-bound): N steps ran,
+      //     dt == N × fixedDeltaTime == total simulation time advanced.
+      // Using raw `elapsedSeconds` (time since the last rAF tick) instead
+      // under-counts on high-refresh displays, because render is gated on
+      // `physicsUpdated` so it fires every other (or every Nth) rAF —
+      // `elapsedSeconds` then reflects one rAF interval, not the real
+      // gap to the previous render.
+      deltaTimeSeconds: physicsStepsThisFrame * this.fixedDeltaTime,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
       getRemoteCharacterInfo: this.boundResolveCharacterData,
     };
