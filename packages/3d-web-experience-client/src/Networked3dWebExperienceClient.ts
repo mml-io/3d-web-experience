@@ -596,6 +596,15 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
   // saved. Invalidates whenever any of the underlying user fields change.
   private resolvedCharacterCache = new Map<number, UserData>();
 
+  // Initialised once as a class-property arrow so it is passed by stable
+  // identity each frame to RenderState.getRemoteCharacterInfo. External
+  // renderer wrappers (e.g. narwhal's NarwhalWorldRenderer) pointer-compare
+  // the resolver and only re-wire it on identity change; an inline arrow at
+  // the per-frame update() site would defeat that cache and re-wire every
+  // frame.
+  private readonly boundResolveCharacterData = (id: number): UserData =>
+    this.resolveCharacterData(id);
+
   private resolveCharacterData(connectionId: number): UserData {
     const user = this.userProfiles.get(connectionId);
     if (!user) {
@@ -793,7 +802,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       localCharacterId: this.characterManager.getLocalConnectionId(),
       deltaTimeSeconds: this.fixedDeltaTime,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
-      getRemoteCharacterInfo: (id: number) => this.resolveCharacterData(id),
+      getRemoteCharacterInfo: this.boundResolveCharacterData,
     };
 
     // Render the actual frame using the associated renderer
