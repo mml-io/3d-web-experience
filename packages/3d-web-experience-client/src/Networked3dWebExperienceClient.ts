@@ -800,7 +800,15 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       removedConnectionIds,
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalConnectionId(),
-      deltaTimeSeconds: this.fixedDeltaTime,
+      // Real elapsed wall-clock time since the last render — clamped above
+      // to 0.1 s. Use this rather than `fixedDeltaTime`: when the physics
+      // loop above runs multiple steps per render (display rate < target
+      // physics rate), passing `fixedDeltaTime` would under-count the real
+      // time consumed and slow down per-frame animations / smoothing
+      // visibly. Renderers that need a fixed step (deterministic physics)
+      // can re-derive it; renderers that drive animations want the real
+      // elapsed time.
+      deltaTimeSeconds: elapsedSeconds,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
       getRemoteCharacterInfo: this.boundResolveCharacterData,
     };
