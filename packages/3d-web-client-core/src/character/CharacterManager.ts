@@ -413,13 +413,10 @@ export class CharacterManager {
     }
 
     // Process remote characters. The optional `useFastPath` config
-    // predicate (or the runtime-only ablation flag
-    // `globalThis.__ABL_FAST_PATH_FORCE_ALL__`) selects the cheap path per
-    // bot — see the type doc on `CharacterManagerConfig.useFastPath`.
+    // predicate selects the cheap path per bot — see the type doc on
+    // `CharacterManagerConfig.useFastPath`.
     if (!this.config.skipRemoteCharacterUpdate) {
       const useFastPath = this.config.useFastPath;
-      const _ablForceAll = !!(globalThis as { __ABL_FAST_PATH_FORCE_ALL__?: boolean })
-        .__ABL_FAST_PATH_FORCE_ALL__;
       for (const [id, networkUpdate] of this.config.remoteUserStates) {
         if (id === this.localConnectionId) {
           continue;
@@ -473,7 +470,7 @@ export class CharacterManager {
           };
           this.remoteCharacters.set(id, existingCharacter);
           this.cachedCharacterStates.set(id, renderState);
-        } else if (_ablForceAll || useFastPath?.(id)) {
+        } else if (useFastPath?.(id)) {
           // Fast path. Snap position and rotation from network state; advance
           // the animation mixer directly to the network-supplied state on
           // change; skip characterResolve and the description equality block
