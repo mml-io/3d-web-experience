@@ -65,6 +65,21 @@ export type RenderState = {
    * relying on CharacterManager's per-frame processing.
    */
   remoteUserStates?: ReadonlyMap<number, CharacterState>;
+  /**
+   * Resolves identity (username, character description, colors) for a
+   * remote connection id. Stable closure — external renderer wrappers
+   * (e.g. narwhal) read it once on first frame and cache the reference.
+   *
+   * Same callback that's passed to `CharacterManager` via config —
+   * exposed here for renderers that own their own remote-character
+   * pipeline and need to resolve identity at spawn time.
+   */
+  getRemoteCharacterInfo?: (id: number) => {
+    userId: string;
+    username: string | null;
+    characterDescription: CharacterDescription | null;
+    colors: Array<[number, number, number]> | null;
+  };
 };
 
 export type EnvironmentConfiguration = {

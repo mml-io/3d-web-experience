@@ -793,6 +793,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       localCharacterId: this.characterManager.getLocalConnectionId(),
       deltaTimeSeconds: this.fixedDeltaTime,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
+      getRemoteCharacterInfo: (id: number) => this.resolveCharacterData(id),
     };
 
     // Render the actual frame using the associated renderer
