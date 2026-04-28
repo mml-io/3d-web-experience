@@ -141,22 +141,46 @@ export class AnimationMixer {
     this.currentState = state;
     this.targetState = state;
     this.transitionProgress = 1.0;
-    this.weights = this.createZeroWeights();
-    this.weights[state] = 1.0;
-    this.animationTimes = this.createZeroTimes();
+    const w = this.weights;
+    w[AnimationState.idle] = 0;
+    w[AnimationState.walking] = 0;
+    w[AnimationState.running] = 0;
+    w[AnimationState.jumpToAir] = 0;
+    w[AnimationState.air] = 0;
+    w[AnimationState.airToGround] = 0;
+    w[AnimationState.doubleJump] = 0;
+    w[state] = 1.0;
+    const t = this.animationTimes;
+    t[AnimationState.idle] = 0;
+    t[AnimationState.walking] = 0;
+    t[AnimationState.running] = 0;
+    t[AnimationState.jumpToAir] = 0;
+    t[AnimationState.air] = 0;
+    t[AnimationState.airToGround] = 0;
+    t[AnimationState.doubleJump] = 0;
   }
 
   private updateWeights(): void {
-    this.weights = this.createZeroWeights();
+    // Zero in place rather than allocating a new weights object —
+    // `getWeights` hands the same reference to the renderer each frame, so
+    // callers see the up-to-date values without an allocation per call.
+    const w = this.weights;
+    w[AnimationState.idle] = 0;
+    w[AnimationState.walking] = 0;
+    w[AnimationState.running] = 0;
+    w[AnimationState.jumpToAir] = 0;
+    w[AnimationState.air] = 0;
+    w[AnimationState.airToGround] = 0;
+    w[AnimationState.doubleJump] = 0;
 
     if (this.transitionProgress >= 1.0) {
       // Transition complete
-      this.weights[this.targetState] = 1.0;
+      w[this.targetState] = 1.0;
     } else {
       // In transition: blend between current and target
       const t = this.easeInOut(this.transitionProgress);
-      this.weights[this.currentState] = 1.0 - t;
-      this.weights[this.targetState] = t;
+      w[this.currentState] = 1.0 - t;
+      w[this.targetState] = t;
     }
   }
 

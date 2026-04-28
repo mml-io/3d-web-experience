@@ -579,18 +579,38 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     }
   }
 
+  // Cache the UserData wrapper per connectionId so the per-frame
+  // CharacterManager.update path (which calls characterResolve once per
+  // remote character per frame) doesn't allocate a new object literal each
+  // call. With N remote characters at 60Hz this is N×60 allocations/sec
+  // saved. Invalidates whenever any of the underlying user fields change.
+  private resolvedCharacterCache = new Map<number, UserData>();
+
   private resolveCharacterData(connectionId: number): UserData {
     const user = this.userProfiles.get(connectionId);
     if (!user) {
       throw new Error(`Failed to resolve user for connectionId ${connectionId}`);
     }
 
-    return {
+    const cached = this.resolvedCharacterCache.get(connectionId);
+    if (
+      cached &&
+      cached.userId === user.userId &&
+      cached.username === user.username &&
+      cached.characterDescription === user.characterDescription &&
+      cached.colors === user.colors
+    ) {
+      return cached;
+    }
+
+    const fresh: UserData = {
       userId: user.userId,
       username: user.username,
       characterDescription: user.characterDescription,
       colors: user.colors,
     };
+    this.resolvedCharacterCache.set(connectionId, fresh);
+    return fresh;
   }
 
   private onNetworkUpdate(update: NetworkUpdate): void {
@@ -604,6 +624,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       });
       this.userProfiles.delete(connId);
       this.remoteUserStates.delete(connId);
+      this.resolvedCharacterCache.delete(connId);
     }
     for (const [connId, userData] of addedConnectionIds) {
       this.userProfiles.set(connId, userData.userState);
