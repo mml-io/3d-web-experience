@@ -583,4 +583,14 @@ export class CharacterManager {
   public getLocalConnectionId(): number {
     return this.localConnectionId;
   }
+
+  /**
+   * Returns the live network-truth map of remote-user states. Consumers
+   * (notably narwhal's renderer wrapper) that own the remote-character
+   * pipeline can read this directly to sidestep CharacterManager's
+   * per-frame processing — pair with `skipRemoteCharacterUpdate: true`.
+   */
+  public getRemoteUserStates(): ReadonlyMap<number, CharacterState> {
+    return this.config.remoteUserStates;
+  }
 }

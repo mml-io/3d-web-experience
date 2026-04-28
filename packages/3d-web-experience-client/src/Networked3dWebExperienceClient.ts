@@ -67,6 +67,15 @@ export type Networked3dWebExperienceClientConfig = {
    * controls, etc.) that participates in the standard plugin lifecycle.
    */
   plugins?: UIPlugin[];
+  /**
+   * When true, the underlying CharacterManager skips its remote-character
+   * processing — the consumer's renderer wrapper (e.g. narwhal) is expected
+   * to own the remote-character pipeline and read network state directly
+   * via the wrapper's update path. The live `remoteUserStates` and
+   * `localConnectionId` are forwarded to the renderer through `RenderState`
+   * so the wrapper can drive its own pipeline. Default false.
+   */
+  skipRemoteCharacterUpdate?: boolean;
 } & UpdatableConfig;
 
 /**
@@ -361,6 +370,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
         return this.resolveCharacterData(connectionId);
       },
       updateURLLocation: this.config.updateURLLocation !== false,
+      skipRemoteCharacterUpdate: this.config.skipRemoteCharacterUpdate ?? false,
     });
 
     this.loadingScreen = new LoadingScreen(this.loadingProgressManager, this.config.loadingScreen);
@@ -782,6 +792,8 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalConnectionId(),
       deltaTimeSeconds: this.fixedDeltaTime,
+      remoteUserStates: this.characterManager.getRemoteUserStates(),
+      localConnectionId: this.characterManager.getLocalConnectionId(),
     };
 
     // Render the actual frame using the associated renderer

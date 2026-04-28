@@ -1,5 +1,5 @@
 import { AnimationWeights, AnimationTimes } from "../character/AnimationMixer";
-import { AnimationState } from "../character/CharacterState";
+import { AnimationState, CharacterState } from "../character/CharacterState";
 import { AnimationConfig } from "../character/types";
 import { EulXYZ, Vect3 } from "../math";
 
@@ -50,6 +50,21 @@ export type RenderState = {
   cameraTransform: CameraTransform;
   localCharacterId: number | null;
   deltaTimeSeconds: number;
+  /**
+   * Live network-truth map of remote-user states (CharacterState per
+   * connectionId). Optional — populated by Networked3dWebExperienceClient
+   * so renderer wrappers that own their own remote-character pipeline
+   * (e.g. narwhal) can read directly from network truth instead of
+   * relying on CharacterManager's per-frame processing.
+   */
+  remoteUserStates?: ReadonlyMap<number, CharacterState>;
+  /**
+   * Local connection ID. Optional — populated by
+   * Networked3dWebExperienceClient alongside `remoteUserStates`.
+   * Renderer wrappers consuming the network truth directly use this to
+   * filter out the local player from remote-character pipelines.
+   */
+  localConnectionId?: number;
 };
 
 export type EnvironmentConfiguration = {

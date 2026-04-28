@@ -129,6 +129,16 @@ describe("CharacterManager", () => {
     expect(manager.getLocalConnectionId()).toBe(42);
   });
 
+  test("getRemoteUserStates returns the live config map", () => {
+    expect(manager.getRemoteUserStates()).toBe(config.remoteUserStates);
+    config.remoteUserStates.set(7, {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { eulerY: 0 },
+      state: AnimationState.idle,
+    });
+    expect(manager.getRemoteUserStates().has(7)).toBe(true);
+  });
+
   test("spawnLocalCharacter creates local controller", () => {
     manager.spawnLocalCharacter(1, new Vect3(5, 10, 15));
     expect(manager.localController).not.toBeNull();
