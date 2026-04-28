@@ -21,6 +21,27 @@ export type CollisionMeshState = {
   meshBVH: MeshBVH;
   trackCollisions: boolean;
   boundingSphereRadius: number; // Cached bounding sphere radius for culling
+  // Local-space (mesh-relative) AABB from the meshBVH's root bounds. Stored
+  // so we can recompute the world-space AABB on a matrix change without
+  // re-querying the BVH.
+  localMinX: number;
+  localMinY: number;
+  localMinZ: number;
+  localMaxX: number;
+  localMaxY: number;
+  localMaxZ: number;
+  // World-space AABB, refreshed on every matrix change. Used as a tight
+  // per-frame pre-cull in `applyColliders` (capsule-vs-AABB) and
+  // `raycastFirst` (ray-vs-AABB) — strictly tighter than the legacy
+  // character-radius sphere cull, and critical at high group counts where
+  // the per-group setup before `meshBVH.shapecast` dominates main-thread
+  // physics time.
+  worldMinX: number;
+  worldMinY: number;
+  worldMinZ: number;
+  worldMaxX: number;
+  worldMaxY: number;
+  worldMaxZ: number;
 };
 
 export type CollisionMesh = {
@@ -89,39 +110,6 @@ export class CollisionsManager {
     this.exemptFromCulling = meshState;
   }
 
-  private isMeshWithinCullingDistance(meshState: CollisionMeshState): boolean {
-    if (!this.cullingEnabled) return true;
-
-    // never cull the mesh the player is standing on
-    if (this.exemptFromCulling !== null && meshState === this.exemptFromCulling) {
-      return true;
-    }
-
-    const matrixData = meshState.matrix.data;
-    const dx = matrixData[12] - this.characterPosition.x;
-    const dy = matrixData[13] - this.characterPosition.y;
-    const dz = matrixData[14] - this.characterPosition.z;
-    const distanceSquared = dx * dx + dy * dy + dz * dz;
-
-    // Derive world scale from the matrix rather than localScale, because localScale
-    // only reflects the group's own scale and misses any parent transforms (e.g. an
-    // m-model nested under a scaled parent will have localScale=(1,1,1) while the
-    // matrix correctly includes the parent's scale).
-    const m = matrixData;
-    const sxSq = m[0] * m[0] + m[1] * m[1] + m[2] * m[2];
-    const sySq = m[4] * m[4] + m[5] * m[5] + m[6] * m[6];
-    const szSq = m[8] * m[8] + m[9] * m[9] + m[10] * m[10];
-    const maxScaleSq = Math.max(sxSq, sySq, szSq);
-
-    // Check: distSq <= (R + bsr * maxScale)^2, rearranged to avoid sqrt entirely.
-    // Let L = distSq - R² - bsr²·maxScaleSq. If L <= 0, within range. Otherwise
-    // square both sides of L <= 2·R·bsr·maxScale to get L² <= 4·R²·bsr²·maxScaleSq.
-    const R = this.cullingRadius;
-    const bsr = meshState.boundingSphereRadius;
-    const L = distanceSquared - R * R - bsr * bsr * maxScaleSq;
-    return L <= 0 || L * L <= 4 * R * R * bsr * bsr * maxScaleSq;
-  }
-
   public raycastFirst(
     ray: Ray,
     maximumDistance: number | null = null,
@@ -130,9 +118,39 @@ export class CollisionsManager {
     let minimumHit: CollisionMeshState | null = null;
     let minimumNormal: Vect3 = this.tempMinimalNormal;
     let minimumPoint: Vect3 = this.tempMinimalPoint;
+    // Pre-compute inverse direction for the ray-AABB slab test below.
+    // Division by zero yields ±Infinity, which still produces correct
+    // min/max behavior in the slab test for axis-aligned rays.
+    const ox = ray.origin.x;
+    const oy = ray.origin.y;
+    const oz = ray.origin.z;
+    const invDx = 1 / ray.direction.x;
+    const invDy = 1 / ray.direction.y;
+    const invDz = 1 / ray.direction.z;
+    const cullEnabled = this.cullingEnabled;
     for (const [, collisionMeshState] of this.collisionMeshState) {
-      if (this.cullingEnabled && !this.isMeshWithinCullingDistance(collisionMeshState)) {
-        continue;
+      // Tight ray-vs-AABB cull (slab test). Replaces the legacy
+      // character-radius sphere cull — at high group counts the per-group
+      // matrix invert + BVH descent below dominates without it.
+      if (cullEnabled && this.exemptFromCulling !== collisionMeshState) {
+        const tx1 = (collisionMeshState.worldMinX - ox) * invDx;
+        const tx2 = (collisionMeshState.worldMaxX - ox) * invDx;
+        let tmin = tx1 < tx2 ? tx1 : tx2;
+        let tmax = tx1 > tx2 ? tx1 : tx2;
+        const ty1 = (collisionMeshState.worldMinY - oy) * invDy;
+        const ty2 = (collisionMeshState.worldMaxY - oy) * invDy;
+        const tyMin = ty1 < ty2 ? ty1 : ty2;
+        const tyMax = ty1 > ty2 ? ty1 : ty2;
+        if (tyMin > tmin) tmin = tyMin;
+        if (tyMax < tmax) tmax = tyMax;
+        const tz1 = (collisionMeshState.worldMinZ - oz) * invDz;
+        const tz2 = (collisionMeshState.worldMaxZ - oz) * invDz;
+        const tzMin = tz1 < tz2 ? tz1 : tz2;
+        const tzMax = tz1 > tz2 ? tz1 : tz2;
+        if (tzMin > tmin) tmin = tzMin;
+        if (tzMax < tmax) tmax = tzMax;
+        if (tmax < 0 || tmin > tmax) continue;
+        if (maximumDistance !== null && tmin > maximumDistance) continue;
       }
 
       const invertedMatrix = this.tempMatrix.copy(collisionMeshState.matrix).invert();
@@ -207,7 +225,21 @@ export class CollisionsManager {
       localScale,
       trackCollisions: mElement !== undefined,
       boundingSphereRadius,
+      localMinX: minX,
+      localMinY: minY,
+      localMinZ: minZ,
+      localMaxX: maxX,
+      localMaxY: maxY,
+      localMaxZ: maxZ,
+      // Filled in by recomputeWorldAABB just below.
+      worldMinX: 0,
+      worldMinY: 0,
+      worldMinZ: 0,
+      worldMaxX: 0,
+      worldMaxY: 0,
+      worldMaxZ: 0,
     };
+    this.recomputeWorldAABB(meshState);
     this.collisionMeshState.set(group, meshState);
   }
 
@@ -218,7 +250,51 @@ export class CollisionsManager {
       meshState.localScale.x = localScale.x;
       meshState.localScale.y = localScale.y;
       meshState.localScale.z = localScale.z;
+      this.recomputeWorldAABB(meshState);
     }
+  }
+
+  /**
+   * Refresh `meshState.world{Min,Max}{X,Y,Z}` from the cached local AABB and
+   * the current `matrix`. Transforms the 8 corners of the local box and
+   * takes the axis-aligned bound — the tightest correct world-AABB for an
+   * arbitrarily-rotated mesh. Called on add and on every matrix change;
+   * never per-frame.
+   */
+  private recomputeWorldAABB(s: CollisionMeshState): void {
+    const m = s.matrix.data;
+    const lminX = s.localMinX,
+      lminY = s.localMinY,
+      lminZ = s.localMinZ;
+    const lmaxX = s.localMaxX,
+      lmaxY = s.localMaxY,
+      lmaxZ = s.localMaxZ;
+    let minX = Infinity,
+      minY = Infinity,
+      minZ = Infinity;
+    let maxX = -Infinity,
+      maxY = -Infinity,
+      maxZ = -Infinity;
+    for (let i = 0; i < 8; i++) {
+      const x = i & 1 ? lmaxX : lminX;
+      const y = i & 2 ? lmaxY : lminY;
+      const z = i & 4 ? lmaxZ : lminZ;
+      const wx = m[0] * x + m[4] * y + m[8] * z + m[12];
+      const wy = m[1] * x + m[5] * y + m[9] * z + m[13];
+      const wz = m[2] * x + m[6] * y + m[10] * z + m[14];
+      if (wx < minX) minX = wx;
+      if (wx > maxX) maxX = wx;
+      if (wy < minY) minY = wy;
+      if (wy > maxY) maxY = wy;
+      if (wz < minZ) minZ = wz;
+      if (wz > maxZ) maxZ = wz;
+    }
+    s.worldMinX = minX;
+    s.worldMinY = minY;
+    s.worldMinZ = minZ;
+    s.worldMaxX = maxX;
+    s.worldMaxY = maxY;
+    s.worldMaxZ = maxZ;
   }
 
   public removeMeshesGroup(group: CollisionSourceRef): void {
@@ -339,10 +415,32 @@ export class CollisionsManager {
         position: { x: number; y: number; z: number };
       }
     >();
+    // Capsule's world-space AABB. Computed once and re-used as a tight
+    // per-group cull below — the per-group setup inside `applyCollider`
+    // (matrix invert + box transform) is expensive enough that scanning
+    // all groups linearly costs ~30 ms per 1000 groups before any actual
+    // collision work. A cheap AABB-vs-AABB rejection skips the setup for
+    // groups that can't possibly intersect the capsule.
+    const sx = tempSegment.start.x;
+    const sy = tempSegment.start.y;
+    const sz = tempSegment.start.z;
+    const ex = tempSegment.end.x;
+    const ey = tempSegment.end.y;
+    const ez = tempSegment.end.z;
+    const capMinX = (sx < ex ? sx : ex) - radius;
+    const capMinY = (sy < ey ? sy : ey) - radius;
+    const capMinZ = (sz < ez ? sz : ez) - radius;
+    const capMaxX = (sx > ex ? sx : ex) + radius;
+    const capMaxY = (sy > ey ? sy : ey) + radius;
+    const capMaxZ = (sz > ez ? sz : ez) + radius;
     for (const meshState of this.collisionMeshState.values()) {
-      // Skip meshes that are too far from the character
-      if (this.cullingEnabled && !this.isMeshWithinCullingDistance(meshState)) {
-        continue;
+      // Tight world-AABB cull. Strictly tighter than the legacy
+      // character-radius sphere cull, and the only thing that makes
+      // physics scale to thousands of groups.
+      if (this.cullingEnabled && this.exemptFromCulling !== meshState) {
+        if (capMaxX < meshState.worldMinX || capMinX > meshState.worldMaxX) continue;
+        if (capMaxY < meshState.worldMinY || capMinY > meshState.worldMaxY) continue;
+        if (capMaxZ < meshState.worldMinZ || capMinZ > meshState.worldMaxZ) continue;
       }
 
       const collisionPosition = this.applyCollider(tempSegment, radius, meshState);
