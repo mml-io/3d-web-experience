@@ -114,6 +114,13 @@ export type CharacterManagerConfig = {
    * entirely) preserves the original full-fidelity behaviour.
    */
   useFastPath?: (connectionId: number) => boolean;
+  /**
+   * When true, `CharacterManager.update` skips its remote-character loop
+   * (spawn, slow path, fast path) entirely. The local player still runs.
+   * Used by consumers (notably narwhal) that own their own remote-character
+   * pipeline. Default false for backwards compat.
+   */
+  skipRemoteCharacterUpdate?: boolean;
 };
 
 type RemoteCharacterState = {
@@ -409,143 +416,149 @@ export class CharacterManager {
     // predicate (or the runtime-only ablation flag
     // `globalThis.__ABL_FAST_PATH_FORCE_ALL__`) selects the cheap path per
     // bot — see the type doc on `CharacterManagerConfig.useFastPath`.
-    const useFastPath = this.config.useFastPath;
-    const _ablForceAll = !!(globalThis as { __ABL_FAST_PATH_FORCE_ALL__?: boolean })
-      .__ABL_FAST_PATH_FORCE_ALL__;
-    for (const [id, networkUpdate] of this.config.remoteUserStates) {
-      if (id === this.localConnectionId) {
-        continue;
-      }
-
-      let existingCharacter = this.remoteCharacters.get(id);
-      if (!existingCharacter) {
-        // Spawn new remote character with a RemoteController
-        const { position } = networkUpdate;
-        const halfY = networkUpdate.rotation.eulerY / 2;
-        const initialRotation = new EulXYZ().setFromQuaternion(
-          new Quat(0, Math.sin(halfY), 0, Math.cos(halfY)),
-        );
-
-        const characterInfo = this.config.characterResolve(id);
-        const controller = new RemoteController(
-          new Vect3(position.x, position.y, position.z),
-          initialRotation,
-          networkUpdate.state,
-        );
-        const animationMixer = new AnimationMixer(networkUpdate.state);
-
-        // Initialize cached renderState
-        const cachedRotation = new EulXYZ();
-        cachedRotation.setFromQuaternion(controller.rotation);
-        const renderState: CharacterRenderState = {
-          id,
-          position: new Vect3(controller.position.x, controller.position.y, controller.position.z),
-          rotation: cachedRotation,
-          animationState: controller.animationState,
-          animationWeights: animationMixer.getWeights(),
-          animationTimes: animationMixer.getAnimationTimes(),
-          username: characterInfo.username ?? `Unknown User ${id}`,
-          characterDescription: characterInfo.characterDescription,
-          colors: characterInfo.colors,
-          isLocal: false,
-        };
-
-        existingCharacter = {
-          id,
-          controller,
-          animationMixer,
-          lastUsername: renderState.username,
-          lastCharacterDescription: renderState.characterDescription,
-          lastColors: renderState.colors,
-          renderState,
-        };
-        this.remoteCharacters.set(id, existingCharacter);
-        this.cachedCharacterStates.set(id, renderState);
-      } else if (_ablForceAll || useFastPath?.(id)) {
-        // Fast path. Snap position and rotation from network state; advance
-        // the animation mixer directly to the network-supplied state on
-        // change; skip characterResolve and the description equality block
-        // (username/colors are read from the spawn-time renderState fields,
-        // which is correct for non-interactive crowd characters).
-        const nu = networkUpdate;
-        const c = existingCharacter;
-
-        // Position: snap (no Vec3.lerp). Keep the controller's mirror in
-        // sync so promotion back to the slow path resumes from the
-        // current visible position, not a stale interpolated one.
-        c.controller.position.set(nu.position.x, nu.position.y, nu.position.z);
-        c.renderState.position.set(nu.position.x, nu.position.y, nu.position.z);
-
-        // Rotation: write the network-supplied yaw directly into the
-        // renderState's EulXYZ. The slow path does Quat → matrix → Eul; the
-        // fast path skips that. Keep the controller's quaternion in sync
-        // for the same promotion-resume reason.
-        c.renderState.rotation.x = 0;
-        c.renderState.rotation.y = nu.rotation.eulerY;
-        c.renderState.rotation.z = 0;
-        const halfY = nu.rotation.eulerY / 2;
-        c.controller.rotation.set(0, Math.sin(halfY), 0, Math.cos(halfY));
-        c.controller.animationState = nu.state;
-
-        // Animation: snap the mixer to the network state on change so its
-        // weights array (returned by reference from getWeights) reflects
-        // a single dominant state with weight 1. Otherwise just advance
-        // animation times (cheap 7-state for-loop) so clips keep playing.
-        if (c.animationMixer.getPrimaryState() !== nu.state) {
-          c.animationMixer.snapToState(nu.state);
+    if (!this.config.skipRemoteCharacterUpdate) {
+      const useFastPath = this.config.useFastPath;
+      const _ablForceAll = !!(globalThis as { __ABL_FAST_PATH_FORCE_ALL__?: boolean })
+        .__ABL_FAST_PATH_FORCE_ALL__;
+      for (const [id, networkUpdate] of this.config.remoteUserStates) {
+        if (id === this.localConnectionId) {
+          continue;
         }
-        c.animationMixer.update(deltaTime);
 
-        c.renderState.animationState = nu.state;
-        c.renderState.animationWeights = c.animationMixer.getWeights();
-        c.renderState.animationTimes = c.animationMixer.getAnimationTimes();
+        let existingCharacter = this.remoteCharacters.get(id);
+        if (!existingCharacter) {
+          // Spawn new remote character with a RemoteController
+          const { position } = networkUpdate;
+          const halfY = networkUpdate.rotation.eulerY / 2;
+          const initialRotation = new EulXYZ().setFromQuaternion(
+            new Quat(0, Math.sin(halfY), 0, Math.cos(halfY)),
+          );
 
-        // Skip characterResolve / equality / updatedCharacterDescriptions —
-        // the spawn-time username/description/colors remain in renderState.
-        // If a consumer needs to refresh those for a fast-path character it
-        // can do so out-of-band; the typical use case (crowd bots whose
-        // identity never changes) does not need this.
-      } else {
-        // Update existing character's controller with network state
-        existingCharacter.controller.update(networkUpdate, deltaTime);
+          const characterInfo = this.config.characterResolve(id);
+          const controller = new RemoteController(
+            new Vect3(position.x, position.y, position.z),
+            initialRotation,
+            networkUpdate.state,
+          );
+          const animationMixer = new AnimationMixer(networkUpdate.state);
 
-        // Update animation mixer
-        existingCharacter.animationMixer.setTargetState(
-          existingCharacter.controller.animationState,
-        );
-        existingCharacter.animationMixer.update(deltaTime);
+          // Initialize cached renderState
+          const cachedRotation = new EulXYZ();
+          cachedRotation.setFromQuaternion(controller.rotation);
+          const renderState: CharacterRenderState = {
+            id,
+            position: new Vect3(
+              controller.position.x,
+              controller.position.y,
+              controller.position.z,
+            ),
+            rotation: cachedRotation,
+            animationState: controller.animationState,
+            animationWeights: animationMixer.getWeights(),
+            animationTimes: animationMixer.getAnimationTimes(),
+            username: characterInfo.username ?? `Unknown User ${id}`,
+            characterDescription: characterInfo.characterDescription,
+            colors: characterInfo.colors,
+            isLocal: false,
+          };
 
-        // Mutate cached renderState in-place
-        existingCharacter.renderState.position.set(
-          existingCharacter.controller.position.x,
-          existingCharacter.controller.position.y,
-          existingCharacter.controller.position.z,
-        );
-        existingCharacter.renderState.rotation.setFromQuaternion(
-          existingCharacter.controller.rotation,
-        );
-        existingCharacter.renderState.animationState =
-          existingCharacter.animationMixer.getPrimaryState();
-        existingCharacter.renderState.animationWeights =
-          existingCharacter.animationMixer.getWeights();
-        existingCharacter.renderState.animationTimes =
-          existingCharacter.animationMixer.getAnimationTimes();
+          existingCharacter = {
+            id,
+            controller,
+            animationMixer,
+            lastUsername: renderState.username,
+            lastCharacterDescription: renderState.characterDescription,
+            lastColors: renderState.colors,
+            renderState,
+          };
+          this.remoteCharacters.set(id, existingCharacter);
+          this.cachedCharacterStates.set(id, renderState);
+        } else if (_ablForceAll || useFastPath?.(id)) {
+          // Fast path. Snap position and rotation from network state; advance
+          // the animation mixer directly to the network-supplied state on
+          // change; skip characterResolve and the description equality block
+          // (username/colors are read from the spawn-time renderState fields,
+          // which is correct for non-interactive crowd characters).
+          const nu = networkUpdate;
+          const c = existingCharacter;
 
-        // Check if description changed
-        const characterInfo = this.config.characterResolve(id);
-        const newUsername = characterInfo.username ?? `Unknown User ${id}`;
-        if (
-          existingCharacter.lastUsername !== newUsername ||
-          existingCharacter.lastCharacterDescription !== characterInfo.characterDescription ||
-          existingCharacter.lastColors !== characterInfo.colors
-        ) {
-          existingCharacter.lastUsername = newUsername;
-          existingCharacter.lastCharacterDescription = characterInfo.characterDescription;
-          existingCharacter.lastColors = characterInfo.colors;
-          existingCharacter.renderState.username = newUsername;
-          existingCharacter.renderState.characterDescription = characterInfo.characterDescription;
-          existingCharacter.renderState.colors = characterInfo.colors;
-          updatedCharacterDescriptions.push(id);
+          // Position: snap (no Vec3.lerp). Keep the controller's mirror in
+          // sync so promotion back to the slow path resumes from the
+          // current visible position, not a stale interpolated one.
+          c.controller.position.set(nu.position.x, nu.position.y, nu.position.z);
+          c.renderState.position.set(nu.position.x, nu.position.y, nu.position.z);
+
+          // Rotation: write the network-supplied yaw directly into the
+          // renderState's EulXYZ. The slow path does Quat → matrix → Eul; the
+          // fast path skips that. Keep the controller's quaternion in sync
+          // for the same promotion-resume reason.
+          c.renderState.rotation.x = 0;
+          c.renderState.rotation.y = nu.rotation.eulerY;
+          c.renderState.rotation.z = 0;
+          const halfY = nu.rotation.eulerY / 2;
+          c.controller.rotation.set(0, Math.sin(halfY), 0, Math.cos(halfY));
+          c.controller.animationState = nu.state;
+
+          // Animation: snap the mixer to the network state on change so its
+          // weights array (returned by reference from getWeights) reflects
+          // a single dominant state with weight 1. Otherwise just advance
+          // animation times (cheap 7-state for-loop) so clips keep playing.
+          if (c.animationMixer.getPrimaryState() !== nu.state) {
+            c.animationMixer.snapToState(nu.state);
+          }
+          c.animationMixer.update(deltaTime);
+
+          c.renderState.animationState = nu.state;
+          c.renderState.animationWeights = c.animationMixer.getWeights();
+          c.renderState.animationTimes = c.animationMixer.getAnimationTimes();
+
+          // Skip characterResolve / equality / updatedCharacterDescriptions —
+          // the spawn-time username/description/colors remain in renderState.
+          // If a consumer needs to refresh those for a fast-path character it
+          // can do so out-of-band; the typical use case (crowd bots whose
+          // identity never changes) does not need this.
+        } else {
+          // Update existing character's controller with network state
+          existingCharacter.controller.update(networkUpdate, deltaTime);
+
+          // Update animation mixer
+          existingCharacter.animationMixer.setTargetState(
+            existingCharacter.controller.animationState,
+          );
+          existingCharacter.animationMixer.update(deltaTime);
+
+          // Mutate cached renderState in-place
+          existingCharacter.renderState.position.set(
+            existingCharacter.controller.position.x,
+            existingCharacter.controller.position.y,
+            existingCharacter.controller.position.z,
+          );
+          existingCharacter.renderState.rotation.setFromQuaternion(
+            existingCharacter.controller.rotation,
+          );
+          existingCharacter.renderState.animationState =
+            existingCharacter.animationMixer.getPrimaryState();
+          existingCharacter.renderState.animationWeights =
+            existingCharacter.animationMixer.getWeights();
+          existingCharacter.renderState.animationTimes =
+            existingCharacter.animationMixer.getAnimationTimes();
+
+          // Check if description changed
+          const characterInfo = this.config.characterResolve(id);
+          const newUsername = characterInfo.username ?? `Unknown User ${id}`;
+          if (
+            existingCharacter.lastUsername !== newUsername ||
+            existingCharacter.lastCharacterDescription !== characterInfo.characterDescription ||
+            existingCharacter.lastColors !== characterInfo.colors
+          ) {
+            existingCharacter.lastUsername = newUsername;
+            existingCharacter.lastCharacterDescription = characterInfo.characterDescription;
+            existingCharacter.lastColors = characterInfo.colors;
+            existingCharacter.renderState.username = newUsername;
+            existingCharacter.renderState.characterDescription = characterInfo.characterDescription;
+            existingCharacter.renderState.colors = characterInfo.colors;
+            updatedCharacterDescriptions.push(id);
+          }
         }
       }
     }
