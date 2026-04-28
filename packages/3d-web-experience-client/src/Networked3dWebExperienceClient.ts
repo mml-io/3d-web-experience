@@ -72,7 +72,7 @@ export type Networked3dWebExperienceClientConfig = {
    * processing — the consumer's renderer wrapper (e.g. narwhal) is expected
    * to own the remote-character pipeline and read network state directly
    * via the wrapper's update path. The live `remoteUserStates` and
-   * `localConnectionId` are forwarded to the renderer through `RenderState`
+   * `localCharacterId` are forwarded to the renderer through `RenderState`
    * so the wrapper can drive its own pipeline. Default false.
    */
   skipRemoteCharacterUpdate?: boolean;
@@ -793,7 +793,6 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       localCharacterId: this.characterManager.getLocalConnectionId(),
       deltaTimeSeconds: this.fixedDeltaTime,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
-      localConnectionId: this.characterManager.getLocalConnectionId(),
     };
 
     // Render the actual frame using the associated renderer

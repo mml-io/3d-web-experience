@@ -48,6 +48,13 @@ export type RenderState = {
   updatedCharacterDescriptions: number[];
   removedConnectionIds: number[];
   cameraTransform: CameraTransform;
+  /**
+   * Local user's network connection id (same value as
+   * `CharacterManager.getLocalConnectionId()`). null before the local
+   * character has spawned. Renderers that own the remote-character
+   * pipeline (e.g. narwhal) should use this with `remoteUserStates`
+   * to identify the local entry to skip.
+   */
   localCharacterId: number | null;
   deltaTimeSeconds: number;
   /**
@@ -58,13 +65,6 @@ export type RenderState = {
    * relying on CharacterManager's per-frame processing.
    */
   remoteUserStates?: ReadonlyMap<number, CharacterState>;
-  /**
-   * Local connection ID. Optional — populated by
-   * Networked3dWebExperienceClient alongside `remoteUserStates`.
-   * Renderer wrappers consuming the network truth directly use this to
-   * filter out the local player from remote-character pipelines.
-   */
-  localConnectionId?: number;
 };
 
 export type EnvironmentConfiguration = {
