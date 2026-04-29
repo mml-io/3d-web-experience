@@ -14,6 +14,7 @@ export type AnimationWeights = {
   [AnimationState.air]: number;
   [AnimationState.airToGround]: number;
   [AnimationState.doubleJump]: number;
+  [AnimationState.emote]: number;
 };
 
 /**
@@ -28,6 +29,7 @@ export type AnimationTimes = {
   [AnimationState.air]: number;
   [AnimationState.airToGround]: number;
   [AnimationState.doubleJump]: number;
+  [AnimationState.emote]: number;
 };
 
 /**
@@ -86,6 +88,7 @@ export class AnimationMixer {
       AnimationState.air,
       AnimationState.airToGround,
       AnimationState.doubleJump,
+      AnimationState.emote,
     ]) {
       if (this.weights[state] > 0) {
         this.animationTimes[state] += deltaTime;
@@ -169,6 +172,7 @@ export class AnimationMixer {
       [AnimationState.air]: 0,
       [AnimationState.airToGround]: 0,
       [AnimationState.doubleJump]: 0,
+      [AnimationState.emote]: 0,
     };
   }
 
@@ -181,6 +185,7 @@ export class AnimationMixer {
       [AnimationState.air]: 0,
       [AnimationState.airToGround]: 0,
       [AnimationState.doubleJump]: 0,
+      [AnimationState.emote]: 0,
     };
   }
 

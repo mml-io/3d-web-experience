@@ -221,4 +221,19 @@ describe("AnimationMixer", () => {
       expect(sum).toBeCloseTo(1.0, 5);
     }
   });
+
+  test("emote state participates in transitions, time accumulation, and weight sum", () => {
+    const mixer = new AnimationMixer();
+    mixer.setTargetState(AnimationState.emote);
+    mixer.update(0.2); // past the 0.15s transition — weights now fully on emote
+
+    const weights = mixer.getWeights();
+    expect(weights[AnimationState.emote]).toBe(1.0);
+    expect(weights[AnimationState.idle]).toBe(0);
+
+    // Subsequent updates accumulate time on the emote slot.
+    mixer.update(0.1);
+    const times = mixer.getAnimationTimes();
+    expect(times[AnimationState.emote]).toBeCloseTo(0.1, 5);
+  });
 });
