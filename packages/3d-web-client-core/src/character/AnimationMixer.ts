@@ -150,8 +150,10 @@ export class AnimationMixer {
     this.weights = this.createZeroWeights();
 
     if (this.transitionProgress >= 1.0) {
+      // Transition complete
       this.weights[this.targetState] = 1.0;
     } else {
+      // In transition: blend between current and target
       const t = this.easeInOut(this.transitionProgress);
       this.weights[this.currentState] = 1.0 - t;
       this.weights[this.targetState] = t;
