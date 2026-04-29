@@ -69,8 +69,8 @@ export type Networked3dWebExperienceClientConfig = {
   plugins?: UIPlugin[];
   /**
    * When true, CharacterManager skips its remote-character loop and the
-   * consumer's renderer wrapper (e.g. narwhal) is expected to drive remote
-   * characters from `remoteUserStates` on RenderState.
+   * renderer is expected to drive remote characters from `remoteUserStates`
+   * on RenderState.
    */
   skipRemoteCharacterUpdate?: boolean;
 } & UpdatableConfig;
@@ -586,8 +586,8 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     }
   }
 
-  // Stable identity — narwhal pointer-compares `getRemoteCharacterInfo`
-  // and re-wires its cache on change, so an inline arrow per frame would
+  // Stable identity — renderers may pointer-compare `getRemoteCharacterInfo`
+  // and re-wire caches on change, so an inline arrow per frame would
   // defeat the cache.
   private readonly boundResolveCharacterData = (id: number): UserData =>
     this.resolveCharacterData(id);

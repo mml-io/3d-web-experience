@@ -93,7 +93,7 @@ export type CharacterManagerConfig = {
     colors: Array<[number, number, number]> | null;
   };
   updateURLLocation?: boolean;
-  /** Skip the remote-character loop; consumer (e.g. narwhal) owns it. */
+  /** Skip the remote-character loop; the renderer owns it. */
   skipRemoteCharacterUpdate?: boolean;
 };
 
