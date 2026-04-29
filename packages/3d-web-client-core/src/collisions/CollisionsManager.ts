@@ -77,7 +77,9 @@ export class CollisionsManager {
   public onDebugChange?: (enabled: boolean) => void;
 
   private cullingEnabled: boolean = true;
-  private cullingRadius: number = 50; // max distance from character to consider meshes
+  // Retained because external callers (LocalController, AvatarController)
+  // still write to it via setCharacterPosition, but it is no longer read —
+  // culling is now ray/capsule-vs-AABB, not distance-from-character.
   private characterPosition: Vect3 = new Vect3();
 
   private exemptFromCulling: CollisionMeshState | null = null;
