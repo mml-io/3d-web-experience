@@ -152,6 +152,42 @@ describe("DeltaNetComponentMapping", () => {
     });
   });
 
+  describe("fromComponentsInto", () => {
+    test("mutates the destination object and returns the same reference", () => {
+      const update: UserNetworkingClientUpdate = {
+        position: { x: 1.5, y: -2.75, z: 10.123 },
+        rotation: { eulerY: 0.5 },
+        state: 3,
+      };
+      const components = DeltaNetComponentMapping.toComponents(update);
+      const dest: UserNetworkingClientUpdate = {
+        position: { x: 99, y: 99, z: 99 },
+        rotation: { eulerY: 99 },
+        state: 99,
+      };
+      const result = DeltaNetComponentMapping.fromComponentsInto(components, dest);
+      expect(result).toBe(dest);
+      expect(dest.position.x).toBeCloseTo(1.5, 1);
+      expect(dest.position.y).toBeCloseTo(-2.75, 1);
+      expect(dest.position.z).toBeCloseTo(10.12, 1);
+      expect(dest.rotation.eulerY).toBeCloseTo(0.5, 2);
+      expect(dest.state).toBe(3);
+    });
+
+    test("preserves the dest's nested position/rotation refs across calls", () => {
+      const dest: UserNetworkingClientUpdate = {
+        position: { x: 0, y: 0, z: 0 },
+        rotation: { eulerY: 0 },
+        state: 0,
+      };
+      const positionRef = dest.position;
+      const rotationRef = dest.rotation;
+      DeltaNetComponentMapping.fromComponentsInto(new Map(), dest);
+      expect(dest.position).toBe(positionRef);
+      expect(dest.rotation).toBe(rotationRef);
+    });
+  });
+
   describe("toStates / fromUserStates round-trip", () => {
     test("round-trips username", () => {
       const userData: UserData = {
