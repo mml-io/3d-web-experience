@@ -93,33 +93,7 @@ export type CharacterManagerConfig = {
     colors: Array<[number, number, number]> | null;
   };
   updateURLLocation?: boolean;
-  /**
-   * Optional per-character predicate. When it returns true for a remote
-   * character's connectionId, that character is processed via a "fast path"
-   * inside `update()` that:
-   *  - snaps position/rotation directly from `networkUpdate` (no
-   *    Vec3.lerp / Quat.slerp interpolation),
-   *  - skips Quat → EulXYZ matrix conversion (writes the eulerY directly
-   *    into renderState.rotation.y),
-   *  - snaps the AnimationMixer to the network-supplied state on change
-   *    (no transition FSM),
-   *  - skips `characterResolve` and the username/description/colors
-   *    equality block — fast-path characters do not emit
-   *    `updatedCharacterDescriptions` while in the fast tier.
-   *
-   * Designed for very high remote-character counts (e.g. 1000+ NPC bots)
-   * where most are too far/non-interactive to need the full per-frame
-   * smoothing/animation-blend pipeline. Consumers typically wire this to a
-   * distance-based LOD policy. Returning false (or omitting the option
-   * entirely) preserves the original full-fidelity behaviour.
-   */
-  useFastPath?: (connectionId: number) => boolean;
-  /**
-   * When true, `CharacterManager.update` skips its remote-character loop
-   * (spawn, slow path, fast path) entirely. The local player still runs.
-   * Used by consumers (notably narwhal) that own their own remote-character
-   * pipeline. Default false for backwards compat.
-   */
+  /** Skip the remote-character loop; consumer (e.g. narwhal) owns it. */
   skipRemoteCharacterUpdate?: boolean;
 };
 
@@ -412,11 +386,7 @@ export class CharacterManager {
       }
     }
 
-    // Process remote characters. The optional `useFastPath` config
-    // predicate selects the cheap path per bot — see the type doc on
-    // `CharacterManagerConfig.useFastPath`.
     if (!this.config.skipRemoteCharacterUpdate) {
-      const useFastPath = this.config.useFastPath;
       for (const [id, networkUpdate] of this.config.remoteUserStates) {
         if (id === this.localConnectionId) {
           continue;
@@ -470,50 +440,6 @@ export class CharacterManager {
           };
           this.remoteCharacters.set(id, existingCharacter);
           this.cachedCharacterStates.set(id, renderState);
-        } else if (useFastPath?.(id)) {
-          // Fast path. Snap position and rotation from network state; advance
-          // the animation mixer directly to the network-supplied state on
-          // change; skip characterResolve and the description equality block
-          // (username/colors are read from the spawn-time renderState fields,
-          // which is correct for non-interactive crowd characters).
-          const nu = networkUpdate;
-          const c = existingCharacter;
-
-          // Position: snap (no Vec3.lerp). Keep the controller's mirror in
-          // sync so promotion back to the slow path resumes from the
-          // current visible position, not a stale interpolated one.
-          c.controller.position.set(nu.position.x, nu.position.y, nu.position.z);
-          c.renderState.position.set(nu.position.x, nu.position.y, nu.position.z);
-
-          // Rotation: write the network-supplied yaw directly into the
-          // renderState's EulXYZ. The slow path does Quat → matrix → Eul; the
-          // fast path skips that. Keep the controller's quaternion in sync
-          // for the same promotion-resume reason.
-          c.renderState.rotation.x = 0;
-          c.renderState.rotation.y = nu.rotation.eulerY;
-          c.renderState.rotation.z = 0;
-          const halfY = nu.rotation.eulerY / 2;
-          c.controller.rotation.set(0, Math.sin(halfY), 0, Math.cos(halfY));
-          c.controller.animationState = nu.state;
-
-          // Animation: snap the mixer to the network state on change so its
-          // weights array (returned by reference from getWeights) reflects
-          // a single dominant state with weight 1. Otherwise just advance
-          // animation times (cheap 7-state for-loop) so clips keep playing.
-          if (c.animationMixer.getPrimaryState() !== nu.state) {
-            c.animationMixer.snapToState(nu.state);
-          }
-          c.animationMixer.update(deltaTime);
-
-          c.renderState.animationState = nu.state;
-          c.renderState.animationWeights = c.animationMixer.getWeights();
-          c.renderState.animationTimes = c.animationMixer.getAnimationTimes();
-
-          // Skip characterResolve / equality / updatedCharacterDescriptions —
-          // the spawn-time username/description/colors remain in renderState.
-          // If a consumer needs to refresh those for a fast-path character it
-          // can do so out-of-band; the typical use case (crowd bots whose
-          // identity never changes) does not need this.
         } else {
           // Update existing character's controller with network state
           existingCharacter.controller.update(networkUpdate, deltaTime);
@@ -584,12 +510,7 @@ export class CharacterManager {
     return this.localConnectionId;
   }
 
-  /**
-   * Returns the live network-truth map of remote-user states. Consumers
-   * (notably narwhal's renderer wrapper) that own the remote-character
-   * pipeline can read this directly to sidestep CharacterManager's
-   * per-frame processing — pair with `skipRemoteCharacterUpdate: true`.
-   */
+  /** Live network-truth map; pair with `skipRemoteCharacterUpdate: true`. */
   public getRemoteUserStates(): ReadonlyMap<number, CharacterState> {
     return this.config.remoteUserStates;
   }

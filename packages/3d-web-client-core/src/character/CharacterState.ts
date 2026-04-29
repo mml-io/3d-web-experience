@@ -6,11 +6,7 @@ export enum AnimationState {
   "air" = 4,
   "airToGround" = 5,
   "doubleJump" = 6,
-  // Emote / non-locomotion clip slot. Producers other than LocalController
-  // (e.g. bots in the showcase) emit this to play an emote animation
-  // (clap, wave, etc.) without colliding with locomotion states. Local
-  // input never produces emote — LocalController only returns
-  // idle/walking/running/jumpToAir/air/airToGround/doubleJump.
+  // Non-locomotion clip slot; LocalController never produces this.
   "emote" = 7,
 }
 

@@ -48,32 +48,12 @@ export type RenderState = {
   updatedCharacterDescriptions: number[];
   removedConnectionIds: number[];
   cameraTransform: CameraTransform;
-  /**
-   * Local user's network connection id (same value as
-   * `CharacterManager.getLocalConnectionId()`). null before the local
-   * character has spawned. Renderers that own the remote-character
-   * pipeline (e.g. narwhal) should use this with `remoteUserStates`
-   * to identify the local entry to skip.
-   */
+  /** null before the local character has spawned. */
   localCharacterId: number | null;
   deltaTimeSeconds: number;
-  /**
-   * Live network-truth map of remote-user states (CharacterState per
-   * connectionId). Optional — populated by Networked3dWebExperienceClient
-   * so renderer wrappers that own their own remote-character pipeline
-   * (e.g. narwhal) can read directly from network truth instead of
-   * relying on CharacterManager's per-frame processing.
-   */
+  /** Network-truth map for renderers that drive their own remote-character pipeline. */
   remoteUserStates?: ReadonlyMap<number, CharacterState>;
-  /**
-   * Resolves identity (username, character description, colors) for a
-   * remote connection id. Stable closure — external renderer wrappers
-   * (e.g. narwhal) read it once on first frame and cache the reference.
-   *
-   * Same callback that's passed to `CharacterManager` via config —
-   * exposed here for renderers that own their own remote-character
-   * pipeline and need to resolve identity at spawn time.
-   */
+  /** Stable identity-resolver callback; safe to pointer-compare across frames. */
   getRemoteCharacterInfo?: (id: number) => {
     userId: string;
     username: string | null;

@@ -68,12 +68,9 @@ export type Networked3dWebExperienceClientConfig = {
    */
   plugins?: UIPlugin[];
   /**
-   * When true, the underlying CharacterManager skips its remote-character
-   * processing — the consumer's renderer wrapper (e.g. narwhal) is expected
-   * to own the remote-character pipeline and read network state directly
-   * via the wrapper's update path. The live `remoteUserStates` and
-   * `localCharacterId` are forwarded to the renderer through `RenderState`
-   * so the wrapper can drive its own pipeline. Default false.
+   * When true, CharacterManager skips its remote-character loop and the
+   * consumer's renderer wrapper (e.g. narwhal) is expected to drive remote
+   * characters from `remoteUserStates` on RenderState.
    */
   skipRemoteCharacterUpdate?: boolean;
 } & UpdatableConfig;
@@ -589,19 +586,9 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     }
   }
 
-  // Cache the UserData wrapper per connectionId so the per-frame
-  // CharacterManager.update path (which calls characterResolve once per
-  // remote character per frame) doesn't allocate a new object literal each
-  // call. With N remote characters at 60Hz this is N×60 allocations/sec
-  // saved. Invalidates whenever any of the underlying user fields change.
-  private resolvedCharacterCache = new Map<number, UserData>();
-
-  // Initialised once as a class-property arrow so it is passed by stable
-  // identity each frame to RenderState.getRemoteCharacterInfo. External
-  // renderer wrappers (e.g. narwhal's NarwhalWorldRenderer) pointer-compare
-  // the resolver and only re-wire it on identity change; an inline arrow at
-  // the per-frame update() site would defeat that cache and re-wire every
-  // frame.
+  // Stable identity — narwhal pointer-compares `getRemoteCharacterInfo`
+  // and re-wires its cache on change, so an inline arrow per frame would
+  // defeat the cache.
   private readonly boundResolveCharacterData = (id: number): UserData =>
     this.resolveCharacterData(id);
 
@@ -611,25 +598,12 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       throw new Error(`Failed to resolve user for connectionId ${connectionId}`);
     }
 
-    const cached = this.resolvedCharacterCache.get(connectionId);
-    if (
-      cached &&
-      cached.userId === user.userId &&
-      cached.username === user.username &&
-      cached.characterDescription === user.characterDescription &&
-      cached.colors === user.colors
-    ) {
-      return cached;
-    }
-
-    const fresh: UserData = {
+    return {
       userId: user.userId,
       username: user.username,
       characterDescription: user.characterDescription,
       colors: user.colors,
     };
-    this.resolvedCharacterCache.set(connectionId, fresh);
-    return fresh;
   }
 
   private onNetworkUpdate(update: NetworkUpdate): void {
@@ -643,7 +617,6 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       });
       this.userProfiles.delete(connId);
       this.remoteUserStates.delete(connId);
-      this.resolvedCharacterCache.delete(connId);
     }
     for (const [connId, userData] of addedConnectionIds) {
       this.userProfiles.set(connId, userData.userState);
@@ -802,18 +775,9 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       removedConnectionIds,
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalConnectionId(),
-      // Time advanced by physics since the last render: N steps × the
-      // fixed step. This is the right value for renderers that drive
-      // animations / smoothing from `deltaTimeSeconds`, in both regimes:
-      //   - display rate ≥ physics rate (common case): exactly one step
-      //     ran, dt == fixedDeltaTime == real interval between renders.
-      //   - display rate < physics rate (GPU-bound): N steps ran,
-      //     dt == N × fixedDeltaTime == total simulation time advanced.
-      // Using raw `elapsedSeconds` (time since the last rAF tick) instead
-      // under-counts on high-refresh displays, because render is gated on
-      // `physicsUpdated` so it fires every other (or every Nth) rAF —
-      // `elapsedSeconds` then reflects one rAF interval, not the real
-      // gap to the previous render.
+      // Render is gated on physicsUpdated, so raw rAF elapsed time
+      // under-counts on high-refresh displays. Use the simulated time
+      // actually advanced this frame (N × fixedDeltaTime).
       deltaTimeSeconds: physicsStepsThisFrame * this.fixedDeltaTime,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
       getRemoteCharacterInfo: this.boundResolveCharacterData,
