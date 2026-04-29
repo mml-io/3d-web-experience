@@ -71,13 +71,9 @@ export class DeltaNetComponentMapping {
   }
 
   /**
-   * Same conversion as `fromComponents` but writes into a caller-provided
-   * `dest` object (mutating its `position`, `rotation`, and `state`
-   * fields in place). Returns `dest` for chaining.
-   *
-   * Used by the per-tick update loop, which keeps a pool of these
-   * objects keyed by connection id so the hot path stays
-   * allocation-free at 2000 users × 30 Hz.
+   * Mutating variant of `fromComponents` — writes into a caller-provided
+   * `dest`. Used by the per-tick update loop with a per-connection-id
+   * pool to keep the hot path allocation-free.
    */
   static fromComponentsInto(
     components: Map<number, bigint>,

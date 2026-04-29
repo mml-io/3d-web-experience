@@ -489,12 +489,10 @@ export class CollisionsManager {
         position: { x: number; y: number; z: number };
       }
     >();
-    // Capsule's world-space AABB. Computed once and re-used as a tight
-    // per-group cull below — the per-group setup inside `applyCollider`
-    // (matrix invert + box transform) is expensive enough that scanning
-    // all groups linearly costs ~30 ms per 1000 groups before any actual
-    // collision work. A cheap AABB-vs-AABB rejection skips the setup for
-    // groups that can't possibly intersect the capsule.
+    // Capsule's world-space AABB. Used as a tight per-group cull — the
+    // per-group setup inside `applyCollider` (matrix invert + box transform)
+    // dominates scan time at high group counts, so an AABB-vs-AABB
+    // rejection skips the setup for groups that can't possibly intersect.
     const sx = tempSegment.start.x;
     const sy = tempSegment.start.y;
     const sz = tempSegment.start.z;
