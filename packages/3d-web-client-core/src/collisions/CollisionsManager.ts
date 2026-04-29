@@ -187,6 +187,80 @@ export class CollisionsManager {
     return [minimumDistance, minimumNormal, minimumHit, minimumPoint];
   }
 
+  /**
+   * Raycast against every registered group, returning all hits sorted by
+   * distance (nearest first). One hit per group — `meshBVH.raycastFirst`
+   * gives the closest triangle within each group's BVH.
+   *
+   * Uses the same per-group world-AABB cull as `raycastFirst`, so callers
+   * can rely on this scaling with hit-eligible groups rather than total
+   * group count. Allocates per call (one result object per hit) — meant
+   * for input-rate paths like click resolution, not per-frame physics.
+   */
+  public raycastAll(
+    ray: Ray,
+    maximumDistance: number | null = null,
+  ): Array<{ distance: number; point: Vect3; normal: Vect3; meshState: CollisionMeshState }> {
+    const results: Array<{
+      distance: number;
+      point: Vect3;
+      normal: Vect3;
+      meshState: CollisionMeshState;
+    }> = [];
+    const ox = ray.origin.x;
+    const oy = ray.origin.y;
+    const oz = ray.origin.z;
+    const invDx = 1 / ray.direction.x;
+    const invDy = 1 / ray.direction.y;
+    const invDz = 1 / ray.direction.z;
+    const cullEnabled = this.cullingEnabled;
+    for (const [, collisionMeshState] of this.collisionMeshState) {
+      if (cullEnabled && this.exemptFromCulling !== collisionMeshState) {
+        const tx1 = (collisionMeshState.worldMinX - ox) * invDx;
+        const tx2 = (collisionMeshState.worldMaxX - ox) * invDx;
+        let tmin = tx1 < tx2 ? tx1 : tx2;
+        let tmax = tx1 > tx2 ? tx1 : tx2;
+        const ty1 = (collisionMeshState.worldMinY - oy) * invDy;
+        const ty2 = (collisionMeshState.worldMaxY - oy) * invDy;
+        const tyMin = ty1 < ty2 ? ty1 : ty2;
+        const tyMax = ty1 > ty2 ? ty1 : ty2;
+        if (tyMin > tmin) tmin = tyMin;
+        if (tyMax < tmax) tmax = tyMax;
+        const tz1 = (collisionMeshState.worldMinZ - oz) * invDz;
+        const tz2 = (collisionMeshState.worldMaxZ - oz) * invDz;
+        const tzMin = tz1 < tz2 ? tz1 : tz2;
+        const tzMax = tz1 > tz2 ? tz1 : tz2;
+        if (tzMin > tmin) tmin = tzMin;
+        if (tzMax < tmax) tmax = tzMax;
+        if (tmax < 0 || tmin > tmax) continue;
+        if (maximumDistance !== null && tmin > maximumDistance) continue;
+      }
+      const invertedMatrix = this.tempMatrix.copy(collisionMeshState.matrix).invert();
+      const originalRay = this.tempRay.copy(ray);
+      originalRay.applyMatrix4(invertedMatrix);
+      const hit = collisionMeshState.meshBVH.raycastFirst(originalRay as unknown as ThreeRay, 2);
+      if (!hit) continue;
+      this.tempSegment.start.copy(originalRay.origin);
+      this.tempSegment.end.copy(hit.point);
+      this.tempSegment.applyMatrix4(collisionMeshState.matrix);
+      const dist = this.tempSegment.distance();
+      if (maximumDistance !== null && dist > maximumDistance) continue;
+      const normal = new Vect3();
+      if (hit.normal) {
+        normal.copy(hit.normal);
+      } else {
+        normal.set(0, 1, 0);
+      }
+      normal.applyQuat(this.tempQuat.setFromRotationMatrix(collisionMeshState.matrix)).normalize();
+      const point = new Vect3()
+        .copy(hit.point as unknown as IVect3)
+        .applyMatrix4(collisionMeshState.matrix);
+      results.push({ distance: dist, point, normal, meshState: collisionMeshState });
+    }
+    results.sort((a, b) => a.distance - b.distance);
+    return results;
+  }
+
   public addMeshesGroup(
     group: CollisionSourceRef,
     creationResult: CollisionMesh,
