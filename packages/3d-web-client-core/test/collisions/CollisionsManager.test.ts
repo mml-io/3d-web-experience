@@ -210,12 +210,32 @@ describe("CollisionsManager", () => {
       expect(result).toBeNull();
     });
 
-    test("raycastFirst culls distant meshes", () => {
+    test("raycastFirst skips meshes whose world AABB the ray misses", () => {
       manager.setCullingEnabled(true);
-      manager.setCharacterPosition({ x: 0, y: 0, z: 0 });
 
       const meshBVH = createMockMeshBVH();
-      const matrix = new Matr4().setPosition(200, 0, 0); // Far away
+      // Mesh at +200x with local AABB (-1..1) → world AABB (199..201, -1..1, -1..1).
+      const matrix = new Matr4().setPosition(200, 0, 0);
+      const source = {};
+
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix,
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      // Ray at x=0 going down — never enters the AABB on the x slab.
+      const ray = new Ray(new Vect3(0, 10, 0), new Vect3(0, -1, 0));
+      manager.raycastFirst(ray);
+      expect(meshBVH.raycastFirst).not.toHaveBeenCalled();
+    });
+
+    test("raycastFirst still queries meshes whose world AABB the ray hits", () => {
+      manager.setCullingEnabled(true);
+
+      const meshBVH = createMockMeshBVH();
+      // Same far mesh as above, but cast a ray that enters the AABB.
+      const matrix = new Matr4().setPosition(200, 0, 0);
       const source = {};
 
       manager.addMeshesGroup(source, {
@@ -226,8 +246,7 @@ describe("CollisionsManager", () => {
 
       const ray = new Ray(new Vect3(200, 10, 0), new Vect3(0, -1, 0));
       manager.raycastFirst(ray);
-      // The meshBVH should not have been queried since it's too far
-      expect(meshBVH.raycastFirst).not.toHaveBeenCalled();
+      expect(meshBVH.raycastFirst).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -253,6 +272,131 @@ describe("CollisionsManager", () => {
       const segment = new Line(new Vect3(0, 0, 0), new Vect3(0, 1, 0));
       manager.applyColliders(segment, 0.45);
       expect(meshBVH.shapecast).toHaveBeenCalled();
+    });
+
+    test("skips meshes whose world AABB the capsule cannot overlap", () => {
+      manager.setCullingEnabled(true);
+      const meshBVH = createMockMeshBVH();
+      // Mesh at +50x with local AABB (-1..1) → world AABB (49..51, -1..1, -1..1).
+      const matrix = new Matr4().setPosition(50, 0, 0);
+      const source = {};
+
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix,
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      // Capsule near the origin — its expanded AABB is well below x=49 even
+      // accounting for the radius, so the cull should reject the mesh.
+      const segment = new Line(new Vect3(0, 0, 0), new Vect3(0, 1, 0));
+      manager.applyColliders(segment, 0.5);
+      expect(meshBVH.shapecast).not.toHaveBeenCalled();
+    });
+
+    test("queries meshes whose world AABB the capsule overlaps", () => {
+      manager.setCullingEnabled(true);
+      const meshBVH = createMockMeshBVH();
+      const matrix = new Matr4(); // identity → world AABB = local (-1..1)
+      const source = {};
+
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix,
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      // Capsule sits inside the AABB.
+      const segment = new Line(new Vect3(0, 0, 0), new Vect3(0, 1, 0));
+      manager.applyColliders(segment, 0.5);
+      expect(meshBVH.shapecast).toHaveBeenCalled();
+    });
+  });
+
+  describe("world AABB cache", () => {
+    test("addMeshesGroup caches a world AABB matching the matrix translation", () => {
+      const meshBVH = createMockMeshBVH(); // local bounds (-1..1)
+      const matrix = new Matr4().setPosition(10, 5, -3);
+      const source = {};
+
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix,
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      const state = manager.collisionMeshState.get(source)!;
+      expect(state.worldMinX).toBeCloseTo(9, 5);
+      expect(state.worldMaxX).toBeCloseTo(11, 5);
+      expect(state.worldMinY).toBeCloseTo(4, 5);
+      expect(state.worldMaxY).toBeCloseTo(6, 5);
+      expect(state.worldMinZ).toBeCloseTo(-4, 5);
+      expect(state.worldMaxZ).toBeCloseTo(-2, 5);
+    });
+
+    test("updateMeshesGroup refreshes the cached world AABB", () => {
+      const meshBVH = createMockMeshBVH();
+      const matrix = new Matr4();
+      const source = {};
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix,
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      const moved = new Matr4().setPosition(100, 0, 0);
+      manager.updateMeshesGroup(source, moved, { x: 1, y: 1, z: 1 });
+
+      const state = manager.collisionMeshState.get(source)!;
+      expect(state.worldMinX).toBeCloseTo(99, 5);
+      expect(state.worldMaxX).toBeCloseTo(101, 5);
+    });
+  });
+
+  describe("raycastAll", () => {
+    test("returns hits sorted by distance, one per group", () => {
+      manager.setCullingEnabled(false);
+
+      const nearBVH = createMockMeshBVH();
+      nearBVH.raycastFirst.mockReturnValue({
+        // Mesh-local hit at y=0; matrix is identity-translated, so distance is the
+        // ray's segment length from origin (0,10,0) to (0,0,5) = sqrt(125) ≈ 11.18.
+        point: { x: 0, y: 0, z: 5, copy: jest.fn().mockReturnThis() },
+        normal: { x: 0, y: 1, z: 0, copy: jest.fn().mockReturnThis() },
+        distance: 5,
+      });
+      const farBVH = createMockMeshBVH();
+      farBVH.raycastFirst.mockReturnValue({
+        // Translated by +20 on y → distance from origin is sqrt(400+225) = 25
+        point: { x: 0, y: 0, z: 15, copy: jest.fn().mockReturnThis() },
+        normal: { x: 0, y: 1, z: 0, copy: jest.fn().mockReturnThis() },
+        distance: 5,
+      });
+
+      manager.addMeshesGroup(
+        {},
+        { meshBVH: farBVH as any, matrix: new Matr4(), localScale: { x: 1, y: 1, z: 1 } },
+      );
+      manager.addMeshesGroup(
+        {},
+        { meshBVH: nearBVH as any, matrix: new Matr4(), localScale: { x: 1, y: 1, z: 1 } },
+      );
+
+      const ray = new Ray(new Vect3(0, 10, 0), new Vect3(0, 0, 1));
+      const results = manager.raycastAll(ray);
+      expect(results.length).toBe(2);
+      expect(results[0].distance).toBeLessThanOrEqual(results[1].distance);
+    });
+
+    test("returns empty array when no groups produce hits", () => {
+      const meshBVH = createMockMeshBVH();
+      meshBVH.raycastFirst.mockReturnValue(null);
+      manager.addMeshesGroup(
+        {},
+        { meshBVH: meshBVH as any, matrix: new Matr4(), localScale: { x: 1, y: 1, z: 1 } },
+      );
+      const ray = new Ray(new Vect3(0, 10, 0), new Vect3(0, -1, 0));
+      expect(manager.raycastAll(ray)).toEqual([]);
     });
   });
 });
