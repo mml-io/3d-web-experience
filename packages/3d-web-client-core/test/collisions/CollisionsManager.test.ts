@@ -63,11 +63,6 @@ describe("CollisionsManager", () => {
       // No direct getter, but we can verify by adding a far mesh and raycasting
     });
 
-    test("setCharacterPosition updates position for culling", () => {
-      manager.setCharacterPosition({ x: 10, y: 20, z: 30 });
-      // Position is stored internally for culling distance calculations
-    });
-
     test("setExemptFromCulling accepts null", () => {
       manager.setExemptFromCulling(null);
     });

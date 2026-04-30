@@ -601,9 +601,6 @@ describe("custom types vs Three.js types collision comparison", { timeout: 60000
     const sourceRef = {};
     cm.addMeshesGroup(sourceRef, { meshBVH, matrix, localScale });
 
-    // Set character position for culling
-    cm.setCharacterPosition({ x: position.x, y: position.y, z: position.z });
-
     // Build the capsule segment using custom Line (matching LocalController)
     const capsuleSegment = new CoreLine(
       new Vect3(position.x, position.y + CAPSULE_RADIUS, position.z),
@@ -785,8 +782,6 @@ describe("custom types vs Three.js types collision comparison", { timeout: 60000
 
       const sourceRef = {};
       cm.addMeshesGroup(sourceRef, { meshBVH: data.meshBVH, matrix, localScale });
-      cm.setCharacterPosition({ x: pos.x, y: pos.y, z: pos.z });
-
       const capsuleSegment = new CoreLine(
         new Vect3(pos.x, pos.y + CAPSULE_RADIUS, pos.z),
         new Vect3(pos.x, pos.y + CAPSULE_SEGMENT_END_Y + CAPSULE_RADIUS, pos.z),

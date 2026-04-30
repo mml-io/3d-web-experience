@@ -68,7 +68,6 @@ function createMockConfig(overrides?: Partial<CharacterManagerConfig>): Characte
     collisionsManager: {
       applyColliders: jest.fn<any>().mockReturnValue({ onGround: true }),
       raycastFirst: jest.fn<any>().mockReturnValue(null),
-      setCharacterPosition: jest.fn(),
       setCullingEnabled: jest.fn(),
       setExemptFromCulling: jest.fn(),
     } as any,

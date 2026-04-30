@@ -225,7 +225,6 @@ export class LocalController {
       this.updateRotation(deltaTime);
     }
 
-    this.config.collisionsManager.setCharacterPosition(this.config.position);
     this.config.collisionsManager.setExemptFromCulling(
       this.lastFrameSurfaceState ? this.lastFrameSurfaceState[0] : null,
     );

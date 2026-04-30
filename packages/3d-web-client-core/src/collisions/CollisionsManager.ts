@@ -77,10 +77,6 @@ export class CollisionsManager {
   public onDebugChange?: (enabled: boolean) => void;
 
   private cullingEnabled: boolean = true;
-  // Retained because external callers (LocalController, AvatarController)
-  // still write to it via setCharacterPosition, but it is no longer read —
-  // culling is now ray/capsule-vs-AABB, not distance-from-character.
-  private characterPosition: Vect3 = new Vect3();
 
   private exemptFromCulling: CollisionMeshState | null = null;
 
@@ -102,10 +98,6 @@ export class CollisionsManager {
 
   public setCullingEnabled(enabled: boolean): void {
     this.cullingEnabled = enabled;
-  }
-
-  public setCharacterPosition(position: IVect3): void {
-    this.characterPosition.set(position.x, position.y, position.z);
   }
 
   public setExemptFromCulling(meshState: CollisionMeshState | null): void {
