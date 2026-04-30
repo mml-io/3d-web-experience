@@ -6,6 +6,8 @@ export enum AnimationState {
   "air" = 4,
   "airToGround" = 5,
   "doubleJump" = 6,
+  // Non-locomotion clip slot; LocalController never produces this.
+  "emote" = 7,
 }
 
 export type CharacterState = {

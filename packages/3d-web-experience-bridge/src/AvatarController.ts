@@ -157,9 +157,6 @@ export class AvatarController extends EventEmitter {
 
     // Update camera position for LocalController's azimuthal angle calculation
     this.cameraManager.setCharacterPosition(this.currentPosition);
-    this.collisionsManager.setCharacterPosition(
-      new Vect3(this.currentPosition.x, this.currentPosition.y, this.currentPosition.z),
-    );
 
     // Run the same physics as the human client with fixed timestep
     this.localController.update(FIXED_DELTA_TIME);

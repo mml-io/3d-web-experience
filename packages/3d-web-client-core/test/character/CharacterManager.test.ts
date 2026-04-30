@@ -68,7 +68,6 @@ function createMockConfig(overrides?: Partial<CharacterManagerConfig>): Characte
     collisionsManager: {
       applyColliders: jest.fn<any>().mockReturnValue({ onGround: true }),
       raycastFirst: jest.fn<any>().mockReturnValue(null),
-      setCharacterPosition: jest.fn(),
       setCullingEnabled: jest.fn(),
       setExemptFromCulling: jest.fn(),
     } as any,
@@ -129,6 +128,16 @@ describe("CharacterManager", () => {
     expect(manager.getLocalConnectionId()).toBe(42);
   });
 
+  test("getRemoteUserStates returns the live config map", () => {
+    expect(manager.getRemoteUserStates()).toBe(config.remoteUserStates);
+    config.remoteUserStates.set(7, {
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { eulerY: 0 },
+      state: AnimationState.idle,
+    });
+    expect(manager.getRemoteUserStates().has(7)).toBe(true);
+  });
+
   test("spawnLocalCharacter creates local controller", () => {
     manager.spawnLocalCharacter(1, new Vect3(5, 10, 15));
     expect(manager.localController).not.toBeNull();
@@ -166,6 +175,21 @@ describe("CharacterManager", () => {
     const states = manager.getAllCharacterStates();
     expect(states.has(2)).toBe(true);
     expect(states.get(2)!.isLocal).toBe(false);
+  });
+
+  test("update skips remote character processing when skipRemoteCharacterUpdate is true", () => {
+    const skipConfig = createMockConfig({ skipRemoteCharacterUpdate: true });
+    const skipManager = new CharacterManagerReloaded(skipConfig);
+    skipManager.setLocalConnectionId(1);
+    skipConfig.remoteUserStates.set(2, {
+      position: { x: 10, y: 0, z: 0 },
+      rotation: { eulerY: 0 },
+      state: AnimationState.idle,
+    });
+    skipManager.update(0.016, 0);
+    expect(skipManager.remoteCharacters.has(2)).toBe(false);
+    const states = skipManager.getAllCharacterStates();
+    expect(states.has(2)).toBe(false);
   });
 
   test("update skips local client ID from remote states", () => {

@@ -11,7 +11,6 @@ vi.mock("@mml-io/3d-web-client-core", () => ({
   CollisionsManager: vi.fn().mockImplementation(function () {
     return {
       addMeshesGroup: vi.fn(),
-      setCharacterPosition: vi.fn(),
       updateMeshesGroup: vi.fn(),
       removeMeshesGroup: vi.fn(),
     };

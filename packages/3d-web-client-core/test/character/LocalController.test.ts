@@ -17,7 +17,6 @@ function createMockConfig(overrides?: Partial<LocalControllerConfig>): LocalCont
     collisionsManager: {
       applyColliders: jest.fn<any>(),
       raycastFirst: jest.fn<any>().mockReturnValue(null),
-      setCharacterPosition: jest.fn(),
       setCullingEnabled: jest.fn(),
       setExemptFromCulling: jest.fn(),
     } as any,
@@ -225,7 +224,6 @@ describe("LocalController", () => {
   describe("update", () => {
     test("calls collisions manager methods", () => {
       controller.update(0.016);
-      expect(config.collisionsManager.setCharacterPosition).toHaveBeenCalled();
       expect(config.collisionsManager.setExemptFromCulling).toHaveBeenCalled();
       expect(config.collisionsManager.applyColliders).toHaveBeenCalled();
     });

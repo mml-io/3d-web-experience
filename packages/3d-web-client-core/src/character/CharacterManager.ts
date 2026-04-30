@@ -93,6 +93,8 @@ export type CharacterManagerConfig = {
     colors: Array<[number, number, number]> | null;
   };
   updateURLLocation?: boolean;
+  /** Skip the remote-character loop; the renderer owns it. */
+  skipRemoteCharacterUpdate?: boolean;
 };
 
 type RemoteCharacterState = {
@@ -384,97 +386,102 @@ export class CharacterManager {
       }
     }
 
-    // Process remote characters
-    for (const [id, networkUpdate] of this.config.remoteUserStates) {
-      if (id === this.localConnectionId) {
-        continue;
-      }
+    if (!this.config.skipRemoteCharacterUpdate) {
+      for (const [id, networkUpdate] of this.config.remoteUserStates) {
+        if (id === this.localConnectionId) {
+          continue;
+        }
 
-      let existingCharacter = this.remoteCharacters.get(id);
-      if (!existingCharacter) {
-        // Spawn new remote character with a RemoteController
-        const { position } = networkUpdate;
-        const halfY = networkUpdate.rotation.eulerY / 2;
-        const initialRotation = new EulXYZ().setFromQuaternion(
-          new Quat(0, Math.sin(halfY), 0, Math.cos(halfY)),
-        );
+        let existingCharacter = this.remoteCharacters.get(id);
+        if (!existingCharacter) {
+          // Spawn new remote character with a RemoteController
+          const { position } = networkUpdate;
+          const halfY = networkUpdate.rotation.eulerY / 2;
+          const initialRotation = new EulXYZ().setFromQuaternion(
+            new Quat(0, Math.sin(halfY), 0, Math.cos(halfY)),
+          );
 
-        const characterInfo = this.config.characterResolve(id);
-        const controller = new RemoteController(
-          new Vect3(position.x, position.y, position.z),
-          initialRotation,
-          networkUpdate.state,
-        );
-        const animationMixer = new AnimationMixer(networkUpdate.state);
+          const characterInfo = this.config.characterResolve(id);
+          const controller = new RemoteController(
+            new Vect3(position.x, position.y, position.z),
+            initialRotation,
+            networkUpdate.state,
+          );
+          const animationMixer = new AnimationMixer(networkUpdate.state);
 
-        // Initialize cached renderState
-        const cachedRotation = new EulXYZ();
-        cachedRotation.setFromQuaternion(controller.rotation);
-        const renderState: CharacterRenderState = {
-          id,
-          position: new Vect3(controller.position.x, controller.position.y, controller.position.z),
-          rotation: cachedRotation,
-          animationState: controller.animationState,
-          animationWeights: animationMixer.getWeights(),
-          animationTimes: animationMixer.getAnimationTimes(),
-          username: characterInfo.username ?? `Unknown User ${id}`,
-          characterDescription: characterInfo.characterDescription,
-          colors: characterInfo.colors,
-          isLocal: false,
-        };
+          // Initialize cached renderState
+          const cachedRotation = new EulXYZ();
+          cachedRotation.setFromQuaternion(controller.rotation);
+          const renderState: CharacterRenderState = {
+            id,
+            position: new Vect3(
+              controller.position.x,
+              controller.position.y,
+              controller.position.z,
+            ),
+            rotation: cachedRotation,
+            animationState: controller.animationState,
+            animationWeights: animationMixer.getWeights(),
+            animationTimes: animationMixer.getAnimationTimes(),
+            username: characterInfo.username ?? `Unknown User ${id}`,
+            characterDescription: characterInfo.characterDescription,
+            colors: characterInfo.colors,
+            isLocal: false,
+          };
 
-        existingCharacter = {
-          id,
-          controller,
-          animationMixer,
-          lastUsername: renderState.username,
-          lastCharacterDescription: renderState.characterDescription,
-          lastColors: renderState.colors,
-          renderState,
-        };
-        this.remoteCharacters.set(id, existingCharacter);
-        this.cachedCharacterStates.set(id, renderState);
-      } else {
-        // Update existing character's controller with network state
-        existingCharacter.controller.update(networkUpdate, deltaTime);
+          existingCharacter = {
+            id,
+            controller,
+            animationMixer,
+            lastUsername: renderState.username,
+            lastCharacterDescription: renderState.characterDescription,
+            lastColors: renderState.colors,
+            renderState,
+          };
+          this.remoteCharacters.set(id, existingCharacter);
+          this.cachedCharacterStates.set(id, renderState);
+        } else {
+          // Update existing character's controller with network state
+          existingCharacter.controller.update(networkUpdate, deltaTime);
 
-        // Update animation mixer
-        existingCharacter.animationMixer.setTargetState(
-          existingCharacter.controller.animationState,
-        );
-        existingCharacter.animationMixer.update(deltaTime);
+          // Update animation mixer
+          existingCharacter.animationMixer.setTargetState(
+            existingCharacter.controller.animationState,
+          );
+          existingCharacter.animationMixer.update(deltaTime);
 
-        // Mutate cached renderState in-place
-        existingCharacter.renderState.position.set(
-          existingCharacter.controller.position.x,
-          existingCharacter.controller.position.y,
-          existingCharacter.controller.position.z,
-        );
-        existingCharacter.renderState.rotation.setFromQuaternion(
-          existingCharacter.controller.rotation,
-        );
-        existingCharacter.renderState.animationState =
-          existingCharacter.animationMixer.getPrimaryState();
-        existingCharacter.renderState.animationWeights =
-          existingCharacter.animationMixer.getWeights();
-        existingCharacter.renderState.animationTimes =
-          existingCharacter.animationMixer.getAnimationTimes();
+          // Mutate cached renderState in-place
+          existingCharacter.renderState.position.set(
+            existingCharacter.controller.position.x,
+            existingCharacter.controller.position.y,
+            existingCharacter.controller.position.z,
+          );
+          existingCharacter.renderState.rotation.setFromQuaternion(
+            existingCharacter.controller.rotation,
+          );
+          existingCharacter.renderState.animationState =
+            existingCharacter.animationMixer.getPrimaryState();
+          existingCharacter.renderState.animationWeights =
+            existingCharacter.animationMixer.getWeights();
+          existingCharacter.renderState.animationTimes =
+            existingCharacter.animationMixer.getAnimationTimes();
 
-        // Check if description changed
-        const characterInfo = this.config.characterResolve(id);
-        const newUsername = characterInfo.username ?? `Unknown User ${id}`;
-        if (
-          existingCharacter.lastUsername !== newUsername ||
-          existingCharacter.lastCharacterDescription !== characterInfo.characterDescription ||
-          existingCharacter.lastColors !== characterInfo.colors
-        ) {
-          existingCharacter.lastUsername = newUsername;
-          existingCharacter.lastCharacterDescription = characterInfo.characterDescription;
-          existingCharacter.lastColors = characterInfo.colors;
-          existingCharacter.renderState.username = newUsername;
-          existingCharacter.renderState.characterDescription = characterInfo.characterDescription;
-          existingCharacter.renderState.colors = characterInfo.colors;
-          updatedCharacterDescriptions.push(id);
+          // Check if description changed
+          const characterInfo = this.config.characterResolve(id);
+          const newUsername = characterInfo.username ?? `Unknown User ${id}`;
+          if (
+            existingCharacter.lastUsername !== newUsername ||
+            existingCharacter.lastCharacterDescription !== characterInfo.characterDescription ||
+            existingCharacter.lastColors !== characterInfo.colors
+          ) {
+            existingCharacter.lastUsername = newUsername;
+            existingCharacter.lastCharacterDescription = characterInfo.characterDescription;
+            existingCharacter.lastColors = characterInfo.colors;
+            existingCharacter.renderState.username = newUsername;
+            existingCharacter.renderState.characterDescription = characterInfo.characterDescription;
+            existingCharacter.renderState.colors = characterInfo.colors;
+            updatedCharacterDescriptions.push(id);
+          }
         }
       }
     }
@@ -501,5 +508,10 @@ export class CharacterManager {
 
   public getLocalConnectionId(): number {
     return this.localConnectionId;
+  }
+
+  /** Live network-truth map; pair with `skipRemoteCharacterUpdate: true`. */
+  public getRemoteUserStates(): ReadonlyMap<number, CharacterState> {
+    return this.config.remoteUserStates;
   }
 }

@@ -4,4 +4,5 @@ export type AnimationConfig = {
   sprintAnimationFileUrl: string;
   airAnimationFileUrl: string;
   doubleJumpAnimationFileUrl: string;
+  emoteAnimationFileUrl?: string;
 };

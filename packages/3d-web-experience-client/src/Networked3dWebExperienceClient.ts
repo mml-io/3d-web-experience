@@ -67,6 +67,12 @@ export type Networked3dWebExperienceClientConfig = {
    * controls, etc.) that participates in the standard plugin lifecycle.
    */
   plugins?: UIPlugin[];
+  /**
+   * When true, CharacterManager skips its remote-character loop and the
+   * renderer is expected to drive remote characters from `remoteUserStates`
+   * on RenderState.
+   */
+  skipRemoteCharacterUpdate?: boolean;
 } & UpdatableConfig;
 
 /**
@@ -361,6 +367,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
         return this.resolveCharacterData(connectionId);
       },
       updateURLLocation: this.config.updateURLLocation !== false,
+      skipRemoteCharacterUpdate: this.config.skipRemoteCharacterUpdate ?? false,
     });
 
     this.loadingScreen = new LoadingScreen(this.loadingProgressManager, this.config.loadingScreen);
@@ -579,6 +586,12 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     }
   }
 
+  // Stable identity — renderers may pointer-compare `getRemoteCharacterInfo`
+  // and re-wire caches on change, so an inline arrow per frame would
+  // defeat the cache.
+  private readonly boundResolveCharacterData = (id: number): UserData =>
+    this.resolveCharacterData(id);
+
   private resolveCharacterData(connectionId: number): UserData {
     const user = this.userProfiles.get(connectionId);
     if (!user) {
@@ -697,6 +710,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
 
     // Track if any physics updates occurred this frame
     let physicsUpdated = false;
+    let physicsStepsThisFrame = 0;
     const updatedCharacterDescriptions: number[] = [];
     const removedConnectionIds: number[] = [];
 
@@ -722,6 +736,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
 
       this.accumulatedTime -= this.fixedDeltaTime;
       physicsUpdated = true;
+      physicsStepsThisFrame++;
     }
 
     // Only render if physics was updated (limits render rate to physics rate)
@@ -760,7 +775,12 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       removedConnectionIds,
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalConnectionId(),
-      deltaTimeSeconds: this.fixedDeltaTime,
+      // Render is gated on physicsUpdated, so raw rAF elapsed time
+      // under-counts on high-refresh displays. Use the simulated time
+      // actually advanced this frame (N × fixedDeltaTime).
+      deltaTimeSeconds: physicsStepsThisFrame * this.fixedDeltaTime,
+      remoteUserStates: this.characterManager.getRemoteUserStates(),
+      getRemoteCharacterInfo: this.boundResolveCharacterData,
     };
 
     // Render the actual frame using the associated renderer

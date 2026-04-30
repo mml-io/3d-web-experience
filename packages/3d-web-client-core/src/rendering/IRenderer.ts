@@ -1,5 +1,5 @@
 import { AnimationWeights, AnimationTimes } from "../character/AnimationMixer";
-import { AnimationState } from "../character/CharacterState";
+import { AnimationState, CharacterState } from "../character/CharacterState";
 import { AnimationConfig } from "../character/types";
 import { EulXYZ, Vect3 } from "../math";
 
@@ -48,8 +48,18 @@ export type RenderState = {
   updatedCharacterDescriptions: number[];
   removedConnectionIds: number[];
   cameraTransform: CameraTransform;
+  /** null before the local character has spawned. */
   localCharacterId: number | null;
   deltaTimeSeconds: number;
+  /** Network-truth map for renderers that drive their own remote-character pipeline. */
+  remoteUserStates?: ReadonlyMap<number, CharacterState>;
+  /** Stable identity-resolver callback; safe to pointer-compare across frames. */
+  getRemoteCharacterInfo?: (id: number) => {
+    userId: string;
+    username: string | null;
+    characterDescription: CharacterDescription | null;
+    colors: Array<[number, number, number]> | null;
+  };
 };
 
 export type EnvironmentConfiguration = {
