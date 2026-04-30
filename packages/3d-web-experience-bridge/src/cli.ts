@@ -49,6 +49,39 @@ function buildBridgeConfig(flags: Record<string, string>, bridgePort: number): B
     10,
   );
 
+  // Navmesh options from CLI flags
+  const navMeshMaxY = flags["navmesh-max-y"] ? parseFloat(flags["navmesh-max-y"]) : undefined;
+  const navMeshJumpLinks = flags["navmesh-jump-links"] === "false" ? false : undefined;
+  const navMeshCs = flags["navmesh-cs"] ? parseFloat(flags["navmesh-cs"]) : undefined;
+  const navMeshCh = flags["navmesh-ch"] ? parseFloat(flags["navmesh-ch"]) : undefined;
+  const navMeshWalkableRadius = flags["navmesh-walkable-radius"]
+    ? parseInt(flags["navmesh-walkable-radius"], 10)
+    : undefined;
+  const navMeshWalkableHeight = flags["navmesh-walkable-height"]
+    ? parseInt(flags["navmesh-walkable-height"], 10)
+    : undefined;
+
+  const hasNavMeshOverrides =
+    navMeshMaxY !== undefined ||
+    navMeshJumpLinks !== undefined ||
+    navMeshCs !== undefined ||
+    navMeshCh !== undefined ||
+    navMeshWalkableRadius !== undefined ||
+    navMeshWalkableHeight !== undefined;
+
+  const navMeshOptions = hasNavMeshOverrides
+    ? {
+        maxY: navMeshMaxY,
+        jumpLinksEnabled: navMeshJumpLinks,
+        config: {
+          ...(navMeshCs !== undefined ? { cs: navMeshCs } : {}),
+          ...(navMeshCh !== undefined ? { ch: navMeshCh } : {}),
+          ...(navMeshWalkableRadius !== undefined ? { walkableRadius: navMeshWalkableRadius } : {}),
+          ...(navMeshWalkableHeight !== undefined ? { walkableHeight: navMeshWalkableHeight } : {}),
+        },
+      }
+    : undefined;
+
   return {
     serverUrl,
     bridgePort,
@@ -67,6 +100,7 @@ function buildBridgeConfig(flags: Record<string, string>, bridgePort: number): B
         }
       : {}),
     apiKey,
+    navMeshOptions,
   };
 }
 

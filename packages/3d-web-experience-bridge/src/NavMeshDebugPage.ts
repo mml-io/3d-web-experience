@@ -63,10 +63,77 @@ export function getNavMeshDebugPage(): string {
     width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
   }
 
-  #status {
+  #config-panel {
     position: absolute;
     top: 12px;
     right: 12px;
+    width: 280px;
+    background: rgba(10, 14, 23, 0.92);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: #e0e0e0;
+    font-size: 14px;
+    line-height: 1.6;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 20;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+  #config-panel h3 {
+    font-size: 16px;
+    color: #ff9f43;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .cfg-row {
+    margin-bottom: 8px;
+  }
+  .cfg-row label {
+    display: flex;
+    justify-content: space-between;
+    color: #9ca3af;
+    margin-bottom: 2px;
+    font-size: 13px;
+  }
+  .cfg-row label .cfg-val {
+    color: #e0e0e0;
+    font-weight: 600;
+  }
+  .cfg-row input[type=range] {
+    width: 100%;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    outline: none;
+  }
+  .cfg-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ff9f43;
+    cursor: pointer;
+  }
+  .cfg-row input[type=checkbox] {
+    accent-color: #ff9f43;
+  }
+  .cfg-sep {
+    border-top: 1px solid rgba(255,255,255,0.06);
+    margin: 8px 0;
+  }
+  #cfg-status {
+    font-size: 13px;
+    color: #6b7280;
+    margin-top: 6px;
+  }
+
+  #status {
+    position: absolute;
+    top: 12px;
+    right: 304px;
     background: rgba(10, 14, 23, 0.9);
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 8px;
@@ -133,6 +200,54 @@ export function getNavMeshDebugPage(): string {
 <div id="status">
   <span class="status-dot status-wait" id="status-dot"></span>
   <span id="status-text" style="color:#e0e0e0">Connecting...</span>
+</div>
+
+<div id="config-panel">
+  <h3>NavMesh Config</h3>
+  <div class="cfg-row">
+    <label>maxY <span class="cfg-val" id="cfg-maxY-val">-</span></label>
+    <input type="range" id="cfg-maxY" min="0.5" max="10" step="0.1" value="2.5">
+  </div>
+  <div class="cfg-row">
+    <label>cs (cell size) <span class="cfg-val" id="cfg-cs-val">-</span></label>
+    <input type="range" id="cfg-cs" min="0.05" max="1.0" step="0.05" value="0.25">
+  </div>
+  <div class="cfg-row">
+    <label>ch (cell height) <span class="cfg-val" id="cfg-ch-val">-</span></label>
+    <input type="range" id="cfg-ch" min="0.05" max="0.5" step="0.025" value="0.125">
+  </div>
+  <div class="cfg-row">
+    <label>walkableRadius <span class="cfg-val" id="cfg-wr-val">-</span></label>
+    <input type="range" id="cfg-wr" min="1" max="6" step="1" value="2">
+  </div>
+  <div class="cfg-row">
+    <label>walkableHeight <span class="cfg-val" id="cfg-wh-val">-</span></label>
+    <input type="range" id="cfg-wh" min="4" max="20" step="1" value="16">
+  </div>
+  <div class="cfg-row">
+    <label>walkableClimb <span class="cfg-val" id="cfg-wc-val">-</span></label>
+    <input type="range" id="cfg-wc" min="1" max="6" step="1" value="2">
+  </div>
+  <div class="cfg-row">
+    <label>walkableSlopeAngle <span class="cfg-val" id="cfg-wsa-val">-</span></label>
+    <input type="range" id="cfg-wsa" min="15" max="75" step="5" value="60">
+  </div>
+  <div class="cfg-sep"></div>
+  <div class="cfg-row">
+    <label>minRegionArea <span class="cfg-val" id="cfg-mra-val">-</span></label>
+    <input type="range" id="cfg-mra" min="1" max="50" step="1" value="1">
+  </div>
+  <div class="cfg-row">
+    <label>mergeRegionArea <span class="cfg-val" id="cfg-mrga-val">-</span></label>
+    <input type="range" id="cfg-mrga" min="1" max="100" step="1" value="10">
+  </div>
+  <div class="cfg-sep"></div>
+  <div class="cfg-row" style="display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" id="cfg-jl">
+    <label for="cfg-jl" style="color:#9ca3af;cursor:pointer;">Jump Links Enabled</label>
+  </div>
+  <div class="cfg-sep"></div>
+  <div id="cfg-status">Ready</div>
 </div>
 
 <script type="module">
@@ -725,6 +840,96 @@ renderer.domElement.addEventListener('click', (e) => {
     followTargetEl.textContent = 'None';
   }
 });
+
+// --- Config panel ---
+const cfgSliders = {
+  maxY: document.getElementById('cfg-maxY'),
+  cs: document.getElementById('cfg-cs'),
+  ch: document.getElementById('cfg-ch'),
+  wr: document.getElementById('cfg-wr'),
+  wh: document.getElementById('cfg-wh'),
+  wc: document.getElementById('cfg-wc'),
+  wsa: document.getElementById('cfg-wsa'),
+  mra: document.getElementById('cfg-mra'),
+  mrga: document.getElementById('cfg-mrga'),
+};
+const cfgJumpLinks = document.getElementById('cfg-jl');
+const cfgStatusEl = document.getElementById('cfg-status');
+
+function updateSliderLabels() {
+  for (const [key, el] of Object.entries(cfgSliders)) {
+    const valEl = document.getElementById('cfg-' + key + '-val');
+    if (valEl && el) valEl.textContent = el.value;
+  }
+}
+
+let cfgDebounce = null;
+function scheduleConfigUpdate() {
+  updateSliderLabels();
+  if (cfgDebounce) clearTimeout(cfgDebounce);
+  cfgStatusEl.textContent = 'Pending...';
+  cfgStatusEl.style.color = '#eab308';
+  cfgDebounce = setTimeout(sendConfig, 500);
+}
+
+async function sendConfig() {
+  const body = {
+    maxY: parseFloat(cfgSliders.maxY.value),
+    jumpLinksEnabled: cfgJumpLinks.checked,
+    config: {
+      cs: parseFloat(cfgSliders.cs.value),
+      ch: parseFloat(cfgSliders.ch.value),
+      walkableRadius: parseInt(cfgSliders.wr.value),
+      walkableHeight: parseInt(cfgSliders.wh.value),
+      walkableClimb: parseInt(cfgSliders.wc.value),
+      walkableSlopeAngle: parseInt(cfgSliders.wsa.value),
+      minRegionArea: parseInt(cfgSliders.mra.value),
+      mergeRegionArea: parseInt(cfgSliders.mrga.value),
+    },
+  };
+  cfgStatusEl.textContent = 'Regenerating...';
+  cfgStatusEl.style.color = '#3b82f6';
+  try {
+    const res = await fetch(BRIDGE_URL + '/navmesh-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await res.json();
+    cfgStatusEl.textContent = result.success ? 'Updated' : 'Failed';
+    cfgStatusEl.style.color = result.success ? '#22c55e' : '#ef4444';
+  } catch (err) {
+    cfgStatusEl.textContent = 'Error: ' + err.message;
+    cfgStatusEl.style.color = '#ef4444';
+  }
+}
+
+async function loadCurrentConfig() {
+  try {
+    const res = await fetch(BRIDGE_URL + '/navmesh-config');
+    const opts = await res.json();
+    if (opts.maxY !== undefined) cfgSliders.maxY.value = opts.maxY;
+    if (opts.jumpLinksEnabled !== undefined) cfgJumpLinks.checked = opts.jumpLinksEnabled;
+    if (opts.config) {
+      if (opts.config.cs !== undefined) cfgSliders.cs.value = opts.config.cs;
+      if (opts.config.ch !== undefined) cfgSliders.ch.value = opts.config.ch;
+      if (opts.config.walkableRadius !== undefined) cfgSliders.wr.value = opts.config.walkableRadius;
+      if (opts.config.walkableHeight !== undefined) cfgSliders.wh.value = opts.config.walkableHeight;
+      if (opts.config.walkableClimb !== undefined) cfgSliders.wc.value = opts.config.walkableClimb;
+      if (opts.config.walkableSlopeAngle !== undefined) cfgSliders.wsa.value = opts.config.walkableSlopeAngle;
+      if (opts.config.minRegionArea !== undefined) cfgSliders.mra.value = opts.config.minRegionArea;
+      if (opts.config.mergeRegionArea !== undefined) cfgSliders.mrga.value = opts.config.mergeRegionArea;
+    }
+    updateSliderLabels();
+  } catch {}
+}
+
+for (const el of Object.values(cfgSliders)) {
+  el.addEventListener('input', scheduleConfigUpdate);
+}
+cfgJumpLinks.addEventListener('change', scheduleConfigUpdate);
+
+loadCurrentConfig();
 
 animate();
 connectSSE();

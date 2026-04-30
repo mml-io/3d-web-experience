@@ -108,10 +108,17 @@ const PLACEMENT_FLATNESS_THRESHOLD = 0.3;
 const PLACEMENT_GENTLE_SLOPE_THRESHOLD = 0.8;
 const PLACEMENT_SLOPE_THRESHOLD = 1.5;
 
+export type NavMeshOptions = {
+  maxY?: number;
+  jumpLinksEnabled?: boolean;
+  config?: Partial<typeof NAVMESH_CONFIG>;
+};
+
 export class NavMeshManager extends EventEmitter {
   private navMesh: NavMesh | null = null;
   private navMeshQuery: NavMeshQuery | null = null;
   private initialized = false;
+  private options: NavMeshOptions = {};
   private regionCenter: Position | null = null;
   private isGenerating = false;
   private generationPromise: Promise<boolean> | null = null;
@@ -144,8 +151,21 @@ export class NavMeshManager extends EventEmitter {
     { resolve: (msg: any) => void; timer: ReturnType<typeof setTimeout> }
   >();
 
-  constructor() {
+  constructor(options?: NavMeshOptions) {
     super();
+    if (options) this.options = options;
+  }
+
+  updateOptions(options: NavMeshOptions): void {
+    this.options = options;
+    this.geometryCache.invalidateAll();
+    this.lastJumpLinksHash = null;
+    this.lastJumpLinks = [];
+    debug(`[navmesh] Options updated: ${JSON.stringify(options)}`);
+  }
+
+  getOptions(): NavMeshOptions {
+    return { ...this.options };
   }
 
   async init(): Promise<void> {
@@ -193,6 +213,7 @@ export class NavMeshManager extends EventEmitter {
     positions: Float32Array,
     indices: Uint32Array,
     jumpLinks: OffMeshConnectionParams[],
+    navConfig: typeof NAVMESH_CONFIG = NAVMESH_CONFIG,
   ): Promise<{ success: boolean; navMesh?: NavMesh }> {
     if (this.worker && this.workerReady) {
       // Cancel any existing pending requests
@@ -227,7 +248,7 @@ export class NavMeshManager extends EventEmitter {
           positions: posBuffer,
           indices: idxBuffer,
           jumpLinks,
-          config: NAVMESH_CONFIG,
+          config: navConfig,
         },
         [posBuffer, idxBuffer],
       );
@@ -270,7 +291,7 @@ export class NavMeshManager extends EventEmitter {
 
     // Fallback: main thread generation (tiled)
     const result = generateTiledNavMesh(positions, indices, {
-      ...NAVMESH_CONFIG,
+      ...navConfig,
       offMeshConnections: jumpLinks,
     });
 
@@ -459,13 +480,44 @@ export class NavMeshManager extends EventEmitter {
           );
         }
 
+        // Apply maxY filter — drop triangles with all vertices above the threshold
+        if (this.options.maxY !== undefined) {
+          const maxYThreshold = this.options.maxY;
+          const filteredIdx: number[] = [];
+          for (let i = 0; i < finalIndices.length; i += 3) {
+            const y0 = finalPositions[finalIndices[i] * 3 + 1];
+            const y1 = finalPositions[finalIndices[i + 1] * 3 + 1];
+            const y2 = finalPositions[finalIndices[i + 2] * 3 + 1];
+            if (y0 <= maxYThreshold || y1 <= maxYThreshold || y2 <= maxYThreshold) {
+              filteredIdx.push(finalIndices[i], finalIndices[i + 1], finalIndices[i + 2]);
+            }
+          }
+          finalIndices = new Uint32Array(filteredIdx);
+          debug(
+            `[navmesh] maxY filter (${maxYThreshold}): kept ${filteredIdx.length / 3} triangles`,
+          );
+        }
+
         const tClip = Date.now();
 
-        const jumpLinks = this.detectJumpLinksWithCache(finalPositions, finalIndices);
+        const jumpLinks =
+          this.options.jumpLinksEnabled === false
+            ? []
+            : this.detectJumpLinksWithCache(finalPositions, finalIndices);
 
         const tJump = Date.now();
 
-        const result = await this.runNavMeshGeneration(finalPositions, finalIndices, jumpLinks);
+        // Apply config overrides
+        const effectiveConfig = this.options.config
+          ? { ...NAVMESH_CONFIG, ...this.options.config }
+          : NAVMESH_CONFIG;
+
+        const result = await this.runNavMeshGeneration(
+          finalPositions,
+          finalIndices,
+          jumpLinks,
+          effectiveConfig,
+        );
 
         if (!result.success || !result.navMesh) {
           console.error("[navmesh] Generation failed");
