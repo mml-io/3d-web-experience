@@ -1054,6 +1054,12 @@ export class HeadlessMMLScene {
     return this.groundColliderGroup !== null;
   }
 
+  removeGroundMesh(): void {
+    if (this.groundMesh.parent) {
+      this.groundMesh.parent.remove(this.groundMesh);
+    }
+  }
+
   countMeshes(): number {
     let count = 0;
     this.scene.traverse((obj) => {

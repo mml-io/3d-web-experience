@@ -22,7 +22,7 @@ import { AvatarController } from "./AvatarController";
 import { HeadlessMMLScene } from "./HeadlessMMLScene";
 import { debug } from "./logger";
 import { getNavMeshDebugPage } from "./NavMeshDebugPage";
-import { NavMeshManager } from "./NavMeshManager";
+import { NavMeshManager, type NavMeshOptions } from "./NavMeshManager";
 import { EventBuffer } from "./tools/EventBuffer";
 import { loadTools, type ToolContext, type ToolDefinition } from "./tools/registry";
 import { WebhookEmitter } from "./WebhookEmitter";
@@ -36,7 +36,7 @@ export { GeometryCache } from "./GeometryCache";
 export { findSurfaceSpots } from "./SurfaceAnalyzer";
 export type { SurfaceSpot, SurfaceSpotOptions } from "./SurfaceAnalyzer";
 export { getNavMeshDebugPage } from "./NavMeshDebugPage";
-export type { PlacementSpot } from "./NavMeshManager";
+export type { PlacementSpot, NavMeshOptions } from "./NavMeshManager";
 export { ProgrammaticInputProvider } from "./ProgrammaticInputProvider";
 export { HeadlessCameraManager } from "./HeadlessCameraManager";
 export { createCollisionMesh } from "./ColliderUtils";
@@ -86,6 +86,7 @@ export type BridgeConfig = {
    * When true, serves GET /navmesh, /navmesh-stream (SSE), /navmesh-debug (viewer).
    */
   enableDebug?: boolean;
+  navMeshOptions?: NavMeshOptions;
 };
 
 export type BridgeHandle = {
@@ -554,7 +555,54 @@ function setupHttpServer(
       res.send(getNavMeshDebugPage());
     });
 
-    debug("[bridge] Debug endpoints enabled: /navmesh, /navmesh-stream, /navmesh-debug");
+    if (navMeshManager && headlessScene) {
+      app.get("/navmesh-config", requireAuth, (_req, res) => {
+        res.json(navMeshManager.getOptions());
+      });
+
+      app.post("/navmesh-config", requireAuth, (req, res) => {
+        const newOptions: NavMeshOptions = {};
+        if (req.body.maxY !== undefined) newOptions.maxY = Number(req.body.maxY);
+        if (req.body.jumpLinksEnabled !== undefined)
+          newOptions.jumpLinksEnabled = Boolean(req.body.jumpLinksEnabled);
+        if (req.body.config !== undefined && typeof req.body.config === "object") {
+          newOptions.config = {};
+          for (const key of [
+            "cs",
+            "ch",
+            "walkableRadius",
+            "walkableHeight",
+            "walkableClimb",
+            "walkableSlopeAngle",
+            "tileSize",
+            "maxEdgeLen",
+            "maxSimplificationError",
+            "minRegionArea",
+            "mergeRegionArea",
+            "detailSampleDist",
+            "detailSampleMaxError",
+          ]) {
+            if (req.body.config[key] !== undefined) {
+              (newOptions.config as any)[key] = Number(req.body.config[key]);
+            }
+          }
+        }
+        navMeshManager.updateOptions(newOptions);
+        const pos = avatarController.getPosition();
+        navMeshManager
+          .generateFromScene(headlessScene.scene, pos)
+          .then((ok) => {
+            res.json({ success: ok, options: navMeshManager.getOptions() });
+          })
+          .catch((err) => {
+            res.status(500).json({ error: String(err) });
+          });
+      });
+    }
+
+    debug(
+      "[bridge] Debug endpoints enabled: /navmesh, /navmesh-stream, /navmesh-debug, /navmesh-config",
+    );
   }
 
   return app;
@@ -624,10 +672,11 @@ export async function createBridgeCore(config: BridgeConfig): Promise<BridgeCore
     headlessScene.registerGroundPlaneCollider();
     debug("[bridge] Ground plane collider registered");
   } else {
-    debug("[bridge] Ground plane disabled by world config");
+    headlessScene.removeGroundMesh();
+    debug("[bridge] Ground plane removed from scene by world config");
   }
 
-  const navMeshManager = new NavMeshManager();
+  const navMeshManager = new NavMeshManager(config.navMeshOptions);
   avatarController.setNavMeshManager(navMeshManager);
 
   // Connect to MML documents
