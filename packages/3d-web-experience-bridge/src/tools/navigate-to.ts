@@ -23,9 +23,15 @@ const navigateTo: ToolDefinition = {
       .max(20)
       .optional()
       .describe("Movement speed in units/sec (default: 3.0, max: 20)"),
+    stop_distance: z
+      .number()
+      .finite()
+      .positive()
+      .optional()
+      .describe("Stop this many units away from the target (default: 0, walks to exact position)"),
   }),
   async execute(
-    params: { x: number; y: number; z: number; speed?: number },
+    params: { x: number; y: number; z: number; speed?: number; stop_distance?: number },
     ctx: ToolContext,
   ): Promise<ToolResult> {
     if (!ctx.navMeshManager) {
@@ -43,8 +49,19 @@ const navigateTo: ToolDefinition = {
     }
 
     const from = ctx.avatarController.getPosition();
-    const to = { x: params.x, y: params.y, z: params.z };
+    let to = { x: params.x, y: params.y, z: params.z };
     const speed = params.speed ?? 3.0;
+    const stopDistance = params.stop_distance ?? 0;
+
+    if (stopDistance > 0) {
+      const dx = to.x - from.x;
+      const dz = to.z - from.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > stopDistance) {
+        const ratio = (dist - stopDistance) / dist;
+        to = { x: from.x + dx * ratio, y: to.y, z: from.z + dz * ratio };
+      }
+    }
 
     // If destination is outside the navmesh region, walk to the edge
     if (!ctx.navMeshManager.isWithinRegion(to)) {
