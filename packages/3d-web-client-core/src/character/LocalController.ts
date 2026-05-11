@@ -205,7 +205,18 @@ export class LocalController {
     this.maximumZ = spawnConfig.respawnTrigger.maxZ;
   }
 
+  /** When true, `update` is a no-op — character holds position, ignores
+   *  input and gravity. Used to park the local player at spawn until the
+   *  world has finished loading. */
+  public frozen: boolean = false;
+
   public update(deltaTime: number): void {
+    if (this.frozen) {
+      // Keep velocity drained while parked so the unfreeze doesn't apply
+      // a sudden accumulated fall.
+      this.characterVelocity.set(0, 0, 0);
+      return;
+    }
     this.controlState =
       this.config.keyInputManager.getOutput() ||
       this.config.additionalInputProvider?.getOutput() ||
