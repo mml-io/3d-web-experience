@@ -810,18 +810,12 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
   // connection id, our profile, and (when waitForWorldConfig) the world's
   // spawn config. Independent of `initialLoadCompleted` so a slow world
   // load doesn't keep the player off the wire.
-  private get readyToSpawn(): boolean {
-    return (
-      !this.localCharacterSpawned &&
-      !this.disposed &&
-      this.connectionId !== null &&
-      this.userProfiles.has(this.connectionId) &&
-      (!this.config.waitForWorldConfig || this.worldConfigReceived)
-    );
-  }
-
   private spawnCharacterIfReady(): void {
-    if (!this.readyToSpawn) return;
+    if (this.localCharacterSpawned) return;
+    if (this.disposed) return;
+    if (this.connectionId === null) return;
+    if (!this.userProfiles.has(this.connectionId)) return;
+    if (this.config.waitForWorldConfig && !this.worldConfigReceived) return;
     this.localCharacterSpawned = true;
     this.spawnCharacter(getSpawnData(this.spawnConfiguration, true));
     // If the world hasn't finished loading yet, park the character at spawn
