@@ -145,6 +145,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
   private characterControllerValues = createDefaultCharacterControllerValues();
 
   private initialLoadCompleted = false;
+  private localCharacterSpawned = false;
   private pendingChatMessages: {
     username: string;
     message: string;
@@ -243,6 +244,13 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           this.remoteUserStates.clear();
           this.connectionId = null;
           this.pendingChatMessages = [];
+          // Reset spawn-gate state so the local character is recreated after
+          // reconnect. WorldConnection clears `latestWorldConfig` on disconnect
+          // and the server re-emits `world_config`, so we mirror that here.
+          this.localCharacterSpawned = false;
+          this.initialLoadCompleted = false;
+          this.worldConfigReceived = false;
+          this.characterManager.localController?.unfreeze();
           break;
 
         case "identity_assigned":
@@ -251,11 +259,12 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           // Set the local connection ID early to prevent the local character from being
           // spawned as a remote character when network updates arrive before loading completes
           this.characterManager.setLocalConnectionId(event.connectionId);
-          if (this.initialLoadCompleted) {
-            this.spawnCharacter(getSpawnData(this.spawnConfiguration, true));
-          } else if (!this.config.waitForWorldConfig) {
+          if (!this.config.waitForWorldConfig && !this.initialLoadCompleted) {
+            // `completedLoadingAsset` doesn't dedupe; guard against re-fire on
+            // reconnect (which now re-emits identity_assigned).
             this.loadingProgressManager.completedLoadingAsset(initialNetworkLoadRef);
           }
+          this.spawnCharacterIfReady();
           break;
 
         case "server_error":
@@ -317,6 +326,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           // client is not blocked indefinitely — it will use defaults.
           this.worldConfigReceived = true;
           this.checkReadyForInitialLoad();
+          this.spawnCharacterIfReady();
           break;
         }
 
@@ -379,6 +389,11 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
         this.initialLoadCompleted = true;
         if (this.connectionId === null || this.disposed) return;
 
+        // Unfreeze before plugins mount so they observe the post-load state
+        // of the controller (input enabled, gravity applied) rather than a
+        // parked one.
+        this.characterManager.localController?.unfreeze();
+
         for (const plugin of this.getAllPlugins()) {
           plugin.mount(this.element, this);
         }
@@ -390,7 +405,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           plugin.onConfigChanged?.(this.latestConfig);
         }
 
-        this.spawnCharacter(getSpawnData(this.spawnConfiguration, true));
+        this.spawnCharacterIfReady();
         this.emit("ready");
 
         // Replay chat messages that arrived before plugins were mounted
@@ -651,6 +666,10 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       }
       this.remoteUserStates.set(connId, userDataUpdate.components);
     }
+    // Our profile may have just arrived in addedConnectionIds — spawn the
+    // local character now if the rest of the gate (connection id, world
+    // config when waited-for) is satisfied.
+    this.spawnCharacterIfReady();
   }
 
   private sendIdentityUpdateToServer(
@@ -785,6 +804,26 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
 
     // Render the actual frame using the associated renderer
     this.renderer.render(renderState);
+  }
+
+  // Spawns the local character as soon as we have everything we need —
+  // connection id, our profile, and (when waitForWorldConfig) the world's
+  // spawn config. Independent of `initialLoadCompleted` so a slow world
+  // load doesn't keep the player off the wire.
+  private spawnCharacterIfReady(): void {
+    if (this.localCharacterSpawned) return;
+    if (this.disposed) return;
+    if (this.connectionId === null) return;
+    if (!this.userProfiles.has(this.connectionId)) return;
+    if (this.config.waitForWorldConfig && !this.worldConfigReceived) return;
+    this.localCharacterSpawned = true;
+    this.spawnCharacter(getSpawnData(this.spawnConfiguration, true));
+    // If the world hasn't finished loading yet, park the character at spawn
+    // (no gravity, no input) so they don't fall through unloaded geometry.
+    // The loading-complete callback unfreezes them when ready.
+    if (!this.initialLoadCompleted) {
+      this.characterManager.localController?.freeze();
+    }
   }
 
   private spawnCharacter({

@@ -205,7 +205,21 @@ export class LocalController {
     this.maximumZ = spawnConfig.respawnTrigger.maxZ;
   }
 
+  private frozen: boolean = false;
+
+  /** Park the character in place: no input, no gravity. Used to hold the
+   *  local player at spawn until the world has finished loading. */
+  public freeze(): void {
+    this.frozen = true;
+    this.characterVelocity.set(0, 0, 0);
+  }
+
+  public unfreeze(): void {
+    this.frozen = false;
+  }
+
   public update(deltaTime: number): void {
+    if (this.frozen) return;
     this.controlState =
       this.config.keyInputManager.getOutput() ||
       this.config.additionalInputProvider?.getOutput() ||

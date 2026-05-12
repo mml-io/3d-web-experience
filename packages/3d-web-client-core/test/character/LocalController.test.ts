@@ -291,4 +291,60 @@ describe("LocalController", () => {
       expect(controller.latestPosition).toBeDefined();
     });
   });
+
+  describe("freeze / unfreeze", () => {
+    test("update is a no-op when frozen", () => {
+      // Give the controller some vertical velocity via jump, then verify
+      // that after freeze() neither position nor velocity advance under
+      // update() — collisions/applyColliders must not run either.
+      controller.characterOnGround = true;
+      controller.jumpCounter = 0;
+      controller.jump();
+      expect(controller.verticalVelocity).toBeGreaterThan(0);
+
+      controller.freeze();
+      // freeze() itself zeroes velocity
+      expect(controller.verticalVelocity).toBe(0);
+
+      const startX = config.position.x;
+      const startY = config.position.y;
+      const startZ = config.position.z;
+      (config.collisionsManager.applyColliders as jest.Mock<any>).mockClear();
+      controller.update(0.016);
+      expect(config.position.x).toBe(startX);
+      expect(config.position.y).toBe(startY);
+      expect(config.position.z).toBe(startZ);
+      expect(controller.verticalVelocity).toBe(0);
+      expect(config.collisionsManager.applyColliders).not.toHaveBeenCalled();
+    });
+
+    test("update runs normally after unfreeze", () => {
+      controller.freeze();
+      controller.update(0.016);
+      (config.collisionsManager.applyColliders as jest.Mock<any>).mockClear();
+      controller.unfreeze();
+      controller.update(0.016);
+      expect(config.collisionsManager.applyColliders).toHaveBeenCalled();
+    });
+
+    test("freeze zeroes accumulated velocity", () => {
+      controller.characterOnGround = true;
+      controller.jumpCounter = 0;
+      controller.jump();
+      controller.setHorizontalVelocity(5, -3);
+      expect(controller.verticalVelocity).toBeGreaterThan(0);
+
+      controller.freeze();
+      expect(controller.verticalVelocity).toBe(0);
+      // Indirectly verify horizontal components are zeroed too: after
+      // unfreeze, a single update with no input should leave the
+      // character roughly in place rather than carry over the 5,-3.
+      controller.unfreeze();
+      const startX = config.position.x;
+      const startZ = config.position.z;
+      controller.update(0.016);
+      expect(Math.abs(config.position.x - startX)).toBeLessThan(0.01);
+      expect(Math.abs(config.position.z - startZ)).toBeLessThan(0.01);
+    });
+  });
 });
