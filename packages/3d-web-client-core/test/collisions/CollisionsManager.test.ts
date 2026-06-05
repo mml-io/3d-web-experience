@@ -394,4 +394,123 @@ describe("CollisionsManager", () => {
       expect(manager.raycastAll(ray)).toEqual([]);
     });
   });
+
+  describe("spatial grid", () => {
+    test("gridQuery returns mesh whose AABB overlaps the query region", () => {
+      const meshBVH = createMockMeshBVH();
+      const source = {};
+      // Mesh at (20, 0, 0) with local AABB (-1..1) → world AABB (19..21)
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix: new Matr4().setPosition(20, 0, 0),
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      const results = manager.gridQuery(18, 22, -2, 2);
+      expect(results).toHaveLength(1);
+      expect(results[0].source).toBe(source);
+    });
+
+    test("gridQuery does not return mesh outside the query region", () => {
+      const meshBVH = createMockMeshBVH();
+      manager.addMeshesGroup(
+        {},
+        {
+          meshBVH: meshBVH as any,
+          matrix: new Matr4().setPosition(200, 0, 0),
+          localScale: { x: 1, y: 1, z: 1 },
+        },
+      );
+
+      const results = manager.gridQuery(-5, 5, -5, 5);
+      expect(results).toHaveLength(0);
+    });
+
+    test("moved mesh is found at new position, not old", () => {
+      const meshBVH = createMockMeshBVH();
+      const source = {};
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix: new Matr4().setPosition(20, 0, 0),
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      // Move to (50, 0, 0)
+      manager.updateMeshesGroup(source, new Matr4().setPosition(50, 0, 0), { x: 1, y: 1, z: 1 });
+
+      expect(manager.gridQuery(18, 22, -2, 2)).toHaveLength(0);
+      expect(manager.gridQuery(48, 52, -2, 2)).toHaveLength(1);
+    });
+
+    test("removed mesh is not returned by any query", () => {
+      const meshBVH = createMockMeshBVH();
+      const source = {};
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix: new Matr4().setPosition(20, 0, 0),
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      manager.removeMeshesGroup(source);
+      expect(manager.gridQuery(18, 22, -2, 2)).toHaveLength(0);
+    });
+
+    test("query spanning multiple cells returns meshes from all cells", () => {
+      const meshBVH1 = createMockMeshBVH();
+      const meshBVH2 = createMockMeshBVH();
+      const source1 = {};
+      const source2 = {};
+
+      // Place meshes in different grid cells (cell size = 10)
+      manager.addMeshesGroup(source1, {
+        meshBVH: meshBVH1 as any,
+        matrix: new Matr4().setPosition(5, 0, 5),
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+      manager.addMeshesGroup(source2, {
+        meshBVH: meshBVH2 as any,
+        matrix: new Matr4().setPosition(15, 0, 15),
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      const results = manager.gridQuery(0, 20, 0, 20);
+      expect(results).toHaveLength(2);
+    });
+
+    test("alwaysInclude adds exempt mesh even when outside query region", () => {
+      const meshBVH = createMockMeshBVH();
+      const source = {};
+      manager.addMeshesGroup(source, {
+        meshBVH: meshBVH as any,
+        matrix: new Matr4().setPosition(200, 0, 200),
+        localScale: { x: 1, y: 1, z: 1 },
+      });
+
+      const state = manager.collisionMeshState.get(source)!;
+      manager.setExemptFromCulling(state);
+
+      // Query near origin — mesh is far away but should be included via alwaysInclude
+      const results = manager.gridQuery(-5, 5, -5, 5, state);
+      expect(results).toHaveLength(1);
+      expect(results[0].source).toBe(source);
+    });
+
+    test("gridQuery returns fresh array each call (no shared mutable state)", () => {
+      const meshBVH = createMockMeshBVH();
+      manager.addMeshesGroup(
+        {},
+        {
+          meshBVH: meshBVH as any,
+          matrix: new Matr4(),
+          localScale: { x: 1, y: 1, z: 1 },
+        },
+      );
+
+      const results1 = manager.gridQuery(-5, 5, -5, 5);
+      const results2 = manager.gridQuery(-5, 5, -5, 5);
+      expect(results1).not.toBe(results2);
+      expect(results1).toHaveLength(1);
+      expect(results2).toHaveLength(1);
+    });
+  });
 });
