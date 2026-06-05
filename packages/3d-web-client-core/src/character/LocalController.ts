@@ -64,7 +64,6 @@ export class LocalController {
   public characterOnGround: boolean = false;
   public coyoteTime: boolean = false;
 
-  private collisionDetectionSteps = 4;
   private useCollisionsCulling: boolean = true;
 
   private characterWasOnGround: boolean = false;
@@ -246,9 +245,7 @@ export class LocalController {
     // Adaptive substeps to prevent capsule tunneling through thin geometry.
     // Scale step count by how far the character moves relative to its radius:
     // standing still = 1 step, sprinting/falling = up to 8.
-    const moveDist =
-      Math.hypot(this.characterVelocity.x, this.characterVelocity.y, this.characterVelocity.z) *
-      deltaTime;
+    const moveDist = this.characterVelocity.length() * deltaTime;
     const steps = Math.max(1, Math.min(8, Math.ceil(moveDist / (this.capsuleInfo.radius * 0.5))));
     for (let i = 0; i < steps; i++) {
       this.updatePosition(deltaTime, deltaTime / steps, i);

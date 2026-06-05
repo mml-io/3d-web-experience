@@ -21,8 +21,6 @@ export type { Position } from "./tools/utils";
 export type Rotation = { eulerY: number };
 
 const TICK_MS = 16; // ~60 Hz (matches client's requestAnimationFrame cadence)
-const TARGET_FPS = 60;
-const FIXED_DELTA_TIME = 1 / TARGET_FPS;
 const DEFAULT_SPEED = 3.0;
 export const ARRIVAL_THRESHOLD = 0.5;
 const AUTO_CHAIN_THRESHOLD = 1.0;
@@ -72,7 +70,6 @@ export class AvatarController extends EventEmitter {
   private animationState: number = 0;
   private tickInterval: ReturnType<typeof setInterval>;
   private lastTick: number = Date.now();
-  private accumulatedTime: number = 0;
   private stuckTicks: number = 0;
   private stuckRepathCount: number = 0;
   private lastTickPosition: Position = { x: 0, y: 0, z: 0 };
@@ -135,31 +132,22 @@ export class AvatarController extends EventEmitter {
 
   private tick(): void {
     const now = Date.now();
-    const elapsedSeconds = Math.min((now - this.lastTick) / 1000, 0.1);
+    const dt = Math.min((now - this.lastTick) / 1000, 0.1);
     this.lastTick = now;
-    this.accumulatedTime += elapsedSeconds;
 
-    let physicsUpdated = false;
-
-    while (this.accumulatedTime >= FIXED_DELTA_TIME) {
-      this.accumulatedTime -= FIXED_DELTA_TIME;
-      physicsUpdated = true;
-      this.physicsTick();
-    }
-
-    if (physicsUpdated) {
+    if (dt > 0) {
+      this.physicsTick(dt);
       this.emit("positionUpdate", this.buildUpdate());
     }
   }
 
-  private physicsTick(): void {
+  private physicsTick(dt: number): void {
     this.updateMovementInput();
 
     // Update camera position for LocalController's azimuthal angle calculation
     this.cameraManager.setCharacterPosition(this.currentPosition);
 
-    // Run the same physics as the human client with fixed timestep
-    this.localController.update(FIXED_DELTA_TIME);
+    this.localController.update(dt);
 
     // Read back position from the physics controller
     const pos = this.localController.config.position;
