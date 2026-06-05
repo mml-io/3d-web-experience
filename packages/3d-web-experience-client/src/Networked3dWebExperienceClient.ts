@@ -721,27 +721,14 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     const elapsedMs = currentTimeMs - this.lastUpdateTimeMs;
     this.lastUpdateTimeMs = currentTimeMs;
 
-    // Clamp elapsed time to prevent spiral of death (e.g., after tab switch)
-    const elapsedSeconds = Math.min(elapsedMs / 1000, 0.1);
-
-    // Accumulate time for fixed timestep physics
-    this.accumulatedTime += elapsedSeconds;
-
-    // Track if any physics updates occurred this frame
-    let physicsUpdated = false;
+    const dt = Math.min(elapsedMs / 1000, 0.1);
     let physicsStepsThisFrame = 0;
     const updatedCharacterDescriptions: number[] = [];
     const removedConnectionIds: number[] = [];
 
-    // Run physics at fixed timestep - this ensures deterministic behavior
-    // regardless of display refresh rate (60Hz, 120Hz, 144Hz, etc.)
-    while (this.accumulatedTime >= this.fixedDeltaTime) {
+    if (dt > 0) {
       this.frameCounter++;
-
-      // Update character manager with fixed timestep
-      const result = this.characterManager.update(this.fixedDeltaTime, this.frameCounter);
-
-      // Merge results from all physics steps
+      const result = this.characterManager.update(dt, this.frameCounter);
       for (const id of result.updatedCharacterDescriptions) {
         if (!updatedCharacterDescriptions.includes(id)) {
           updatedCharacterDescriptions.push(id);
@@ -752,14 +739,10 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
           removedConnectionIds.push(id);
         }
       }
-
-      this.accumulatedTime -= this.fixedDeltaTime;
-      physicsUpdated = true;
-      physicsStepsThisFrame++;
+      physicsStepsThisFrame = 1;
     }
 
-    // Only render if physics was updated (limits render rate to physics rate)
-    if (!physicsUpdated) {
+    if (physicsStepsThisFrame === 0) {
       return;
     }
 
@@ -797,7 +780,7 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       // Render is gated on physicsUpdated, so raw rAF elapsed time
       // under-counts on high-refresh displays. Use the simulated time
       // actually advanced this frame (N × fixedDeltaTime).
-      deltaTimeSeconds: physicsStepsThisFrame * this.fixedDeltaTime,
+      deltaTimeSeconds: dt,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
       getRemoteCharacterInfo: this.boundResolveCharacterData,
     };
