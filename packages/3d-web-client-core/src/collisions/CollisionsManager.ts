@@ -81,18 +81,18 @@ export class CollisionsManager {
   private exemptFromCulling: CollisionMeshState | null = null;
 
   // Spatial grid for O(1) candidate lookup instead of iterating all meshes.
-  private __gridCellSize = 10;
-  private __grid = new Map<number, Set<CollisionMeshState>>();
-  private __gridResult: CollisionMeshState[] = [];
-  private __gridSeen = new Set<CollisionMeshState>();
+  private gridCellSize = 10;
+  private grid = new Map<number, Set<CollisionMeshState>>();
+  private gridResult: CollisionMeshState[] = [];
+  private gridSeen = new Set<CollisionMeshState>();
 
   constructor() {
     this.collisionTrigger = MMLCollisionTrigger.init();
     this.toggleDebug = this.toggleDebug.bind(this);
   }
 
-  private __gridInsert(s: CollisionMeshState & { __gridCells?: number[] | null }): void {
-    const cs = this.__gridCellSize;
+  private gridInsert(s: CollisionMeshState & { gridCells?: number[] | null }): void {
+    const cs = this.gridCellSize;
     const x0 = Math.floor(s.worldMinX / cs);
     const x1 = Math.floor(s.worldMaxX / cs);
     const z0 = Math.floor(s.worldMinZ / cs);
@@ -101,42 +101,42 @@ export class CollisionsManager {
     for (let gx = x0; gx <= x1; gx++) {
       for (let gz = z0; gz <= z1; gz++) {
         const key = gx * 100003 + gz;
-        let set = this.__grid.get(key);
-        if (!set) { set = new Set(); this.__grid.set(key, set); }
+        let set = this.grid.get(key);
+        if (!set) { set = new Set(); this.grid.set(key, set); }
         set.add(s);
         cells.push(key);
       }
     }
-    s.__gridCells = cells;
+    s.gridCells = cells;
   }
 
-  private __gridRemove(s: CollisionMeshState & { __gridCells?: number[] | null }): void {
-    const cells = s.__gridCells;
+  private gridRemove(s: CollisionMeshState & { gridCells?: number[] | null }): void {
+    const cells = s.gridCells;
     if (cells) {
       for (let i = 0; i < cells.length; i++) {
-        const set = this.__grid.get(cells[i]);
+        const set = this.grid.get(cells[i]);
         if (set) {
           set.delete(s);
-          if (set.size === 0) this.__grid.delete(cells[i]);
+          if (set.size === 0) this.grid.delete(cells[i]);
         }
       }
-      s.__gridCells = null;
+      s.gridCells = null;
     }
   }
 
-  public __gridQuery(minX: number, maxX: number, minZ: number, maxZ: number): CollisionMeshState[] {
-    const cs = this.__gridCellSize;
+  public gridQuery(minX: number, maxX: number, minZ: number, maxZ: number): CollisionMeshState[] {
+    const cs = this.gridCellSize;
     const x0 = Math.floor(minX / cs);
     const x1 = Math.floor(maxX / cs);
     const z0 = Math.floor(minZ / cs);
     const z1 = Math.floor(maxZ / cs);
-    const result = this.__gridResult;
+    const result = this.gridResult;
     result.length = 0;
-    const seen = this.__gridSeen;
+    const seen = this.gridSeen;
     seen.clear();
     for (let gx = x0; gx <= x1; gx++) {
       for (let gz = z0; gz <= z1; gz++) {
-        const set = this.__grid.get(gx * 100003 + gz);
+        const set = this.grid.get(gx * 100003 + gz);
         if (!set) continue;
         for (const s of set) {
           if (!seen.has(s)) { seen.add(s); result.push(s); }
@@ -165,6 +165,27 @@ export class CollisionsManager {
     this.exemptFromCulling = meshState;
   }
 
+  private gridQueryForRay(
+    ray: Ray,
+    ox: number,
+    oz: number,
+    maximumDistance: number | null,
+  ): CollisionMeshState[] {
+    const reach = maximumDistance ?? 100;
+    const endX = ox + ray.direction.x * reach;
+    const endZ = oz + ray.direction.z * reach;
+    const candidates = this.gridQuery(
+      Math.min(ox, endX),
+      Math.max(ox, endX),
+      Math.min(oz, endZ),
+      Math.max(oz, endZ),
+    );
+    if (this.exemptFromCulling && !candidates.includes(this.exemptFromCulling)) {
+      candidates.push(this.exemptFromCulling);
+    }
+    return candidates;
+  }
+
   public raycastFirst(
     ray: Ray,
     maximumDistance: number | null = null,
@@ -183,19 +204,9 @@ export class CollisionsManager {
     const invDy = 1 / ray.direction.y;
     const invDz = 1 / ray.direction.z;
     const cullEnabled = this.cullingEnabled;
-    const __d = maximumDistance !== null ? maximumDistance : 100;
-    const __dx = ray.direction.x, __dz = ray.direction.z;
-    const __ex = ox + __dx * __d, __ez = oz + __dz * __d;
-    const __qMinX = ox < __ex ? ox : __ex;
-    const __qMaxX = ox > __ex ? ox : __ex;
-    const __qMinZ = oz < __ez ? oz : __ez;
-    const __qMaxZ = oz > __ez ? oz : __ez;
-    const __candidates = this.__gridQuery(__qMinX, __qMaxX, __qMinZ, __qMaxZ);
-    if (this.exemptFromCulling && !__candidates.includes(this.exemptFromCulling)) {
-      __candidates.push(this.exemptFromCulling);
-    }
-    for (let __ci = 0; __ci < __candidates.length; __ci++) {
-      const collisionMeshState = __candidates[__ci];
+    const candidates = this.gridQueryForRay(ray, ox, oz, maximumDistance);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const collisionMeshState = candidates[ci];
       if (cullEnabled && this.exemptFromCulling !== collisionMeshState) {
         const tx1 = (collisionMeshState.worldMinX - ox) * invDx;
         const tx2 = (collisionMeshState.worldMaxX - ox) * invDx;
@@ -278,19 +289,9 @@ export class CollisionsManager {
     const invDy = 1 / ray.direction.y;
     const invDz = 1 / ray.direction.z;
     const cullEnabled = this.cullingEnabled;
-    const __d = maximumDistance !== null ? maximumDistance : 100;
-    const __dx = ray.direction.x, __dz = ray.direction.z;
-    const __ex = ox + __dx * __d, __ez = oz + __dz * __d;
-    const __qMinX = ox < __ex ? ox : __ex;
-    const __qMaxX = ox > __ex ? ox : __ex;
-    const __qMinZ = oz < __ez ? oz : __ez;
-    const __qMaxZ = oz > __ez ? oz : __ez;
-    const __candidates = this.__gridQuery(__qMinX, __qMaxX, __qMinZ, __qMaxZ);
-    if (this.exemptFromCulling && !__candidates.includes(this.exemptFromCulling)) {
-      __candidates.push(this.exemptFromCulling);
-    }
-    for (let __ci = 0; __ci < __candidates.length; __ci++) {
-      const collisionMeshState = __candidates[__ci];
+    const candidates = this.gridQueryForRay(ray, ox, oz, maximumDistance);
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const collisionMeshState = candidates[ci];
       if (cullEnabled && this.exemptFromCulling !== collisionMeshState) {
         const tx1 = (collisionMeshState.worldMinX - ox) * invDx;
         const tx2 = (collisionMeshState.worldMaxX - ox) * invDx;
@@ -390,22 +391,22 @@ export class CollisionsManager {
       worldMaxZ: 0,
     };
     this.recomputeWorldAABB(meshState);
-    const old = this.collisionMeshState.get(group) as (CollisionMeshState & { __gridCells?: number[] | null }) | undefined;
-    if (old) this.__gridRemove(old);
+    const old = this.collisionMeshState.get(group) as (CollisionMeshState & { gridCells?: number[] | null }) | undefined;
+    if (old) this.gridRemove(old);
     this.collisionMeshState.set(group, meshState);
-    this.__gridInsert(meshState as CollisionMeshState & { __gridCells?: number[] | null });
+    this.gridInsert(meshState as CollisionMeshState & { gridCells?: number[] | null });
   }
 
   public updateMeshesGroup(group: CollisionSourceRef, matrix: Matr4, localScale: IVect3): void {
-    const meshState = this.collisionMeshState.get(group) as (CollisionMeshState & { __gridCells?: number[] | null }) | undefined;
+    const meshState = this.collisionMeshState.get(group) as (CollisionMeshState & { gridCells?: number[] | null }) | undefined;
     if (meshState) {
-      this.__gridRemove(meshState);
+      this.gridRemove(meshState);
       meshState.matrix.copy(matrix);
       meshState.localScale.x = localScale.x;
       meshState.localScale.y = localScale.y;
       meshState.localScale.z = localScale.z;
       this.recomputeWorldAABB(meshState);
-      this.__gridInsert(meshState);
+      this.gridInsert(meshState);
     }
   }
 
@@ -454,9 +455,9 @@ export class CollisionsManager {
 
   public removeMeshesGroup(group: CollisionSourceRef): void {
     this.collisionTrigger.removeCollider(group);
-    const meshState = this.collisionMeshState.get(group) as (CollisionMeshState & { __gridCells?: number[] | null }) | undefined;
+    const meshState = this.collisionMeshState.get(group) as (CollisionMeshState & { gridCells?: number[] | null }) | undefined;
     if (meshState) {
-      this.__gridRemove(meshState);
+      this.gridRemove(meshState);
       this.collisionMeshState.delete(group);
     }
   }
@@ -587,12 +588,12 @@ export class CollisionsManager {
     const capMaxX = (sx > ex ? sx : ex) + radius;
     const capMaxY = (sy > ey ? sy : ey) + radius;
     const capMaxZ = (sz > ez ? sz : ez) + radius;
-    const candidates = this.__gridQuery(capMinX, capMaxX, capMinZ, capMaxZ);
+    const candidates = this.gridQuery(capMinX, capMaxX, capMinZ, capMaxZ);
     if (this.exemptFromCulling && !candidates.includes(this.exemptFromCulling)) {
       candidates.push(this.exemptFromCulling);
     }
-    for (let __ci = 0; __ci < candidates.length; __ci++) {
-      const meshState = candidates[__ci];
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const meshState = candidates[ci];
       if (this.cullingEnabled && this.exemptFromCulling !== meshState) {
         if (capMaxX < meshState.worldMinX || capMinX > meshState.worldMaxX) continue;
         if (capMaxY < meshState.worldMinY || capMinY > meshState.worldMaxY) continue;
