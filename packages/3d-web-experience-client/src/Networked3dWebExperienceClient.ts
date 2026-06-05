@@ -170,9 +170,6 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
   private currentRequestAnimationFrame: number | null = null;
   private lastUpdateTimeMs: number = 0;
   private frameCounter: number = 0;
-  private readonly targetFPS: number = 60;
-  private readonly fixedDeltaTime: number = 1 / this.targetFPS;
-  private accumulatedTime: number = 0;
 
   private cachedCameraTransform: CameraTransform = {
     position: new Vect3(),
@@ -777,9 +774,6 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
       removedConnectionIds,
       cameraTransform: this.cachedCameraTransform,
       localCharacterId: this.characterManager.getLocalConnectionId(),
-      // Render is gated on physicsUpdated, so raw rAF elapsed time
-      // under-counts on high-refresh displays. Use the simulated time
-      // actually advanced this frame (N × fixedDeltaTime).
       deltaTimeSeconds: dt,
       remoteUserStates: this.characterManager.getRemoteUserStates(),
       getRemoteCharacterInfo: this.boundResolveCharacterData,
