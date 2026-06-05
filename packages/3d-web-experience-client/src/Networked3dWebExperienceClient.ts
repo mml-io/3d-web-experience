@@ -718,6 +718,11 @@ export class Networked3dWebExperienceClient extends ClientEventEmitter {
     const elapsedMs = currentTimeMs - this.lastUpdateTimeMs;
     this.lastUpdateTimeMs = currentTimeMs;
 
+    // Single variable-dt update per frame instead of a fixed-timestep
+    // accumulator. Trades cross-refresh-rate determinism for bounded
+    // per-frame cost: the old accumulator ran 12-24 catch-up physics
+    // steps after any hitch, each running the full collision pipeline,
+    // causing a feedback spiral on heavy scenes.
     const dt = Math.min(elapsedMs / 1000, 0.1);
     let physicsStepsThisFrame = 0;
     const updatedCharacterDescriptions: number[] = [];
